@@ -1,4 +1,4 @@
-# pythonstan
+# PythonStAn
 A static analysis framework for Python.
 
 

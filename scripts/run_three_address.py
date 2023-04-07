@@ -14,7 +14,8 @@ srcs = [
     "return {'a': p.v, [k].str: z, **(gets * q)}",
     "return (yield a[k].z[p.q[m]])",
     "return a.p + q > (b + c) < (c.d) > (c.d[e])",
-    "p = not (nm := (y.g+z)[2].p if g.k else p) and ((v:=p) or q or v.t) and (f and p)"
+    "p = not (nm := (y.g+z)[2].p if g.k else p) and ((v:=p) or q or v.t) and (f and p)",
+    "x = lambda x: (a+(b+c)).q + a.v[xp](a, z=3, *args, **(kwargs+{'z':p}))[:x:-1]"
 ]
 
 
@@ -26,6 +27,6 @@ for src_str in srcs:
     res = ast.fix_missing_locations(res)
 
     print(f"\nParse: {{ {src_str} }}")
-    # print(ast.dump(res, indent=4))
+    print(ast.dump(res, indent=4))
 
     print(ast.unparse(res))

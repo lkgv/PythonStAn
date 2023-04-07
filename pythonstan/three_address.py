@@ -117,8 +117,8 @@ class ThreeAddressTransformer(NodeTransformer):
             args=node.args,
             body=[ast.Return(value=node.body)],
             decorator_list=[])
-        blk.extend(self.visit_FunctionDef(self, new_func))
-        return f_load
+        blk.extend(self.visit_FunctionDef(new_func))
+        return blk, f_load
     
     def visit_NamedExpr(self, node):
         AGGRESSIVE = True
@@ -127,7 +127,7 @@ class ThreeAddressTransformer(NodeTransformer):
             t_blk, t_elt = self.visit(node.target)
             ins = ast.Assign(targets=[t_elt], value=v_elt)
             ast.copy_location(ins, node)
-            return v_blk + t_blk + [ins], update_ctx(t_elt, Load())
+            return v_blk + t_blk + [ins], v_elt
         else:
             v_blk, v_elt = self.split_expr(node.value)
             t_blk, t_elt = self.visit(node.target)
@@ -231,7 +231,7 @@ class ThreeAddressTransformer(NodeTransformer):
             blk = tmp_blk
             elts.insert(0, tmp_elt)
         return blk, tmp_l
-    
+
     def visit_Compare(self, node):
         blk, elts = None, []
         values = [node.left] + node.comparators
@@ -255,12 +255,34 @@ class ThreeAddressTransformer(NodeTransformer):
             elts.insert(0, tmp_elt)
         return blk, tmp_l
 
+    def visit_Call(self, node):
+        blk, args, keywords = [], [], []
+        func_blk, func_elt = self.split_expr(node.func)
+        blk.extend(func_blk)
+        for arg in node.args:
+            arg_blk, arg_elt = self.split_expr(arg)
+            blk.extend(arg_blk)
+            args.append(arg_elt)
+        for kw in node.keywords:
+            v_blk, v_elt = self.split_expr(kw.value)
+            new_kw = ast.keyword(arg=kw.arg, value=v_elt)
+            blk.extend(v_blk)
+            keywords.append(new_kw)
+        tmp_l, tmp_s = self.tmp_gen()
+        ins = ast.Assign(
+            targets=[tmp_s],
+            value=ast.Call(func=func_elt, args=args, keywords=keywords))
+        blk.append(ins)
+        return blk, tmp_l
+
     def visit_Name(self, node):
         return [], node
         
     def visit_Constant(self, node):
-        return [], node
-    
+        tmp_l, tmp_s = self.tmp_gen()
+        ins = ast.Assign(targets=[tmp_s], value=node)
+        return [ins], tmp_l
+
     def visit_Starred(self, node):
         if isinstance(node.ctx, ast.Load):
             blk, elt = self.split_expr(node.value)
@@ -353,3 +375,7 @@ class ThreeAddressTransformer(NodeTransformer):
         )
         ast.copy_location(ins, node)
         return [ins]
+
+    def visit_Expr(self, node):
+        blk, _ = self.split_expr(node.value)
+        return blk
