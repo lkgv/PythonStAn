@@ -1,5 +1,5 @@
 import ast
-from ast import NodeTransformer, Store, Load
+from ast import NodeTransformer, Store, Load, Del
 from pythonstan.utils import update_ctx, destructable, TempVarGenerator
 
 # TODO: reorganize the contexts here
@@ -13,12 +13,13 @@ class ThreeAddressTransformer(NodeTransformer):
     
     def resolve_single_Assign(self, tgt, value, stmt):
         tblk, texp = self.visit(tgt)
+        ass_blk = []
         if isinstance(texp, ast.Name):
             ins = ast.Assign(
                 targets=[texp],
                 value=value
             )
-            tblk.append(ins)
+            ass_blk.append(ins)
         # unpacking cannot be desugarred in semantic level (because of the existence of iterator)
         # only the situation that both sides has equal length can be splitted
         elif destructable(texp) and destructable(value) \
@@ -28,35 +29,49 @@ class ThreeAddressTransformer(NodeTransformer):
                 if isinstance(t, ast.Name):
                     ins = ast.Assign(targets=[t], value=v)
                     ast.copy_location(ins, stmt)
-                    tblk.append(ins)
+                    ass_blk.append(ins)
+                elif isinstance(t, ast.Starred):
+                    v = ast.List(elts=[update_ctx(v, Load())], ctx=Load())
+                    ins = ast.Assign(targets=[t.value], value=v)
+                    ast.copy_location(ins, stmt)
+                    ass_blk.append(ins)
                 else:
                     tmp_l, tmp_s = self.tmp_gen()
-                    if isinstance(t, ast.Starred):
-                        v = ast.List(elts=[update_ctx(v, Load())], ctx=Load())
                     ins1 = ast.Assign(targets=[tmp_s], value=v)
                     ast.copy_location(ins1, stmt)
                     ins2 = ast.Assign(targets=[t],value=tmp_l)
                     ast.copy_location(ins2, stmt)
-                    tblk.extend([ins1, ins2])
+                    ass_blk.extend([ins1, ins2])
         else:
-            tmp_l, tmp_s = self.tmp_gen(ctxs=[Load(), Store()])
+            tmp_l, tmp_s = self.tmp_gen()
             ins1 = ast.Assign(targets=[tmp_s], value=value)
             ast.copy_location(ins1, stmt)
             ins2 = ast.Assign(targets=[texp], value=tmp_l)
             ast.copy_location(ins2, stmt)
-            tblk.extend((ins1, ins2))
+            ass_blk.extend((ins1, ins2))
+        tblk = ass_blk + tblk
         return tblk
 
     def split_expr(self, exp):
         blk, e = self.visit(exp)
         if not (isinstance(e, ast.Name) or isinstance(e, ast.Constant) or \
-                isinstance(e, ast.Starred)):
-            (tmp_s,) = self.tmp_gen(ctxs=[Store()])
-            ins = ast.Assign(targets=[tmp_s], value=e)
-            ast.copy_location(ins, exp)
-            blk.append(ins)
-            ctx = Load() if not hasattr(exp, 'ctx') else exp.ctx
-            e = self.tmp_gen.get(var=tmp_s, ctx=ctx)
+                isinstance(e, ast.Starred)): 
+            tmp_l, tmp_s = self.tmp_gen()
+            if hasattr(exp, 'ctx') and isinstance(exp.ctx, Store):
+                # tmp = do(...); e = tmp; visit(exp)=e
+                ins = ast.Assign(targets=[e], value=tmp_l)
+                ast.copy_location(ins, exp)
+                if isinstance(e, ast.Tuple) or isinstance(e, ast.List):
+                    blk.insert(0, ins)  # assign after unpack
+                else:
+                    blk.append(ins)  # load object and then assign
+                e = tmp_s
+            else:
+                # e=visit(exp); tmp=e; do(..., tmp, ...)
+                ins = ast.Assign(targets=[tmp_s], value=e)
+                ast.copy_location(ins, exp)
+                blk.append(ins)
+                e = tmp_l
         return blk, e
     
     def visit_BinOp(self, node):
@@ -138,11 +153,7 @@ class ThreeAddressTransformer(NodeTransformer):
     def visit_Tuple(self, node):
         blk, elts = [], []
         for old_elt in node.elts:
-            if (not isinstance(node.ctx, Store)) or \
-                (hasattr(old_elt, "ctx") and (not isinstance(old_elt.ctx, Store))):
-                tmp_blk, tmp_elt = self.split_expr(old_elt)
-            else:
-                tmp_blk, tmp_elt = self.visit(old_elt)
+            tmp_blk, tmp_elt = self.split_expr(old_elt)
             blk.extend(tmp_blk)
             elts.append(tmp_elt)
         exp = ast.Tuple(elts=elts, ctx=node.ctx)
@@ -152,11 +163,7 @@ class ThreeAddressTransformer(NodeTransformer):
     def visit_List(self, node):
         blk, elts = [], []
         for old_elt in node.elts:
-            if isinstance(node.ctx, Load) or \
-                (hasattr(old_elt, "ctx") and isinstance(old_elt.ctx, Load)):
-                tmp_blk, tmp_elt = self.split_expr(old_elt)
-            else:
-                tmp_blk, tmp_elt = self.visit(old_elt)                
+            tmp_blk, tmp_elt = self.split_expr(old_elt)
             blk.extend(tmp_blk)
             elts.append(tmp_elt)
         exp = ast.List(elts=elts, ctx=node.ctx)
@@ -284,10 +291,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return [ins], tmp_l
 
     def visit_Starred(self, node):
-        if isinstance(node.ctx, ast.Load):
-            blk, elt = self.split_expr(node.value)
-        else:
-            blk, elt = self.visit(node.value)
+        blk, elt = self.split_expr(node.value)
         exp = ast.Starred(value=elt, ctx=node.ctx)
         ast.copy_location(exp, node)
         return blk, exp
