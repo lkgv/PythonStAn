@@ -54,8 +54,7 @@ class ThreeAddressTransformer(NodeTransformer):
 
     def split_expr(self, exp):
         blk, e = self.visit(exp)
-        if not (isinstance(e, ast.Name) or isinstance(e, ast.Constant) or \
-                isinstance(e, ast.Starred)): 
+        if not (isinstance(exp, ast.Name) or isinstance(exp, ast.Starred)): 
             tmp_l, tmp_s = self.tmp_gen()
             if hasattr(exp, 'ctx') and isinstance(exp.ctx, Store):
                 # tmp = do(...); e = tmp; visit(exp)=e
@@ -197,7 +196,19 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk, exp
     
     def visit_ListComp(self, node):
-        pass
+        return [], node
+
+    def visit_SetComp(self, node):
+        return [], node
+    
+    def visit_GeneratorExp(self, node):
+        return [], node
+
+    def visit_DictComp(self, node):
+        return [], node
+    
+    def visit_comprehension(self, node):
+        return [], node
     
     def visit_Await(self, node):
         blk, elt = self.visit(node.value)
@@ -281,14 +292,31 @@ class ThreeAddressTransformer(NodeTransformer):
             value=ast.Call(func=func_elt, args=args, keywords=keywords))
         blk.append(ins)
         return blk, tmp_l
+    
+    def visit_FormattedValue(self, node):
+        blk, v = self.split_expr(node.value)
+        fv = ast.FormattedValue(value=v,
+                                conversion=node.conversion,
+                                format_spec=node.format_spec)
+        ast.copy_location(fv, node)
+        return blk, fv
+
+    def visit_JoinedStr(self, node):
+        # return [], node
+        blk, values = [], []
+        for v in node.values:
+            tmp_blk, tmp_v = self.visit(v)
+            values.append(tmp_v)
+            blk.extend(tmp_blk)
+        jstr = ast.JoinedStr(values=values)
+        ast.copy_location(jstr, node)
+        return blk, jstr
 
     def visit_Name(self, node):
         return [], node
         
     def visit_Constant(self, node):
-        tmp_l, tmp_s = self.tmp_gen()
-        ins = ast.Assign(targets=[tmp_s], value=node)
-        return [ins], tmp_l
+        return [], node
 
     def visit_Starred(self, node):
         blk, elt = self.split_expr(node.value)
@@ -327,7 +355,7 @@ class ThreeAddressTransformer(NodeTransformer):
         exp = ast.Slice(lower=lower, upper=upper, step=step)
         ast.copy_location(exp, node)
         return blk, exp
-    
+
     def visit_Return(self, node):
         blk, v = [], None
         if node.value is not None:
@@ -337,6 +365,16 @@ class ThreeAddressTransformer(NodeTransformer):
         blk.append(stmt)
         return blk
     
+    def visit_Delete(self, node):
+        blk = []
+        for tgt in node.targets:
+            tmp_blk, tmp_elt = self.split_expr(tgt)
+            stmt = ast.Delete(targets=[tmp_elt])
+            ast.copy_location(stmt, tgt)
+            blk.extend(tmp_blk)
+            blk.append(stmt)
+        return blk
+
     def visit_AugAssign(self, node):
         expand_stmt = ast.Assign(
             targets=[node.target],
@@ -353,6 +391,30 @@ class ThreeAddressTransformer(NodeTransformer):
         for tgt in tgts[::-1]:
             tblk = self.resolve_single_Assign(tgt, exp, node)
             blk.extend(tblk)
+        return blk
+
+    def visit_AnnAssign(self, node):
+        blk, v_elt = self.visit(node.value)
+        if node.simple == 1:
+            ins1 = ast.AnnAssign(target=node.target,
+                                 annotation=node.annotation,
+                                 simple=1)
+            ast.copy_location(ins1, node)
+            ins2 = ast.Assign(targets=[node.target],
+                              value=v_elt)
+            ast.copy_location(ins2, node)
+            blk.extend([ins1, ins2])
+        else:
+            tmp_blk, tmp_t = self.split_expr(node.target)
+            ins1 = ast.AnnAssign(target=tmp_t,
+                                 annotation=node.annotation,
+                                 simple=1)
+            ast.copy_location(ins1, node)
+            ins2 = ast.Assign(targets=[tmp_t],
+                              value=v_elt)
+            ast.copy_location(ins2, node)
+            blk.extend([ins1, ins2])
+            blk.extend(tmp_blk)
         return blk
     
     def visit_stmt_list(self, stmts):
