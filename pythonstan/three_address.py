@@ -417,6 +417,42 @@ class ThreeAddressTransformer(NodeTransformer):
             blk.extend(tmp_blk)
         return blk
     
+    def visit_For(self, node):
+        body = []
+        iter_blk, iter_val = self.split_expr(node.iter)
+        body.extend(iter_blk)
+        tmp_l, tmp_s = self.tmp_gen()
+        ass_blk = self.resolve_single_Assign(node.target, tmp_l, node.iter)
+        b_blk = self.visit_stmt_list(node.body)
+        ass_blk.extend(b_blk)
+        o_blk = self.visit_stmt_list(node.orelse)
+        for_stmt = ast.For(target=tmp_s,
+                           iter=iter_val,
+                           body=ass_blk,
+                           orelse=o_blk,
+                           type_comment=node.type_comment)
+        ast.copy_location(for_stmt, node)
+        body.append(for_stmt)
+        return body
+
+    def visit_While(self, node):
+        t_blk, test_elt = self.split_expr(node.test)
+        b_blk = self.visit_stmt_list(node.body)
+        o_blk = self.visit_stmt_list(node.orelse)
+        ins = ast.While(test=test_elt, body=b_blk, orelse=o_blk)
+        ast.copy_location(ins, node)
+        t_blk.append(ins)
+        return t_blk
+
+    def visit_If(self, node):
+        t_blk, t_val = self.split_expr(node.test)
+        b_blk = self.visit_stmt_list(node.body)
+        o_blk = self.visit_stmt_list(node.orelse)
+        ins = ast.If(test=t_val, body=b_blk, orelse=o_blk)
+        ast.copy_location(ins, node)
+        t_blk.append(ins)
+        return t_blk
+    
     def visit_stmt_list(self, stmts):
         blk = []
         if stmts is None:
