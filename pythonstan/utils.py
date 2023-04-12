@@ -2,6 +2,8 @@ import copy
 import ast
 from typing import Dict
 
+TEMP_VAR_TEMPLATE = "tmp$%d"
+
 def destructable(node):
     return isinstance(node, ast.Tuple) or isinstance(node, ast.List)
 
@@ -22,10 +24,10 @@ class TempVarGenerator:
     def get_ctx_name(ctx):
         return ctx.__class__.__name__
 
-    def __init__(self, next_idx=0, template="$tmp%d"):
+    def __init__(self, next_idx=0, template=TEMP_VAR_TEMPLATE):
         self.reset(next_idx, template)
     
-    def reset(self, next_idx=0, template="$tmp%d"):
+    def reset(self, next_idx=0, template=TEMP_VAR_TEMPLATE):
         self.next_idx = next_idx
         self.template = template
         self.var_dict = {
