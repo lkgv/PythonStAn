@@ -42,9 +42,27 @@ else:
     '''
 with gen() as (a, b), q() as (f, *(g, q)):
     do()
-    do()
+    do(None)
     ''',
+    '''
+assert True, "abc"
+    ''',
+    '''
+import a, b as k
+from .ast import (a, b, c as ac)
+from .ast import *
 
+try:
+  p = a + b
+except RuntimeException as re:
+  re_handler()
+except TypeError as te:
+  te_handler()
+else:
+  el_handler()
+finally:
+  try_fin()
+    '''
     ]
 
 
