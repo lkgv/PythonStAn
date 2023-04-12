@@ -494,6 +494,64 @@ class ThreeAddressTransformer(NodeTransformer):
             blk.append(with_stmt)
         return blk
     
+    def visit_Raise(self, node):
+        blk = []
+        e_elt, c_elt = None, None
+        if node.exc is not None:
+            e_blk, e_elt = self.split_expr(node.exc)
+            blk.append(e_blk)
+        if node.cause is not None:
+            c_blk, c_elt = self.split_expr(node.cause)
+            blk.append(c_blk)
+        ins = ast.Raise(exc=e_elt, cause=c_elt)
+        ast.copy_location(ins, node)
+        return ins
+    
+    def visit_Try(self, node):
+        handlers = []
+        for old_handler in node.handlers:
+            handler = ast.ExceptHandler(
+                type=old_handler.type,
+                name=old_handler.name,
+                body=self.visit_stmt_list(old_handler.body))
+            ast.copy_location(handler, old_handler)
+            handlers.append(handler)
+        ins = ast.Try(
+            body=self.visit_stmt_list(node.body),
+            handlers=handlers,
+            orelse=self.visit_stmt_list(node.orelse),
+            finalbody=self.visit_stmt_list(node.finalbody))
+        ast.copy_location(ins, node)
+        return ins
+
+    def visit_Assert(self, node):
+        blk = []
+        t_blk, t_elt = self.split_expr(node.test)
+        m_blk, m_elt = [], None
+        if node.msg is not None:
+            m_blk, m_elt = self.split_expr(node.msg)
+        blk.extend(t_blk)
+        blk.extend(m_blk)
+        tmp_l, tmp_s = self.tmp_gen()
+        ins1 = ast.Assign(targets=[tmp_s],
+                          value=ast.UnaryOp(op=ast.Not(), operand=t_elt))
+        ast.copy_location(ins1, node.test)
+        blk.append(ins1)
+        err_l, err_s = self.tmp_gen()
+        exc_l, exc_s = self.tmp_gen()
+        ins2 = ast.If(
+            test=tmp_l, 
+            body=[
+                ast.Assign(targets=[err_s],
+                           value=ast.Name(id="AssertionError", ctx=Load())),
+                ast.Assign(targets=[exc_s],
+                           value=ast.Call(func=err_l, args=[m_elt], keywords=[])),
+                ast.Raise(exc=exc_l)],
+            orelse=[])
+        ast.copy_location(ins2, node)
+        blk.append(ins2)
+        return blk
+    
     def visit_stmt_list(self, stmts):
         blk = []
         if stmts is None:
@@ -504,7 +562,10 @@ class ThreeAddressTransformer(NodeTransformer):
                 blk.extend(cur_blk)
             else:
                 cur_blk = self.visit(stmt)
-                blk.extend(cur_blk)
+                if isinstance(cur_blk, list):
+                    blk.extend(cur_blk)
+                else:
+                    blk.append(cur_blk)
         return blk
     
     def visit_FunctionDef(self, node):
@@ -518,6 +579,25 @@ class ThreeAddressTransformer(NodeTransformer):
         )
         ast.copy_location(ins, node)
         return [ins]
+    
+    def visit_Import(self, node):
+        blk = []
+        for alias in node.names:
+            ins = ast.Import(names=[alias])
+            ast.copy_location(ins, alias)
+            blk.append(ins)
+        return blk
+
+    def visit_ImportFrom(self, node):
+        blk = []
+        for alias in node.names:
+            ins = ast.ImportFrom(
+                module=node.module,
+                names=[alias],
+                level=node.level)
+            ast.copy_location(ins, alias)
+            blk.append(ins)
+        return blk
 
     def visit_Expr(self, node):
         blk, _ = self.split_expr(node.value)
@@ -531,3 +611,14 @@ class ThreeAddressTransformer(NodeTransformer):
     
     def visit_Continue(self, node):
         return node
+    
+    def visit_Expression(self, node):
+        expr = ast.Expression(body=self.visit_Expr(node.body))
+        ast.copy_location(expr, node)
+        return expr
+    
+    def visit_Module(self, node):
+        mod = ast.Module(body=self.visit_stmt_list(node.body),
+                         type_ignores=node.type_ignores)
+        ast.copy_location(mod, node)
+        return mod
