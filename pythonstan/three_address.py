@@ -73,6 +73,19 @@ class ThreeAddressTransformer(NodeTransformer):
                 e = tmp_l
         return blk, e
     
+    def visit_stmt_list(self, stmts):
+        blk = []
+        if stmts is None:
+            return blk
+        for stmt in stmts:
+            if isinstance(stmt, ast.expr):
+                cur_blk, _ = self.split_expr(stmt)
+                blk.extend(cur_blk)
+            else:
+                cur_blk = self.visit(stmt)
+                blk.extend(cur_blk)
+        return blk
+    
     def visit_BinOp(self, node):
         lblk, lval = self.split_expr(node.left)
         rblk, rval = self.split_expr(node.right)
@@ -494,18 +507,44 @@ class ThreeAddressTransformer(NodeTransformer):
             blk.append(with_stmt)
         return blk
     
-    def visit_stmt_list(self, stmts):
-        blk = []
-        if stmts is None:
-            return blk
-        for stmt in stmts:
-            if isinstance(stmt, ast.expr):
-                cur_blk, _ = self.split_expr(stmt)
-                blk.extend(cur_blk)
-            else:
-                cur_blk = self.visit(stmt)
-                blk.extend(cur_blk)
+    def visit_AsyncWith(self, node):
+        items = []
+        for item in node.items:
+            ctx_blk, ctx_e = self.split_expr(item.context_expr)
+            tmp_l, tmp_s = self.tmp_gen()
+            with_blk = self.resolve_single_Assign(
+                item.optional_vars, tmp_l, item)
+            items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+        blk = self.visit_stmt_list(node.body)
+
+        for idx in range(len(items) - 1, -1, -1):
+            print(idx)
+            ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
+            with_blk.extend(blk)
+            with_stmt = ast.AsyncWith(
+                items=[ast.withitem(
+                    context_expr=ctx_e, optional_vars=tmp_s)],
+                body=with_blk)
+            ast.copy_location(with_stmt, node)
+            blk = ctx_blk
+            blk.append(with_stmt)
         return blk
+    
+    def visit_Match(self, node):
+        # TODO: add support for pattern matching
+        return node
+    
+    def visit_Raise(self, node):
+        pass
+
+    def visit_Try(self, node):
+        pass
+
+    def visit_TryStar(self, node):
+        pass
+
+    def visit_Assert(self, node):
+        pass
     
     def visit_FunctionDef(self, node):
         ins = ast.FunctionDef(
@@ -518,9 +557,37 @@ class ThreeAddressTransformer(NodeTransformer):
         )
         ast.copy_location(ins, node)
         return [ins]
+    
+    def visit_AsyncFunctionDef(self, node):
+        ins = ast.AsyncFunctionDef(
+            name=node.name,
+            args=node.args,
+            body=self.visit_stmt_list(node.body),
+            decorator_list=node.decorator_list,
+            returns=node.returns,
+            type_comment=node.type_comment
+        )
+        ast.copy_location(ins, node)
+        return [ins]
 
     def visit_Expr(self, node):
         blk, _ = self.split_expr(node.value)
+        return blk
+    
+    def visit_Global(self, node):
+        blk = []
+        for name in node.names:
+            ins = ast.Global(names=[name])
+            ast.copy_location(ins, node)
+            blk.append(ins)
+        return blk
+    
+    def visit_Nonlocal(self, node):
+        blk = []
+        for name in node.names:
+            ins = ast.Nonlocal(names=[name])
+            ast.copy_location(ins, node)
+            blk.append(ins)
         return blk
     
     def visit_Pass(self, node):
