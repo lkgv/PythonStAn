@@ -27,6 +27,23 @@ if a and b and (p or q):
 else:
     else_do()
     ''',
+    '''
+while a and b or c:
+    do_while()
+else:
+    do_else()
+    ''',
+    '''
+for x, y, *(p, q) in range(x+y):
+    do_for()
+else:
+    do_else()
+    ''',
+    '''
+with gen() as (a, b), q() as (f, *(g, q)):
+    do()
+    do()
+    ''',
 
     ]
 

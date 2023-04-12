@@ -434,6 +434,24 @@ class ThreeAddressTransformer(NodeTransformer):
         ast.copy_location(for_stmt, node)
         body.append(for_stmt)
         return body
+    
+    def visit_AsyncFor(self, node):
+        body = []
+        iter_blk, iter_val = self.split_expr(node.iter)
+        body.extend(iter_blk)
+        tmp_l, tmp_s = self.tmp_gen()
+        ass_blk = self.resolve_single_Assign(node.target, tmp_l, node.iter)
+        b_blk = self.visit_stmt_list(node.body)
+        ass_blk.extend(b_blk)
+        o_blk = self.visit_stmt_list(node.orelse)
+        for_stmt = ast.AsyncFor(target=tmp_s,
+                           iter=iter_val,
+                           body=ass_blk,
+                           orelse=o_blk,
+                           type_comment=node.type_comment)
+        ast.copy_location(for_stmt, node)
+        body.append(for_stmt)
+        return body
 
     def visit_While(self, node):
         t_blk, test_elt = self.split_expr(node.test)
@@ -452,6 +470,29 @@ class ThreeAddressTransformer(NodeTransformer):
         ast.copy_location(ins, node)
         t_blk.append(ins)
         return t_blk
+    
+    def visit_With(self, node):
+        items = []
+        for item in node.items:
+            ctx_blk, ctx_e = self.split_expr(item.context_expr)
+            tmp_l, tmp_s = self.tmp_gen()
+            with_blk = self.resolve_single_Assign(
+                item.optional_vars, tmp_l, item)
+            items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+        blk = self.visit_stmt_list(node.body)
+
+        for idx in range(len(items) - 1, -1, -1):
+            print(idx)
+            ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
+            with_blk.extend(blk)
+            with_stmt = ast.With(
+                items=[ast.withitem(
+                    context_expr=ctx_e, optional_vars=tmp_s)],
+                body=with_blk)
+            ast.copy_location(with_stmt, node)
+            blk = ctx_blk
+            blk.append(with_stmt)
+        return blk
     
     def visit_stmt_list(self, stmts):
         blk = []
@@ -481,3 +522,12 @@ class ThreeAddressTransformer(NodeTransformer):
     def visit_Expr(self, node):
         blk, _ = self.split_expr(node.value)
         return blk
+    
+    def visit_Pass(self, node):
+        return node
+    
+    def visit_Break(self, node):
+        return node
+    
+    def visit_Continue(self, node):
+        return node
