@@ -53,6 +53,8 @@ from .ast import (a, b, c as ac)
 from .ast import *
 
 try:
+  def f(a): return a * a
+  q = lambda x: (lambda y: y + x) (x + 1)
   p = a + b
 except RuntimeException as re:
   re_handler()
@@ -62,6 +64,13 @@ else:
   el_handler()
 finally:
   try_fin()
+
+@decorator1
+class A(base1, base2, metaclass=meta):
+  a = 20
+  b = a + 30
+  def f(self, x):
+    return x + a + b
     '''
     ]
 

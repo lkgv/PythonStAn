@@ -1,15 +1,26 @@
 import ast
 from ast import NodeTransformer, Store, Load, Del
 from pythonstan.utils import update_ctx, destructable, TempVarGenerator
+from typing import List
 
 # TODO: reorganize the contexts here
 
 
 class ThreeAddressTransformer(NodeTransformer):
-    tmp_gen = TempVarGenerator()
+    tmp_gen: TempVarGenerator = TempVarGenerator()
 
-    def reset(self):
-        self.tmp_gen = TempVarGenerator()
+    # TODO: separate temp generation into var, func, and const.
+    tmp_fn: TempVarGenerator = TempVarGenerator()
+    
+    ctx_names: List[str] = []
+
+    def reset(self, names=[]):
+        self.ctx_names = names
+        if len(names) > 0:
+            template = "$".join(self.ctx_names) + "$%d"
+        else:
+            template = "$%d"
+        self.tmp_gen = TempVarGenerator(template=template)
     
     def resolve_single_Assign(self, tgt, value, stmt):
         tblk, texp = self.visit(tgt)
@@ -594,11 +605,27 @@ class ThreeAddressTransformer(NodeTransformer):
         # TODO: add support for pattern matching
         return node
     
+    def visit_ClassDef(self, node):
+        names = self.ctx_names + [f"@{node.name}"]
+        trans = ThreeAddressTransformer()
+        trans.reset(names=names)
+        ins = ast.ClassDef(
+            name=node.name,
+            bases=node.bases,
+            keywords=node.keywords,
+            body=trans.visit_stmt_list(node.body),
+            decorator_list=node.decorator_list)
+        ast.copy_location(ins, node)
+        return ins
+    
     def visit_FunctionDef(self, node):
+        trans = ThreeAddressTransformer()
+        names = self.ctx_names + [node.name]
+        trans.reset(names=names)
         ins = ast.FunctionDef(
             name=node.name,
             args=node.args,
-            body=self.visit_stmt_list(node.body),
+            body=trans.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
