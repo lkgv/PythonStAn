@@ -20,7 +20,14 @@ srcs = [
     "a, [*[(b+c).v, q], t], q = ss",
     "f'fuck[{x}]: {f(x)}'",
     "(a + 7).v : Union[int, str] = (a+b) * 20 - q",
-    "del a, (p+q).v, (z.m)[x]"
+    "del a, (p+q).v, (z.m)[x]",
+    '''
+if a and b and (p or q):
+    do()
+else:
+    else_do()
+    ''',
+
     ]
 
 
@@ -32,6 +39,6 @@ for src_str in srcs:
     res = ast.fix_missing_locations(res)
 
     print(f"\nParse: {{ {src_str} }}")
-    print(ast.dump(res, indent=4))
+    # print(ast.dump(res, indent=4))
 
     print(ast.unparse(res))

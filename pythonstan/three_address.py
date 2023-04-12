@@ -54,7 +54,7 @@ class ThreeAddressTransformer(NodeTransformer):
 
     def split_expr(self, exp):
         blk, e = self.visit(exp)
-        if not (isinstance(exp, ast.Name) or isinstance(exp, ast.Starred)): 
+        if not (isinstance(e, ast.Name) or isinstance(e, ast.Starred)): 
             tmp_l, tmp_s = self.tmp_gen()
             if hasattr(exp, 'ctx') and isinstance(exp.ctx, Store):
                 # tmp = do(...); e = tmp; visit(exp)=e
