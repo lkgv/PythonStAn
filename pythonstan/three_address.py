@@ -3,15 +3,11 @@ from ast import NodeTransformer, Store, Load, Del
 from pythonstan.utils import update_ctx, destructable, TempVarGenerator
 from typing import List
 
-# TODO: reorganize the contexts here
 
 
 class ThreeAddressTransformer(NodeTransformer):
     tmp_gen: TempVarGenerator = TempVarGenerator()
 
-    # TODO: separate temp generation into var, func, and const.
-    tmp_fn: TempVarGenerator = TempVarGenerator()
-    
     ctx_names: List[str] = []
 
     def reset(self, names=[]):
@@ -206,20 +202,114 @@ class ThreeAddressTransformer(NodeTransformer):
         ast.copy_location(exp, node)
         return blk, exp
     
+    def trans_comp(self, comp, body):
+        for idx in range(len(comp.ifs) - 1, -1, -1):
+            cond = comp.ifs[idx]
+            ins = ast.If(test=cond,
+                         body=body,
+                         orelse=[])
+            body = [ins]
+        if comp.is_async == 0:
+            ins = ast.For(target=comp.target,
+                          iter=comp.iter,
+                          body=body,
+                          orelse=[])
+        else:
+            ins = ast.AsyncFor(target=comp.target,
+                               iter=comp.iter,
+                               body=body,
+                               orelse=[])
+        return ins
+    
     def visit_ListComp(self, node):
-        return [], node
+        list_l, list_s = self.tmp_gen()
+        list_init = ast.Assign(targets=[list_s],
+                               value=ast.List(elts=[], ctx=Load()))
+        ast.copy_location(list_init, node)
+        body = [
+            ast.Expr(value=ast.Call(
+                func=ast.Attribute(value=list_l, attr='append', ctx=Load()),
+                args=[node.elt],
+                keywords=[]))
+        ]
+        for idx in range(len(node.generators) - 1, -1, -1):
+            comp = node.generators[idx]
+            ins = self.trans_comp(comp, body)
+            body = [ins]
+        blk = self.visit_stmt_list(body)
+        for ins in blk:
+            ast.copy_location(ins, node)
+            ast.fix_missing_locations(ins)
+        blk.insert(0, list_init)
+        return blk, list_l
 
     def visit_SetComp(self, node):
-        return [], node
+        set_l, set_s = self.tmp_gen()
+        set_init = ast.Assign(targets=[set_s],
+                               value=ast.Set(elts=[], ctx=Load()))
+        ast.copy_location(set_init, node)
+        body = [
+            ast.Expr(value=ast.Call(
+                func=ast.Attribute(value=set_l, attr='add', ctx=Load()),
+                args=[node.elt],
+                keywords=[]))
+        ]
+        for idx in range(len(node.generators) - 1, -1, -1):
+            comp = node.generators[idx]
+            ins = self.trans_comp(comp, body)
+            body = [ins]
+        blk = self.visit_stmt_list(body)
+        for ins in blk:
+            ast.copy_location(ins, node)
+            ast.fix_missing_locations(ins)
+        blk.insert(0, set_init)
+        return blk, set_l
     
     def visit_GeneratorExp(self, node):
-        return [], node
+        fn_name, = self.tmp_gen(ctxs=[Load()])
+        
+        body = [
+            ast.Expr(value=ast.Yield(value=node.elt))
+        ]
+        for idx in range(len(node.generators) - 1, -1, -1):
+            comp = node.generators[idx]
+            ins = self.trans_comp(comp, body)
+            body = [ins]
+        blk = self.visit_stmt_list(body)
+        for ins in blk:
+            ast.copy_location(ins, node)
+            ast.fix_missing_locations(ins)
+        fn = ast.FunctionDef(name=fn_name.id,
+                             args=[],
+                             body=blk,
+                             decorator_list=[])
+        call_elt = ast.Call(func=fn_name, args=[], keywords=[])
+        ast.copy_location(call_elt, node)
+        return [fn], call_elt
 
     def visit_DictComp(self, node):
-        return [], node
-    
-    def visit_comprehension(self, node):
-        return [], node
+        dict_l, dict_s = self.tmp_gen()
+        dict_init = ast.Assign(targets=[dict_s],
+                               value=ast.Dict(keys=[], values=[]))
+        ast.copy_location(dict_init, node)
+        body = [
+            ast.Expr(value=ast.Call(
+                func=ast.Attribute(value=dict_l,
+                                   attr='setdefault',
+                                   ctx=Load()),
+                args=[node.key, node.value],
+                keywords=[]))
+        ]
+        for idx in range(len(node.generators) - 1, -1, -1):
+            comp = node.generators[idx]
+            ins = self.trans_comp(comp, body)
+            body = [ins]
+        blk = self.visit_stmt_list(body)
+        for ins in blk:
+            ast.copy_location(ins, node)
+            ast.fix_missing_locations(ins)
+        blk.insert(0, dict_init)
+        return blk, dict_l
     
     def visit_Await(self, node):
         blk, elt = self.visit(node.value)
@@ -286,7 +376,10 @@ class ThreeAddressTransformer(NodeTransformer):
 
     def visit_Call(self, node):
         blk, args, keywords = [], [], []
-        func_blk, func_elt = self.split_expr(node.func)
+        func_blk, func_elt = self.visit(node.func)
+        if not (isinstance(func_elt, ast.Name) or
+                isinstance(func_elt, ast.Attribute)):
+            func_blk, func_elt = self.split_expr(node.func)
         blk.extend(func_blk)
         for arg in node.args:
             arg_blk, arg_elt = self.split_expr(arg)
@@ -634,10 +727,13 @@ class ThreeAddressTransformer(NodeTransformer):
         return [ins]
     
     def visit_AsyncFunctionDef(self, node):
+        trans = ThreeAddressTransformer()
+        names = self.ctx_names + [node.name]
+        trans.reset(names=names)
         ins = ast.AsyncFunctionDef(
             name=node.name,
             args=node.args,
-            body=self.visit_stmt_list(node.body),
+            body=trans.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
@@ -665,7 +761,12 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk
 
     def visit_Expr(self, node):
-        blk, _ = self.split_expr(node.value)
+        blk, elt = self.visit(node.value)
+        if not (isinstance(elt, ast.Name) or
+                isinstance(elt, ast.Constant)):
+            exp = ast.Expr(value=elt)
+            ast.copy_location(exp, node)
+            blk.append(exp)
         return blk
     
     def visit_Global(self, node):
