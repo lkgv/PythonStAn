@@ -810,19 +810,25 @@ class ThreeAddressTransformer(NodeTransformer):
     
     def visit_Expression(self, node):
         tmp_reset()
+        self.reset()
         expr = ast.Expression(body=self.visit_Expr(node.body))
         ast.copy_location(expr, node)
+        ast.fix_missing_locations(expr)
         return expr
     
     def visit_Module(self, node):
         tmp_reset()
+        self.reset()
         mod = ast.Module(body=self.visit_stmt_list(node.body),
                          type_ignores=node.type_ignores)
         ast.copy_location(mod, node)
+        ast.fix_missing_locations(mod)
         return mod
     
     def visit_Interactive(self, node):
         tmp_reset()
+        self.reset()
         inter = ast.Interactive(body=self.visit_stmt_list(node.body))
         ast.copy_location(inter, node)
+        ast.fix_missing_locations(inter)
         return inter
