@@ -1,5 +1,5 @@
 import ast
-from pythonstan.three_address import ThreeAddressTransformer
+from pythonstan.three_address import ThreeAddressTransformer, tmp_reset
 
 src = '''
 # (a, b) = 3, 4
@@ -72,7 +72,7 @@ class A(base1, base2, metaclass=meta):
   def f(self, x):
     return x + a + b
 p = {p(x, y+1) for x, (t, y), *args in p if x for y in ast if z if y  if (p + z) for t in xz}
-q = {k:v for k, v in dlist}
+q = {k:(v*20) for k, v in dlist}
 w = (k for k, p in x)
     '''
     ]
@@ -81,11 +81,13 @@ w = (k for k, p in x)
 trans = ThreeAddressTransformer()
 for src_str in srcs:
     trans.reset()
+    
+
     src = ast.parse(src_str)
     res = trans.visit(src)
     res = ast.fix_missing_locations(res)
 
     print(f"\nParse: {{ {src_str} }}")
-    # print(ast.dump(res, indent=4))
+    print(ast.dump(res, indent=4))
 
     print(ast.unparse(res))
