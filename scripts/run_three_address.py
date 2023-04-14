@@ -1,5 +1,5 @@
 import ast
-from pythonstan.three_address import ThreeAddressTransformer, tmp_reset
+from pythonstan.three_address import ThreeAddressTransformer
 
 src = '''
 # (a, b) = 3, 4
@@ -80,8 +80,6 @@ w = (k for k, p in x)
 
 trans = ThreeAddressTransformer()
 for src_str in srcs:
-    trans.reset()
-    
 
     src = ast.parse(src_str)
     res = trans.visit(src)
