@@ -775,12 +775,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk
 
     def visit_Expr(self, node):
-        blk, elt = self.visit(node.value)
-        if not (isinstance(elt, ast.Name) or
-                isinstance(elt, ast.Constant)):
-            exp = ast.Expr(value=elt)
-            ast.copy_location(exp, node)
-            blk.append(exp)
+        blk, _ = self.split_expr(node.value)
         return blk
     
     def visit_Global(self, node):

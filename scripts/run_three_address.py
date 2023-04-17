@@ -88,6 +88,6 @@ for src_str in srcs:
     res = ast.fix_missing_locations(res)
 
     print(f"\nParse: {{ {src_str} }}")
-    print(ast.dump(res, indent=4))
+    # print(ast.dump(res, indent=4))
 
     print(ast.unparse(res))

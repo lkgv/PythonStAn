@@ -3,15 +3,19 @@ from abc import ABC
 import ast
 from ast import stmt
 
+
 class BaseBlock:
     idx : int
     stmts: List[stmt]
-    cfg: 'ControlFlowGraph'
+    cfg: Optional['ControlFlowGraph']
 
-    def __init__(self, idx, cfg, stmts=[]):
+    def __init__(self, idx=-1, cfg=None, stmts=[]):
         self.idx = idx
         self.stmts = stmts
         self.cfg=cfg
+    
+    def set_cfg(self, cfg: 'ControlFlowGraph'):
+        self.cfg = cfg
 
     def get_stmts(self):
         return self.stmts
@@ -22,9 +26,12 @@ class BaseBlock:
     def get_idx(self):
         return self.idx
     
-    def add(self, stmt):
+    def add(self, stmt: stmt):
         self.stmts.append(stmt)
         return self
+    
+    def n_stmt(self):
+        return len(self.stmts)
     
 
 class Edge(ABC):
@@ -103,14 +110,12 @@ class ClassEndEdge(Edge):
 
 class CFGClass:
     class_def: ast.ClassDef
-    cfg: 'ControlFlowGraph'
     prev_level: Optional[Union['CFGFunc', 'CFGClass']]
     funcs: List['CFGFunc']
     classess: List['CFGClass']
 
-    def __init__(self, class_def, cfg, prev_level=None, funcs=[], classes=[]):
+    def __init__(self, class_def, prev_level=None, funcs=[], classes=[]):
         self.class_def = class_def
-        self.cfg = cfg
         self.prev_level = prev_level
         self.funcs = funcs
         self.classes = classes
@@ -133,17 +138,23 @@ class CFGFunc:
 
 class ControlFlowGraph:
     entry_blk: BaseBlock
-    exit_blk: BaseBlock
-    in_edges: Dict[BaseBlock, List[BaseBlock]]
-    out_edges: Dict[BaseBlock, List[BaseBlock]]
+    exit_blks: List[BaseBlock]
+    super_exit_blk: BaseBlock
+    container: Optional[Union['CFGFunc', 'CFGClass']]
+    in_edges: Dict[BaseBlock, List[Edge]]
+    out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
-    stmts: Set[stmt]
 
-    def __init__(self, entry_blk=None, exit_blk=None):
+    def __init__(self, entry_blk=None, container=None):
         self.blks = {*()}
         self.stmts = {*()}
+        self.container = container
         self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(self)
-        self.exit_blk = exit_blk if exit_blk is not None else BaseBlock(self)
+        if entry_blk is not None:
+            self.entry_blk = entry_blk
+        else:
+            self.entry_blk = BaseBlock(idx=0, cfg=self)
+        self.exit_blk = None
 
     def preds_of(self, blk: BaseBlock):
         return [e.start for e in self.in_edges_of(blk)]
@@ -161,12 +172,20 @@ class ControlFlowGraph:
         self.blks.add(blk)
         self.in_edges[blk] = []
         self.out_edges[blk] = []
-        self.stmts.update(blk.stmts)
     
     def add_edge(self, edge: Edge):
         if edge.start not in self.blks:
             self.add_blk(edge.start)
         if edge.end not in self.blks:
             self.add_blk(edge.end)
-        self.in_edges[edge.end].append(edge.start)
-        self.out_edges[edge.start].append(edge.end)
+        self.in_edges[edge.end].append(edge)
+        self.out_edges[edge.start].append(edge)
+    
+    def set_container(self, container: Union['CFGFunc', 'CFGClass']):
+        self.container = container
+    
+    def add_exit(self, blk: BaseBlock):
+        self.exit_blks.append(blk)
+    
+    def gen_super_exit(self):
+        pass
