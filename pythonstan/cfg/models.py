@@ -90,6 +90,34 @@ class WhileElseEdge(Edge):
         self.end = end
 
 
+class WithEdge(Edge):
+    def __init__(self, start, end, var):
+        self.start = start
+        self.end = end
+        self.var = var
+
+
+class WithEndEdge(Edge):
+    def __init__(self, start, end, var):
+        self.start = start
+        self.end = end
+        self.var = var
+
+
+class ExceptionEdge(Edge):
+    def __init__(self, start, end, e):
+        self.start = start
+        self.end = end
+        self.e = e
+
+
+class ExceptionEndEdge(Edge):
+    def __init__(self, start, end, e):
+        self.start = start
+        self.end = end
+        self.e = e
+
+
 class ClassDefEdge(Edge):
     class_cfg: 'CFGClass'
 
@@ -110,29 +138,50 @@ class ClassEndEdge(Edge):
 
 class CFGClass:
     class_def: ast.ClassDef
-    prev_level: Optional[Union['CFGFunc', 'CFGClass']]
+    scope: Optional[Union['CFGFunc', 'CFGClass']]
     funcs: List['CFGFunc']
     classess: List['CFGClass']
 
-    def __init__(self, class_def, prev_level=None, funcs=[], classes=[]):
+    def __init__(self, class_def, scope=None, funcs=[], classes=[]):
         self.class_def = class_def
-        self.prev_level = prev_level
+        self.scope = scope
         self.funcs = funcs
+        self.classes = classes
+    
+    def set_scope(self, scope):
+        self.scope = scope
+    
+    def set_funcs(self, funcs):
+        self.funcs = funcs
+
+    def set_classes(self, classes):
         self.classes = classes
 
 
 class CFGFunc:
     func_def: ast.FunctionDef
-    cfg: 'ControlFlowGraph'
-    prev_level: Optional[Union['CFGFunc', 'CFGClass']]
+    cfg: Optional['ControlFlowGraph']
+    scope: Optional[Union['CFGFunc', 'CFGClass']]
     funcs: List['CFGFunc']
     classes: List['CFGClass']
     
-    def __init__(self, func_def, cfg, prev_level=None, funcs=[], classes=[]):
+    def __init__(self, func_def, cfg=None, scope=None, funcs=[], classes=[]):
         self.func_def = func_def
         self.cfg = cfg
-        self.prev_level = prev_level
+        self.scope = scope
         self.funcs = funcs
+        self.classes = classes
+    
+    def set_cfg(self, cfg):
+        self.cfg = cfg
+    
+    def set_scope(self, scope):
+        self.scope = scope
+    
+    def set_funcs(self, funcs):
+        self.funcs = funcs
+
+    def set_classes(self, classes):
         self.classes = classes
 
 
@@ -140,15 +189,15 @@ class ControlFlowGraph:
     entry_blk: BaseBlock
     exit_blks: List[BaseBlock]
     super_exit_blk: BaseBlock
-    container: Optional[Union['CFGFunc', 'CFGClass']]
+    scope: Optional[Union['CFGFunc', 'CFGClass']]
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
 
-    def __init__(self, entry_blk=None, container=None):
+    def __init__(self, entry_blk=None, scope=None):
         self.blks = {*()}
         self.stmts = {*()}
-        self.container = container
+        self.scope = scope
         self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(self)
         if entry_blk is not None:
             self.entry_blk = entry_blk
@@ -181,8 +230,8 @@ class ControlFlowGraph:
         self.in_edges[edge.end].append(edge)
         self.out_edges[edge.start].append(edge)
     
-    def set_container(self, container: Union['CFGFunc', 'CFGClass']):
-        self.container = container
+    def set_scope(self, scope: Union['CFGFunc', 'CFGClass']):
+        self.scope = scope
     
     def add_exit(self, blk: BaseBlock):
         self.exit_blks.append(blk)
