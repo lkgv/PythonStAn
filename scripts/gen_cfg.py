@@ -1,5 +1,6 @@
 import ast
 from pythonstan.three_address import ThreeAddressTransformer
+from pythonstan.cfg.builder import CFGBuilder
 
 src = '''
 # (a, b) = 3, 4
@@ -78,16 +79,32 @@ w = (k for k, p in x)
     ]
 
 
-trans = ThreeAddressTransformer()
+ta_trans = ThreeAddressTransformer()
+cfg_trans = CFGBuilder()
+
+
 for src_str in srcs:
-    trans.reset()
-    
+    ta_trans.reset()
 
     src = ast.parse(src_str)
-    res = trans.visit(src)
-    res = ast.fix_missing_locations(res)
+    ta_src = ta_trans.visit(src)
+    cfg_mod = cfg_trans.build_module(ta_src.body)
+
+    ta_src = ast.fix_missing_locations(ta_src)
 
     print(f"\nParse: {{ {src_str} }}")
     # print(ast.dump(res, indent=4))
 
-    print(ast.unparse(res))
+    print(ast.unparse(ta_src))
+    print(cfg_mod)
+
+flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
+         '/home/codergwy/code/pynguin/pynguin/configuration.py',
+]
+for fname in flist:
+    with open(fname, 'r') as f:
+        ta_trans.reset()
+        src = ast.parse(f.read())
+        ta_src = ta_trans.visit(src)
+        cfg_mod=cfg_trans.build_module(ta_src.body)
+        print(cfg_mod)

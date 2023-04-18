@@ -512,27 +512,37 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk
 
     def visit_AnnAssign(self, node):
-        blk, v_elt = self.visit(node.value)
-        if node.simple == 1:
-            ins1 = ast.AnnAssign(target=node.target,
-                                 annotation=node.annotation,
-                                 simple=1)
-            ast.copy_location(ins1, node)
-            ins2 = ast.Assign(targets=[node.target],
-                              value=v_elt)
-            ast.copy_location(ins2, node)
-            blk.extend([ins1, ins2])
+        if node.value is None:
+            if node.simple == 1:
+                blk = [node]
+            else:
+                blk, t = self.split_expr(node.target)
+                ins = ast.AnnAssign(target=t,
+                                    annotation=node.annotation,
+                                    simple=1)
+                ast.copy_location(ins, node)
+                blk.append(ins)
         else:
-            tmp_blk, tmp_t = self.split_expr(node.target)
-            ins1 = ast.AnnAssign(target=tmp_t,
-                                 annotation=node.annotation,
-                                 simple=1)
-            ast.copy_location(ins1, node)
-            ins2 = ast.Assign(targets=[tmp_t],
-                              value=v_elt)
-            ast.copy_location(ins2, node)
-            blk.extend([ins1, ins2])
-            blk.extend(tmp_blk)
+            blk, v_elt = self.visit(node.value)
+            if node.simple == 1:
+                ins1 = ast.AnnAssign(target=node.target,
+                                    annotation=node.annotation,
+                                    simple=1)
+                ast.copy_location(ins1, node)
+                ins2 = ast.Assign(targets=[node.target],
+                                value=v_elt)
+                ast.copy_location(ins2, node)
+                blk.extend([ins1, ins2])
+            else:
+                tmp_blk, tmp_t = self.split_expr(node.target)
+                ins1 = ast.AnnAssign(target=tmp_t,
+                                     annotation=node.annotation,
+                                     simple=1)
+                ast.copy_location(ins1, node)
+                ins2 = ast.Assign(targets=[tmp_t], value=v_elt)
+                ast.copy_location(ins2, node)
+                blk.extend([ins1, ins2])
+                blk.extend(tmp_blk)
         return blk
     
     def visit_For(self, node):

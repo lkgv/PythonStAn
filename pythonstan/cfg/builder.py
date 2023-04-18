@@ -1,6 +1,7 @@
 from .models import *
 import ast
 from ast import stmt
+import copy
 from typing import List, Dict
 
 class CFGBuilder:
@@ -8,7 +9,7 @@ class CFGBuilder:
     funcs: List[CFGFunc]
     classes: List[CFGClass]
     next_idx: int
-    scope: Optional[Union[CFGFunc, CFGClass]]
+    scope: Optional[CFGScope]
 
     def __init__(self, scope=None, next_idx=0, cfg=None):
         self.next_idx = next_idx
@@ -18,25 +19,33 @@ class CFGBuilder:
         self.funcs = []
         self.classes = []
     
-    def set_scope(self, scope):
+    def set_scope(self, scope: CFGScope):
         self.scope = scope
         self.cfg.set_scope(scope)
-
-    def from_stmts(self, stmts: List[stmt]) -> ControlFlowGraph:
-        next_blk = self._new_blk()
-        edge = NormalEdge(self.cfg.entry_blk, next_blk)
-        self.cfg.add_edge(edge)
-        self._build(stmts, self.cfg, next_blk)
 
     def _new_blk(self) -> BaseBlock:
         blk = BaseBlock(self.next_idx, self.cfg)
         self.next_idx += 1
         return blk
+    
+    def build_module(self, stmts: List[stmt]) -> CFGModule:
+        mod = CFGModule()
 
-    def build_func(self, stmt, cur_blk) -> CFGFunc:
-        func = CFGFunc(stmt, scope=self.scope)
+        builder = CFGBuilder(scope=mod)
+        mod_info = builder._build(stmts, builder.cfg, builder.cfg.entry_blk)
 
-        builder = CFGBuilder(func, scope=func)
+        mod.set_cfg(builder.cfg)
+        mod.set_funcs(mod_info['func'])
+        mod.set_classes(mod_info['class'])
+        mod.set_imports(mod_info['import'])
+        return mod
+
+    def build_func(self, stmt) -> CFGFunc:
+        new_stmt = copy.deepcopy(stmt)
+        new_stmt.body = []
+        func = CFGFunc(new_stmt, scope=self.scope)
+
+        builder = CFGBuilder(scope=func)
         func_info = builder._build(stmt.body,
                                    builder.cfg, builder.cfg.entry_blk)
         for ret_blk, _ in func_info['return']:
@@ -47,10 +56,14 @@ class CFGBuilder:
         func.set_cfg(builder.cfg)
         func.set_funcs(func_info['func'])
         func.set_classes(func_info['class'])
+        func.set_imports(func_info['import'])
         return func
 
-    def build_class(self, stmt, cur_blk, cfg: ControlFlowGraph) -> Tuple[CFGClass, Dict]:
-        cls = CFGClass(stmt, scope=self.scope)
+    def build_class(self, stmt, cur_blk, cfg: ControlFlowGraph
+                    ) -> Tuple[CFGClass, Dict]:
+        new_stmt = copy.deepcopy(stmt)
+        new_stmt.body = []
+        cls = CFGClass(new_stmt, scope=self.scope)
 
         scope_bak = self.scope
         self.set_scope(cls)
@@ -66,19 +79,23 @@ class CFGBuilder:
 
         cls.set_funcs(cls_info['func'])
         cls.set_classes(cls_info['class'])
+        cls.set_imports(cls_info['import'])
         return cls, cls_info
 
     def _build(self, stmts: List[stmt],
                cfg: ControlFlowGraph,
                cur_blk: BaseBlock
                ) -> Dict[str, List]:
+        
+        # Add storation for import
         exit_stmt_list = [
-            'break', 'continue', 'return', 'yield', 'raise', 'func', 'class']
+            'break', 'continue', 'return', 'yield', 'raise',
+            'func', 'class', 'import']
         exit_stmt = { k:[] for k in exit_stmt_list }
         n_stmt = len(stmts)
 
         def gen_next_blk(cur_blk, edge_builder):
-            if cur_blk.n_stmt > 0 and i < n_stmt - 1:
+            if cur_blk.n_stmt() > 0 and i < cur_blk.n_stmt() - 1:
                 new_blk = self._new_blk()
                 edge = edge_builder(cur_blk, new_blk)
                 cfg.add_blk(new_blk)
@@ -95,15 +112,21 @@ class CFGBuilder:
         
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                func, build_info = self.build_func(stmt)
+                new_stmt = copy.deepcopy(stmt)
+                new_stmt.body = []
+                cur_blk.add(new_stmt)
+                func = self.build_func(stmt)
                 exit_stmt['func'].append(func)
             
             elif isinstance(stmt, ast.AsyncFunctionDef):
-                func, build_info = self.build_func(stmt)
+                new_stmt = copy.deepcopy(stmt)
+                new_stmt.body = []
+                cur_blk.add(new_stmt)
+                func = self.build_func(stmt)
                 exit_stmt['func'].append(func)
 
             elif isinstance(stmt, ast.ClassDef):
-                cls, build_info = self.build_class(stmt, cur_blk)
+                cls, build_info = self.build_class(stmt, cur_blk, cfg)
                 exit_stmt['class'].append(cls)
                 extend_info(build_info, include=['raise'])
                 cur_blk = build_info['last_block']      
@@ -122,6 +145,10 @@ class CFGBuilder:
                 cur_blk.add(stmt)
                 exit_stmt['return'].append((cur_blk, stmt))
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
+            
+            elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                cur_blk.add(stmt)
+                exit_stmt['import'].append((cur_blk, CFGImport(stmt)))
 
             elif isinstance(stmt, ast.For):
                 new_stmt = ast.For(target=stmt.target,
@@ -130,7 +157,7 @@ class CFGBuilder:
                                    orelse=[],
                                    type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
-                cur_blk = gen_next_blk(cur_blk, new_stmt, NormalEdge)
+                cur_blk = gen_next_blk(cur_blk, NormalEdge)
                 cur_blk.add(new_stmt)
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
@@ -138,7 +165,7 @@ class CFGBuilder:
                 next_blk = self._new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
-                for blk, _ in loop_blk['continue']:
+                for blk, _ in loop_info['continue']:
                     cfg.add_edge(NormalEdge(blk, cur_blk))
                 cfg.add_edge(NormalEdge(loop_info['last_block'], cur_blk))
                 if len(stmt.orelse) > 0:
@@ -157,7 +184,7 @@ class CFGBuilder:
                                         orelse=[],
                                         type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
-                cur_blk = gen_next_blk(cur_blk, new_stmt, NormalEdge)
+                cur_blk = gen_next_blk(cur_blk, NormalEdge)
                 cur_blk.add(new_stmt)
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
@@ -165,7 +192,7 @@ class CFGBuilder:
                 next_blk = self._new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
-                for blk, _ in loop_blk['continue']:
+                for blk, _ in loop_info['continue']:
                     cfg.add_edge(NormalEdge(blk, cur_blk))
                 cfg.add_edge(NormalEdge(loop_info['last_block'], cur_blk))
                 if len(stmt.orelse) > 0:
@@ -180,7 +207,7 @@ class CFGBuilder:
             elif isinstance(stmt, ast.While):
                 new_stmt = ast.While(test=stmt.test, body=[], orelse=[])
                 ast.copy_location(new_stmt, stmt)
-                cur_blk = gen_next_blk(cur_blk, new_stmt, NormalEdge)
+                cur_blk = gen_next_blk(cur_blk, NormalEdge)
                 cur_blk.add(new_stmt)
                 loop_blk = gen_next_blk(cur_blk, WhileEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
@@ -188,7 +215,7 @@ class CFGBuilder:
                 next_blk = self._new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
-                for blk, _ in loop_blk['continue']:
+                for blk, _ in loop_info['continue']:
                     cfg.add_edge(NormalEdge(blk, cur_blk))
                 cfg.add_edge(NormalEdge(loop_info['last_block'], cur_blk))
                 if len(stmt.orelse) > 0:
@@ -264,18 +291,21 @@ class CFGBuilder:
                 try_info = self._build(stmt.body, cfg, try_blk)
                 extend_info(try_info)
                 next_blk = self._new_blk()
+                has_final = (len(stmt.finalbody) > 0)
                 if len(stmt.orelse) > 0:
                     else_blk = gen_next_blk(try_info['last_block'], NormalEdge)
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
+                else:
+                    cfg.add_edge(NormalEdge(try_info['last_block'], next_blk))
                 for expt in stmt.handlers:
                     e_blk = gen_next_blk(try_info['last_block'],
-                                         lambda u, v: Exception(u, v, expt))
+                                         lambda u, v: ExceptionEdge(u, v, expt))
                     e_info = self._build(expt.body, cfg, e_blk)
-                    extend_info(else_info)
+                    extend_info(e_info)
                     cfg.add_edge(ExceptionEndEdge(e_info['last_block'], next_blk, expt))
-                if len(stmt.finalbody) > 0:
+                if has_final:
                     final_info = self._build(stmt.finalbody, cfg, next_blk)
                     extend_info(final_info)
                     next_blk = gen_next_blk(final_info['last_block'], NormalEdge)
