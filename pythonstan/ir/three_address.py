@@ -5,26 +5,19 @@ from typing import List
 
 FUNC_TEMPLATE= "func$%d"
 CONST_TEMPLATE= "const$%d"
-tmp_func_gen = TempVarGenerator()
-tmp_const_gen = TempVarGenerator()
+VAR_TEMPLATE= "tmp$%d"
 
-def tmp_reset():
-    global tmp_func_gen, tmp_const_gen
-    tmp_func_gen = TempVarGenerator(template=FUNC_TEMPLATE)
-    tmp_const_gen = TempVarGenerator(template=CONST_TEMPLATE)
 
 class ThreeAddressTransformer(NodeTransformer):
     tmp_gen: TempVarGenerator = TempVarGenerator()
+    tmp_func_gen: TempVarGenerator = TempVarGenerator()
+    tmp_const_gen: TempVarGenerator = TempVarGenerator()
 
-    ctx_names: List[str] = []
-
-    def reset(self, names=[]):
-        self.ctx_names = names
-        if len(names) > 0:
-            template = "@" + "@".join(self.ctx_names) + "$%d"
-        else:
-            template = "$%d"
-        self.tmp_gen = TempVarGenerator(template=template)
+    def reset(self, v_tmpl=VAR_TEMPLATE,
+              fn_tmpl=FUNC_TEMPLATE, c_tmpl = CONST_TEMPLATE):
+        self.tmp_gen = TempVarGenerator(template=v_tmpl)
+        self.tmp_func_gen = TempVarGenerator(template=fn_tmpl)
+        self.tmp_const_gen = TempVarGenerator(template=c_tmpl)
     
     def resolve_single_Assign(self, tgt, value, stmt):
         tblk, texp = self.visit(tgt)
@@ -138,7 +131,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return t_blk, tmp_l
     
     def visit_Lambda(self, node):
-        (f_load,) = tmp_func_gen(ctxs=[Load()])
+        (f_load,) = self.tmp_func_gen(ctxs=[Load()])
         f_name = f_load.id
         blk = []
         new_func = ast.FunctionDef(
@@ -274,7 +267,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk, set_l
     
     def visit_GeneratorExp(self, node):
-        fn_name, = tmp_func_gen(ctxs=[Load()])
+        fn_name, = self.tmp_func_gen(ctxs=[Load()])
         
         body = [
             ast.Expr(value=ast.Yield(value=node.elt))
@@ -431,7 +424,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return [], node
         
     def visit_Constant(self, node):
-        const_l, const_s = tmp_const_gen()
+        const_l, const_s = self.tmp_const_gen()
         ins = ast.Assign(targets=[const_s], value=node)
         ast.copy_location(ins, node)
         return [ins], const_l
@@ -512,27 +505,38 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk
 
     def visit_AnnAssign(self, node):
-        blk, v_elt = self.visit(node.value)
-        if node.simple == 1:
-            ins1 = ast.AnnAssign(target=node.target,
-                                 annotation=node.annotation,
-                                 simple=1)
-            ast.copy_location(ins1, node)
-            ins2 = ast.Assign(targets=[node.target],
-                              value=v_elt)
-            ast.copy_location(ins2, node)
-            blk.extend([ins1, ins2])
+        if node.value is None:
+            if node.simple == 1:
+                blk = [node]
+            else:
+                blk, tmp_t = self.split_expr(node.target)
+                ins = ast.AnnAssign(target=tmp_t,
+                                    annotation=node.annotation,
+                                    simple=1)
+                ast.copy_location(ins, node)
+                blk.insert(0, ins)
         else:
-            tmp_blk, tmp_t = self.split_expr(node.target)
-            ins1 = ast.AnnAssign(target=tmp_t,
-                                 annotation=node.annotation,
-                                 simple=1)
-            ast.copy_location(ins1, node)
-            ins2 = ast.Assign(targets=[tmp_t],
-                              value=v_elt)
-            ast.copy_location(ins2, node)
-            blk.extend([ins1, ins2])
-            blk.extend(tmp_blk)
+            blk, v_elt = self.visit(node.value)
+            if node.simple == 1:
+                ins1 = ast.AnnAssign(target=node.target,
+                                    annotation=node.annotation,
+                                    simple=1)
+                ast.copy_location(ins1, node)
+                ins2 = ast.Assign(targets=[node.target],
+                                value=v_elt)
+                ast.copy_location(ins2, node)
+                blk.extend([ins1, ins2])
+            else:
+                tmp_blk, tmp_t = self.split_expr(node.target)
+                ins1 = ast.AnnAssign(target=tmp_t,
+                                    annotation=node.annotation,
+                                    simple=1)
+                ast.copy_location(ins1, node)
+                ins2 = ast.Assign(targets=[tmp_t],
+                                value=v_elt)
+                ast.copy_location(ins2, node)
+                blk.extend([ins1, ins2])
+                blk.extend(tmp_blk)
         return blk
     
     def visit_For(self, node):
@@ -713,26 +717,20 @@ class ThreeAddressTransformer(NodeTransformer):
         return node
     
     def visit_ClassDef(self, node):
-        names = self.ctx_names + [f"${node.name}"]
-        trans = ThreeAddressTransformer()
-        trans.reset(names=names)
         ins = ast.ClassDef(
             name=node.name,
             bases=node.bases,
             keywords=node.keywords,
-            body=trans.visit_stmt_list(node.body),
+            body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list)
         ast.copy_location(ins, node)
         return ins
     
     def visit_FunctionDef(self, node):
-        trans = ThreeAddressTransformer()
-        names = self.ctx_names + [node.name]
-        trans.reset(names=names)
         ins = ast.FunctionDef(
             name=node.name,
             args=node.args,
-            body=trans.visit_stmt_list(node.body),
+            body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
@@ -741,13 +739,10 @@ class ThreeAddressTransformer(NodeTransformer):
         return [ins]
     
     def visit_AsyncFunctionDef(self, node):
-        trans = ThreeAddressTransformer()
-        names = self.ctx_names + [node.name]
-        trans.reset(names=names)
         ins = ast.AsyncFunctionDef(
             name=node.name,
             args=node.args,
-            body=trans.visit_stmt_list(node.body),
+            body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
@@ -809,7 +804,6 @@ class ThreeAddressTransformer(NodeTransformer):
         return node
     
     def visit_Expression(self, node):
-        tmp_reset()
         self.reset()
         expr = ast.Expression(body=self.visit_Expr(node.body))
         ast.copy_location(expr, node)
@@ -817,7 +811,6 @@ class ThreeAddressTransformer(NodeTransformer):
         return expr
     
     def visit_Module(self, node):
-        tmp_reset()
         self.reset()
         mod = ast.Module(body=self.visit_stmt_list(node.body),
                          type_ignores=node.type_ignores)
@@ -826,7 +819,6 @@ class ThreeAddressTransformer(NodeTransformer):
         return mod
     
     def visit_Interactive(self, node):
-        tmp_reset()
         self.reset()
         inter = ast.Interactive(body=self.visit_stmt_list(node.body))
         ast.copy_location(inter, node)
