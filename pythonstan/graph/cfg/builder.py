@@ -1,8 +1,10 @@
-from .models import *
 import ast
 from ast import stmt
 import copy
 from typing import List, Dict
+
+from .models import *
+
 
 class CFGBuilder:
     cfg: ControlFlowGraph
