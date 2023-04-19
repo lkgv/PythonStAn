@@ -1,5 +1,5 @@
 import ast
-from pythonstan.three_address import ThreeAddressTransformer
+from pythonstan.ir.three_address import ThreeAddressTransformer
 
 src = '''
 # (a, b) = 3, 4
@@ -91,3 +91,5 @@ for src_str in srcs:
     # print(ast.dump(res, indent=4))
 
     print(ast.unparse(res))
+
+

@@ -30,7 +30,6 @@ class CFGBuilder:
     
     def build_module(self, stmts: List[stmt]) -> CFGModule:
         mod = CFGModule()
-
         builder = CFGBuilder(scope=mod)
         mod_info = builder._build(stmts, builder.cfg, builder.cfg.entry_blk)
 
@@ -40,11 +39,8 @@ class CFGBuilder:
         mod.set_imports(mod_info['import'])
         return mod
 
-    def build_func(self, stmt) -> CFGFunc:
-        new_stmt = copy.deepcopy(stmt)
-        new_stmt.body = []
-        func = CFGFunc(new_stmt, scope=self.scope)
-
+    def build_func(self, stmt, func_def) -> CFGFunc:
+        func = CFGFunc(func_def, scope=self.scope)
         builder = CFGBuilder(scope=func)
         func_info = builder._build(stmt.body,
                                    builder.cfg, builder.cfg.entry_blk)
@@ -59,24 +55,14 @@ class CFGBuilder:
         func.set_imports(func_info['import'])
         return func
 
-    def build_class(self, stmt, cur_blk, cfg: ControlFlowGraph
-                    ) -> Tuple[CFGClass, Dict]:
-        new_stmt = copy.deepcopy(stmt)
-        new_stmt.body = []
-        cls = CFGClass(new_stmt, scope=self.scope)
+    def build_class(self, stmt, cls_def) -> Tuple[CFGClass, Dict]:
+        cls = CFGClass(cls_def, scope=self.scope)
+        builder = CFGBuilder(scope=cls)
+        cls_info = builder._build(stmt.body,
+                                  builder.cfg, builder.cfg.entry_blk)
+        builder.cfg.add_exit(cls_info['last_block'])
 
-        scope_bak = self.scope
-        self.set_scope(cls)
-        cls_blk = self._new_blk()
-        cls_info = self._build(stmt.body, cfg, cls_blk)
-        self.set_scope(scope_bak)
-
-        next_blk = self._new_blk()
-        enter_edge = ClassDefEdge(cur_blk, cls_blk, cls)
-        exit_edge = ClassEndEdge(cls_info['last_block'], next_blk, cls)
-        cfg.add_edge(enter_edge)
-        cfg.add_edge(exit_edge)
-
+        cls.set_cfg(builder.cfg)
         cls.set_funcs(cls_info['func'])
         cls.set_classes(cls_info['class'])
         cls.set_imports(cls_info['import'])
@@ -87,7 +73,6 @@ class CFGBuilder:
                cur_blk: BaseBlock
                ) -> Dict[str, List]:
         
-        # Add storation for import
         exit_stmt_list = [
             'break', 'continue', 'return', 'yield', 'raise',
             'func', 'class', 'import']
@@ -112,24 +97,26 @@ class CFGBuilder:
         
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                new_stmt = copy.deepcopy(stmt)
-                new_stmt.body = []
-                cur_blk.add(new_stmt)
-                func = self.build_func(stmt)
+                func_def = copy.deepcopy(stmt)
+                func_def.body = []
+                cur_blk.add(func_def)
+                func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
             
             elif isinstance(stmt, ast.AsyncFunctionDef):
-                new_stmt = copy.deepcopy(stmt)
-                new_stmt.body = []
-                cur_blk.add(new_stmt)
-                func = self.build_func(stmt)
+                func_def = copy.deepcopy(stmt)
+                func_def.body = []
+                cur_blk.add(func_def)
+                func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
 
             elif isinstance(stmt, ast.ClassDef):
-                cls, build_info = self.build_class(stmt, cur_blk, cfg)
+                cls_def = copy.deepcopy(stmt)
+                cls_def.body = []
+                cur_blk.add(cls_def)
+                cls, build_info = self.build_class(stmt, cls_def)
                 exit_stmt['class'].append(cls)
-                extend_info(build_info, include=['raise'])
-                cur_blk = build_info['last_block']      
+                # extend_info(build_info, include=['raise'])
                 
             elif isinstance(stmt, ast.Break):
                 cur_blk.add(stmt)

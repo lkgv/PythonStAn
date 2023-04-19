@@ -1,6 +1,6 @@
 import ast
-from pythonstan.three_address import ThreeAddressTransformer
-from pythonstan.cfg.builder import CFGBuilder
+from pythonstan.ir.three_address import ThreeAddressTransformer
+from pythonstan.graph.cfg.builder import CFGBuilder
 
 src = '''
 # (a, b) = 3, 4

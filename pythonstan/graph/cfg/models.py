@@ -164,9 +164,11 @@ class CFGScope(ABC):
     funcs: List['CFGFunc']
     classes: List['CFGClass']
     imports: List[CFGImport]
+    cfg: Optional['ControlFlowGraph']
 
     @abstractmethod
-    def __init__(self, funcs, classes, imports):
+    def __init__(self, cfg, funcs, classes, imports):
+        self.set_cfg(cfg)
         self.set_funcs(funcs)
         self.set_classes(classes)
         self.set_imports(imports)
@@ -179,6 +181,9 @@ class CFGScope(ABC):
     
     def set_imports(self, imports):
         self.imports = imports
+
+    def set_cfg(self, cfg):
+        self.cfg = cfg
     
     def add_func(self, func):
         self.funcs.append(func)
@@ -194,9 +199,9 @@ class CFGClass(CFGScope):
     class_def: ast.ClassDef
     scope: Optional[CFGScope]
 
-    def __init__(self, class_def, scope=None,
+    def __init__(self, class_def, cfg=None, scope=None,
                  funcs=[], classes=[], imports=[]):
-        super().__init__(funcs, classes, imports)
+        super().__init__(cfg, funcs, classes, imports)
         self.class_def = class_def
         self.scope = scope
     
@@ -209,18 +214,13 @@ class CFGClass(CFGScope):
 
 class CFGFunc(CFGScope):
     func_def: ast.FunctionDef
-    cfg: Optional['ControlFlowGraph']
     scope: Optional[CFGScope]
     
     def __init__(self, func_def, cfg=None, scope=None,
                  funcs=[], classes=[], imports=[]):
-        super().__init__(funcs, classes, imports)
+        super().__init__(cfg, funcs, classes, imports)
         self.func_def = func_def
-        self.cfg = cfg
         self.scope = scope
-    
-    def set_cfg(self, cfg):
-        self.cfg = cfg
     
     def set_scope(self, scope):
         self.scope = scope
@@ -230,14 +230,8 @@ class CFGFunc(CFGScope):
 
 
 class CFGModule(CFGScope):
-    cfg: Optional['ControlFlowGraph']
-
     def __init__(self, cfg=None, funcs=[], classes=[], imports=[]):
-        super().__init__(funcs, classes, imports)
-        self.cfg = cfg
-    
-    def set_cfg(self, cfg):
-        self.cfg = cfg
+        super().__init__(cfg, funcs, classes, imports)
 
     def __str__(self):
         return '\n'.join([str(self.cfg), '\n\n'.join([str(c) for c in self.classes]), str(self.funcs)])
