@@ -1,10 +1,11 @@
 # PythonStAn
-A static analysis framework for Python.
+A Python Static Analysis framework.
 
 
 TODO List:
 * IR:
-  - Three-address transformer
+  - [DONE] Three-address transformer
+  - [DONE] CFG generator
   - SSA transformer
 
 * Analysis:
@@ -12,3 +13,4 @@ TODO List:
   - Interprocedual analysis
   - Anderson's pointer analysis
   - Type Analysis
+
