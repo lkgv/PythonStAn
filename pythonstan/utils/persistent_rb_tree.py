@@ -101,8 +101,6 @@ class Tree(Generic[T]):
     
     @staticmethod
     def rotate(t: Node_t) -> Node_t:
-        raise NotImplementedError
-    
         if has_pattern(t, (R, (BB, None, None), (B, None, None))):
             (_, (_, a, x, b), y, (_, c, z, d)) = t
             return Tree.balance((B, (R, (B, a, x, b), y, c), z, d))
@@ -112,6 +110,9 @@ class Tree(Generic[T]):
         if has_pattern(t, (R, (B, None, None), (BB, None, None))):
             (_, (_, a, x, b), y, (_, c, z, d)) = t
             return Tree.balance((B, a, x, (R, b, y, (B, c, z, d))))
+        if has_pattern(t, (R, (B, None, None), EE)):
+            (_, (_, a, x, b), y, _) = t
+            return Tree.balance((B, a, x, (R, b, y, E)))
         # ...
         return t
 

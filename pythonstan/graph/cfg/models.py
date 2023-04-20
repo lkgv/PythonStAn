@@ -212,8 +212,36 @@ class CFGClass(CFGScope):
         return ast.unparse(self.class_def)
 
 
+class CFGFuncDef:
+    name: str
+    args: List
+    decorator_list: List
+    returns: ast.expr
+
+    cell_vars: List
+    
+    def __init__(self, fn: ast.FunctionDef, cell_vars=[]):
+        self.name = fn.name
+        self.args = fn.args
+        # ...
+
+        self.cell_vars = cell_vars
+    
+    def to_ast(self) -> ast.FunctionDef:
+        raise NotImplementedError
+    
+    def set_cell_vars(self, cell_vars):
+        self.cell_vars = cell_vars
+
+    def add_cell_var(self, cell_var):
+        self.cell_vars.append(cell_var)
+    
+    def __str__(self):
+        return ast.unparse(self.to_ast())
+
+
 class CFGFunc(CFGScope):
-    func_def: ast.FunctionDef
+    func_def: ast.CFGFuncDef
     scope: Optional[CFGScope]
     
     def __init__(self, func_def, cfg=None, scope=None,

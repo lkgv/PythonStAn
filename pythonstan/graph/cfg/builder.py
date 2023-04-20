@@ -50,6 +50,7 @@ class CFGBuilder:
             builder.cfg.add_exit(ret_blk)
         for yield_blk, _ in func_info['yield']:
             builder.cfg.add_exit(yield_blk)
+        builder.cfg.add_exit(func_info['last_block'])
 
         func.set_cfg(builder.cfg)
         func.set_funcs(func_info['func'])
