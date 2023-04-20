@@ -50,6 +50,7 @@ class CFGBuilder:
             builder.cfg.add_exit(ret_blk)
         for yield_blk, _ in func_info['yield']:
             builder.cfg.add_exit(yield_blk)
+        builder.cfg.add_exit(func_info['last_block'])
 
         func.set_cfg(builder.cfg)
         func.set_funcs(func_info['func'])
@@ -57,7 +58,7 @@ class CFGBuilder:
         func.set_imports(func_info['import'])
         return func
 
-    def build_class(self, stmt, cls_def) -> Tuple[CFGClass, Dict]:
+    def build_class(self, stmt: ast.ClassDef, cls_def: CFGClassDef) -> Tuple[CFGClass, Dict]:
         cls = CFGClass(cls_def, scope=self.scope)
         builder = CFGBuilder(scope=cls)
         cls_info = builder._build(stmt.body,
@@ -99,23 +100,20 @@ class CFGBuilder:
         
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                func_def = copy.deepcopy(stmt)
-                func_def.body = []
-                cur_blk.add(func_def)
+                func_def = CFGFuncDef(stmt)
+                cur_blk.add(func_def.to_ast())
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
             
             elif isinstance(stmt, ast.AsyncFunctionDef):
-                func_def = copy.deepcopy(stmt)
-                func_def.body = []
-                cur_blk.add(func_def)
+                func_def = CFGAsyncFuncDef(stmt)
+                cur_blk.add(func_def.to_ast())
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
 
             elif isinstance(stmt, ast.ClassDef):
-                cls_def = copy.deepcopy(stmt)
-                cls_def.body = []
-                cur_blk.add(cls_def)
+                cls_def = CFGClassDef(stmt)
+                cur_blk.add(cls_def.to_ast())
                 cls, build_info = self.build_class(stmt, cls_def)
                 exit_stmt['class'].append(cls)
                 # extend_info(build_info, include=['raise'])

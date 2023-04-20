@@ -1,6 +1,7 @@
 import ast
 from pythonstan.ir.three_address import ThreeAddressTransformer
 
+
 src = '''
 # (a, b) = 3, 4
 if a > 10:
@@ -80,8 +81,6 @@ w = (k for k, p in x)
 
 trans = ThreeAddressTransformer()
 for src_str in srcs:
-    trans.reset()
-    
 
     src = ast.parse(src_str)
     res = trans.visit(src)
