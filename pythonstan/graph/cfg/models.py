@@ -195,8 +195,44 @@ class CFGScope(ABC):
         self.imports.append(imp)
 
 
+class CFGClassDef:
+    name: str
+    bases: List[ast.expr]
+    keywords: List[ast.keyword]
+    decorator_list: List[ast.expr]
+
+    cell_vars: List[ast.Name]
+    
+    def __init__(self, cls: ast.ClassDef, cell_vars=[]):
+        self.name = cls.name
+        self.bases = cls.bases
+        self.keywords = cls.keywords
+        self.decorator_list = cls.decorator_list
+
+        self.cell_vars = cell_vars
+    
+    def to_ast(self) -> ast.ClassDef:
+        return ast.ClassDef(
+            name=self.name,
+            bases=self.bases,
+            keywords=self.keywords,
+            body=[],
+            decorator_list=self.decorator_list)
+    
+    def set_cell_vars(self, cell_vars):
+        self.cell_vars = cell_vars
+
+    def add_cell_var(self, cell_var):
+        self.cell_vars.append(cell_var)
+    
+    def __str__(self):
+        names = list(map(lambda x: x.id, self.cell_vars))
+        cell_comment = "# closure: (" + ', '.join(names) + ")\n"
+        return cell_comment + ast.unparse(self.to_ast())
+
+
 class CFGClass(CFGScope):
-    class_def: ast.ClassDef
+    class_def: CFGClassDef
     scope: Optional[CFGScope]
 
     def __init__(self, class_def, cfg=None, scope=None,
@@ -209,26 +245,35 @@ class CFGClass(CFGScope):
         self.scope = scope
 
     def __repr__(self) -> str:
-        return ast.unparse(self.class_def)
+        return str(self.class_def)
 
 
 class CFGFuncDef:
     name: str
-    args: List
-    decorator_list: List
+    args: List[ast.arguments]
+    decorator_list: List[ast.expr]
     returns: ast.expr
+    type_comment: str
 
-    cell_vars: List
+    cell_vars: List[ast.Name]
     
     def __init__(self, fn: ast.FunctionDef, cell_vars=[]):
         self.name = fn.name
         self.args = fn.args
-        # ...
+        self.decorator_list = fn.decorator_list
+        self.returns = fn.returns
+        self.type_comment = fn.type_comment
 
         self.cell_vars = cell_vars
     
     def to_ast(self) -> ast.FunctionDef:
-        raise NotImplementedError
+        return ast.FunctionDef(
+            name=self.name,
+            args=self.args,
+            body=[],
+            decorator_list=self.decorator_list,
+            returns=self.returns,
+            type_comment=self.type_comment)
     
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
@@ -237,11 +282,33 @@ class CFGFuncDef:
         self.cell_vars.append(cell_var)
     
     def __str__(self):
-        return ast.unparse(self.to_ast())
+        names = list(map(lambda x: x.id, self.cell_vars))
+        cell_comment = "# closure: (" + ', '.join(names) + ")\n"
+        return cell_comment + ast.unparse(self.to_ast())
+
+
+class CFGAsyncFuncDef(CFGFuncDef):
+    def __init__(self, fn: ast.AsyncFunctionDef, cell_vars=[]):
+        self.name = fn.name
+        self.args = fn.args
+        self.decorator_list = fn.decorator_list
+        self.returns = fn.returns
+        self.type_comment = fn.type_comment
+
+        self.cell_vars = cell_vars
+    
+    def to_ast(self):
+        return ast.AsyncFunctionDef(
+            name=self.name,
+            args=self.args,
+            body=[],
+            decorator_list=self.decorator_list,
+            returns=self.returns,
+            type_comment=self.type_comment)
 
 
 class CFGFunc(CFGScope):
-    func_def: ast.CFGFuncDef
+    func_def: CFGFuncDef
     scope: Optional[CFGScope]
     
     def __init__(self, func_def, cfg=None, scope=None,
