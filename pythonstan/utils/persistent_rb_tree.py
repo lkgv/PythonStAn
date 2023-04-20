@@ -113,7 +113,30 @@ class Tree(Generic[T]):
         if has_pattern(t, (R, (B, None, None), EE)):
             (_, (_, a, x, b), y, _) = t
             return Tree.balance((B, a, x, (R, b, y, E)))
-        # ...
+        if has_pattern(t, (B, (BB, None, None), (B, None, None))):
+            (_, (_, a, x, b), y, (_, c, z, d)) = t
+            return Tree.balance((BB, (R, (B, a, x, b), y, c), z, d))
+        if has_pattern(t, (B, EE, (B, None, None))):
+            (_, _, y, (_, c, z, d)) = t
+            return Tree.balance((BB, (R, E, y, c), z, d))
+        if has_pattern(t, (B, (B, None, None), (BB, None, None))):
+            (_, (_, a, x, b), y, (_, c, z, d)) = t
+            return Tree.balance((BB, a, x, (R, b, y, (B, c, z, d))))
+        if has_pattern(t, (B, (B, None, None), EE)):
+            (_, (_, a, x, b), y, _) = t
+            return Tree.balance((BB, a, x, (R, b, y, E)))
+        if has_pattern(t, (B, (BB, None, None), (R, (B, None, None), None))):
+            (_, (_, a, w, b), x, (_, (_, c, y, d), z, e)) = t
+            return (B, Tree.balance((B, (R, (B, a, w, b), x, c), y, d)), z, e)
+        if has_pattern(t, (B, EE, (R, (B, None, None), None))):
+            (_, _, x, (_, (_, c, y, d), z, e)) = t
+            return (B, Tree.balance((B, (R, E, x, c), y, d)), z, e)
+        if has_pattern(t, (B, (R, None, (B, None, None)), (BB, None, None))):
+            (_, (_, a, w, (_, b, x, c)), y, (_, d, z, e)) = t
+            return (B, a, w, Tree.balance((B, b, x, (R, c, y, (B, d, z, e)))))
+        if has_pattern(t, (B, (R, None, (B, None, None)), EE)):
+            (_, (_, a, w, (_, b, x, c)), y, _) = t
+            return (B, a, w, Tree.balance((B, b, x, (R, c, y, E))))
         return t
 
     
@@ -135,19 +158,90 @@ class Tree(Generic[T]):
         return t
     
     def _insert(self, t: Node_t, x: T) -> Node_t:
-            if is_empty(t):
-                return (R, E, x, E)
-            
-            (c, a, y, b) = t
-            res = self.compare(x, y)
-            if res > 0:
-                new_t = (c, self._insert(a), y, b)
-                return self.balance(new_t)
-            elif res == 0:
-                return t
-            else:
-                new_t = (c, a, y, self._insert(b))
-                return self.balance(new_t)
+        if is_empty(t):
+            return (R, E, x, E)
+        
+        (c, a, y, b) = t
+        res = self.compare(x, y)
+        if res > 0:
+            new_t = (c, self._insert(a), y, b)
+            return self.balance(new_t)
+        elif res == 0:
+            return t
+        else:
+            new_t = (c, a, y, self._insert(b))
+            return self.balance(new_t)
     
     def add(self, t: Node_t, x: T) -> Node_t:
         return self._blacken(self._insert(t, x))
+    
+    @staticmethod
+    def min_del(t: Node_t):
+        if is_empty(t):
+            return t
+
+        if has_pattern(t, (R, E, E)):
+            (_, _, x, _) = t
+            return (x, E)
+        if has_pattern(t, (B, E, E)):
+            (_, _, x, _) = t
+            return (x, EE)
+        if has_pattern(t, (B, E, (R, E, E))):
+            (_, _, x, (_, _, y, _)) = t
+            return (x, (B, E, y, E))
+        (c, a, x, b) = t
+        x_, a_ = Tree.min_del(a)
+        return (x_, Tree.rotate(c, a_, x, b))
+        
+    
+    def _delete(self, t: Node_t, x: T) -> Node_t:
+        if is_empty(t):
+            return t
+        
+        if has_pattern(t, (R, E, E)):
+            (_, _, y, _) = t
+            if self.compare(x, y) == 0:
+                return E
+            else:
+                return (R, E, y, E)
+        if has_pattern(t, (B, E, E)):
+            (_, _, y, _) = t
+            if self.compare(x, y) == 0:
+                return EE
+            else:
+                return (B, E, y, E)
+        if has_pattern(t, (B, (R, E, E), E)):
+            (_, (_, _, y, _), z, _) = t
+            res = self.compare(x, z)
+            if res < 0:
+                return (B, self._delete((R, E, y, E), x), z, E)
+            elif res == 0:
+                return (B, E, y, E)
+            else:
+                return (B, (R, E, y, E), z, E)
+        
+        (c, a, y, b) = t
+        res = self.compare(x, y)
+        if res < 0:
+            return self.rotate((c, self._delete(a, x), y, b))
+        elif res == 0:
+            y_, b_ = self.min_del(b)
+            return self.rotate((c, a, y_, b_))
+        else:
+            return self.rotate((c, a, y, self._delete(b, x)))
+        
+    def delete(self, t: Node_t, x: T) -> Node_t:
+        return self._delete(self._redden(t), x)
+    
+    def find(self, t: Node_t, x: T) -> Optional[T]:
+        if is_empty(t):
+            return None
+        (_, l, y, r) = t
+        res = self.compare(x, y)
+        if res < 0:
+            return self.find(l, x)
+        elif res == 0:
+            return y
+        else:
+            return self.find(r, x)
+
