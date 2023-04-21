@@ -2,7 +2,7 @@ from typing import *
 from abc import ABC, abstractmethod
 import ast
 from ast import stmt
-from utils.var_collector import VarCollector
+from ...utils.var_collector import VarCollector
 
 
 class BaseBlock:
@@ -201,6 +201,7 @@ class CFGClassDef:
     bases: List[ast.expr]
     keywords: List[ast.keyword]
     decorator_list: List[ast.expr]
+    ast_repr: ast.ClassDef
 
     cell_vars: List[ast.Name]
     
@@ -209,16 +210,18 @@ class CFGClassDef:
         self.bases = cls.bases
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
-
-        self.cell_vars = cell_vars
-    
-    def to_ast(self) -> ast.ClassDef:
-        return ast.ClassDef(
+        self.ast_repr = ast.ClassDef(
             name=self.name,
             bases=self.bases,
             keywords=self.keywords,
             body=[],
             decorator_list=self.decorator_list)
+        ast.copy_location(self.ast_repr, cls)
+
+        self.cell_vars = cell_vars
+    
+    def to_ast(self) -> ast.ClassDef:
+        return self.ast_repr
     
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
@@ -255,6 +258,7 @@ class CFGFuncDef:
     decorator_list: List[ast.expr]
     returns: ast.expr
     type_comment: str
+    ast_repr: ast.FunctionDef
 
     cell_vars: List[ast.Name]
     
@@ -264,17 +268,19 @@ class CFGFuncDef:
         self.decorator_list = fn.decorator_list
         self.returns = fn.returns
         self.type_comment = fn.type_comment
-
-        self.cell_vars = cell_vars
-    
-    def to_ast(self) -> ast.FunctionDef:
-        return ast.FunctionDef(
+        self.ast_repr = ast.FunctionDef(
             name=self.name,
             args=self.args,
             body=[],
             decorator_list=self.decorator_list,
             returns=self.returns,
             type_comment=self.type_comment)
+        ast.copy_location(self.ast_repr, fn)
+
+        self.cell_vars = cell_vars
+    
+    def to_ast(self) -> ast.FunctionDef:
+        return self.ast_repr
     
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
@@ -289,23 +295,24 @@ class CFGFuncDef:
 
 
 class CFGAsyncFuncDef(CFGFuncDef):
+    ast_repr: ast.AsyncFunctionDef
+
     def __init__(self, fn: ast.AsyncFunctionDef, cell_vars=[]):
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
         self.returns = fn.returns
         self.type_comment = fn.type_comment
-
-        self.cell_vars = cell_vars
-    
-    def to_ast(self):
-        return ast.AsyncFunctionDef(
+        self.ast_repr = ast.AsyncFunctionDef(
             name=self.name,
             args=self.args,
             body=[],
             decorator_list=self.decorator_list,
             returns=self.returns,
             type_comment=self.type_comment)
+        ast.copy_location(self.ast_repr, fn)
+
+        self.cell_vars = cell_vars
 
 
 class CFGFunc(CFGScope):
@@ -322,7 +329,7 @@ class CFGFunc(CFGScope):
         self.scope = scope
 
     def __repr__(self) -> str:
-        return ast.unparse(self.func_def)
+        return ast.unparse(self.func_def.to_ast())
 
 
 class CFGModule(CFGScope):
@@ -332,11 +339,12 @@ class CFGModule(CFGScope):
     def __str__(self):
         return '\n'.join([str(self.cfg), '\n\n'.join([str(c) for c in self.classes]), str(self.funcs)])
 
-
+# fix a bug: idx should be maintained by CFG rather than CFG builder
+# TODO super exit block
 class ControlFlowGraph:
     entry_blk: BaseBlock
     exit_blks: List[BaseBlock]
-    super_exit_blk: BaseBlock
+    super_exit_blk: Optional[BaseBlock]
     scope: Optional[CFGScope]
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
@@ -346,6 +354,7 @@ class ControlFlowGraph:
 
     def __init__(self, entry_blk=None, scope=None):
         self.blks = {*()}
+        self.stmts = {*()}
         self.scope = scope
         self.in_edges = {}
         self.out_edges = {}
@@ -355,6 +364,7 @@ class ControlFlowGraph:
         else:
             self.entry_blk = BaseBlock(idx=0, cfg=self)
         self.exit_blks = []
+        self.super_exit_blk = None
         self.var_collector = VarCollector()
 
     def preds_of(self, blk: BaseBlock):
@@ -392,9 +402,6 @@ class ControlFlowGraph:
     
     def add_exit(self, blk: BaseBlock):
         self.exit_blks.append(blk)
-    
-    def gen_super_exit(self):
-        pass
 
     def find_var(self, var):
         return self.var_collector.find(var)
@@ -404,3 +411,9 @@ class ControlFlowGraph:
     
     def get_var_num(self):
         return self.var_collector.size()
+    
+    def add_super_exit_blk(self, blk):
+        self.add_blk(blk)
+        self.super_exit_blk = blk
+        for exit_blk in self.exit_blks:
+            self.add_edge(NormalEdge(exit_blk, blk))

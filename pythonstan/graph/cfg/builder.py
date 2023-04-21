@@ -1,7 +1,6 @@
 import ast
 from ast import stmt
 from typing import List, Dict
-from utils.var_collector import VarCollector
 
 from .models import *
 
@@ -25,7 +24,7 @@ class CFGBuilder:
         self.scope = scope
         self.cfg.set_scope(scope)
 
-    def _new_blk(self) -> BaseBlock:
+    def new_blk(self) -> BaseBlock:
         blk = BaseBlock(self.next_idx, self.cfg)
         self.next_idx += 1
         return blk
@@ -33,7 +32,13 @@ class CFGBuilder:
     def build_module(self, stmts: List[stmt]) -> CFGModule:
         mod = CFGModule()
         builder = CFGBuilder(scope=mod)
-        mod_info = builder._build(stmts, builder.cfg, builder.cfg.entry_blk)
+
+        new_blk = builder.new_blk()
+        edge = NormalEdge(builder.cfg.entry_blk, new_blk)
+        builder.cfg.add_edge(edge)
+        mod_info = builder._build(stmts, builder.cfg, new_blk)
+        builder.cfg.add_exit(mod_info['last_block'])
+        builder.cfg.add_super_exit_blk(builder.new_blk())
 
         mod.set_cfg(builder.cfg)
         mod.set_funcs(mod_info['func'])
@@ -44,13 +49,16 @@ class CFGBuilder:
     def build_func(self, stmt, func_def) -> CFGFunc:
         func = CFGFunc(func_def, scope=self.scope)
         builder = CFGBuilder(scope=func)
-        func_info = builder._build(stmt.body,
-                                   builder.cfg, builder.cfg.entry_blk)
+        new_blk = builder.new_blk()
+        edge = NormalEdge(builder.cfg.entry_blk, new_blk)
+        builder.cfg.add_edge(edge)
+        func_info = builder._build(stmt.body, builder.cfg, new_blk)
         for ret_blk, _ in func_info['return']:
             builder.cfg.add_exit(ret_blk)
         for yield_blk, _ in func_info['yield']:
             builder.cfg.add_exit(yield_blk)
         builder.cfg.add_exit(func_info['last_block'])
+        builder.cfg.add_super_exit_blk(builder.new_blk())
 
         func.set_cfg(builder.cfg)
         func.set_funcs(func_info['func'])
@@ -58,12 +66,16 @@ class CFGBuilder:
         func.set_imports(func_info['import'])
         return func
 
-    def build_class(self, stmt: ast.ClassDef, cls_def: CFGClassDef) -> Tuple[CFGClass, Dict]:
+    def build_class(self, stmt: ast.ClassDef,
+                    cls_def: CFGClassDef) -> Tuple[CFGClass, Dict]:
         cls = CFGClass(cls_def, scope=self.scope)
         builder = CFGBuilder(scope=cls)
-        cls_info = builder._build(stmt.body,
-                                  builder.cfg, builder.cfg.entry_blk)
+        new_blk = builder.new_blk()
+        edge = NormalEdge(builder.cfg.entry_blk, new_blk)
+        builder.cfg.add_edge(edge)
+        cls_info = builder._build(stmt.body, builder.cfg, new_blk)
         builder.cfg.add_exit(cls_info['last_block'])
+        builder.cfg.add_super_exit_blk(builder.new_blk())
 
         cls.set_cfg(builder.cfg)
         cls.set_funcs(cls_info['func'])
@@ -84,7 +96,7 @@ class CFGBuilder:
 
         def gen_next_blk(cur_blk, edge_builder):
             if cur_blk.n_stmt() > 0 and i < cur_blk.n_stmt() - 1:
-                new_blk = self._new_blk()
+                new_blk = self.new_blk()
                 edge = edge_builder(cur_blk, new_blk)
                 cfg.add_blk(new_blk)
                 cfg.add_edge(edge)
@@ -149,7 +161,7 @@ class CFGBuilder:
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
-                next_blk = self._new_blk()
+                next_blk = self.new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
                 for blk, _ in loop_info['continue']:
@@ -176,7 +188,7 @@ class CFGBuilder:
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
-                next_blk = self._new_blk()
+                next_blk = self.new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
                 for blk, _ in loop_info['continue']:
@@ -199,7 +211,7 @@ class CFGBuilder:
                 loop_blk = gen_next_blk(cur_blk, WhileEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
-                next_blk = self._new_blk()
+                next_blk = self.new_blk()
                 for blk, _ in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
                 for blk, _ in loop_info['continue']:
@@ -222,7 +234,7 @@ class CFGBuilder:
                                         lambda u, v: IfEdge(u, v, True))
                 then_info = self._build(stmt.body, cfg, then_blk)
                 extend_info(then_info)
-                next_blk = self._new_blk()
+                next_blk = self.new_blk()
                 cfg.add_edge(NormalEdge(then_info['last_block'], next_blk))
                 if len(stmt.orelse) > 0:
                     else_blk = gen_next_blk(cur_blk,
@@ -279,7 +291,7 @@ class CFGBuilder:
                 try_blk = gen_next_blk(cur_blk, NormalEdge)
                 try_info = self._build(stmt.body, cfg, try_blk)
                 extend_info(try_info)
-                next_blk = self._new_blk()
+                next_blk = self.new_blk()
                 has_final = (len(stmt.finalbody) > 0)
                 if len(stmt.orelse) > 0:
                     else_blk = gen_next_blk(try_info['last_block'], NormalEdge)
