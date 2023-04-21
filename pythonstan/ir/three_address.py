@@ -727,28 +727,63 @@ class ThreeAddressTransformer(NodeTransformer):
         return ins
     
     def visit_FunctionDef(self, node):
+        blk, args = self.visit_arguments(node.args)
         ins = ast.FunctionDef(
             name=node.name,
-            args=node.args,
+            args=args,
             body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
         )
         ast.copy_location(ins, node)
-        return [ins]
+        blk.append(ins)
+        return blk
     
     def visit_AsyncFunctionDef(self, node):
+        blk, args = self.visit_arguments(node.args)
         ins = ast.AsyncFunctionDef(
             name=node.name,
-            args=node.args,
+            args=args,
             body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list,
             returns=node.returns,
             type_comment=node.type_comment
         )
         ast.copy_location(ins, node)
-        return [ins]
+        blk.append(ins)
+        return blk
+
+    def visit_arguments(self, node):
+        blk = []
+        defaults = []
+        for val in node.defaults:
+            if val is None or isinstance(val, ast.Name) or \
+                  isinstance(val, ast.Constant):
+                defaults.append(val)
+            else:
+                val_blk, val_elt = self.split_expr(val)
+                blk.extend(val_blk)
+                defaults.append(val_elt)
+        kw_defaults = []
+        for val in node.kw_defaults:
+            if val is None or isinstance(val, ast.Name) or \
+                  isinstance(val, ast.Constant):
+                kw_defaults.append(val)
+            else:
+                val_blk, val_elt = self.split_expr(val)
+                blk.extend(val_blk)
+                kw_defaults.append(val_elt)
+        arguments = ast.arguments(
+            posonlyargs=node.posonlyargs,
+            args=node.args,
+            vararg=node.vararg,
+            kwonlyargs=node.kwonlyargs,
+            kw_defaults=kw_defaults,
+            kwarg=node.kw_defaults,
+            defaults=defaults)
+        ast.copy_location(arguments, node)
+        return blk, arguments
 
     def visit_Import(self, node):
         blk = []
