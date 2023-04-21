@@ -1,7 +1,7 @@
 import ast
 from ast import stmt
-import copy
 from typing import List, Dict
+from utils.var_collector import VarCollector
 
 from .models import *
 
@@ -101,40 +101,40 @@ class CFGBuilder:
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
                 func_def = CFGFuncDef(stmt)
-                cur_blk.add(func_def.to_ast())
+                cfg.add_stmt(cur_blk, func_def.to_ast())
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
             
             elif isinstance(stmt, ast.AsyncFunctionDef):
                 func_def = CFGAsyncFuncDef(stmt)
-                cur_blk.add(func_def.to_ast())
+                cfg.add_stmt(cur_blk, func_def.to_ast())
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
 
             elif isinstance(stmt, ast.ClassDef):
                 cls_def = CFGClassDef(stmt)
-                cur_blk.add(cls_def.to_ast())
+                cfg.add_stmt(cur_blk, cls_def.to_ast())
                 cls, build_info = self.build_class(stmt, cls_def)
                 exit_stmt['class'].append(cls)
                 # extend_info(build_info, include=['raise'])
                 
             elif isinstance(stmt, ast.Break):
-                cur_blk.add(stmt)
+                cfg.add_stmt(cur_blk, stmt)
                 exit_stmt['break'].append((cur_blk, stmt))
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
             elif isinstance(stmt, ast.Continue):
-                cur_blk.add(stmt)
+                cfg.add_stmt(cur_blk, stmt)
                 exit_stmt['continue'].append((cur_blk, stmt))
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
             elif isinstance(stmt, ast.Return):
-                cur_blk.add(stmt)
+                cfg.add_stmt(cur_blk, stmt)
                 exit_stmt['return'].append((cur_blk, stmt))
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
             
             elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
-                cur_blk.add(stmt)
+                cfg.add_stmt(cur_blk, stmt)
                 exit_stmt['import'].append((cur_blk, CFGImport(stmt)))
 
             elif isinstance(stmt, ast.For):
@@ -145,7 +145,7 @@ class CFGBuilder:
                                    type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
-                cur_blk.add(new_stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
@@ -172,7 +172,7 @@ class CFGBuilder:
                                         type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
-                cur_blk.add(new_stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 loop_blk = gen_next_blk(cur_blk, ForEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
@@ -195,7 +195,7 @@ class CFGBuilder:
                 new_stmt = ast.While(test=stmt.test, body=[], orelse=[])
                 ast.copy_location(new_stmt, stmt)
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
-                cur_blk.add(new_stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 loop_blk = gen_next_blk(cur_blk, WhileEdge)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
@@ -217,7 +217,7 @@ class CFGBuilder:
             elif isinstance(stmt, ast.If):
                 new_stmt = ast.If(test=stmt.test, body=[], orelse=[])
                 ast.copy_location(new_stmt, stmt)
-                cur_blk.add(new_stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 then_blk = gen_next_blk(cur_blk,
                                         lambda u, v: IfEdge(u, v, True))
                 then_info = self._build(stmt.body, cfg, then_blk)
@@ -236,6 +236,7 @@ class CFGBuilder:
                 new_stmt = ast.With(items=stmt.items, body=[],
                                     type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 var = stmt.items[0].optional_vars
                 with_blk = gen_next_blk(cur_blk,
                                         lambda u, v: WithEdge(u, v, var))
@@ -248,6 +249,7 @@ class CFGBuilder:
                 new_stmt = ast.AsyncWith(items=stmt.items, body=[],
                                     type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 var = stmt.items[0].optional_vars
                 with_blk = gen_next_blk(cur_blk,
                                         lambda u, v: WithEdge(u, v, var))
@@ -258,7 +260,7 @@ class CFGBuilder:
                 
             elif isinstance(stmt, ast.Raise):
                 exit_stmt['raise'].append((cur_blk, stmt))
-                cur_blk.add(stmt)
+                cfg.add_stmt(cur_blk, stmt)
                 cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
             elif isinstance(stmt, ast.Try):
@@ -273,7 +275,7 @@ class CFGBuilder:
                                    orelse=[],
                                    finalbody=[])
                 ast.copy_location(new_stmt, stmt)
-                cur_blk.add(new_stmt)
+                cfg.add_stmt(cur_blk, new_stmt)
                 try_blk = gen_next_blk(cur_blk, NormalEdge)
                 try_info = self._build(stmt.body, cfg, try_blk)
                 extend_info(try_info)
@@ -302,17 +304,17 @@ class CFGBuilder:
                 if isinstance(stmt, ast.Assign) and \
                     isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
                     exit_stmt['yield'].append((cur_blk, stmt))
-                    cur_blk.add(stmt)
+                    cfg.add_stmt(cur_blk, stmt)
                     cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
                 elif isinstance(stmt, ast.Assign) and \
                     isinstance(stmt.value, ast.Call):
                     cur_blk = gen_next_blk(cur_blk, NormalEdge)
-                    cur_blk.add(stmt)
+                    cfg.add_stmt(cur_blk, stmt)
                     cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
                 else:
-                    cur_blk.add(stmt)
+                    cfg.add_stmt(cur_blk, stmt)
         
         ret_info = exit_stmt
         ret_info['last_block'] = cur_blk

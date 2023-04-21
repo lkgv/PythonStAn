@@ -2,6 +2,7 @@ from typing import *
 from abc import ABC, abstractmethod
 import ast
 from ast import stmt
+from utils.var_collector import VarCollector
 
 
 class BaseBlock:
@@ -340,6 +341,8 @@ class ControlFlowGraph:
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
+    stmts: Set[stmt]
+    var_collector: VarCollector
 
     def __init__(self, entry_blk=None, scope=None):
         self.blks = {*()}
@@ -352,6 +355,7 @@ class ControlFlowGraph:
         else:
             self.entry_blk = BaseBlock(idx=0, cfg=self)
         self.exit_blks = []
+        self.var_collector = VarCollector()
 
     def preds_of(self, blk: BaseBlock):
         return [e.start for e in self.in_edges_of(blk)]
@@ -370,6 +374,11 @@ class ControlFlowGraph:
         self.in_edges[blk] = []
         self.out_edges[blk] = []
     
+    def add_stmt(self, blk: BaseBlock, stmt: stmt):
+        blk.add(stmt)
+        self.stmts.add(stmt)
+        self.var_collector.visit(stmt)
+    
     def add_edge(self, edge: Edge):
         if edge.start not in self.blks:
             self.add_blk(edge.start)
@@ -386,3 +395,12 @@ class ControlFlowGraph:
     
     def gen_super_exit(self):
         pass
+
+    def find_var(self, var):
+        return self.var_collector.find(var)
+    
+    def get_var_map(self):
+        return self.var_collector.get_vars()
+    
+    def get_var_num(self):
+        return self.var_collector.size()
