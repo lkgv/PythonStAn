@@ -379,10 +379,17 @@ class ControlFlowGraph:
     def out_edges_of(self, blk: BaseBlock):
         return self.out_edges[blk]
     
+    def in_degree_of(self, blk: BaseBlock) -> int:
+        return len(self.in_edges_of(blk))
+    
+    def out_degree_of(self, blk: BaseBlock) -> int:
+        return len(self.out_edges_of(blk))
+    
     def add_blk(self, blk: BaseBlock):
-        self.blks.add(blk)
-        self.in_edges[blk] = []
-        self.out_edges[blk] = []
+        if blk not in self.blks:
+            self.blks.add(blk)
+            self.in_edges[blk] = []
+            self.out_edges[blk] = []
     
     def add_stmt(self, blk: BaseBlock, stmt: stmt):
         blk.add(stmt)
@@ -415,5 +422,8 @@ class ControlFlowGraph:
     def add_super_exit_blk(self, blk):
         self.add_blk(blk)
         self.super_exit_blk = blk
+        for blk in self.blks:
+            if self.out_degree_of(blk) == 0:
+                self.exit_blks.append(blk)
         for exit_blk in self.exit_blks:
             self.add_edge(NormalEdge(exit_blk, blk))
