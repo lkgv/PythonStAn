@@ -15,15 +15,15 @@ class DataflowAnalysisDriver(Generic[Fact], AnalysisDriver):
 
     def __init__(self, config: AnalysisConfig):
         super().__init__(config)
-        self.analysis = DataflowAnalysis.get_analysis(config.id)[Fact]
+        self.analysis = DataflowAnalysis.get_analysis(config.id)
         if 'solver' in config.options:
             self.solver = Solver.get_solver(config.options['solver'])[Fact]
         else:
             self.solver = WorklistSolver[Fact]
-        self.results = {'in': {}, 'out': {}}
+        self.results = {}
 
     def analyze(self, scope: CFGScope):
         analyzer = self.analysis(scope, self.config)
         facts_in, facts_out = self.solver.solve(analyzer)
-        self.results['in'] = facts_in
-        self.results['out'] = facts_out
+        self.results = { 'in': facts_in,
+                         'out': facts_out }

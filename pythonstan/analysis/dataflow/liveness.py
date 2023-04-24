@@ -14,7 +14,7 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
         return self.new_init_fact()
     
     def new_init_fact(self) -> Set[str]:
-        return super().new_init_fact()
+        return {*()}
     
     def meet(self, fact_1: Set[str], fact_2: Set[str]) -> Set[str]:
         return fact_1.union(fact_2)
@@ -32,11 +32,8 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
         for stmt in node.stmts:
             s_colle.reset("store")
             s_colle.visit(stmt)
-            for id in s_colle.get_vars():
-                if id in fact_out:
-                    fact_out.remove(id)
+            fact_out.difference_update(s_colle.get_vars())
             l_colle.reset("no_store")
             l_colle.visit(stmt)
-            for id in l_colle.get_vars():
-                fact_out.add(id)
+            fact_out.update(l_colle.get_vars())
         return fact_out
