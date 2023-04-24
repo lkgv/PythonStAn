@@ -1,13 +1,13 @@
-from ..analysis import Analysis, AnalysisConfig
-from pythonstan.graph.cfg.models import CFGScope, Edge, BaseBlock
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic
 
+from pythonstan.graph.cfg.models import CFGScope, Edge, BaseBlock
+from ..analysis import Analysis, AnalysisConfig
 
 Fact = TypeVar('Fact')
 
 
-class DataflowAnalysis(Analysis, Generic[Fact]):
+class DataflowAnalysis(Generic[Fact], Analysis):
     is_forward: bool
     scope: CFGScope
     

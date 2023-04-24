@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any
+from pythonstan.graph.cfg.models import CFGScope
 
 
 class AnalysisConfig:
@@ -16,7 +17,7 @@ class AnalysisConfig:
 
 
 class Analysis(ABC):
-    analysis_dict: Dict[str, Any] = {}
+    analysis_dict: Dict[str, 'Analysis'] = {}
     config: AnalysisConfig
 
     @abstractmethod
@@ -24,8 +25,7 @@ class Analysis(ABC):
         self.config = config
         self.valid_id()
 
-    def __subclasshook__(cls, *args, **kwargs):
-        super().__subclasshook__(*args, **kwargs)
+    def __init_subclass__(cls):
         cls.analysis_dict[cls.__name__] = cls
     
     @classmethod
@@ -38,3 +38,15 @@ class Analysis(ABC):
     def valid_id(self):
         cls_name = self.__class__.__name__
         assert cls_name == self.get_id(), "Invalid id for current Analysis"
+
+
+class AnalysisDriver(ABC):
+    config: AnalysisConfig
+
+    @abstractmethod
+    def __init__(self, config):
+        self.config = config
+    
+    @abstractmethod
+    def analyze(self, scope: CFGScope):
+        pass

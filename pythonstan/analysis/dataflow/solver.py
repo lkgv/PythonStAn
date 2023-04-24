@@ -7,7 +7,12 @@ from pythonstan.graph.cfg.models import BaseBlock
 Fact = TypeVar("Fact")
 
 
-class Solver(ABC, Generic[Fact]):
+class Solver(Generic[Fact], ABC):
+    solver_dict: Dict[str, 'Solver'] = {}
+
+    def __init_subclass__(cls) -> None:
+        cls.solver_dict[cls.__name__] = cls
+
     @classmethod
     def init(cls, analysis: DataflowAnalysis[Fact]
              ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
@@ -67,15 +72,14 @@ class Solver(ABC, Generic[Fact]):
         pass
 
 
-class WorklistSolver(Solver[Fact], Generic[Fact]):
+class WorklistSolver(Generic[Fact], Solver[Fact]):
     @classmethod
     def init_forward(cls, analysis: DataflowAnalysis[Fact]
                      ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_scope().cfg
-        entry = cfg.entry_blk
         for node in cfg.blks:
-            if node == entry:
+            if node == cfg.entry_blk:
                 in_facts[node] = analysis.new_boundary_fact()
                 out_facts[node] = analysis.new_boundary_fact()
             else:
@@ -121,7 +125,6 @@ class WorklistSolver(Solver[Fact], Generic[Fact]):
                       ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_scope().cfg
-        entry = cfg.entry_blk
         for node in cfg.blks:
             if node == cfg.super_exit_blk:
                 in_facts[node] = analysis.new_boundary_fact()
