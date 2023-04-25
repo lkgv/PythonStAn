@@ -23,9 +23,6 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[stmt]]):
     def meet(self, fact_1: Set[stmt], fact_2: Set[stmt]) -> Set[stmt]:
         return fact_1.union(fact_2)
 
-    def transfer_edge(self, edge, node_fact):
-        pass
-
     def need_transfer_edge(self, edge):
         super().need_transfer_edge(edge)
     

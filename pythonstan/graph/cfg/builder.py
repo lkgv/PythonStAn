@@ -1,5 +1,7 @@
 import ast
 from ast import stmt
+import copy
+from lib2to3.pytree import Base
 from typing import List, Dict
 
 from .models import *
@@ -331,3 +333,62 @@ class CFGBuilder:
         ret_info = exit_stmt
         ret_info['last_block'] = cur_blk
         return ret_info
+
+
+class StmtCFGTransformer:
+    scope: CFGScope
+
+    # map a bblock in source cfg to the head block in the target cfg
+    head_map: Dict[BaseBlock, BaseBlock]
+    next_idx: int
+
+    def trans(self, scope: CFGScope):
+        self.scope = copy.deepcopy(scope)
+        entry = scope.cfg.entry_blk
+        self.scope.set_cfg(ControlFlowGraph(scope=self.scope))
+        self.next_idx = 0
+        self.visited = {}
+        self.head_map = {scope.cfg.entry_blk: self.scope.cfg.entry_blk}
+        self._trans(scope.cfg, entry, self.scope.cfg.entry_blk)
+        self.scope.set_funcs([
+            StmtCFGTransformer().trans(f) for f in scope.funcs])
+        self.scope.set_classes(
+            [StmtCFGTransformer().trans(c) for c in scope.classes])
+        return self.scope
+    
+    def new_blk(self, statement: Optional[stmt]=None):
+        if statement is not None:
+            stmts = [statement]
+        else:
+            stmts = []
+        blk = BaseBlock(self.next_idx, self.scope.cfg, stmts)
+        self.next_idx += 1
+        return blk
+
+    def _trans(self, cfg: ControlFlowGraph, entry: BaseBlock, stmt_entry: BaseBlock):
+        tgt_cfg = self.scope.cfg
+        for e in cfg.out_edges_of(entry):
+            stmt_e = copy.deepcopy(e)
+            stmt_e.start = stmt_entry
+            if e.end in self.head_map:
+                stmt_e.end = self.head_map[e.end]
+                tgt_cfg.add_edge(stmt_e)
+            else:
+                tail_blk = stmt_entry
+                if e.end.n_stmt() > 0:
+                    for idx, cur_stmt in enumerate(e.end.stmts):
+                        blk = self.new_blk(cur_stmt)
+                        if idx == 0:
+                            head_blk = blk
+                        tgt_cfg.add_blk(blk)
+                        tgt_cfg.add_edge(NormalEdge(tail_blk, blk))
+                        tail_blk = blk
+                else:
+                    blk = self.new_blk()
+                    tgt_cfg.add_blk(blk)
+                    head_blk = blk
+                    tail_blk = blk
+                self.head_map[e.end] = head_blk
+                stmt_e.end = head_blk
+                tgt_cfg.add_edge(stmt_e)
+                self._trans(cfg, e.end, tail_blk)

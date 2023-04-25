@@ -33,7 +33,7 @@ class VarCollector(NodeVisitor):
         return None
     
     def get_vars(self):
-        return self.var_map.keys()
+        return set(self.var_map.keys())
     
     def size(self):
         return len(self.var_map)

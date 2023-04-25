@@ -2,18 +2,29 @@ from typing import *
 from abc import ABC, abstractmethod
 import ast
 from ast import stmt
-from ...utils.var_collector import VarCollector
+
+from pythonstan.utils.var_collector import VarCollector
 
 
 class BaseBlock:
     idx : int
     stmts: List[stmt]
+    store_collector: VarCollector
+    load_collector: VarCollector
+    del_collector: VarCollector
     cfg: Optional['ControlFlowGraph']
 
     def __init__(self, idx=-1, cfg=None, stmts=[]):
         self.idx = idx
         self.stmts = stmts
         self.cfg=cfg
+        self.store_collector = VarCollector("store")
+        self.load_collector = VarCollector("load")
+        self.del_collector = VarCollector("del")
+        for stmt in stmts:
+            self.store_collector.visit(stmt)
+            self.load_collector.visit(stmt)
+            self.del_collector.visit(stmt)
     
     def set_cfg(self, cfg: 'ControlFlowGraph'):
         self.cfg = cfg
@@ -30,10 +41,22 @@ class BaseBlock:
     def add(self, stmt: stmt):
         ast.fix_missing_locations(stmt)
         self.stmts.append(stmt)
+        self.store_collector.visit(stmt)
+        self.load_collector.visit(stmt)
+        self.del_collector.visit(stmt)
         return self
     
-    def n_stmt(self):
+    def n_stmt(self) -> int:
         return len(self.stmts)
+    
+    def get_stores(self) -> Set[str]:
+        return self.store_collector.get_vars()
+    
+    def get_loads(self) -> Set[str]:
+        return self.load_collector.get_vars()
+    
+    def get_dels(self) -> Set[str]:
+        return self.del_collector.get_vars()
     
     def _fix_missing_locations(self):
         for stmt in self.stmts:
@@ -174,25 +197,25 @@ class CFGScope(ABC):
         self.set_classes(classes)
         self.set_imports(imports)
 
-    def set_funcs(self, funcs):
+    def set_funcs(self, funcs: List['CFGFunc']):
         self.funcs = funcs
 
-    def set_classes(self, classes):
+    def set_classes(self, classes: List['CFGClass']):
         self.classes = classes
     
-    def set_imports(self, imports):
+    def set_imports(self, imports: List['CFGImport']):
         self.imports = imports
 
-    def set_cfg(self, cfg):
+    def set_cfg(self, cfg:'ControlFlowGraph'):
         self.cfg = cfg
     
-    def add_func(self, func):
+    def add_func(self, func: 'CFGFunc'):
         self.funcs.append(func)
     
-    def add_class(self, cls):
+    def add_class(self, cls: 'CFGClass'):
         self.classes.append(cls)
     
-    def add_import(self, imp):
+    def add_import(self, imp: 'CFGImport'):
         self.imports.append(imp)
 
 

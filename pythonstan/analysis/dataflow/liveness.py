@@ -19,9 +19,6 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
     def meet(self, fact_1: Set[str], fact_2: Set[str]) -> Set[str]:
         return fact_1.union(fact_2)
 
-    def transfer_edge(self, edge, node_fact):
-        pass
-
     def need_transfer_edge(self, edge):
         super().need_transfer_edge(edge)
     
