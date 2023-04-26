@@ -3,6 +3,8 @@ import graphviz as gv
 
 from pythonstan.ir.three_address import ThreeAddressTransformer
 from pythonstan.graph.cfg.builder import CFGBuilder, StmtCFGTransformer
+from pythonstan.analysis.dataflow.driver import DataflowAnalysisDriver
+from pythonstan.analysis.analysis import AnalysisConfig
 
 src = '''
 # (a, b) = 3, 4
@@ -106,6 +108,10 @@ flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
 '''
 
 flist = ['/home/codergwy/code/test/test.py']
+config = AnalysisConfig("liveness", "LivenessAnalysis",
+                        options={'solver': 'WorklistSolver'})
+df_driver = DataflowAnalysisDriver(config)
+
 for fname in flist:
     with open(fname, 'r') as f:
         ta_trans.reset()
@@ -113,11 +119,22 @@ for fname in flist:
         ta_src = ta_trans.visit(src)
         cfg_mod = cfg_trans.build_module(ta_src.body)
         cfg_mod = StmtCFGTransformer().trans(cfg_mod)
-
+        df_driver.analyze(cfg_mod)
+        results = df_driver.results
+        info = {}
+        for blk in results['in'].keys():
+            res_in = results['in'].get(blk, {*()})
+            if len(res_in) == 0:
+                res_in = ""
+            res_out = results['out'].get(blk, {*()})
+            if len(res_out) == 0:
+                res_out = ""
+            info[blk] = f"{res_in} | {res_out}"
+        # print(results)
         
         g = gv.Digraph('G', filename='/home/codergwy/code/test/test_cfg.gv',
                        node_attr={'shape':'record', 'fontsize': '8pt'},
                        edge_attr={'fontsize': '7pt'},
                        graph_attr={'fontsize': '10pt', 'fontcolor': "blue"})
-        cfg_mod.gen_graph(g)
+        cfg_mod.gen_graph(g, info)
         g.view()

@@ -13,6 +13,11 @@ class ThreeAddressTransformer(NodeTransformer):
     tmp_func_gen: TempVarGenerator = TempVarGenerator()
     tmp_const_gen: TempVarGenerator = TempVarGenerator()
 
+    def not_temp(self, exp):
+        if isinstance(exp, ast.Name) and '$' in exp.id:
+            return False
+        return True
+
     def reset(self, v_tmpl=VAR_TEMPLATE,
               fn_tmpl=FUNC_TEMPLATE, c_tmpl = CONST_TEMPLATE):
         self.tmp_gen = TempVarGenerator(template=v_tmpl)
@@ -805,12 +810,12 @@ class ThreeAddressTransformer(NodeTransformer):
         return blk
 
     def visit_Expr(self, node):
-        blk, elt = self.visit(node.value)
-        if not (isinstance(elt, ast.Name) or
-                isinstance(elt, ast.Constant)):
-            exp = ast.Expr(value=elt)
-            ast.copy_location(exp, node)
-            blk.append(exp)
+        blk, elt = self.split_expr(node.value)
+        if self.not_temp(elt):
+            _, tmp_s = self.tmp_gen()
+            ins = ast.Assign(targets=[tmp_s], value=elt)
+            ast.copy_location(ins, node)
+            blk.append(ins)
         return blk
     
     def visit_Global(self, node):

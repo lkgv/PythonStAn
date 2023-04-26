@@ -8,7 +8,7 @@ class VarCollector(NodeVisitor):
     next_idx: int
 
     def __init__(self, *keys, ctx="", **kwargs):
-        super().__init__(*keys, **kwargs)
+        super().__init__()
         self.reset(ctx)
 
     def reset(self, ctx: str=""):
@@ -33,7 +33,7 @@ class VarCollector(NodeVisitor):
         return None
     
     def get_vars(self):
-        return self.var_map.keys()
+        return set(self.var_map.keys())
     
     def size(self):
         return len(self.var_map)
@@ -43,4 +43,29 @@ class VarCollector(NodeVisitor):
             if node.id not in self.var_map:
                 self.var_map[node.id] = self.next_idx
                 self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_alias(self, node):
+        if isinstance(Store(), self.ctx):
+            if node.name != '*' and (node.name not in self.var_map):
+                self.var_map[node.name] = self.next_idx
+                self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_ClassDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_FunctionDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_AsyncFunctionDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
         self.generic_visit(node)

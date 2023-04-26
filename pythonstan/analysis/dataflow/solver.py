@@ -1,6 +1,8 @@
 from typing import Generic, TypeVar, Tuple, Dict, Any
-from .analysis import DataflowAnalysis
 from abc import ABC, abstractclassmethod
+from queue import Queue
+
+from .analysis import DataflowAnalysis
 from pythonstan.graph.cfg.models import BaseBlock
 
 
@@ -12,6 +14,10 @@ class Solver(Generic[Fact], ABC):
 
     def __init_subclass__(cls) -> None:
         cls.solver_dict[cls.__name__] = cls
+    
+    @classmethod
+    def get_solver(cls, id):
+        return cls.solver_dict[id]
 
     @classmethod
     def init(cls, analysis: DataflowAnalysis[Fact]
@@ -87,13 +93,14 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                     e = cfg.in_edges_of(node)[0]
                     if not analysis.need_transfer_edge(e):
                         src = e.start
-                        if out_facts[src] is None:
+                        if src not in out_facts:
                             out_facts[src] = analysis.new_init_fact()
                         in_facts[node] = out_facts[src]
                 else:
                     in_facts[node] = analysis.new_init_fact()
-                if out_facts[node] is None:
+                if node not in out_facts:
                     out_facts[node] = analysis.new_init_fact()
+        return in_facts, out_facts
     
     @classmethod
     def solve_forward(cls, analysis: DataflowAnalysis[Fact],
@@ -134,35 +141,36 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                     e = cfg.out_edges_of(node)[0]
                     if not analysis.need_transfer_edge(e):
                         tgt = e.end
-                        if in_facts[tgt] is None:
+                        if tgt not in in_facts:
                             in_facts[tgt] = analysis.new_init_fact()
                         out_facts[node] = in_facts[tgt]
                 else:
                     out_facts[node] = analysis.new_init_fact()
-                if in_facts[node] is None:
+                if node not in in_facts:
                     in_facts[node] = analysis.new_init_fact()
+        return in_facts, out_facts
     
     @classmethod
     def solve_backward(cls, analysis: DataflowAnalysis[Fact],
                        in_facts: Dict[BaseBlock, Fact],
                        out_facts: Dict[BaseBlock, Fact]):
         cfg = analysis.get_scope().cfg
-        work_list = {blk for blk in cfg.blks if blk != cfg.super_exit_blk}
-        while len(work_list) > 0:
-            cur = work_list.pop()
+        work_list = Queue()
+        for blk in cfg.blks:
+            if blk != cfg.super_exit_blk:
+                work_list.put(blk)
+        while not work_list.empty():
+            cur = work_list.get()
             fact_out = out_facts[cur]
-            if cfg.out_degree_of(cur) > 1:
+            if cfg.out_degree_of(cur) > 0:
                 for e in cfg.out_edges_of(cur):
-                    fact = out_facts[e.end]
+                    fact = in_facts[e.end]
                     if analysis.need_transfer_edge(e):
                         fact = analysis.transfer_edge(e, fact)
                     fact_out = analysis.meet(fact, fact_out)
-            elif cfg.out_degree_of(cur) == 1:
-                e = cfg.out_edges_of(cur)[0]
-                if analysis.need_transfer_edge(e):
-                    fact_out = analysis.transfer_edge(e, in_facts[e.end])
-                    out_facts[cur] = fact_out
+            out_facts[cur] = fact_out
             fact_in = analysis.transfer_node(cur, fact_out)
             if fact_in != in_facts[cur]:
                 in_facts[cur] = fact_in
-                work_list.update(cfg.preds_of(cur))
+                for pred in cfg.preds_of(cur):
+                    work_list.put(pred)
