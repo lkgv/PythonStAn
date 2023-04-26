@@ -8,7 +8,7 @@ class VarCollector(NodeVisitor):
     next_idx: int
 
     def __init__(self, *keys, ctx="", **kwargs):
-        super().__init__(*keys, **kwargs)
+        super().__init__()
         self.reset(ctx)
 
     def reset(self, ctx: str=""):

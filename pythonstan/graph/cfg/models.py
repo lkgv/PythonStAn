@@ -2,6 +2,7 @@ from typing import *
 from abc import ABC, abstractmethod
 import ast
 from ast import stmt
+from graphviz import Digraph
 
 from pythonstan.utils.var_collector import VarCollector
 
@@ -16,7 +17,7 @@ class BaseBlock:
 
     def __init__(self, idx=-1, cfg=None, stmts=[]):
         self.idx = idx
-        self.stmts = stmts
+        self.stmts = [x for x in stmts]
         self.cfg=cfg
         self.store_collector = VarCollector("store")
         self.load_collector = VarCollector("load")
@@ -63,13 +64,14 @@ class BaseBlock:
             ast.fix_missing_locations(stmt)
     
     def __str__(self):
-        if self.n_stmt > 0:
+        if self.n_stmt() > 0:
             start = self.stmts[0]
             head = f"[{self.idx}] {start.lineno}:{start.col_offset}"
         else:
             head = f"[{self.idx}] ?:?"
-        stmts_str = '\n'.join([ast.unparse(stmt) for stmt in self.stmts])
-        return '\n'.join([head, stmts_str])
+        stmts_str = '\\n'.join([ast.unparse(stmt) for stmt in self.stmts])
+        return '\\n'.join([head, stmts_str])
+        return head
 
 
 class Edge(ABC):
@@ -182,6 +184,9 @@ class CFGImport:
 
     def __init__(self, stmt):
         self.stmt = stmt
+    
+    def __str__(self):
+        ast.unparse(self.stmt)
 
 
 class CFGScope(ABC):
@@ -217,6 +222,23 @@ class CFGScope(ABC):
     
     def add_import(self, imp: 'CFGImport'):
         self.imports.append(imp)
+    
+    @abstractmethod
+    def get_name(self) -> str:
+        raise NotImplementedError
+
+    def gen_graph(self, s: Digraph):
+        with s.subgraph(name=self.get_name()) as subs:
+            self.gen_subgraph(subs)
+    
+    def gen_subgraph(self, s: Digraph):
+        self.cfg.gen_graph(s)
+        '''
+        for cls in self.classes:
+            cls.gen_graph(s)
+        for fn in self.funcs:
+            fn.gen_graph(s)
+        '''
 
 
 class CFGClassDef:
@@ -270,6 +292,9 @@ class CFGClass(CFGScope):
     
     def set_scope(self, scope):
         self.scope = scope
+    
+    def get_name(self) -> str:
+        return f'cls:{self.class_def.name}'
 
     def __repr__(self) -> str:
         return str(self.class_def)
@@ -350,6 +375,9 @@ class CFGFunc(CFGScope):
     
     def set_scope(self, scope):
         self.scope = scope
+    
+    def get_name(self) -> str:
+        return f'fn:{self.func_def.name}'
 
     def __repr__(self) -> str:
         return ast.unparse(self.func_def.to_ast())
@@ -358,6 +386,9 @@ class CFGFunc(CFGScope):
 class CFGModule(CFGScope):
     def __init__(self, cfg=None, funcs=[], classes=[], imports=[]):
         super().__init__(cfg, funcs, classes, imports)
+    
+    def get_name(self) -> str:
+        return 'mod'
 
     def __str__(self):
         return '\n'.join([str(self.cfg), '\n\n'.join([str(c) for c in self.classes]), str(self.funcs)])
@@ -366,7 +397,7 @@ class CFGModule(CFGScope):
 # TODO super exit block
 class ControlFlowGraph:
     entry_blk: BaseBlock
-    exit_blks: List[BaseBlock]
+    exit_blks: Set[BaseBlock]
     super_exit_blk: Optional[BaseBlock]
     scope: Optional[CFGScope]
     in_edges: Dict[BaseBlock, List[Edge]]
@@ -386,7 +417,7 @@ class ControlFlowGraph:
             self.entry_blk = entry_blk
         else:
             self.entry_blk = BaseBlock(idx=0, cfg=self)
-        self.exit_blks = []
+        self.exit_blks = {*()}
         self.super_exit_blk = None
         self.var_collector = VarCollector()
 
@@ -431,7 +462,7 @@ class ControlFlowGraph:
         self.scope = scope
     
     def add_exit(self, blk: BaseBlock):
-        self.exit_blks.append(blk)
+        self.exit_blks.add(blk)
 
     def find_var(self, var):
         return self.var_collector.find(var)
@@ -443,10 +474,33 @@ class ControlFlowGraph:
         return self.var_collector.size()
     
     def add_super_exit_blk(self, blk):
+        for cur_blk in self.exit_blks:
+            if self.out_degree_of(cur_blk) == 0:
+                self.exit_blks.add(cur_blk)
         self.add_blk(blk)
         self.super_exit_blk = blk
-        for blk in self.blks:
-            if self.out_degree_of(blk) == 0:
-                self.exit_blks.append(blk)
         for exit_blk in self.exit_blks:
+            pass
             self.add_edge(NormalEdge(exit_blk, blk))
+    
+    def gen_graph(self, s: Digraph):
+        gen_id = lambda blk: f'{subg_name}_{blk.idx}'
+        subg_name = self.scope.get_name()
+        for blk in self.blks:
+            if blk == self.entry_blk:
+                descr = "ENTRY"
+            elif blk == self.super_exit_blk:
+                descr = "EXIT"
+            else:
+                descr = str(blk)
+            if blk in self.exit_blks:
+                s.node(gen_id(blk), descr, style='filled', fillcolor='pink')
+            else:
+                s.node(gen_id(blk), descr)
+        for blk in self.blks:
+            for e in self.out_edges_of(blk):
+                if e.start == e.end:
+                    continue
+                src = gen_id(e.start)
+                tgt = gen_id(e.end)
+                s.edge(src, tgt)

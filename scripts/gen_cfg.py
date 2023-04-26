@@ -1,4 +1,6 @@
 import ast
+import graphviz as gv
+
 from pythonstan.ir.three_address import ThreeAddressTransformer
 from pythonstan.graph.cfg.builder import CFGBuilder
 
@@ -82,7 +84,7 @@ w = (k for k, p in x)
 ta_trans = ThreeAddressTransformer()
 cfg_trans = CFGBuilder()
 
-
+'''
 for src_str in srcs:
     ta_trans.reset()
 
@@ -101,10 +103,17 @@ for src_str in srcs:
 flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
          '/home/codergwy/code/pynguin/pynguin/configuration.py',
 ]
+'''
+
+flist = ['/home/codergwy/code/test/test.py']
 for fname in flist:
     with open(fname, 'r') as f:
         ta_trans.reset()
         src = ast.parse(f.read())
         ta_src = ta_trans.visit(src)
         cfg_mod=cfg_trans.build_module(ta_src.body)
-        print(cfg_mod)
+        
+        g = gv.Digraph('G', filename='/home/codergwy/code/test/test_cfg.gv',
+                       node_attr={'shape':'record'})
+        cfg_mod.gen_graph(g)
+        g.view()

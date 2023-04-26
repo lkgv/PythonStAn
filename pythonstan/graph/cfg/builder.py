@@ -14,7 +14,7 @@ class CFGBuilder:
     next_idx: int
     scope: Optional[CFGScope]
 
-    def __init__(self, scope=None, next_idx=0, cfg=None):
+    def __init__(self, scope=None, next_idx=1, cfg=None):
         self.next_idx = next_idx
         self.cfg = cfg if cfg is not None else ControlFlowGraph()
         self.scope = scope
@@ -96,8 +96,8 @@ class CFGBuilder:
         exit_stmt = { k:[] for k in exit_stmt_list }
         n_stmt = len(stmts)
 
-        def gen_next_blk(cur_blk, edge_builder):
-            if cur_blk.n_stmt() > 0 and i < cur_blk.n_stmt() - 1:
+        def gen_next_blk(cur_blk, edge_builder, force_next=False):
+            if cur_blk.n_stmt() > 0 and (force_next or i < len(stmts) - 1):
                 new_blk = self.new_blk()
                 edge = edge_builder(cur_blk, new_blk)
                 cfg.add_blk(new_blk)
@@ -290,13 +290,13 @@ class CFGBuilder:
                                    finalbody=[])
                 ast.copy_location(new_stmt, stmt)
                 cfg.add_stmt(cur_blk, new_stmt)
-                try_blk = gen_next_blk(cur_blk, NormalEdge)
+                try_blk = gen_next_blk(cur_blk, NormalEdge, True)
                 try_info = self._build(stmt.body, cfg, try_blk)
                 extend_info(try_info)
                 next_blk = self.new_blk()
                 has_final = (len(stmt.finalbody) > 0)
                 if len(stmt.orelse) > 0:
-                    else_blk = gen_next_blk(try_info['last_block'], NormalEdge)
+                    else_blk = gen_next_blk(try_info['last_block'], NormalEdge, True)
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
@@ -304,7 +304,8 @@ class CFGBuilder:
                     cfg.add_edge(NormalEdge(try_info['last_block'], next_blk))
                 for expt in stmt.handlers:
                     e_blk = gen_next_blk(try_info['last_block'],
-                                         lambda u, v: ExceptionEdge(u, v, expt))
+                                         lambda u, v: ExceptionEdge(u, v, expt),
+                                         force_next=True)
                     e_info = self._build(expt.body, cfg, e_blk)
                     extend_info(e_info)
                     cfg.add_edge(ExceptionEndEdge(e_info['last_block'], next_blk, expt))
@@ -323,7 +324,7 @@ class CFGBuilder:
 
                 elif isinstance(stmt, ast.Assign) and \
                     isinstance(stmt.value, ast.Call):
-                    cur_blk = gen_next_blk(cur_blk, NormalEdge)
+                    cur_blk = gen_next_blk(cur_blk, NormalEdge, True)
                     cfg.add_stmt(cur_blk, stmt)
                     cur_blk = gen_next_blk(cur_blk, NormalEdge)
 
