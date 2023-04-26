@@ -82,6 +82,9 @@ class Edge(ABC):
     def __init__(self, start, end):
         self.start = start
         self.end = end
+    
+    def get_name(self) -> str:
+        return ""
 
 
 class NormalEdge(Edge):
@@ -95,6 +98,9 @@ class IfEdge(Edge):
     def __init__(self, start, end, test):
         super().__init__(start, end)
         self.test = test
+    
+    def get_name(self) -> str:
+        return "if_" + str(self.test)
 
 
 class CallEdge(Edge):
@@ -102,65 +108,90 @@ class CallEdge(Edge):
         super().__init__(start, end)
 
 
-class ExceptionEdge(Edge):
-    def __init__(self, start, end):
-        super().__init__(start, end)
-
-
 class ForEdge(Edge):
     def __init__(self, start, end):
         super().__init__(start, end)
+    
+    def get_name(self) -> str:
+        return "for"
 
 
 class ForElseEdge(Edge):
     def __init__(self, start, end):
         super().__init__(start, end)
 
+    def get_name(self) -> str:
+        return "for_else"
+
 
 class WhileEdge(Edge):
     def __init__(self, start, end):
         super().__init__(start, end)
+    
+    def get_name(self) -> str:
+        return "while"
 
 
 class WhileElseEdge(Edge):
     def __init__(self, start, end):
         super().__init__(start, end)
+    
+    def get_name(self) -> str:
+        return "while_else"
 
 
 class WithEdge(Edge):
     def __init__(self, start, end, var):
         super().__init__(start, end)
         self.var = var
+    
+    def get_name(self) -> str:
+        return "with"
 
 
 class WithEndEdge(Edge):
     def __init__(self, start, end, var):
         super().__init__(start, end)
         self.var = var
+    
+    def get_name(self) -> str:
+        return "with_end"
 
 
 class ExceptionEdge(Edge):
     def __init__(self, start, end, e):
         super().__init__(start, end)
         self.e = e
+    
+    def get_name(self) -> str:
+        return ast.unparse(self.e)
 
 
 class ExceptionEndEdge(Edge):
     def __init__(self, start, end, e):
         super().__init__(start, end)
         self.e = e
+    
+    def get_name(self) -> str:
+        return "end: " + ast.unparse(self.e)
 
 
 class FinallyEdge(Edge):
     def __init__(self, start, end, stmt):
         super().__init__(start, end)
         self.stmt = stmt
+    
+    def get_name(self) -> str:
+        return "finally"
 
 
 class FinallyEndEdge(Edge):
     def __init__(self, start, end, stmt):
         super().__init__(start, end)
         self.stmt = stmt
+    
+    def get_name(self) -> str:
+        return "finally_end"
 
 
 class ClassDefEdge(Edge):
@@ -169,6 +200,9 @@ class ClassDefEdge(Edge):
     def __init__(self, start, end, class_cfg):
         super().__init__(start, end)
         self.class_cfg = class_cfg
+    
+    def get_name(self) -> str:
+        return "class"
 
 
 class ClassEndEdge(Edge):
@@ -177,6 +211,9 @@ class ClassEndEdge(Edge):
     def __init__(self, start, end, cls):
         super().__init__(start, end)
         self.cls = cls
+    
+    def get_name(self) -> str:
+        return "end: class"
 
 
 class CFGImport:
@@ -187,58 +224,6 @@ class CFGImport:
     
     def __str__(self):
         ast.unparse(self.stmt)
-
-
-class CFGScope(ABC):
-    funcs: List['CFGFunc']
-    classes: List['CFGClass']
-    imports: List[CFGImport]
-    cfg: Optional['ControlFlowGraph']
-
-    @abstractmethod
-    def __init__(self, cfg, funcs, classes, imports):
-        self.set_cfg(cfg)
-        self.set_funcs(funcs)
-        self.set_classes(classes)
-        self.set_imports(imports)
-
-    def set_funcs(self, funcs: List['CFGFunc']):
-        self.funcs = funcs
-
-    def set_classes(self, classes: List['CFGClass']):
-        self.classes = classes
-    
-    def set_imports(self, imports: List['CFGImport']):
-        self.imports = imports
-
-    def set_cfg(self, cfg:'ControlFlowGraph'):
-        self.cfg = cfg
-    
-    def add_func(self, func: 'CFGFunc'):
-        self.funcs.append(func)
-    
-    def add_class(self, cls: 'CFGClass'):
-        self.classes.append(cls)
-    
-    def add_import(self, imp: 'CFGImport'):
-        self.imports.append(imp)
-    
-    @abstractmethod
-    def get_name(self) -> str:
-        raise NotImplementedError
-
-    def gen_graph(self, s: Digraph):
-        with s.subgraph(name=self.get_name()) as subs:
-            self.gen_subgraph(subs)
-    
-    def gen_subgraph(self, s: Digraph):
-        self.cfg.gen_graph(s)
-        '''
-        for cls in self.classes:
-            cls.gen_graph(s)
-        for fn in self.funcs:
-            fn.gen_graph(s)
-        '''
 
 
 class CFGClassDef:
@@ -278,26 +263,6 @@ class CFGClassDef:
         names = list(map(lambda x: x.id, self.cell_vars))
         cell_comment = "# closure: (" + ', '.join(names) + ")\n"
         return cell_comment + ast.unparse(self.to_ast())
-
-
-class CFGClass(CFGScope):
-    class_def: CFGClassDef
-    scope: Optional[CFGScope]
-
-    def __init__(self, class_def, cfg=None, scope=None,
-                 funcs=[], classes=[], imports=[]):
-        super().__init__(cfg, funcs, classes, imports)
-        self.class_def = class_def
-        self.scope = scope
-    
-    def set_scope(self, scope):
-        self.scope = scope
-    
-    def get_name(self) -> str:
-        return f'cls:{self.class_def.name}'
-
-    def __repr__(self) -> str:
-        return str(self.class_def)
 
 
 class CFGFuncDef:
@@ -363,6 +328,76 @@ class CFGAsyncFuncDef(CFGFuncDef):
         self.cell_vars = cell_vars
 
 
+class CFGScope(ABC):
+    funcs: List['CFGFunc']
+    classes: List['CFGClass']
+    imports: List[CFGImport]
+    cfg: Optional['ControlFlowGraph']
+
+    @abstractmethod
+    def __init__(self, cfg, funcs, classes, imports):
+        self.set_cfg(cfg)
+        self.set_funcs(funcs)
+        self.set_classes(classes)
+        self.set_imports(imports)
+
+    def set_funcs(self, funcs: List['CFGFunc']):
+        self.funcs = funcs
+
+    def set_classes(self, classes: List['CFGClass']):
+        self.classes = classes
+    
+    def set_imports(self, imports: List['CFGImport']):
+        self.imports = imports
+
+    def set_cfg(self, cfg:'ControlFlowGraph'):
+        self.cfg = cfg
+    
+    def add_func(self, func: 'CFGFunc'):
+        self.funcs.append(func)
+    
+    def add_class(self, cls: 'CFGClass'):
+        self.classes.append(cls)
+    
+    def add_import(self, imp: 'CFGImport'):
+        self.imports.append(imp)
+    
+    @abstractmethod
+    def get_name(self) -> str:
+        raise NotImplementedError
+
+    def gen_graph(self, s: Digraph) -> Digraph:
+        with s.subgraph(name=self.get_name(), graph_attr={'label': self.get_name(), 'cluster': 'true'}) as subs:
+            self.gen_subgraph(subs)
+    
+    def gen_subgraph(self, s: Digraph):
+        self.cfg.gen_graph(s)
+        for cls in self.classes:
+            cls.gen_graph(s)
+        for fn in self.funcs:
+            fn.gen_graph(s)
+
+
+class CFGClass(CFGScope):
+    class_def: CFGClassDef
+    scope: Optional[CFGScope]
+
+    def __init__(self, class_def, cfg=None, scope=None,
+                 funcs=[], classes=[], imports=[]):
+        super().__init__(cfg, funcs, classes, imports)
+        self.class_def = class_def
+        self.scope = scope
+    
+    def set_scope(self, scope):
+        self.scope = scope
+    
+    def get_name(self) -> str:
+        return f'cls${self.class_def.name}'
+
+    def __repr__(self) -> str:
+        return str(self.class_def)
+
+
 class CFGFunc(CFGScope):
     func_def: CFGFuncDef
     scope: Optional[CFGScope]
@@ -377,7 +412,7 @@ class CFGFunc(CFGScope):
         self.scope = scope
     
     def get_name(self) -> str:
-        return f'fn:{self.func_def.name}'
+        return f'fn${self.func_def.name}'
 
     def __repr__(self) -> str:
         return ast.unparse(self.func_def.to_ast())
@@ -393,8 +428,8 @@ class CFGModule(CFGScope):
     def __str__(self):
         return '\n'.join([str(self.cfg), '\n\n'.join([str(c) for c in self.classes]), str(self.funcs)])
 
-# fix a bug: idx should be maintained by CFG rather than CFG builder
-# TODO super exit block
+
+# TODO: idx should be maintained by CFG rather than CFG builder
 class ControlFlowGraph:
     entry_blk: BaseBlock
     exit_blks: Set[BaseBlock]
@@ -431,6 +466,7 @@ class ControlFlowGraph:
         return self.in_edges[blk]
     
     def out_edges_of(self, blk: BaseBlock):
+        print(blk in self.blks, blk)
         return self.out_edges[blk]
     
     def in_degree_of(self, blk: BaseBlock) -> int:
@@ -451,6 +487,7 @@ class ControlFlowGraph:
         self.var_collector.visit(stmt)
     
     def add_edge(self, edge: Edge):
+        # print(str(edge.start), str(edge.end))
         if edge.start not in self.blks:
             self.add_blk(edge.start)
         if edge.end not in self.blks:
@@ -474,6 +511,7 @@ class ControlFlowGraph:
         return self.var_collector.size()
     
     def add_super_exit_blk(self, blk):
+        self.delete_invalid_blk()
         for cur_blk in self.exit_blks:
             if self.out_degree_of(cur_blk) == 0:
                 self.exit_blks.add(cur_blk)
@@ -483,24 +521,48 @@ class ControlFlowGraph:
             pass
             self.add_edge(NormalEdge(exit_blk, blk))
     
+    def delete_block(self, blk: BaseBlock):
+        if blk in self.exit_blks:
+            self.exit_blks.remove(blk)
+        for e in self.out_edges_of(blk):
+            self.delete_edge(e)
+        for e in self.in_edges_of(blk):
+            self.delete_edge(e)
+        self.in_edges.pop(blk)
+        self.out_edges.pop(blk)
+        for stmt in blk.stmts:
+            self.stmts.remove(stmt)
+        self.blks.remove(blk)
+    
+    def delete_edge(self, e: Edge):
+        self.out_edges[e.start].remove(e)
+        self.in_edges[e.end].remove(e)
+    
+    def delete_invalid_blk(self):
+        q = { blk for blk in self.blks
+              if blk != self.entry_blk and self.in_degree_of(blk) == 0 }
+        while len(q) > 0:
+            cur = q.pop()
+            out_list = self.succs_of(cur)
+            self.delete_block(cur)
+            for blk in out_list:
+                if self.in_degree_of(blk) == 0:
+                    q.add(blk)
+    
     def gen_graph(self, s: Digraph):
         gen_id = lambda blk: f'{subg_name}_{blk.idx}'
         subg_name = self.scope.get_name()
         for blk in self.blks:
             if blk == self.entry_blk:
-                descr = "ENTRY"
+                s.node(gen_id(blk), "ENTRY", shape="hexagon")
             elif blk == self.super_exit_blk:
-                descr = "EXIT"
+                s.node(gen_id(blk), "EXIT", shape="hexagon")
+            elif blk in self.exit_blks:
+                s.node(gen_id(blk), str(blk), style='filled', fillcolor='pink')
             else:
-                descr = str(blk)
-            if blk in self.exit_blks:
-                s.node(gen_id(blk), descr, style='filled', fillcolor='pink')
-            else:
-                s.node(gen_id(blk), descr)
+                s.node(gen_id(blk), str(blk))
         for blk in self.blks:
             for e in self.out_edges_of(blk):
-                if e.start == e.end:
-                    continue
                 src = gen_id(e.start)
                 tgt = gen_id(e.end)
-                s.edge(src, tgt)
+                s.edge(src, tgt, label=e.get_name())
