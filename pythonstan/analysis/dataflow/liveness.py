@@ -1,8 +1,9 @@
 from typing import Set
+import ast
 
 from pythonstan.graph.cfg.models import BaseBlock
-from utils.var_collector import VarCollector
-from .analysis import DataflowAnalysis
+from pythonstan.utils.var_collector import VarCollector
+from . import DataflowAnalysis
 
 
 class LivenessAnalysis(DataflowAnalysis[Set[str]]):
@@ -20,7 +21,7 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
         return fact_1.union(fact_2)
 
     def need_transfer_edge(self, edge):
-        super().need_transfer_edge(edge)
+        return False
     
     def transfer_node(self, node: BaseBlock, fact: Set[str]) -> Set[str]:
         s_colle = VarCollector()

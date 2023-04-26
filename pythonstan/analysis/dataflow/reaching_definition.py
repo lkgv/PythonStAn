@@ -2,7 +2,7 @@ from typing import Set, Dict
 from ast import stmt
 
 from pythonstan.graph.cfg.models import BaseBlock, CFGScope
-from utils.var_collector import VarCollector
+from pythonstan.utils.var_collector import VarCollector
 from .analysis import DataflowAnalysis
 
 

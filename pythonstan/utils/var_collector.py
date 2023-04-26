@@ -44,3 +44,28 @@ class VarCollector(NodeVisitor):
                 self.var_map[node.id] = self.next_idx
                 self.next_idx += 1
         self.generic_visit(node)
+    
+    def visit_alias(self, node):
+        if isinstance(Store(), self.ctx):
+            if node.name != '*' and (node.name not in self.var_map):
+                self.var_map[node.name] = self.next_idx
+                self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_ClassDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_FunctionDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
+        self.generic_visit(node)
+    
+    def visit_AsyncFunctionDef(self, node):
+        if isinstance(Store(), self.ctx) and node.name not in self.var_map:
+            self.var_map[node.name] = self.next_idx
+            self.next_idx += 1
+        self.generic_visit(node)

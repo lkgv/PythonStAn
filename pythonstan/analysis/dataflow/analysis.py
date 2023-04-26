@@ -13,12 +13,8 @@ class DataflowAnalysis(Generic[Fact], Analysis):
     
     @abstractmethod
     def __init__(self, scope: CFGScope, config: AnalysisConfig):
-        super().__init__(config)
+        super(Analysis, self.__class__).__init__(config)
         self.scope = scope
-
-    @abstractmethod
-    def analysis():
-        pass
 
     @abstractmethod
     def new_boundary_fact(self) -> Fact:
@@ -41,7 +37,7 @@ class DataflowAnalysis(Generic[Fact], Analysis):
         return False
 
     def transfer_edge(self, edge: Edge, node_fact: Fact) -> Fact:
-        raise NotImplementedError
+        return node_fact
 
     def get_scope(self) -> CFGScope:
         return self.scope
