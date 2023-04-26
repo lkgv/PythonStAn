@@ -105,7 +105,7 @@ flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
 ]
 '''
 
-flist = ['/home/yanggw2022/code/test/test.py']
+flist = ['/home/codergwy/code/test/test.py']
 for fname in flist:
     with open(fname, 'r') as f:
         ta_trans.reset()
@@ -115,7 +115,7 @@ for fname in flist:
         cfg_mod = StmtCFGTransformer().trans(cfg_mod)
 
         
-        g = gv.Digraph('G', filename='/home/yanggw2022/code/test/test_cfg.gv',
+        g = gv.Digraph('G', filename='/home/codergwy/code/test/test_cfg.gv',
                        node_attr={'shape':'record', 'fontsize': '8pt'},
                        edge_attr={'fontsize': '7pt'},
                        graph_attr={'fontsize': '10pt', 'fontcolor': "blue"})

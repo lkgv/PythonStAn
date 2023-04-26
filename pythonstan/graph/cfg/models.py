@@ -466,7 +466,6 @@ class ControlFlowGraph:
         return self.in_edges[blk]
     
     def out_edges_of(self, blk: BaseBlock):
-        print(blk in self.blks, blk)
         return self.out_edges[blk]
     
     def in_degree_of(self, blk: BaseBlock) -> int:
@@ -487,7 +486,6 @@ class ControlFlowGraph:
         self.var_collector.visit(stmt)
     
     def add_edge(self, edge: Edge):
-        # print(str(edge.start), str(edge.end))
         if edge.start not in self.blks:
             self.add_blk(edge.start)
         if edge.end not in self.blks:
@@ -554,9 +552,11 @@ class ControlFlowGraph:
         subg_name = self.scope.get_name()
         for blk in self.blks:
             if blk == self.entry_blk:
-                s.node(gen_id(blk), "ENTRY", shape="hexagon")
+                s.node(gen_id(blk), "ENTRY", shape="hexagon",
+                       style='filled', fillcolor='gray90')
             elif blk == self.super_exit_blk:
-                s.node(gen_id(blk), "EXIT", shape="hexagon")
+                s.node(gen_id(blk), "EXIT", shape="hexagon",
+                       style='filled', fillcolor='gray90')
             elif blk in self.exit_blks:
                 s.node(gen_id(blk), str(blk), style='filled', fillcolor='pink')
             else:

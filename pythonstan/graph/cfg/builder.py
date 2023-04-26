@@ -76,7 +76,6 @@ class CFGBuilder:
         builder = CFGBuilder(scope=cls)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
-        print(str(edge.start), str(edge.end))
         builder.cfg.add_edge(edge)
         cls_info = builder._build(stmt.body, builder.cfg, new_blk)
         builder.cfg.add_exit(cls_info['last_block'])
@@ -362,6 +361,8 @@ class StmtCFGTransformer:
         self.visited = {}
         self.head_map = {scope.cfg.entry_blk: self.scope.cfg.entry_blk}
         self._trans(scope.cfg, entry, self.scope.cfg.entry_blk)
+        super_exit = self.new_blk()
+        self.scope.cfg.add_super_exit_blk(super_exit)
         self.scope.set_funcs([
             StmtCFGTransformer().trans(f) for f in scope.funcs])
         self.scope.set_classes(
@@ -379,7 +380,11 @@ class StmtCFGTransformer:
 
     def _trans(self, cfg: ControlFlowGraph, entry: BaseBlock, stmt_entry: BaseBlock):
         tgt_cfg = self.scope.cfg
+        if entry in cfg.exit_blks:
+            tgt_cfg.add_exit(stmt_entry)
         for e in cfg.out_edges_of(entry):
+            if e.end == cfg.super_exit_blk:
+                continue
             stmt_e = copy.deepcopy(e)
             stmt_e.start = stmt_entry
             if e.end in self.head_map:
@@ -390,10 +395,11 @@ class StmtCFGTransformer:
                 if e.end.n_stmt() > 0:
                     for idx, cur_stmt in enumerate(e.end.stmts):
                         blk = self.new_blk(cur_stmt)
+                        tgt_cfg.add_blk(blk)
                         if idx == 0:
                             head_blk = blk
-                        tgt_cfg.add_blk(blk)
-                        tgt_cfg.add_edge(NormalEdge(tail_blk, blk))
+                        else:
+                            tgt_cfg.add_edge(NormalEdge(tail_blk, blk))
                         tail_blk = blk
                 else:
                     blk = self.new_blk()
