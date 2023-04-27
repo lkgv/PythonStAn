@@ -1,11 +1,4 @@
-# PythonStAn
-
-
-PythonStAn is yet another **Python** **St**atic **An**alysis framework.
-
-
 <pre>
-
  ______            _                    _                      
 (_____ \      _   | |                  | |   _      /\         
  _____) _   _| |_ | | _   ___  ____     \ \ | |_   /  \  ____  
@@ -13,8 +6,13 @@ PythonStAn is yet another **Python** **St**atic **An**alysis framework.
 | |    | |_| | |__| | | | |_| | | | |_____) | |__| |__| | | | |
 |_|     \__  |\___|_| |_|\___/|_| |_(______/ \___|______|_| |_|
        (____/              
-
 </pre>
+
+
+
+PythonStAn is yet another **Python** **St**atic **An**alysis framework.
+
+---
 
 
 ## TODO List:
