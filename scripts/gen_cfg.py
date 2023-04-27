@@ -1,8 +1,8 @@
 import ast
-import graphviz as gv
 
 from pythonstan.ir.three_address import ThreeAddressTransformer
 from pythonstan.graph.cfg.builder import CFGBuilder, StmtCFGTransformer
+from pythonstan.graph.cfg.visualize import draw_module, new_digraph
 
 src = '''
 # (a, b) = 3, 4
@@ -114,10 +114,6 @@ for fname in flist:
         cfg_mod = cfg_trans.build_module(ta_src.body)
         cfg_mod = StmtCFGTransformer().trans(cfg_mod)
 
-        
-        g = gv.Digraph('G', filename='/home/codergwy/code/test/test_cfg.gv',
-                       node_attr={'shape':'record', 'fontsize': '8pt'},
-                       edge_attr={'fontsize': '7pt'},
-                       graph_attr={'fontsize': '10pt', 'fontcolor': "blue"})
-        cfg_mod.gen_graph(g)
+        g = new_digraph('G', '/home/codergwy/code/test/test_cfg.gv')
+        draw_module(cfg_mod, g)
         g.view()

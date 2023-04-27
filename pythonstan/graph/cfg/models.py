@@ -366,23 +366,6 @@ class CFGScope(ABC):
     def get_name(self) -> str:
         raise NotImplementedError
 
-    def gen_graph(self, s: Digraph, info={}) -> Digraph:
-        with s.subgraph(name=self.get_name(), graph_attr={'label': self.get_name(), 'cluster': 'true'}) as subs:
-            self.gen_subgraph(subs, info)
-    
-    def gen_subgraph(self, s: Digraph, info={}):
-        self.cfg.gen_graph(s, info)
-        for cls in self.classes:
-            if cls in info:
-                cls.gen_graph(s, info[cls])
-            else:
-                cls.gen_graph(s)
-        for fn in self.funcs:
-            if fn in info:
-                fn.gen_graph(s, info[fn])
-            else:
-                fn.gen_graph(s)
-
 
 class CFGClass(CFGScope):
     class_def: CFGClassDef
@@ -552,34 +535,3 @@ class ControlFlowGraph:
             for blk in out_list:
                 if self.in_degree_of(blk) == 0:
                     q.add(blk)
-    
-    def gen_graph(self, s: Digraph, info={}):
-        gen_id = lambda blk: f'{subg_name}_{blk.idx}'
-        def gen_lab(blk):
-            label = str(blk)
-            if blk == self.entry_blk:
-                label = "ENTRY"
-            if blk == self.super_exit_blk:
-                label = "EXIT"
-            if blk in info:
-                return f"{label} | {info[blk]}"
-            else:
-                return label
-
-        subg_name = self.scope.get_name()
-        for blk in self.blks:
-            if blk == self.entry_blk:
-                s.node(gen_id(blk), gen_lab(blk), shape="hexagon",
-                       style='filled', fillcolor='gray88')
-            elif blk == self.super_exit_blk:
-                s.node(gen_id(blk), gen_lab(blk), shape="hexagon",
-                       style='filled', fillcolor='gray88')
-            elif blk in self.exit_blks:
-                s.node(gen_id(blk), gen_lab(blk), style='filled', fillcolor='powderblue')
-            else:
-                s.node(gen_id(blk), gen_lab(blk), style='filled', fillcolor='gray96')
-        for blk in self.blks:
-            for e in self.out_edges_of(blk):
-                src = gen_id(e.start)
-                tgt = gen_id(e.end)
-                s.edge(src, tgt, label=e.get_name())
