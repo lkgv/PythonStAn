@@ -107,25 +107,25 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                       in_facts: Dict[BaseBlock, Fact],
                       out_facts: Dict[BaseBlock, Fact]):
         cfg = analysis.get_scope().cfg
-        work_list = {blk for blk in cfg.blks if blk != cfg.entry_blk}
-        while len(work_list) > 0:
-            cur = work_list.pop()
+        work_list = Queue()
+        for blk in cfg.blks:
+            if blk != cfg.entry_blk:
+                work_list.put(blk)
+        while not work_list.empty():
+            cur = work_list.get()
             fact_in = in_facts[cur]
-            if cfg.in_degree_of(cur) > 1:
+            if cfg.in_degree_of(cur) > 0:
                 for e in cfg.in_edges_of(cur):
                     fact = out_facts[e.start]
                     if analysis.need_transfer_edge(e):
                         fact = analysis.transfer_edge(e, fact)
                     fact_in = analysis.meet(fact, fact_in)
-            elif cfg.in_degree_of(cur) == 1:
-                e = cfg.in_edges_of(cur)[0]
-                if analysis.need_transfer_edge(e):
-                    fact_in = analysis.transfer_edge(e, out_facts[e.start])
-                    in_facts[cur] = fact_in
+            in_facts[cur] = fact_in
             fact_out = analysis.transfer_node(cur, fact_in)
             if fact_out != out_facts[cur]:
                 out_facts[cur] = fact_out
-                work_list.update(cfg.succs_of(cur))
+                for succ in cfg.succs_of(cur):
+                    work_list.put(succ)
 
     @classmethod
     def init_backward(cls, analysis: DataflowAnalysis[Fact]

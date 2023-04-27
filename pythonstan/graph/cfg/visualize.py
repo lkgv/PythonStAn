@@ -36,10 +36,10 @@ def draw_cfg(cfg: ControlFlowGraph, s: Digraph, info: Dict = {}):
     subg_name = cfg.scope.get_name()
     for blk in cfg.blks:
         if blk == cfg.entry_blk:
-            s.node(gen_id(blk), gen_lab(blk), shape="hexagon",
+            s.node(gen_id(blk), gen_lab(blk),
                     style='filled', fillcolor='honeydew2')
         elif blk == cfg.super_exit_blk:
-            s.node(gen_id(blk), gen_lab(blk), shape="hexagon",
+            s.node(gen_id(blk), gen_lab(blk),
                     style='filled', fillcolor='honeydew2')
         elif blk in cfg.exit_blks:
             s.node(gen_id(blk), gen_lab(blk), style='filled', fillcolor='powderblue')

@@ -71,7 +71,6 @@ class BaseBlock:
             head = f"[{self.idx}] ?:?"
         stmts_str = '\\n'.join([ast.unparse(stmt) for stmt in self.stmts])
         return '\\n'.join([head, stmts_str])
-        return head
 
 
 class Edge(ABC):
@@ -233,9 +232,9 @@ class CFGClassDef:
     decorator_list: List[ast.expr]
     ast_repr: ast.ClassDef
 
-    cell_vars: List[ast.Name]
+    cell_vars: Set[str]
     
-    def __init__(self, cls: ast.ClassDef, cell_vars=[]):
+    def __init__(self, cls: ast.ClassDef, cell_vars={*()}):
         self.name = cls.name
         self.bases = cls.bases
         self.keywords = cls.keywords
@@ -273,9 +272,9 @@ class CFGFuncDef:
     type_comment: str
     ast_repr: ast.FunctionDef
 
-    cell_vars: List[ast.Name]
+    cell_vars: Set[str]
     
-    def __init__(self, fn: ast.FunctionDef, cell_vars=[]):
+    def __init__(self, fn: ast.FunctionDef, cell_vars={*()}):
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
@@ -310,7 +309,7 @@ class CFGFuncDef:
 class CFGAsyncFuncDef(CFGFuncDef):
     ast_repr: ast.AsyncFunctionDef
 
-    def __init__(self, fn: ast.AsyncFunctionDef, cell_vars=[]):
+    def __init__(self, fn: ast.AsyncFunctionDef, cell_vars={*()}):
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
@@ -466,6 +465,8 @@ class ControlFlowGraph:
     def add_blk(self, blk: BaseBlock):
         if blk not in self.blks:
             self.blks.add(blk)
+            for stmt in blk.stmts:
+                self.stmts.add(stmt)
             self.in_edges[blk] = []
             self.out_edges[blk] = []
     

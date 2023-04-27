@@ -11,6 +11,8 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[stmt]]):
 
     def __init__(self, scope, config):
         self.is_forward = True
+        print(scope)
+        print(config)
         self.defs = self.compute_defs(scope)
         super().__init__(scope, config)
     
@@ -41,12 +43,11 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[stmt]]):
 
     def transfer_node(self, node: BaseBlock, fact: Set[stmt]) -> Set[stmt]:
         fact_out = fact.copy()
-        defs = {}
         def_colle = VarCollector("store")
         for cur_stmt in node.stmts:
             def_colle.visit(cur_stmt)
             for var_id in def_colle.get_vars():
-                if var_id in defs:
-                    fact_out.difference_update(defs[var_id])
+                if var_id in self.defs:
+                    fact_out.difference_update(self.defs[var_id])
                     fact_out.add(cur_stmt)
         return fact_out
