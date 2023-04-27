@@ -41,12 +41,12 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[stmt]]):
 
     def transfer_node(self, node: BaseBlock, fact: Set[stmt]) -> Set[stmt]:
         fact_out = fact.copy()
-        defs = {}
-        def_colle = VarCollector("store")
+        def_colle = VarCollector()
         for cur_stmt in node.stmts:
+            def_colle.reset("store")
             def_colle.visit(cur_stmt)
             for var_id in def_colle.get_vars():
-                if var_id in defs:
-                    fact_out.difference_update(defs[var_id])
+                if var_id in self.defs:
+                    fact_out.difference_update(self.defs[var_id])
                     fact_out.add(cur_stmt)
         return fact_out

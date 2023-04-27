@@ -1,10 +1,11 @@
 import ast
-import graphviz as gv
 
 from pythonstan.ir.three_address import ThreeAddressTransformer
 from pythonstan.graph.cfg.builder import CFGBuilder, StmtCFGTransformer
 from pythonstan.analysis.dataflow.driver import DataflowAnalysisDriver
 from pythonstan.analysis.analysis import AnalysisConfig
+from pythonstan.graph.cfg.visualize import draw_module, new_digraph
+
 
 src = '''
 # (a, b) = 3, 4
@@ -118,7 +119,7 @@ for fname in flist:
         src = ast.parse(f.read())
         ta_src = ta_trans.visit(src)
         cfg_mod = cfg_trans.build_module(ta_src.body)
-        cfg_mod = StmtCFGTransformer().trans(cfg_mod)
+        # cfg_mod = StmtCFGTransformer().trans(cfg_mod)
         df_driver.analyze(cfg_mod)
         results = df_driver.results
         info = {}
@@ -131,10 +132,6 @@ for fname in flist:
                 res_out = ""
             info[blk] = f"{res_in} | {res_out}"
         # print(results)
-        
-        g = gv.Digraph('G', filename='/home/codergwy/code/test/test_cfg.gv',
-                       node_attr={'shape':'record', 'fontsize': '8pt'},
-                       edge_attr={'fontsize': '7pt'},
-                       graph_attr={'fontsize': '10pt', 'fontcolor': "blue"})
-        cfg_mod.gen_graph(g, info)
+        g = new_digraph('G', filename='/home/codergwy/code/test/test_cfg.gv')
+        draw_module(cfg_mod, g, info)
         g.view()

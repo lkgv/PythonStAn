@@ -2,7 +2,10 @@ import ast
 
 from pythonstan.ir.three_address import ThreeAddressTransformer
 from pythonstan.graph.cfg.builder import CFGBuilder, StmtCFGTransformer
+from pythonstan.analysis.dataflow import DataflowAnalysisDriver, ReachingDefinitionAnalysis
+from pythonstan.analysis.analysis import AnalysisConfig
 from pythonstan.graph.cfg.visualize import draw_module, new_digraph
+
 
 src = '''
 # (a, b) = 3, 4
@@ -106,6 +109,10 @@ flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
 '''
 
 flist = ['/home/codergwy/code/test/test.py']
+config = AnalysisConfig("reaching_definition", "ReachingDefinitionAnalysis",
+                        options={'solver': 'WorklistSolver'})
+df_driver = DataflowAnalysisDriver(config)
+
 for fname in flist:
     with open(fname, 'r') as f:
         ta_trans.reset()
@@ -113,7 +120,19 @@ for fname in flist:
         ta_src = ta_trans.visit(src)
         cfg_mod = cfg_trans.build_module(ta_src.body)
         cfg_mod = StmtCFGTransformer().trans(cfg_mod)
-
-        g = new_digraph('G', '/home/codergwy/code/test/test_cfg.gv')
-        draw_module(cfg_mod, g)
+        df_driver.analyze(cfg_mod)
+        results = df_driver.results
+        info = {}
+        for blk in results['in'].keys():
+            res_in = results['in'].get(blk, {*()})
+            if len(res_in) == 0:
+                res_in = ""
+            res_out = results['out'].get(blk, {*()})
+            if len(res_out) == 0:
+                res_out = ""
+            res_in_str = '\\n'.join([ast.unparse(x) for x in res_in])
+            res_out_str = '\\n'.join([ast.unparse(x) for x in res_out])
+            info[blk] = f"{res_in_str} | {res_out_str}"
+        g = new_digraph('G', filename='/home/codergwy/code/test/test_cfg.gv')
+        draw_module(cfg_mod, g, info)
         g.view()
