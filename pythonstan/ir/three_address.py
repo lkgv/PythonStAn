@@ -609,7 +609,6 @@ class ThreeAddressTransformer(NodeTransformer):
         blk = self.visit_stmt_list(node.body)
 
         for idx in range(len(items) - 1, -1, -1):
-            print(idx)
             ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
             with_blk.extend(blk)
             with_stmt = ast.With(
@@ -632,7 +631,6 @@ class ThreeAddressTransformer(NodeTransformer):
         blk = self.visit_stmt_list(node.body)
 
         for idx in range(len(items) - 1, -1, -1):
-            print(idx)
             ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
             with_blk.extend(blk)
             with_stmt = ast.AsyncWith(

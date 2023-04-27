@@ -9,8 +9,10 @@ TODO List:
   - SSA transformer
 
 * Analysis:
-  - Dataflow analysis
+  - [DONE] Dataflow analysis
+    - liveness analysis
+    - reaching definition analysis
+  - [DONE] Closure analysis
   - Interprocedual analysis
   - Anderson's pointer analysis
   - Type Analysis
-
