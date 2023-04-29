@@ -1,14 +1,13 @@
 <pre>
- ______            _                    _                      
-(_____ \      _   | |                  | |   _      /\         
- _____) _   _| |_ | | _   ___  ____     \ \ | |_   /  \  ____  
-|  ____| | | |  _)| || \ / _ \|  _ \     \ \|  _) / /\ \|  _ \ 
-| |    | |_| | |__| | | | |_| | | | |_____) | |__| |__| | | | |
-|_|     \__  |\___|_| |_|\___/|_| |_(______/ \___|______|_| |_|
-       (____/              
+<font color="deepskyblue" > ______            _                    </font><font color="black">_                      </font>
+<font color="deepskyblue">(_____ \      _   | |                  </font><font color="black">| |   _      </font><font color="red">/\         </font>
+<font color="deepskyblue"> _____) _   _| |_ | | _   ___  ____</font><font color="black">     \ \ | |_</font><font color="red">   /  \  ____  </font>
+<font color="deepskyblue">|  ____| | | |  _)| || \ / _ \|  _ \</font><font color="black">     \ \|  _) </font><font color="red">/ /\ \|  _ \ </font>
+<font color="yellow">| |    | |_| | |__| | | | |_| | | | |</font><font color="black">_____) | |__</font><font color="red">| |__| | | | |</font>
+<font color="yellow">|_|     \__  |\___|_| |_|\___/|_| |_</font><font color="black">(______/ \___</font><font color="red">|______|_| |_|</font>
+<font color="yellow">       (____/                                                  </font>
+
 </pre>
-
-
 
 PythonStAn is yet another **Python** **St**atic **An**alysis framework.
 
