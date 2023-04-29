@@ -25,5 +25,5 @@ class DataflowAnalysisDriver(Generic[Fact], AnalysisDriver):
     def analyze(self, scope: CFGScope):
         analyzer = self.analysis(scope, self.config)
         facts_in, facts_out = self.solver.solve(analyzer)
-        self.results = { 'in': facts_in,
-                         'out': facts_out }
+        self.results = {'in': facts_in,
+                        'out': facts_out}

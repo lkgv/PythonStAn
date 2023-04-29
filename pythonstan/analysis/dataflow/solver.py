@@ -1,5 +1,5 @@
-from typing import Generic, TypeVar, Tuple, Dict, Any
-from abc import ABC, abstractclassmethod
+from typing import Generic, TypeVar, Tuple, Dict, Type
+from abc import ABC, abstractmethod
 from queue import Queue
 
 from .analysis import DataflowAnalysis
@@ -10,7 +10,7 @@ Fact = TypeVar("Fact")
 
 
 class Solver(Generic[Fact], ABC):
-    solver_dict: Dict[str, 'Solver'] = {}
+    solver_dict: Dict[str, 'Type[Solver[Fact]]'] = {}
 
     def __init_subclass__(cls) -> None:
         cls.solver_dict[cls.__name__] = cls
@@ -65,13 +65,15 @@ class Solver(Generic[Fact], ABC):
             cls.solve_backward(analysis, in_facts, out_facts)
         return in_facts, out_facts
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def solve_forward(cls, analysis: DataflowAnalysis[Fact],
                       in_facts: Dict[BaseBlock, Fact],
                       out_facts: Dict[BaseBlock, Fact]):
         pass
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def solve_backward(cls, analysis: DataflowAnalysis[Fact],
                        in_facts: Dict[BaseBlock, Fact],
                        out_facts: Dict[BaseBlock, Fact]):
@@ -92,7 +94,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                 if cfg.in_degree_of(node) == 1:
                     e = cfg.in_edges_of(node)[0]
                     if not analysis.need_transfer_edge(e):
-                        src = e.start
+                        src = e.src
                         if src not in out_facts:
                             out_facts[src] = analysis.new_init_fact()
                         in_facts[node] = out_facts[src]
@@ -116,7 +118,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
             fact_in = in_facts[cur]
             if cfg.in_degree_of(cur) > 0:
                 for e in cfg.in_edges_of(cur):
-                    fact = out_facts[e.start]
+                    fact = out_facts[e.src]
                     if analysis.need_transfer_edge(e):
                         fact = analysis.transfer_edge(e, fact)
                     fact_in = analysis.meet(fact, fact_in)
@@ -140,7 +142,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                 if cfg.out_degree_of(node) == 1:
                     e = cfg.out_edges_of(node)[0]
                     if not analysis.need_transfer_edge(e):
-                        tgt = e.end
+                        tgt = e.get_tgt()
                         if tgt not in in_facts:
                             in_facts[tgt] = analysis.new_init_fact()
                         out_facts[node] = in_facts[tgt]
@@ -164,7 +166,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
             fact_out = out_facts[cur]
             if cfg.out_degree_of(cur) > 0:
                 for e in cfg.out_edges_of(cur):
-                    fact = in_facts[e.end]
+                    fact = in_facts[e.tgt]
                     if analysis.need_transfer_edge(e):
                         fact = analysis.transfer_edge(e, fact)
                     fact_out = analysis.meet(fact, fact_out)

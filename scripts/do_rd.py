@@ -133,6 +133,7 @@ for fname in flist:
             res_in_str = '\\n'.join([ast.unparse(x) for x in res_in])
             res_out_str = '\\n'.join([ast.unparse(x) for x in res_out])
             info[blk] = f"{res_in_str} | {res_out_str}"
+            print(info[blk])
         g = new_digraph('G', filename='/home/codergwy/code/test/test_cfg.gv')
         draw_module(cfg_mod, g, info)
-        g.view()
+        # g.view()

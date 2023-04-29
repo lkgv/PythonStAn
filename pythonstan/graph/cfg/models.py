@@ -1,15 +1,15 @@
 from typing import *
 from abc import ABC, abstractmethod
 import ast
-from ast import stmt
-from graphviz import Digraph
+from ast import stmt as Statement
+from ..graph import Edge, Node, Graph
 
 from pythonstan.utils.var_collector import VarCollector
 
 
-class BaseBlock:
-    idx : int
-    stmts: List[stmt]
+class BaseBlock(Node):
+    idx: int
+    stmts: List[Statement]
     store_collector: VarCollector
     load_collector: VarCollector
     del_collector: VarCollector
@@ -18,7 +18,7 @@ class BaseBlock:
     def __init__(self, idx=-1, cfg=None, stmts=[]):
         self.idx = idx
         self.stmts = [x for x in stmts]
-        self.cfg=cfg
+        self.cfg = cfg
         self.store_collector = VarCollector("store")
         self.load_collector = VarCollector("load")
         self.del_collector = VarCollector("del")
@@ -26,191 +26,209 @@ class BaseBlock:
             self.store_collector.visit(stmt)
             self.load_collector.visit(stmt)
             self.del_collector.visit(stmt)
-    
-    def set_cfg(self, cfg: 'ControlFlowGraph'):
+
+    def set_graph(self, cfg: 'ControlFlowGraph'):
         self.cfg = cfg
 
     def get_stmts(self):
         return self.stmts
 
-    def get_cfg(self):
+    def get_graph(self):
         return self.cfg
-    
+
     def get_idx(self):
         return self.idx
-    
-    def add(self, stmt: stmt):
+
+    def get_name(self) -> str:
+        if self.n_stmt() > 0:
+            start = self.stmts[0]
+            return f"[{self.idx}] {start.lineno}:{start.col_offset}"
+        else:
+            return f"[{self.idx}] ?:?"
+
+    def add(self, stmt: Statement):
         ast.fix_missing_locations(stmt)
         self.stmts.append(stmt)
         self.store_collector.visit(stmt)
         self.load_collector.visit(stmt)
         self.del_collector.visit(stmt)
         return self
-    
+
     def n_stmt(self) -> int:
         return len(self.stmts)
-    
+
     def get_stores(self) -> Set[str]:
         return self.store_collector.get_vars()
-    
+
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()
-    
+
     def get_dels(self) -> Set[str]:
         return self.del_collector.get_vars()
-    
+
     def _fix_missing_locations(self):
         for stmt in self.stmts:
             ast.fix_missing_locations(stmt)
-    
+
     def __str__(self):
-        if self.n_stmt() > 0:
-            start = self.stmts[0]
-            head = f"[{self.idx}] {start.lineno}:{start.col_offset}"
-        else:
-            head = f"[{self.idx}] ?:?"
+        head = self.get_name()
         stmts_str = '\\n'.join([ast.unparse(stmt) for stmt in self.stmts])
         return '\\n'.join([head, stmts_str])
 
 
-class Edge(ABC):
-    start: BaseBlock
-    end: BaseBlock
+class CFGEdge(Edge):
+    src: BaseBlock
+    tgt: BaseBlock
 
     @abstractmethod
-    def __init__(self, start, end):
-        self.start = start
-        self.end = end
-    
+    def __init__(self, src, tgt):
+        self.src = src
+        self.tgt = tgt
+
+    def set_src(self, node: BaseBlock):
+        self.src = node
+
+    def set_tgt(self, node: BaseBlock):
+        self.tgt = node
+
+    def get_src(self) -> Node:
+        return self.src
+
+    def get_tgt(self) -> Node:
+        return self.tgt
+
     def get_name(self) -> str:
         return ""
 
 
-class NormalEdge(Edge):
-    def __init__(self, start, end):
-        super().__init__(start, end)
+class NormalEdge(CFGEdge):
+    def __init__(self, src, tgt):
+        super().__init__(src, tgt)
 
 
-class IfEdge(Edge):
+class IfEdge(CFGEdge):
     test: bool
 
-    def __init__(self, start, end, test):
-        super().__init__(start, end)
+    def __init__(self, src, tgt, test):
+        super().__init__(src, tgt)
         self.test = test
-    
+
     def get_name(self) -> str:
         return "if_" + str(self.test)
 
 
-class CallEdge(Edge):
-    def __init__(self, start, end):
-        super().__init__(start, end)
+class CallEdge(CFGEdge):
+    def __init__(self, src, tgt):
+        super().__init__(src, tgt)
+
+    def get_name(self) -> str:
+        return 'call'
 
 
-class ForEdge(Edge):
-    def __init__(self, start, end):
-        super().__init__(start, end)
-    
+class ForEdge(CFGEdge):
+    def __init__(self, src, tgt):
+        super().__init__(src, tgt)
+
     def get_name(self) -> str:
         return "for"
 
 
-class ForElseEdge(Edge):
-    def __init__(self, start, end):
-        super().__init__(start, end)
+class ForElseEdge(CFGEdge):
+    def __init__(self, src, tgt):
+        super().__init__(src, tgt)
 
     def get_name(self) -> str:
         return "for_else"
 
 
-class WhileEdge(Edge):
+class WhileEdge(CFGEdge):
     def __init__(self, start, end):
         super().__init__(start, end)
-    
+
     def get_name(self) -> str:
         return "while"
 
 
-class WhileElseEdge(Edge):
+class WhileElseEdge(CFGEdge):
     def __init__(self, start, end):
         super().__init__(start, end)
-    
+
     def get_name(self) -> str:
         return "while_else"
 
 
-class WithEdge(Edge):
+class WithEdge(CFGEdge):
     def __init__(self, start, end, var):
         super().__init__(start, end)
         self.var = var
-    
+
     def get_name(self) -> str:
         return "with"
 
 
-class WithEndEdge(Edge):
+class WithEndEdge(CFGEdge):
     def __init__(self, start, end, var):
         super().__init__(start, end)
         self.var = var
-    
+
     def get_name(self) -> str:
         return "with_end"
 
 
-class ExceptionEdge(Edge):
+class ExceptionEdge(CFGEdge):
     def __init__(self, start, end, e):
         super().__init__(start, end)
         self.e = e
-    
+
     def get_name(self) -> str:
         return ast.unparse(self.e)
 
 
-class ExceptionEndEdge(Edge):
+class ExceptionEndEdge(CFGEdge):
     def __init__(self, start, end, e):
         super().__init__(start, end)
         self.e = e
-    
+
     def get_name(self) -> str:
         return "end: " + ast.unparse(self.e)
 
 
-class FinallyEdge(Edge):
+class FinallyEdge(CFGEdge):
     def __init__(self, start, end, stmt):
         super().__init__(start, end)
         self.stmt = stmt
-    
+
     def get_name(self) -> str:
         return "finally"
 
 
-class FinallyEndEdge(Edge):
+class FinallyEndEdge(CFGEdge):
     def __init__(self, start, end, stmt):
         super().__init__(start, end)
         self.stmt = stmt
-    
+
     def get_name(self) -> str:
         return "finally_end"
 
 
-class ClassDefEdge(Edge):
+class ClassDefEdge(CFGEdge):
     cls: 'CFGClass'
 
     def __init__(self, start, end, class_cfg):
         super().__init__(start, end)
         self.class_cfg = class_cfg
-    
+
     def get_name(self) -> str:
         return "class"
 
 
-class ClassEndEdge(Edge):
+class ClassEndEdge(CFGEdge):
     cls: 'CFGClass'
 
     def __init__(self, start, end, cls):
         super().__init__(start, end)
         self.cls = cls
-    
+
     def get_name(self) -> str:
         return "end: class"
 
@@ -220,7 +238,7 @@ class CFGImport:
 
     def __init__(self, stmt):
         self.stmt = stmt
-    
+
     def __str__(self):
         ast.unparse(self.stmt)
 
@@ -233,7 +251,7 @@ class CFGClassDef:
     ast_repr: ast.ClassDef
 
     cell_vars: Set[str]
-    
+
     def __init__(self, cls: ast.ClassDef, cell_vars={*()}):
         self.name = cls.name
         self.bases = cls.bases
@@ -248,16 +266,16 @@ class CFGClassDef:
         ast.copy_location(self.ast_repr, cls)
 
         self.cell_vars = cell_vars
-    
+
     def to_ast(self) -> ast.ClassDef:
         return self.ast_repr
-    
+
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
 
     def add_cell_var(self, cell_var):
         self.cell_vars.append(cell_var)
-    
+
     def __str__(self):
         names = list(map(lambda x: x.id, self.cell_vars))
         cell_comment = "# closure: (" + ', '.join(names) + ")\n"
@@ -266,15 +284,17 @@ class CFGClassDef:
 
 class CFGFuncDef:
     name: str
-    args: List[ast.arguments]
+    args: ast.arguments
     decorator_list: List[ast.expr]
     returns: ast.expr
     type_comment: str
     ast_repr: ast.FunctionDef
 
     cell_vars: Set[str]
-    
-    def __init__(self, fn: ast.FunctionDef, cell_vars={*()}):
+
+    def __init__(self, fn: ast.FunctionDef, cell_vars=None):
+        if cell_vars is None:
+            cell_vars = {*()}
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
@@ -290,16 +310,16 @@ class CFGFuncDef:
         ast.copy_location(self.ast_repr, fn)
 
         self.cell_vars = cell_vars
-    
+
     def to_ast(self) -> ast.FunctionDef:
         return self.ast_repr
-    
+
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
 
     def add_cell_var(self, cell_var):
-        self.cell_vars.append(cell_var)
-    
+        self.cell_vars.add(cell_var)
+
     def __str__(self):
         names = list(map(lambda x: x.id, self.cell_vars))
         cell_comment = "# closure: (" + ', '.join(names) + ")\n"
@@ -309,7 +329,9 @@ class CFGFuncDef:
 class CFGAsyncFuncDef(CFGFuncDef):
     ast_repr: ast.AsyncFunctionDef
 
-    def __init__(self, fn: ast.AsyncFunctionDef, cell_vars={*()}):
+    def __init__(self, fn: ast.AsyncFunctionDef, cell_vars=None):
+        if cell_vars is None:
+            cell_vars = {*()}
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
@@ -345,22 +367,22 @@ class CFGScope(ABC):
 
     def set_classes(self, classes: List['CFGClass']):
         self.classes = classes
-    
+
     def set_imports(self, imports: List['CFGImport']):
         self.imports = imports
 
-    def set_cfg(self, cfg:'ControlFlowGraph'):
+    def set_cfg(self, cfg: 'ControlFlowGraph'):
         self.cfg = cfg
-    
+
     def add_func(self, func: 'CFGFunc'):
         self.funcs.append(func)
-    
+
     def add_class(self, cls: 'CFGClass'):
         self.classes.append(cls)
-    
+
     def add_import(self, imp: 'CFGImport'):
         self.imports.append(imp)
-    
+
     @abstractmethod
     def get_name(self) -> str:
         raise NotImplementedError
@@ -375,10 +397,10 @@ class CFGClass(CFGScope):
         super().__init__(cfg, funcs, classes, imports)
         self.class_def = class_def
         self.scope = scope
-    
+
     def set_scope(self, scope):
         self.scope = scope
-    
+
     def get_name(self) -> str:
         return f'cls${self.class_def.name}'
 
@@ -389,16 +411,16 @@ class CFGClass(CFGScope):
 class CFGFunc(CFGScope):
     func_def: CFGFuncDef
     scope: Optional[CFGScope]
-    
+
     def __init__(self, func_def, cfg=None, scope=None,
                  funcs=[], classes=[], imports=[]):
         super().__init__(cfg, funcs, classes, imports)
         self.func_def = func_def
         self.scope = scope
-    
+
     def set_scope(self, scope):
         self.scope = scope
-    
+
     def get_name(self) -> str:
         return f'fn${self.func_def.name}'
 
@@ -409,7 +431,7 @@ class CFGFunc(CFGScope):
 class CFGModule(CFGScope):
     def __init__(self, cfg=None, funcs=[], classes=[], imports=[]):
         super().__init__(cfg, funcs, classes, imports)
-    
+
     def get_name(self) -> str:
         return 'mod'
 
@@ -418,7 +440,7 @@ class CFGModule(CFGScope):
 
 
 # TODO: idx should be maintained by CFG rather than CFG builder
-class ControlFlowGraph:
+class ControlFlowGraph(Graph):
     entry_blk: BaseBlock
     exit_blks: Set[BaseBlock]
     super_exit_blk: Optional[BaseBlock]
@@ -426,7 +448,7 @@ class ControlFlowGraph:
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
-    stmts: Set[stmt]
+    stmts: Set[Statement]
     var_collector: VarCollector
 
     def __init__(self, entry_blk=None, scope=None):
@@ -435,7 +457,7 @@ class ControlFlowGraph:
         self.scope = scope
         self.in_edges = {}
         self.out_edges = {}
-        self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(self)
+        self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(0, self)
         if entry_blk is not None:
             self.entry_blk = entry_blk
         else:
@@ -444,24 +466,64 @@ class ControlFlowGraph:
         self.super_exit_blk = None
         self.var_collector = VarCollector()
 
-    def preds_of(self, blk: BaseBlock):
-        return [e.start for e in self.in_edges_of(blk)]
-    
-    def succs_of(self, blk: BaseBlock):
-        return [e.end for e in self.out_edges_of(blk)]
-    
-    def in_edges_of(self, blk: BaseBlock):
-        return self.in_edges[blk]
-    
-    def out_edges_of(self, blk: BaseBlock):
-        return self.out_edges[blk]
-    
-    def in_degree_of(self, blk: BaseBlock) -> int:
-        return len(self.in_edges_of(blk))
-    
-    def out_degree_of(self, blk: BaseBlock) -> int:
-        return len(self.out_edges_of(blk))
-    
+    def preds_of(self, node: Node):
+        if isinstance(node, BaseBlock):
+            return [e.get_src() for e in self.in_edges_of(node)]
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def succs_of(self, node: Node):
+        if isinstance(node, BaseBlock):
+            return [e.get_tgt() for e in self.out_edges_of(node)]
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def in_edges_of(self, node: Node):
+        if isinstance(node, BaseBlock):
+            return self.in_edges[node]
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def out_edges_of(self, node: Node):
+        if isinstance(node, BaseBlock):
+            return self.out_edges[node]
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def in_degree_of(self, node: Node) -> int:
+        if isinstance(node, BaseBlock):
+            return len(self.in_edges_of(node))
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def out_degree_of(self, node: Node) -> int:
+        if isinstance(node, BaseBlock):
+            return len(self.out_edges_of(node))
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
+    def get_entry(self) -> BaseBlock:
+        return self.entry_blk
+
+    def get_exit(self) -> BaseBlock:
+        if self.super_exit_blk is None:
+            raise ValueError(
+                "Super Exit Block in current CFG does not exists!")
+        return self.super_exit_blk
+
+    def add_node(self, node: Node):
+        if isinstance(node, BaseBlock):
+            self.add_blk(node)
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
     def add_blk(self, blk: BaseBlock):
         if blk not in self.blks:
             self.blks.add(blk)
@@ -469,35 +531,41 @@ class ControlFlowGraph:
                 self.stmts.add(stmt)
             self.in_edges[blk] = []
             self.out_edges[blk] = []
-    
-    def add_stmt(self, blk: BaseBlock, stmt: stmt):
+
+    def add_stmt(self, blk: BaseBlock, stmt: Statement):
         blk.add(stmt)
         self.stmts.add(stmt)
         self.var_collector.visit(stmt)
-    
+
     def add_edge(self, edge: Edge):
-        if edge.start not in self.blks:
-            self.add_blk(edge.start)
-        if edge.end not in self.blks:
-            self.add_blk(edge.end)
-        self.in_edges[edge.end].append(edge)
-        self.out_edges[edge.start].append(edge)
-    
+        src = edge.get_src()
+        tgt = edge.get_tgt()
+        if isinstance(src, BaseBlock) and isinstance(tgt, BaseBlock):
+            if src not in self.blks:
+                self.add_node(src)
+            if tgt not in self.blks:
+                self.add_node(tgt)
+            self.in_edges[tgt].append(edge)
+            self.out_edges[src].append(edge)
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
     def set_scope(self, scope: CFGScope):
         self.scope = scope
-    
+
     def add_exit(self, blk: BaseBlock):
         self.exit_blks.add(blk)
 
     def find_var(self, var):
         return self.var_collector.find(var)
-    
+
     def get_var_map(self):
         return self.var_collector.get_vars()
-    
+
     def get_var_num(self):
         return self.var_collector.size()
-    
+
     def add_super_exit_blk(self, blk):
         self.delete_invalid_blk()
         for cur_blk in self.exit_blks:
@@ -508,7 +576,14 @@ class ControlFlowGraph:
         for exit_blk in self.exit_blks:
             pass
             self.add_edge(NormalEdge(exit_blk, blk))
-    
+
+    def delete_node(self, node: Node):
+        if isinstance(node, BaseBlock):
+            self.delete_block(node)
+        else:
+            raise ValueError(
+                "The type of Node in the current CFG can only be BaseBlock!")
+
     def delete_block(self, blk: BaseBlock):
         if blk in self.exit_blks:
             self.exit_blks.remove(blk)
@@ -521,14 +596,14 @@ class ControlFlowGraph:
         for stmt in blk.stmts:
             self.stmts.remove(stmt)
         self.blks.remove(blk)
-    
+
     def delete_edge(self, e: Edge):
-        self.out_edges[e.start].remove(e)
-        self.in_edges[e.end].remove(e)
-    
+        self.out_edges_of(e.get_src()).remove(e)
+        self.in_edges_of(e.get_tgt()).remove(e)
+
     def delete_invalid_blk(self):
-        q = { blk for blk in self.blks
-              if blk != self.entry_blk and self.in_degree_of(blk) == 0 }
+        q = {blk for blk in self.blks
+             if blk != self.entry_blk and self.in_degree_of(blk) == 0}
         while len(q) > 0:
             cur = q.pop()
             out_list = self.succs_of(cur)
