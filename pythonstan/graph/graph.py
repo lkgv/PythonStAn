@@ -82,4 +82,8 @@ class Graph(ABC):
     @abstractmethod
     def delete_edge(self, edge: Edge):
         pass
+
+    @abstractmethod
+    def get_nodes(self) -> Collection[Node]:
+        pass
     

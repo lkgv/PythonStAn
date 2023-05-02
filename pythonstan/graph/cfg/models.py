@@ -611,3 +611,6 @@ class ControlFlowGraph(Graph):
             for blk in out_list:
                 if self.in_degree_of(blk) == 0:
                     q.add(blk)
+
+    def get_nodes(self) -> Set[BaseBlock]:
+        return self.blks
