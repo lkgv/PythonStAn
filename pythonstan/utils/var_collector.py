@@ -4,14 +4,13 @@ from typing import Dict, Tuple
 
 class VarCollector(NodeVisitor):
     var_map: Dict[str, int]
-    ctx: Tuple[expr_context]
+    ctx: Tuple
     next_idx: int
 
-    def __init__(self, *keys, ctx="", **kwargs):
-        super().__init__()
+    def __init__(self, ctx=""):
         self.reset(ctx)
 
-    def reset(self, ctx: str=""):
+    def reset(self, ctx: str = ""):
         self.next_idx = 0
         self.var_map = {}
         if ctx == 'store':

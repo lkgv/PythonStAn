@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Optional
 
-from pythonstan.graph.cfg.models import CFGFunc, CFGClass, CFGModule
+from pythonstan.graph.cfg import CFGFunc, CFGClass, CFGModule
 from ..analysis import Analysis, AnalysisConfig
 
 Fact = TypeVar('Fact')

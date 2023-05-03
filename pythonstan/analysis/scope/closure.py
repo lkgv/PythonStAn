@@ -1,6 +1,6 @@
 from typing import Set
 
-from pythonstan.graph.cfg.models import CFGScope, CFGClass, CFGFunc, CFGModule
+from pythonstan.graph.cfg import CFGClass, CFGFunc, CFGModule
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.analysis import AnalysisConfig
 from pythonstan.utils.var_collector import VarCollector

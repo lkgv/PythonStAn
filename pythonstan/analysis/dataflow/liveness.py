@@ -1,7 +1,6 @@
 from typing import Set
 
-from pythonstan.graph.cfg.models import BaseBlock
-from pythonstan.utils.var_collector import VarCollector
+from pythonstan.graph.cfg import BaseBlock
 from . import DataflowAnalysis
 
 
@@ -23,14 +22,8 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
         return False
     
     def transfer_node(self, node: BaseBlock, fact: Set[str]) -> Set[str]:
-        s_colle = VarCollector()
-        l_colle = VarCollector()
         fact_out = fact.copy()
         for stmt in node.stmts[::-1]:
-            s_colle.reset("store")
-            s_colle.visit(stmt)
-            fact_out.difference_update(s_colle.get_vars())
-            l_colle.reset("no_store")
-            l_colle.visit(stmt)
-            fact_out.update(l_colle.get_vars())
+            fact_out.difference_update(stmt.get_stores())
+            fact_out.update(stmt.get_nostores())
         return fact_out

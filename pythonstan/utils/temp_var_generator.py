@@ -36,7 +36,9 @@ class TempVarGenerator:
             'Del': {}
         }
 
-    def gen(self, idx=None, ctxs=[ast.Load(), ast.Store()]):
+    def gen(self, idx=None, ctxs=None):
+        if ctxs is None:
+            ctxs = [ast.Load(), ast.Store()]
         if idx is None:
             idx = self.gen_idx()
         var_name = self.template % (idx,)
@@ -55,21 +57,6 @@ class TempVarGenerator:
         idx = self.next_idx
         self.next_idx += 1
         return idx
-    
-    def _get_store(self, id):
-        if id not in self.var_store:
-            self.var_store[id] = ast.Name(id=id, ctx=ast.Store())
-        return self.var_store[id]
-    
-    def _get_load(self, id):
-        if id not in self.var_load:
-            self.var_load[id] = ast.Name(id=id, ctx=ast.Load())
-        return self.var_load[id]
-    
-    def _get_del(self, id):
-        if id not in self.var_del:
-            self.var_del[id] = ast.Name(id=id, ctx=ast.Del())
-        return self.var_del[id]
 
     def get(self, var, ctx):
         if isinstance(var.ctx, ctx.__class__):

@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from queue import Queue
 
 from .analysis import DataflowAnalysis
-from pythonstan.graph.cfg.models import BaseBlock
+from pythonstan.graph.cfg import BaseBlock
 
 
 Fact = TypeVar("Fact")
