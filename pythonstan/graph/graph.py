@@ -8,14 +8,6 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def get_graph(self) -> 'Graph':
-        pass
-
-    @abstractmethod
-    def set_graph(self, g: 'Graph'):
-        pass
-
-    @abstractmethod
     def get_name(self) -> str:
         pass
 

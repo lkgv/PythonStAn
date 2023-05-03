@@ -114,7 +114,7 @@ class DominatorTree:
             if len(self.preds_of(u)) > 1:
                 for pred in self.preds_of(u):
                     runner = pred
-                    while runner != self.idom[u] and runner != entry:
+                    while runner != self.idom[u]:
                         self.df[runner].add(u)
                         runner = self.idom[runner]
 
