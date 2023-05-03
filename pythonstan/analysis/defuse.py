@@ -1,8 +1,7 @@
 from ast import stmt
 from typing import Set
 
-from pythonstan.graph.cfg.models import CFGScope
-from pythonstan.utils.var_collector import VarCollector
+from pythonstan.graph.cfg import CFGScope
 from .analysis import AnalysisConfig, AnalysisDriver
 from .dataflow.driver import DataflowAnalysisDriver
 
@@ -23,27 +22,19 @@ class DefUseAnalysis(AnalysisDriver):
     
     def analyze(self, scope: CFGScope):
         rd_result = self.rd_analysis.analyze(scope)
-        s_colle = VarCollector()
-        l_colle = VarCollector()
         stores, loads = {}, {}
         for cur_stmt in scope.cfg.stmts:
             reaching_defs = rd_result['in'][cur_stmt]
-            l_colle.reset("no_store")
-            l_colle.visit(cur_stmt)
-            for load_id in l_colle.get_vars():
+            for load_id in cur_stmt.get_nostores():
                 for reaching_def in reaching_defs:
-                    s_colle.reset("store")
-                    s_colle.visit(reaching_def)
-                    for store_id in s_colle.get_vars():
+                    for store_id in reaching_def.get_stores():
                         if load_id == store_id:
                             if self.compute_stores:
                                 if (cur_stmt, load_id) not in stores:
                                     stores[(cur_stmt, load_id)] = {*()}
-                                stores[((cur_stmt, load_id))].add(reaching_def)
+                                stores[(cur_stmt, load_id)].add(reaching_def)
                             if self.compute_loads:
                                 if reaching_def not in loads:
                                     loads[reaching_def] = {*()}
-                                loads.add(cur_stmt)
+                                loads[reaching_def].add(cur_stmt)
         return stores, loads
-
-            

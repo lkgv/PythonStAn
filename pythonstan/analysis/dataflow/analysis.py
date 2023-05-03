@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic
 
-from pythonstan.graph.cfg.models import CFGScope, Edge, BaseBlock
+from pythonstan.graph.cfg import CFGScope, Edge, BaseBlock
 from ..analysis import Analysis, AnalysisConfig
 
 Fact = TypeVar('Fact')

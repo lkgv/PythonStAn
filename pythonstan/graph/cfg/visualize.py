@@ -3,6 +3,7 @@ from graphviz import Digraph
 from typing import Dict
 
 from .models import *
+from .cfg import ControlFlowGraph
 
 
 def new_digraph(name, filename, node_attr={}, edge_attr={}, graph_attr={}
