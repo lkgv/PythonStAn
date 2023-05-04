@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Set, Union, List
+from typing import Set, Union, List, Optional
 import ast
 from ast import stmt as Statement
 
 from pythonstan.utils.var_collector import VarCollector
+from pythonstan.utils.ast_rename import RenameTransformer
 
 __all__ = ["CFGStmt", "CFGImport", "CFGClassDef", "CFGFuncDef", "CFGAsyncFuncDef", "CFGAstStmt",
-           "Label", "Goto", "JumpIfTrue", "JumpIfFalse"]
+           "Phi", "Label", "Goto", "JumpIfTrue", "JumpIfFalse"]
 
 
 class CFGStmt(ABC):
@@ -30,7 +31,11 @@ class CFGStmt(ABC):
         ...
 
     def get_nostores(self) -> Set[str]:
-        return self.get_stores().union(self.get_dels())
+        return self.get_loads().union(self.get_dels())
+
+    @abstractmethod
+    def rename(self, old_name, new_name, ctxs):
+        ...
 
 class AbstractCFGStmt(CFGStmt, ABC):
     def get_stores(self) -> Set[str]:
@@ -42,6 +47,9 @@ class AbstractCFGStmt(CFGStmt, ABC):
     def get_dels(self) -> Set[str]:
         return {*()}
 
+    def rename(self, old_name, new_name, ctxs):
+        pass
+
 
 class CFGImport(AbstractCFGStmt):
     stmt: Union[ast.Import, ast.ImportFrom]
@@ -51,6 +59,21 @@ class CFGImport(AbstractCFGStmt):
 
     def __str__(self):
         ast.unparse(self.stmt)
+
+    def get_stores(self) -> Set[str]:
+        stores = {*()}
+        for name in self.stmt.names:
+            if name.asname is None:
+                stores.add(name.name)
+            else:
+                stores.add(name.asname)
+        return stores
+
+    def rename(self, old_name, new_name, ctxs):
+        if ast.Store not in ctxs:
+            return
+        renamer = RenameTransformer(old_name, new_name, ctxs)
+        self.stmt = renamer.visit(self.stmt)
 
 
 class CFGClassDef(AbstractCFGStmt):
@@ -90,7 +113,7 @@ class CFGClassDef(AbstractCFGStmt):
 
     def __str__(self):
         names = list(map(lambda x: x.id, self.cell_vars))
-        cell_comment = "# closure: (" + ', '.join(names) + ")\n"
+        cell_comment = "# closure: (" + ', '.join(names) + ")\n    "
         return cell_comment + ast.unparse(self.to_ast())
 
 
@@ -135,7 +158,7 @@ class CFGFuncDef(AbstractCFGStmt):
 
     def __str__(self):
         names = list(map(lambda x: x.id, self.cell_vars))
-        cell_comment = "# closure: (" + ', '.join(names) + ")\n"
+        cell_comment = "# closure: (" + ', '.join(names) + ")\n    "
         return cell_comment + ast.unparse(self.to_ast())
 
 
@@ -200,6 +223,46 @@ class CFGAstStmt(CFGStmt):
     def get_dels(self) -> Set[str]:
         return self.del_collector.get_vars()
 
+    def rename(self, old_name, new_name, ctxs):
+        renamer = RenameTransformer(old_name, new_name, ctxs)
+        self.stmt = renamer.visit(self.stmt)
+
+
+class Phi(AbstractCFGStmt):
+    var: str
+    loads: List[str]
+    store: str
+
+    def __init__(self, var, store, loads):
+        self.var = var
+        self.store = store
+        self.loads = loads
+
+    def set_store(self, name: str):
+        self.store = name
+
+    def set_load(self, idx: int, load: str):
+        if 0 <= idx < len(self.loads):
+            self.loads[idx] = load
+        else:
+            raise ValueError("invalid index")
+
+    def get_stores(self) -> Set[str]:
+        return {self.store}
+
+    def get_loads(self) -> Set[str]:
+        return set(self.loads)
+
+    def rename(self, old_name, new_name, ctxs):
+        if ast.Store not in ctxs:
+            return
+        if self.store == old_name:
+            self.set_store(new_name)
+
+    def __str__(self) -> str:
+        load_str = ', '.join(self.loads)
+        return f"{self.store} = Phi({load_str})"
+
 
 class Label(AbstractCFGStmt):
     idx: int
@@ -210,40 +273,74 @@ class Label(AbstractCFGStmt):
     def __str__(self):
         return f"label_{self.idx}:"
 
+    def to_s(self):
+        return f"label_{self.idx}"
+
 
 class Goto(AbstractCFGStmt):
-    label: Label
+    label: Optional[Label]
 
-    def __init__(self, label):
+    def __init__(self, label=None):
         self.label = label
 
     def __str__(self):
-        return f"goto {self.label}"
+        return f"goto {self.label.to_s()}"
+
+    def set_label(self, label):
+        self.label = label
 
 
 class JumpIfFalse(AbstractCFGStmt):
     test: ast.expr
     label: Label
+    load_collector: VarCollector
 
-    def __init__(self, test, label):
+    def __init__(self, test, label=None):
         self.test = test
         ast.fix_missing_locations(self.test)
+        self.load_collector = VarCollector("load")
+        self.load_collector.visit(self.test)
+        if label is None:
+            self.label = Label(-1)
+        else:
+            self.label = label
+
+    def set_label(self, label):
         self.label = label
 
     def __str__(self):
         test_str = ast.unparse(self.test)
-        return f"if not ({test_str}) goto {self.label}"
+        return f"if not ({test_str}) goto {self.label.to_s()}"
+
+    def get_loads(self) -> Set[str]:
+        return self.load_collector.get_vars()
+    def rename(self, old_name, new_name, ctxs):
+        renamer = RenameTransformer(old_name, new_name, ctxs)
+        print(self.test)
+        self.test = renamer.visit(self.test)
+        print(self.test)
+        print()
 
 
 class JumpIfTrue(AbstractCFGStmt):
     test: ast.expr
     label: Label
+    load_collector: VarCollector
 
     def __init__(self, test, label):
         self.test = test
         ast.fix_missing_locations(self.test)
+        self.load_collector = VarCollector("load")
+        self.load_collector.visit(self.test)
         self.label = label
 
     def __str__(self):
         test_str = ast.unparse(self.test)
-        return f"if not ({test_str}) goto {self.label}"
+        return f"if not ({test_str}) goto {self.label.to_s()}"
+
+    def get_loads(self) -> Set[str]:
+        return self.load_collector.get_vars()
+
+    def rename(self, old_name, new_name, ctxs):
+        renamer = RenameTransformer(old_name, new_name, ctxs)
+        self.test = renamer.visit(self.test)

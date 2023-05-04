@@ -2,7 +2,7 @@ import graphviz
 from graphviz import Digraph
 from typing import Dict
 
-from .models import *
+from .scope import *
 from .cfg import ControlFlowGraph
 
 
@@ -21,7 +21,8 @@ def new_digraph(name, filename, node_attr={}, edge_attr={}, graph_attr={}
                             graph_attr=g_attr)
 
 
-def draw_cfg(cfg: ControlFlowGraph, s: Digraph, info: Dict = {}):
+def draw_cfg(scope: CFGScope, s: Digraph, info: Dict = {}):
+    cfg = scope.cfg
     gen_id = lambda blk: f'{subg_name}_{blk.idx}'
 
     def gen_lab(blk):
@@ -35,7 +36,7 @@ def draw_cfg(cfg: ControlFlowGraph, s: Digraph, info: Dict = {}):
         else:
             return label
 
-    subg_name = cfg.scope.get_name()
+    subg_name = scope.get_name()
     for blk in cfg.blks:
         if blk == cfg.entry_blk:
             s.node(gen_id(blk), gen_lab(blk),
@@ -60,7 +61,7 @@ def draw_module(mod: CFGModule, s: Digraph, info: Dict = {}):
                                 'cluster': 'true',
                                 'bgcolor': 'gray50'}
                     ) as subs:
-        draw_cfg(mod.cfg, subs, info)
+        draw_cfg(mod, subs, info)
         for cls in mod.classes:
             if cls in info:
                 draw_class(cls, subs, info[cls])
@@ -79,7 +80,7 @@ def draw_class(cls: CFGClass, s: Digraph, info: Dict = {}):
                                 'cluster': 'true',
                                 'bgcolor': 'gray64'}
                     ) as subs:
-        draw_cfg(cls.cfg, subs, info)
+        draw_cfg(cls, subs, info)
         for sub_cls in cls.classes:
             if sub_cls in info:
                 draw_class(sub_cls, subs, info[sub_cls])
@@ -98,7 +99,7 @@ def draw_function(fn: CFGFunc, s: Digraph, info: Dict = {}):
                                 'cluster': 'true',
                                 'bgcolor': 'gray78'}
                     ) as subs:
-        draw_cfg(fn.cfg, subs, info)
+        draw_cfg(fn, subs, info)
         for cls in fn.classes:
             if cls in info:
                 draw_class(cls, subs, info[cls])

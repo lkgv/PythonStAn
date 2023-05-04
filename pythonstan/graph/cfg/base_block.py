@@ -5,6 +5,9 @@ from ..graph import Node
 
 __all__ = ["BaseBlock"]
 
+S1 = 182239
+S2 = 120721
+S3 = 219943
 
 class BaseBlock(Node):
     idx: int
@@ -30,7 +33,7 @@ class BaseBlock(Node):
         self.stmts.append(stmt)
 
     def add_front(self, stmt: CFGStmt):
-        if isinstance(self.stmts[0], Label):
+        if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
             self.stmts.insert(1, stmt)
         else:
             self.stmts.insert(0, stmt)
@@ -58,5 +61,16 @@ class BaseBlock(Node):
 
     def __str__(self):
         head = self.get_name()
-        stmts_str = '\\n'.join(self.stmts)
+        stmts_str = '\\n'.join([str(s) for s in self.stmts])
         return '\\n'.join([head, stmts_str])
+
+    def gen_label(self) -> Label:
+        if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
+            return self.stmts[0]
+        else:
+            label = Label(self.get_idx())
+            self.add_front(label)
+            return label
+
+    def __hash__(self):
+        return ((self.idx * S2) + S1) % S3
