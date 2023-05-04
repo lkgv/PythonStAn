@@ -3,29 +3,8 @@ from queue import Queue
 from typing import Dict, Set, List
 import ast
 
-from pythonstan.graph.cfg.models import ControlFlowGraph, BaseBlock
+from pythonstan.graph.cfg import ControlFlowGraph, BaseBlock, Phi
 from pythonstan.graph.dominator_tree import DominatorTree
-
-
-class PhiFunction(ast.stmt):
-    var: str
-    loads: List[str]
-    store: str
-
-    def __init__(self, var, store, loads, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.var = var
-        self.store = store
-        self.loads = loads
-
-    def set_store(self, name: str):
-        self.store = name
-
-    def set_load(self, idx: int, load: str):
-        if 0 < idx < len(self.loads):
-            self.loads[idx] = load
-        else:
-            raise ValueError("invalid index")
 
 
 class SSATransformer:
@@ -34,9 +13,9 @@ class SSATransformer:
     counter: Dict[str, int]
     stores_map: Dict[str, Set[BaseBlock]]
 
-    def build(self, cfg: ControlFlowGraph):
-        self.cfg = cfg
-        self.dt = DominatorTree(cfg)
+    def build(self, cfg: ControlFlowGraph) -> ControlFlowGraph:
+        self.cfg = copy.deepcopy(cfg)
+        self.dt = DominatorTree(self.cfg)
         self.counter = {}
         self.stores_map = {}
         for blk in self.cfg.get_nodes():
@@ -46,16 +25,19 @@ class SSATransformer:
                     self.stores_map[store].add(blk)
                 else:
                     self.stores_map[store] = {blk}
+        self.add_phi_function()
+        self.rename()
+        return self.cfg
 
     def put_phi(self, node: BaseBlock, var: str):
         has_phi = False
         for stmt in node.stmts:
-            if isinstance(stmt, PhiFunction) and stmt.var == var:
+            if isinstance(stmt, Phi) and stmt.var == var:
                 has_phi = True
                 break
         if not has_phi:
             num = self.cfg.in_degree_of(node)
-            phi = PhiFunction(var, var, [var for _ in range(num)])
+            phi = Phi(var, var, [var for _ in range(num)])
             node.add_front(phi)
 
     def add_phi_function(self):
@@ -76,7 +58,46 @@ class SSATransformer:
                             visited.add(v)
                             wl.put(v)
 
-    def search(self, node: BaseBlock):
-        for stmt in node.stmts:
-            ...
+    def rename(self):
+        def search(node: BaseBlock):
+            old_stores = []
+            for stmt in node.stmts:
+                if not isinstance(stmt, Phi):
+                    for load in stmt.get_nostores():
+                        if load in stacks and len(stacks[load]) > 0:
+                            load_i = stacks[load][-1]
+                            stmt.rename(load, load_i, (ast.Load, ast.Del))
+                for store in stmt.get_stores():
+                    if store not in counters:
+                        counters[store] = 0
+                        stacks[store] = []
+                    idx = counters[store]
+                    if idx > 0:
+                        store_i = f"{store}_{idx}"
+                        stmt.rename(store, store_i, (ast.Store,))
+                    else:
+                        store_i = store
+                    stacks[store].append(store_i)
+                    counters[store] += 1
+                    old_stores.append(store)
+            for succ in self.cfg.succs_of(node):
+                idx = -1
+                for i, pred in enumerate(self.cfg.preds_of(succ)):
+                    if pred == node:
+                        idx = i
+                if idx >= 0:
+                    for stmt in succ.stmts:
+                        if isinstance(stmt, Phi) and stmt.var in stacks:
+                            if len(stacks[stmt.var]) > 0:
+                                load_i = stacks[stmt.var][-1]
+                                stmt.set_load(idx, load_i)
+                if succ not in visited:
+                    visited.add(succ)
+                    search(succ)
+            for old_store in old_stores:
+                stacks[old_store].pop()
 
+        visited = {self.cfg.get_entry()}
+        stacks = {}
+        counters = {}
+        search(self.cfg.get_entry())

@@ -31,7 +31,6 @@ class DominatorTree:
         self.father = {}
         self.nodes = []
         start = self.get_entry()
-        self.father[start] = start
         self.dfs(start)
 
         self.sdom = {}
@@ -76,31 +75,33 @@ class DominatorTree:
         if self.f[u] == u:
             return u
         res = self.merge(self.f[u])
-        self.ran[u] = self.sdom_min(u, self.f[u])
+        self.ran[u] = self.sdom_min(self.ran[u], self.ran[self.f[u]])
         self.f[u] = res
         return res
 
     def lengauer_tarjan(self):
         tr = {}
         for u in self.nodes[::-1]:
-            for v in self.preds_of(u):
-                if v in self.dfn:
-                    self.merge(v)
-                    self.sdom[u] = self.sdom_min(u, self.ran[v])
-            self.f[u] = self.father[u]
-            if self.sdom[u] in tr:
-                tr[self.sdom[u]].append(u)
-            else:
-                tr[self.sdom[u]] = [u]
+            if u != self.get_entry():
+                for v in self.preds_of(u):
+                    if v in self.dfn:
+                        self.merge(v)
+                        self.sdom[u] = self.sdom[self.sdom_min(u, self.ran[v])]
 
-            fa = self.father[u]
-            for v in tr[fa]:
-                self.merge(v)
-                if fa == self.sdom[self.ran[v]]:
-                    self.idom[v] = fa
+                self.f[u] = self.father[u]
+                if self.sdom[u] in tr:
+                    tr[self.sdom[u]].append(u)
                 else:
-                    self.idom[v] = self.ran[v]
-            tr[fa] = []
+                    tr[self.sdom[u]] = [u]
+                fa = self.father[u]
+                if fa in tr:
+                    for v in tr[fa]:
+                        self.merge(v)
+                        if fa == self.sdom[self.ran[v]]:
+                            self.idom[v] = fa
+                        else:
+                            self.idom[v] = self.ran[v]
+                tr[fa] = []
 
         for u in self.nodes[1::]:
             if self.idom[u] != self.sdom[u]:

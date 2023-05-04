@@ -2,7 +2,7 @@ import ast
 from ast import stmt as Statement
 from queue import Queue
 import copy
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from .base_block import BaseBlock
 from .edges import *
@@ -140,14 +140,16 @@ class CFGBuilder:
                 # extend_info(build_info, include=['raise'])
 
             elif isinstance(stmt, ast.Break):
-                cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
-                exit_stmt['break'].append((cur_blk, stmt))
+                goto = Goto()
+                cfg.add_stmt(cur_blk, goto)
+                exit_stmt['break'].append((cur_blk, goto))
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, ast.Continue):
-                cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
-                exit_stmt['continue'].append((cur_blk, stmt))
+                goto = Goto()
+                cfg.add_stmt(cur_blk, goto)
+                exit_stmt['continue'].append((cur_blk, goto))
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
@@ -162,32 +164,38 @@ class CFGBuilder:
                 exit_stmt['import'].append((cur_blk, CFGImport(stmt)))
 
             elif isinstance(stmt, ast.While):
-                new_stmt = ast.While(test=stmt.test, body=[], orelse=[])
-                ast.copy_location(new_stmt, stmt)
+                new_stmt = JumpIfFalse(test=stmt.test)
                 cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
-                cfg.add_stmt(cur_blk, CFGAstStmt(new_stmt))
+                cfg.add_stmt(cur_blk, new_stmt)
+                cur_label = cur_blk.gen_label()
                 loop_blk = gen_next_blk(i, cur_blk, WhileEdge, True)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
                 next_blk = self.new_blk()
-                for blk, _ in loop_info['break']:
+                next_label = next_blk.gen_label()
+                for blk, break_stmt in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
-                for blk, _ in loop_info['continue']:
+                    break_stmt.set_label(next_label)
+                for blk, continue_stmt in loop_info['continue']:
                     cfg.add_edge(NormalEdge(blk, cur_blk))
+                    continue_stmt.set_label(cur_label)
                 cfg.add_edge(NormalEdge(loop_info['last_block'], cur_blk))
                 if len(stmt.orelse) > 0:
                     else_blk = gen_next_blk(i, cur_blk, WhileElseEdge)
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
+                    back_goto = Goto(cur_label)
+                    cfg.add_stmt(else_info['last_block'], back_goto)
+                    new_stmt.set_label(else_blk.gen_label())
                 else:
                     cfg.add_edge(NormalEdge(cur_blk, next_blk))
+                    new_stmt.set_label(next_label)
                 cur_blk = next_blk
 
             elif isinstance(stmt, ast.If):
-                new_stmt = ast.If(test=stmt.test, body=[], orelse=[])
-                ast.copy_location(new_stmt, stmt)
-                cfg.add_stmt(cur_blk, CFGAstStmt(new_stmt))
+                if_false_jump = JumpIfFalse(test=stmt.test)
+                cfg.add_stmt(cur_blk, if_false_jump)
                 then_blk = gen_next_blk(i, cur_blk,
                                         lambda u, v: IfEdge(u, v, True),
                                         True)
@@ -202,8 +210,14 @@ class CFGBuilder:
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
+                    next_label = next_blk.gen_label()
+                    then_end_goto = Goto(next_label)
+                    cfg.add_stmt(then_info['last_block'],then_end_goto)
+                    label = else_blk.gen_label()
                 else:
                     cfg.add_edge(IfEdge(cur_blk, next_blk, False))
+                    label = next_blk.gen_label()
+                if_false_jump.set_label(label)
                 cur_blk = next_blk
 
             elif isinstance(stmt, ast.With):

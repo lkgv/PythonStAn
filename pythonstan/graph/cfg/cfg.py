@@ -1,7 +1,7 @@
 from typing import *
 
 from ..graph import Edge, Node, Graph
-from .statements import CFGStmt
+from .statements import CFGStmt, Label
 from .base_block import BaseBlock
 from .edges import NormalEdge
 from pythonstan.utils.var_collector import VarCollector
@@ -23,7 +23,7 @@ class ControlFlowGraph(Graph):
         self.stmts = {*()}
         self.in_edges = {}
         self.out_edges = {}
-        self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(0, self)
+        self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(0)
         if entry_blk is not None:
             self.entry_blk = entry_blk
         else:
@@ -32,19 +32,27 @@ class ControlFlowGraph(Graph):
         self.super_exit_blk = None
         self.var_collector = VarCollector()
 
-    def preds_of(self, node: Node):
-        if isinstance(node, BaseBlock):
-            return [e.get_src() for e in self.in_edges_of(node)]
-        else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+    def preds_of(self, node: Node) -> List[BaseBlock]:
+        preds = []
+        for e in self.in_edges_of(node):
+            pred = e.get_src()
+            if isinstance(pred, BaseBlock):
+                preds.append(pred)
+            else:
+                raise ValueError(
+                    "The type of Node in the current CFG can only be BaseBlock!")
+        return preds
 
-    def succs_of(self, node: Node):
-        if isinstance(node, BaseBlock):
-            return [e.get_tgt() for e in self.out_edges_of(node)]
-        else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+    def succs_of(self, node: Node) -> List[BaseBlock]:
+        succs = []
+        for e in self.out_edges_of(node):
+            succ = e.get_tgt()
+            if isinstance(succ, BaseBlock):
+                succs.append(succ)
+            else:
+                raise ValueError(
+                    "The type of Node in the current CFG can only be BaseBlock!")
+        return succs
 
     def in_edges_of(self, node: Node):
         if isinstance(node, BaseBlock):
@@ -155,7 +163,8 @@ class ControlFlowGraph(Graph):
         self.in_edges.pop(blk)
         self.out_edges.pop(blk)
         for stmt in blk.stmts:
-            self.stmts.remove(stmt)
+            if not isinstance(stmt, Label):
+                self.stmts.remove(stmt)
         self.blks.remove(blk)
 
     def delete_edge(self, e: Edge):
