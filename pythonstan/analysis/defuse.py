@@ -1,7 +1,7 @@
 from ast import stmt
 from typing import Set
 
-from pythonstan.graph.cfg import CFGScope
+from pythonstan.graph.cfg import IRScope
 from .analysis import AnalysisConfig, AnalysisDriver
 from .dataflow.driver import DataflowAnalysisDriver
 
@@ -20,7 +20,7 @@ class DefUseAnalysis(AnalysisDriver):
         self.rd_analysis = DataflowAnalysisDriver[Set[stmt]](rd_config)
         super().__init__(config)
     
-    def analyze(self, scope: CFGScope):
+    def analyze(self, scope: IRScope):
         rd_result = self.rd_analysis.analyze(scope)
         stores, loads = {}, {}
         for cur_stmt in scope.cfg.stmts:

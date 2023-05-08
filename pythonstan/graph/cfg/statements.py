@@ -6,11 +6,11 @@ from ast import stmt as Statement
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
 
-__all__ = ["CFGStmt", "CFGImport", "CFGClassDef", "CFGFuncDef", "CFGAsyncFuncDef", "CFGAstStmt",
+__all__ = ["IRRStatement", "IRImport", "IRClassDef", "IRFuncDef", "CFGAsyncFuncDef", "IRAstStmt",
            "Phi", "Label", "Goto", "JumpIfTrue", "JumpIfFalse"]
 
 
-class CFGStmt(ABC):
+class IRRStatement(ABC):
     @abstractmethod
     def __str__(self) -> str:
         ...
@@ -37,7 +37,7 @@ class CFGStmt(ABC):
     def rename(self, old_name, new_name, ctxs):
         ...
 
-class AbstractCFGStmt(CFGStmt, ABC):
+class IRAbstractStmt(IRRStatement):
     def get_stores(self) -> Set[str]:
         return {*()}
 
@@ -51,7 +51,7 @@ class AbstractCFGStmt(CFGStmt, ABC):
         pass
 
 
-class CFGImport(AbstractCFGStmt):
+class IRImport(IRAbstractStmt):
     stmt: Union[ast.Import, ast.ImportFrom]
 
     def __init__(self, stmt):
@@ -76,7 +76,7 @@ class CFGImport(AbstractCFGStmt):
         self.stmt = renamer.visit(self.stmt)
 
 
-class CFGClassDef(AbstractCFGStmt):
+class IRClassDef(IRAbstractStmt):
     name: str
     bases: List[ast.expr]
     keywords: List[ast.keyword]
@@ -117,7 +117,7 @@ class CFGClassDef(AbstractCFGStmt):
         return cell_comment + ast.unparse(self.to_ast())
 
 
-class CFGFuncDef(AbstractCFGStmt):
+class IRFuncDef(IRAbstractStmt):
     name: str
     args: ast.arguments
     decorator_list: List[ast.expr]
@@ -162,7 +162,7 @@ class CFGFuncDef(AbstractCFGStmt):
         return cell_comment + ast.unparse(self.to_ast())
 
 
-class CFGAsyncFuncDef(CFGFuncDef):
+class CFGAsyncFuncDef(IRFuncDef):
     ast_repr: ast.AsyncFunctionDef
 
     def __init__(self, fn: ast.AsyncFunctionDef, cell_vars=None):
@@ -186,7 +186,7 @@ class CFGAsyncFuncDef(CFGFuncDef):
             self.cell_vars = cell_vars
 
 
-class CFGAstStmt(CFGStmt):
+class IRAstStmt(IRRStatement):
     stmt: Statement
     store_collector: VarCollector
     load_collector: VarCollector
@@ -228,7 +228,7 @@ class CFGAstStmt(CFGStmt):
         self.stmt = renamer.visit(self.stmt)
 
 
-class Phi(AbstractCFGStmt):
+class Phi(IRAbstractStmt):
     var: str
     loads: List[str]
     store: str
@@ -264,7 +264,7 @@ class Phi(AbstractCFGStmt):
         return f"{self.store} = Phi({load_str})"
 
 
-class Label(AbstractCFGStmt):
+class Label(IRAbstractStmt):
     idx: int
 
     def __init__(self, idx):
@@ -277,7 +277,7 @@ class Label(AbstractCFGStmt):
         return f"label_{self.idx}"
 
 
-class Goto(AbstractCFGStmt):
+class Goto(IRAbstractStmt):
     label: Optional[Label]
 
     def __init__(self, label=None):
@@ -290,7 +290,7 @@ class Goto(AbstractCFGStmt):
         self.label = label
 
 
-class JumpIfFalse(AbstractCFGStmt):
+class JumpIfFalse(IRAbstractStmt):
     test: ast.expr
     label: Label
     load_collector: VarCollector
@@ -322,7 +322,7 @@ class JumpIfFalse(AbstractCFGStmt):
         print()
 
 
-class JumpIfTrue(AbstractCFGStmt):
+class JumpIfTrue(IRAbstractStmt):
     test: ast.expr
     label: Label
     load_collector: VarCollector

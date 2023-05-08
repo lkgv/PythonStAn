@@ -13,10 +13,10 @@ from .scope import *
 
 class CFGBuilder:
     cfg: ControlFlowGraph
-    funcs: List[CFGFunc]
-    classes: List[CFGClass]
+    funcs: List[IRFunc]
+    classes: List[IRClass]
     next_idx: int
-    scope: Optional[CFGScope]
+    scope: Optional[IRScope]
 
     def __init__(self, scope=None, next_idx=1, cfg=None):
         self.next_idx = next_idx
@@ -25,7 +25,7 @@ class CFGBuilder:
         self.funcs = []
         self.classes = []
 
-    def set_scope(self, scope: CFGScope):
+    def set_scope(self, scope: IRScope):
         self.scope = scope
 
     def new_blk(self) -> BaseBlock:
@@ -33,8 +33,8 @@ class CFGBuilder:
         self.next_idx += 1
         return blk
 
-    def build_module(self, stmts: List[Statement]) -> CFGModule:
-        mod = CFGModule()
+    def build_module(self, stmts: List[Statement]) -> IRModule:
+        mod = IRModule()
         builder = CFGBuilder(scope=mod)
 
         new_blk = builder.new_blk()
@@ -50,8 +50,8 @@ class CFGBuilder:
         mod.set_imports(mod_info['import'])
         return mod
 
-    def build_func(self, stmt, func_def) -> CFGFunc:
-        func = CFGFunc(func_def, scope=self.scope)
+    def build_func(self, stmt, func_def) -> IRFunc:
+        func = IRFunc(func_def, scope=self.scope)
         builder = CFGBuilder(scope=func)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
@@ -73,8 +73,8 @@ class CFGBuilder:
         return func
 
     def build_class(self, stmt: ast.ClassDef,
-                    cls_def: CFGClassDef) -> Tuple[CFGClass, Dict]:
-        cls = CFGClass(cls_def, scope=self.scope)
+                    cls_def: IRClassDef) -> Tuple[IRClass, Dict]:
+        cls = IRClass(cls_def, scope=self.scope)
         builder = CFGBuilder(scope=cls)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
@@ -121,7 +121,7 @@ class CFGBuilder:
 
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                func_def = CFGFuncDef(stmt)
+                func_def = IRFuncDef(stmt)
                 cfg.add_stmt(cur_blk, func_def)
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)
@@ -133,7 +133,7 @@ class CFGBuilder:
                 exit_stmt['func'].append(func)
 
             elif isinstance(stmt, ast.ClassDef):
-                cls_def = CFGClassDef(stmt)
+                cls_def = IRClassDef(stmt)
                 cfg.add_stmt(cur_blk, cls_def)
                 cls, build_info = self.build_class(stmt, cls_def)
                 exit_stmt['class'].append(cls)
@@ -154,14 +154,14 @@ class CFGBuilder:
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, ast.Return):
-                cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
                 exit_stmt['return'].append((cur_blk, stmt))
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
-                cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
-                exit_stmt['import'].append((cur_blk, CFGImport(stmt)))
+                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
+                exit_stmt['import'].append((cur_blk, IRImport(stmt)))
 
             elif isinstance(stmt, ast.While):
                 new_stmt = JumpIfFalse(test=stmt.test)
@@ -224,7 +224,7 @@ class CFGBuilder:
                 new_stmt = ast.With(items=stmt.items, body=[],
                                     type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
-                cfg.add_stmt(cur_blk, CFGAstStmt(new_stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(new_stmt))
                 var = stmt.items[0].optional_vars
                 with_blk = gen_next_blk(i, cur_blk,
                                         lambda u, v: WithEdge(u, v, var),
@@ -238,7 +238,7 @@ class CFGBuilder:
                 new_stmt = ast.AsyncWith(items=stmt.items, body=[],
                                          type_comment=stmt.type_comment)
                 ast.copy_location(new_stmt, stmt)
-                cfg.add_stmt(cur_blk, CFGAstStmt(new_stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(new_stmt))
                 var = stmt.items[0].optional_vars
                 with_blk = gen_next_blk(i, cur_blk,
                                         lambda u, v: WithEdge(u, v, var),
@@ -250,7 +250,7 @@ class CFGBuilder:
 
             elif isinstance(stmt, ast.Raise):
                 exit_stmt['raise'].append((cur_blk, stmt))
-                cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
@@ -266,7 +266,7 @@ class CFGBuilder:
                                    orelse=[],
                                    finalbody=[])
                 ast.copy_location(new_stmt, stmt)
-                cfg.add_stmt(cur_blk, CFGAstStmt(new_stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(new_stmt))
                 try_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
                 try_info = self._build(stmt.body, cfg, try_blk)
                 extend_info(try_info)
@@ -296,17 +296,17 @@ class CFGBuilder:
                 if isinstance(stmt, ast.Assign) and \
                         isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
                     exit_stmt['yield'].append((cur_blk, stmt))
-                    cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
+                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
 
                 elif isinstance(stmt, ast.Assign) and \
                         isinstance(stmt.value, ast.Call):
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
-                    cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
+                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
 
                 else:
-                    cfg.add_stmt(cur_blk, CFGAstStmt(stmt))
+                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
 
         ret_info = exit_stmt
         ret_info['last_block'] = cur_blk
@@ -325,13 +325,13 @@ class CFGBuilder:
 
 
 class StmtCFGTransformer:
-    scope: CFGScope
+    scope: IRScope
 
     # map a bblock in source cfg to the head block in the target cfg
     head_map: Dict[BaseBlock, BaseBlock]
     next_idx: int
 
-    def trans(self, scope: CFGScope):
+    def trans(self, scope: IRScope):
         self.scope = copy.deepcopy(scope)
         entry = scope.cfg.entry_blk
         self.scope.set_cfg(ControlFlowGraph())
@@ -346,17 +346,17 @@ class StmtCFGTransformer:
             [StmtCFGTransformer().trans_cls(c) for c in scope.classes])
         return self.scope
 
-    def trans_func(self, func: CFGFunc) -> CFGFunc:
+    def trans_func(self, func: IRFunc) -> IRFunc:
         ret = self.trans(func)
-        assert isinstance(ret, CFGFunc)
+        assert isinstance(ret, IRFunc)
         return ret
 
-    def trans_cls(self, func: CFGClass) -> CFGClass:
+    def trans_cls(self, func: IRClass) -> IRClass:
         ret = self.trans(func)
-        assert isinstance(ret, CFGClass)
+        assert isinstance(ret, IRClass)
         return ret
 
-    def new_blk(self, statement: Optional[CFGStmt] = None):
+    def new_blk(self, statement: Optional[IRRStatement] = None):
         if statement is not None:
             stmts = [statement]
         else:

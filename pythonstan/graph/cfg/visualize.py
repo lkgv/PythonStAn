@@ -21,7 +21,7 @@ def new_digraph(name, filename, node_attr={}, edge_attr={}, graph_attr={}
                             graph_attr=g_attr)
 
 
-def draw_cfg(scope: CFGScope, s: Digraph, info: Dict = {}):
+def draw_cfg(scope: IRScope, s: Digraph, info: Dict = {}):
     cfg = scope.cfg
     gen_id = lambda blk: f'{subg_name}_{blk.idx}'
 
@@ -55,7 +55,7 @@ def draw_cfg(scope: CFGScope, s: Digraph, info: Dict = {}):
             s.edge(src, tgt, label=e.get_name())
 
 
-def draw_module(mod: CFGModule, s: Digraph, info: Dict = {}):
+def draw_module(mod: IRModule, s: Digraph, info: Dict = {}):
     with s.subgraph(name=mod.get_name(),
                     graph_attr={'label': mod.get_name(),
                                 'cluster': 'true',
@@ -74,7 +74,7 @@ def draw_module(mod: CFGModule, s: Digraph, info: Dict = {}):
                 draw_function(fn, subs)
 
 
-def draw_class(cls: CFGClass, s: Digraph, info: Dict = {}):
+def draw_class(cls: IRClass, s: Digraph, info: Dict = {}):
     with s.subgraph(name=cls.get_name(),
                     graph_attr={'label': cls.get_name(),
                                 'cluster': 'true',
@@ -93,7 +93,7 @@ def draw_class(cls: CFGClass, s: Digraph, info: Dict = {}):
                 draw_function(fn, subs)
 
 
-def draw_function(fn: CFGFunc, s: Digraph, info: Dict = {}):
+def draw_function(fn: IRFunc, s: Digraph, info: Dict = {}):
     with s.subgraph(name=fn.get_name(),
                     graph_attr={'label': fn.get_name(),
                                 'cluster': 'true',

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic
 
-from pythonstan.graph.cfg import CFGScope, Edge, BaseBlock
+from pythonstan.graph.cfg import IRScope, Edge, BaseBlock
 from ..analysis import Analysis, AnalysisConfig
 
 Fact = TypeVar('Fact')
@@ -9,10 +9,10 @@ Fact = TypeVar('Fact')
 
 class DataflowAnalysis(Generic[Fact], Analysis):
     is_forward: bool
-    scope: CFGScope
+    scope: IRScope
     
     @abstractmethod
-    def __init__(self, scope: CFGScope, config: AnalysisConfig):
+    def __init__(self, scope: IRScope, config: AnalysisConfig):
         super(Analysis, self.__class__).__init__(config)
         self.scope = scope
 
@@ -39,5 +39,5 @@ class DataflowAnalysis(Generic[Fact], Analysis):
     def transfer_edge(self, edge: Edge, node_fact: Fact) -> Fact:
         return node_fact
 
-    def get_scope(self) -> CFGScope:
+    def get_scope(self) -> IRScope:
         return self.scope

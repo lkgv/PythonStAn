@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Type
-from pythonstan.graph.cfg import CFGScope
+from pythonstan.graph.cfg import IRScope
 
 
 class AnalysisConfig:
@@ -51,5 +51,5 @@ class AnalysisDriver(ABC):
         self.config = config
 
     @abstractmethod
-    def analyze(self, scope: CFGScope):
+    def analyze(self, scope: IRScope):
         pass

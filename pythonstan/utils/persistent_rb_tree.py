@@ -252,8 +252,12 @@ class RBTree(Generic[T]):
         return E
 
 
-class PersistentMap:
-    tree: RBTree[Tuple[Any, Any]]
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+class PersistentMap(Generic[K, V]):
+    tree: RBTree[Tuple[K, V]]
     root: Node_t
 
     def __init__(self, root=None):
@@ -274,28 +278,28 @@ class PersistentMap:
         if kx > ky:
             return 1
     
-    def set(self, key, value):
+    def set(self, key: K, value: V):
         self.root = self.tree.add(self.root, (key, value))
     
-    def get(self, key):
+    def get(self, key: K) -> V:
         _, value = self.tree.find(self.root, (key, None))
         return value
     
-    def delete(self, key):
+    def delete(self, key: K):
         self.root = self.tree.delete(self.root, (key, None))
     
-    def items(self):
+    def items(self) -> List[Tuple[K, V]]:
         return self.tree.to_list(self.root)
     
-    def backup(self):
+    def backup(self) -> Node_t:
         return self.root
     
-    def recover(self, root):
+    def recover(self, root: Node_t):
         self.root = root
 
 
-class PersistentSet:
-    tree: RBTree[Any]
+class PersistentSet(Generic[T]):
+    tree: RBTree[T]
     root: Node_t
 
     def __init__(self, root=None):
@@ -314,23 +318,23 @@ class PersistentSet:
         if x > y:
             return 1
     
-    def add(self, element):
+    def add(self, element: T):
         self.root = self.tree.add(self.root, element)
     
-    def has(self, element):
+    def has(self, element) -> bool:
         return self.tree.find(self.root, element) is not None
     
-    def delete(self, element):
+    def delete(self, element: T):
         self.root = self.tree.delete(self.root, element)
     
-    def min(self):
+    def min(self) -> Optional[T]:
         return self.tree.min(self.root)
     
-    def to_list(self):
+    def to_list(self) -> List[T]:
         return self.tree.to_list(self.root)
     
-    def backup(self):
+    def backup(self) -> Node_t:
         return self.root
     
-    def recover(self, root):
+    def recover(self, root: Node_t):
         self.root = root

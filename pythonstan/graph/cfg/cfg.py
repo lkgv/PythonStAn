@@ -1,7 +1,7 @@
 from typing import *
 
 from ..graph import Edge, Node, Graph
-from .statements import CFGStmt, Label
+from .statements import IRRStatement, Label
 from .base_block import BaseBlock
 from .edges import NormalEdge
 from pythonstan.utils.var_collector import VarCollector
@@ -16,7 +16,7 @@ class ControlFlowGraph(Graph):
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
-    stmts: Set[CFGStmt]
+    stmts: Set[IRRStatement]
 
     def __init__(self, entry_blk=None):
         self.blks = {*()}
@@ -106,7 +106,7 @@ class ControlFlowGraph(Graph):
             self.in_edges[blk] = []
             self.out_edges[blk] = []
 
-    def add_stmt(self, blk: BaseBlock, stmt: CFGStmt):
+    def add_stmt(self, blk: BaseBlock, stmt: IRRStatement):
         blk.add(stmt)
         self.stmts.add(stmt)
 

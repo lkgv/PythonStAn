@@ -1,6 +1,6 @@
 from typing import List, Optional, Set
 
-from .statements import CFGStmt, Label
+from .statements import IRRStatement, Label
 from ..graph import Node
 
 __all__ = ["BaseBlock"]
@@ -11,7 +11,7 @@ S3 = 219943
 
 class BaseBlock(Node):
     idx: int
-    stmts: List[CFGStmt]
+    stmts: List[IRRStatement]
 
     def __init__(self, idx=-1, stmts=None):
         self.idx = idx
@@ -29,10 +29,10 @@ class BaseBlock(Node):
     def get_name(self) -> str:
         return f"[{self.idx}]"
 
-    def add(self, stmt: CFGStmt):
+    def add(self, stmt: IRRStatement):
         self.stmts.append(stmt)
 
-    def add_front(self, stmt: CFGStmt):
+    def add_front(self, stmt: IRRStatement):
         if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
             self.stmts.insert(1, stmt)
         else:
