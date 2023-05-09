@@ -6,8 +6,8 @@ __all__ = ["IRScope"]
 class IRModule(IRScope):
     filename: str
 
-    def __init__(self, cfg=None, filename="", funcs=None, classes=None, imports=None):
-        super().__init__(cfg, funcs, classes, imports)
+    def __init__(self, cfg=None, filename=""):
+        super().__init__(cfg)
         self.filename = filename
 
     def get_name(self) -> str:
