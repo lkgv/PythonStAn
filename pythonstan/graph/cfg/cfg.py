@@ -17,6 +17,7 @@ class ControlFlowGraph(Graph):
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
     stmts: Set[IRRStatement]
+    label2blk: Dict[Label, BaseBlock]
 
     def __init__(self, entry_blk=None):
         self.blks = {*()}
@@ -31,6 +32,7 @@ class ControlFlowGraph(Graph):
         self.exit_blks = {*()}
         self.super_exit_blk = None
         self.var_collector = VarCollector()
+        self.label2blk = {}
 
     def preds_of(self, node: Node) -> List[BaseBlock]:
         preds = []
@@ -184,3 +186,12 @@ class ControlFlowGraph(Graph):
 
     def get_nodes(self) -> Set[BaseBlock]:
         return self.blks
+
+    def retrive_label(self, label: Label) -> Optional[BaseBlock]:
+        if label in self.label2blk:
+            return self.label2blk[label]
+        else:
+            return None
+
+    def add_label(self, label: Label, block: BaseBlock):
+        self.label2blk[label] = block

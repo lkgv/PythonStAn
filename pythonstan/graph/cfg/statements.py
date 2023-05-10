@@ -37,6 +37,8 @@ class IRRStatement(ABC):
     def rename(self, old_name, new_name, ctxs):
         ...
 
+
+
 class IRAbstractStmt(IRRStatement):
     def get_stores(self) -> Set[str]:
         return {*()}

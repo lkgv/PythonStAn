@@ -1,16 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Set, Union, List, Optional
+from typing import Set
 import ast
-from ast import stmt as Statement
 
-from pythonstan.utils.var_collector import VarCollector
-from pythonstan.utils.ast_rename import RenameTransformer
-
-__all__ = ["IRRStatement", "IRImport", "IRClassDef", "IRFuncDef", "CFGAsyncFuncDef", "IRAstStmt",
-           "Phi", "Label", "Goto", "JumpIfTrue", "JumpIfFalse"]
+__all__ = ["IRStatement", "IRAbstractStmt"]
 
 
-class IRRStatement(ABC):
+class IRStatement(ABC):
     @abstractmethod
     def __str__(self) -> str:
         ...
@@ -34,11 +29,11 @@ class IRRStatement(ABC):
         return self.get_loads().union(self.get_dels())
 
     @abstractmethod
-    def rename(self, old_name, new_name, ctxs):
+    def get_ast(self) -> ast.AST:
         ...
 
 
-class IRAbstractStmt(IRRStatement):
+class IRAbstractStmt(IRStatement, ABC):
     def get_stores(self) -> Set[str]:
         return {*()}
 

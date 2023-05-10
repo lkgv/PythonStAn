@@ -280,16 +280,31 @@ class PersistentMap(Generic[K, V]):
     
     def set(self, key: K, value: V):
         self.root = self.tree.add(self.root, (key, value))
+
+    def __setitem__(self, key: K, value: V):
+        self.set(key, value)
     
-    def get(self, key: K) -> V:
+    def get(self, key: K) -> Optional[V]:
         _, value = self.tree.find(self.root, (key, None))
         return value
+
+    def __getitem__(self, item: K) -> Optional[K]:
+        return self.get(item)
     
     def delete(self, key: K):
         self.root = self.tree.delete(self.root, (key, None))
+
+    def __delitem__(self, key: K):
+        self.delete(key)
     
     def items(self) -> List[Tuple[K, V]]:
         return self.tree.to_list(self.root)
+
+    def __contains__(self, item: K) -> bool:
+        if self.get(item) is None:
+            return False
+        else:
+            return True
     
     def backup(self) -> Node_t:
         return self.root
@@ -321,8 +336,11 @@ class PersistentSet(Generic[T]):
     def add(self, element: T):
         self.root = self.tree.add(self.root, element)
     
-    def has(self, element) -> bool:
+    def has(self, element: T) -> bool:
         return self.tree.find(self.root, element) is not None
+
+    def __contains__(self, item: T) -> bool:
+        return self.has(item)
     
     def delete(self, element: T):
         self.root = self.tree.delete(self.root, element)
