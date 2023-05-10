@@ -46,7 +46,7 @@ class Pipeline:
 
     def run(self):
         filename = self.config.filename
-        World().build_analysis(self.config.analysis_list)
+        World().analysis_manager.build_analysis(self.config.analysis_list)
         World().load_module(self.config, filename)
         module_graph = World().import_manager.gen_graph()
         analyzer_generator = World().analysis_manager.generator()

@@ -6,9 +6,11 @@ from pythonstan.ir import IRModule
 from .namespace import Namespace
 from .classes import ClassManager
 from .modules import ModuleManager
+from .analysis_manager import AnalysisManager
 
 
 class World(Singleton):
+    analysis_manager: AnalysisManager
     cls_manager: ClassManager = ClassManager()
     mod_manager: ModuleManager = ModuleManager()
     entrypoints: List[IRScope] = []

@@ -25,3 +25,7 @@ class Namespace:
 
     def module_name(self):
         return self.names[-1]
+
+    def item(self, name: str) -> str:
+        return '.'.join((self.names, name))
+
