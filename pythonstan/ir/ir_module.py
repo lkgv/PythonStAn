@@ -12,7 +12,7 @@ class IRModule(IRScope, IRStatement):
     filename: str
     ast: ast.Module
 
-    def __init__(self, module: ast.Module, cfg, name="", filename=None, defs=None):
+    def __init__(self, module: ast.Module, cfg=None, name="", filename=None, defs=None):
         super().__init__(cfg, defs)
         self.name = name
         if filename is None:
@@ -41,3 +41,12 @@ class IRModule(IRScope, IRStatement):
 
     def __repr__(self) -> str:
         return self.get_name()
+
+    @classmethod
+    def load_module(cls, name: str, filename: str, content: Optional[str] = None) -> 'IRModule':
+        if content is None:
+            with open(filename, 'r') as f:
+                content = f.read()
+        mod_ast = ast.parse(content, filename)
+        mod = cls(mod_ast, name=name, filename=filename)
+        return mod

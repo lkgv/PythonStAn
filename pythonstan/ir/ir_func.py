@@ -18,7 +18,7 @@ class IRFunc(IRScope, IRStatement):
 
     cell_vars: Set[str]
 
-    def __init__(self, fn: ast.stmt, cfg, defs=None, cell_vars=None):
+    def __init__(self, fn: ast.stmt, cfg=None, defs=None, cell_vars=None):
         super().__init__(cfg, defs)
         self.name = fn.name
         self.args = fn.args

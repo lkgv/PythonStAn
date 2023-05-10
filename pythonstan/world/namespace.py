@@ -12,11 +12,16 @@ class Namespace:
     def __str__(self):
         self.to_str()
 
-    def from_str(self, filename: str):
-        self.names = filename.split('/')
+    @classmethod
+    def from_str(cls, filename: str) -> 'Namespace':
+        names = filename.split('/')
+        return cls(names)
 
     def from_import(self, stmt: IRImport):
         ...
 
     def to_str(self):
         return '.'.join(self.names)
+
+    def module_name(self):
+        return self.names[-1]
