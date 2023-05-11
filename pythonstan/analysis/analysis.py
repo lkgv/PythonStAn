@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, Literal
 from pythonstan.graph.cfg import IRScope
 
 
@@ -7,12 +7,14 @@ class AnalysisConfig:
     name: str
     id: str
     description: str
+    type: Literal['dataflow_analysis', 'transform']
     options: Dict[str, Any]
 
     def __init__(self, name, id, description="", options=None):
         self.name = name
         self.id = id
         self.description = description
+        self.type = options["type"]
         if options is None:
             self.options = {}
         else:

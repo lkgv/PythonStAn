@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, Dict
+from typing import TypeVar, Generic, Dict, Type
 
 from pythonstan.graph.cfg.models import CFGScope
 from ..analysis import Analysis, AnalysisDriver, AnalysisConfig
@@ -9,7 +9,7 @@ Fact = TypeVar('Fact')
 
 
 class DataflowAnalysisDriver(Generic[Fact], AnalysisDriver):
-    analysis: DataflowAnalysis
+    analysis: Type[DataflowAnalysis]
     solver: Solver
     results: Dict
 

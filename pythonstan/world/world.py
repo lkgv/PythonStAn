@@ -7,6 +7,7 @@ from .namespace import Namespace
 from .classes import ClassManager
 from .modules import ModuleManager
 from .analysis_manager import AnalysisManager
+from .scope_manager import ScopeManager
 
 
 class World(Singleton):
@@ -21,6 +22,8 @@ class World(Singleton):
     def reset(cls):
         cls.cls_manager = ClassManager()
         cls.mod_manager = ModuleManager()
+        cls.analysis_manager = AnalysisManager()
+        cls.scope_manager = ScopeManager()
         cls.entrypoints = []
 
     def add_entry(self, scope: IRScope):
