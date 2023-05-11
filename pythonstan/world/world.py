@@ -8,6 +8,7 @@ from .classes import ClassManager
 from .modules import ModuleManager
 from .analysis_manager import AnalysisManager
 from .scope_manager import ScopeManager
+from .config import Config
 
 
 class World(Singleton):
@@ -19,7 +20,7 @@ class World(Singleton):
     entry_module: Optional[IRScope] = None
 
     @classmethod
-    def reset(cls):
+    def setup(cls):
         cls.cls_manager = ClassManager()
         cls.mod_manager = ModuleManager()
         cls.analysis_manager = AnalysisManager()
@@ -37,3 +38,7 @@ class World(Singleton):
         module = IRModule.load_module(namespace.module_name(), filename)
         # ...
         return module
+
+    def build(self, config: Config):
+        self.analysis_manager.build(config.get_analysis_list())
+        self.scope_manager.build(config.filename, config.project_path)

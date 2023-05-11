@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Type, Literal
+from typing import Dict, Any, Type, Literal, List
 from pythonstan.graph.cfg import IRScope
 
 
@@ -8,9 +8,10 @@ class AnalysisConfig:
     id: str
     description: str
     type: Literal['dataflow_analysis', 'transform']
+    prev_analysis: List[str]
     options: Dict[str, Any]
 
-    def __init__(self, name, id, description="", options=None):
+    def __init__(self, name, id, description="",  prev_analysis=None, options=None):
         self.name = name
         self.id = id
         self.description = description
@@ -19,6 +20,10 @@ class AnalysisConfig:
             self.options = {}
         else:
             self.options = options
+        if prev_analysis is None:
+            self.prev_analysis = []
+        else:
+            self.prev_analysis = prev_analysis
 
 
 class Analysis(ABC):

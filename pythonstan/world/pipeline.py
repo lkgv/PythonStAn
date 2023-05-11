@@ -3,22 +3,19 @@ from pythonstan.ir import IRModule
 from pythonstan.analysis import AnalysisConfig
 from .namespace import Namespace
 from .world import World
+from .config import Config
 
 from typing import List
 from queue import Queue
 
-class PipelineConfig:
-    filename: str
-    project_path: str
-    analysis_list: List[AnalysisConfig]
-
-
 class Pipeline:
-    config: PipelineConfig
+    config: Config
 
-    def __init__(self, config: PipelineConfig):
-        World().reset()
-        self.config = config
+    def __init__(self, filename):
+        self.config = Config.from_file(filename)
+        World().setup()
+        World().build(self.config)
+
 
     def analyse_intra_procedure(self, analyzer, module_graph):
         q = Queue()
@@ -60,9 +57,6 @@ class Pipeline:
                 self.do_transform(analyzer, module_graph)
 
     def run(self):
-        filename = self.config.filename
-        World().analysis_manager.build_analysis(self.config.analysis_list)
-        World().load_module(self.config, filename)
         module_graph = World().scope_manager.get_module_graph()
         analyzer_generator = World().analysis_manager.generator()
         self.do_analysis(module_graph, analyzer_generator)
