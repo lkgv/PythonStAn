@@ -1,5 +1,5 @@
 import ast
-from typing import Set, List, Dict, Optional
+from typing import Set, List, Dict, Tuple, Any, Optional
 
 from .namespace import Namespace
 from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule
@@ -41,11 +41,36 @@ class ModuleGraph:
 
 
 class ScopeManager:
+    # imported modules should be founded and added in the SSA-transformation
     module_graph: ModuleGraph
     scopes: Set[IRScope]
     subscopes: Dict[IRScope, List[IRScope]]
     father: Dict[IRScope, IRScope]
     ns2scope: Dict[Namespace, IRScope]
+    scope_ir: Dict[Tuple[IRScope, str], Any]
 
     def get_module_graph(self) -> ModuleGraph:
         return self.module_graph
+
+    def set_ir(self, scope: IRScope, fmt: str, ir: Any):
+        self.scope_ir[(scope, fmt)] = ir
+
+    def get_ir(self, scope: IRScope, fmt: str) -> Any:
+        return self.scope_ir[(scope, fmt)]
+
+    def add_func(self):
+        ...
+
+    def add_class(self):
+        ...
+
+    def add_module(self, ns: Namespace, father: Optional[IRScope] = None):
+        with open(ns.get_path(), 'r') as f:
+            m_ast = ast.parse(f.read())
+        mod = IRModule(m_ast, ns.get_name(), ns.get_path())
+        self.scopes.add(mod)
+        self.ns2scope[ns] = mod
+        self.subscopes[mod] = []
+        if father is not None:
+            self.father[mod] = father
+            self.subscopes[father].append(mod)

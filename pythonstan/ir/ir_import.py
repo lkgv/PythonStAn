@@ -16,7 +16,10 @@ class IRImport(IRAbstractStmt):
     def __init__(self, stmt):
         self.stmt = stmt
         if isinstance(stmt, ast.ImportFrom):
-            self.module = stmt.module
+            if stmt.module is not None:
+                self.module = stmt.module
+            else:
+                self.module = ""
             self.level = stmt.level
         else:
             self.module = None

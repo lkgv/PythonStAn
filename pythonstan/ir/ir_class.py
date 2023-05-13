@@ -16,8 +16,8 @@ class IRClass(IRScope, IRStatement):
 
     cell_vars: Set[str]
 
-    def __init__(self, cls: ast.ClassDef, cfg=None, defs=None, cell_vars=None):
-        super().__init__(cfg, defs)
+    def __init__(self, cls: ast.ClassDef, defs=None, cell_vars=None):
+        super().__init__(defs)
         self.name = cls.name
         self.bases = cls.bases
         self.keywords = cls.keywords

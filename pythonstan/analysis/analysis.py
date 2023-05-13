@@ -8,14 +8,16 @@ class AnalysisConfig:
     id: str
     description: str
     type: Literal['dataflow_analysis', 'transform']
+    phase: str    # ['ast', 'three-address', 'ssa', ...]
     prev_analysis: List[str]
     options: Dict[str, Any]
 
-    def __init__(self, name, id, description="",  prev_analysis=None, options=None):
+    def __init__(self, name, id, phase, description="", prev_analysis=None, options=None):
         self.name = name
         self.id = id
         self.description = description
         self.type = options["type"]
+        self.phase = phase
         if options is None:
             self.options = {}
         else:

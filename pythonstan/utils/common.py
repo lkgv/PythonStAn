@@ -1,3 +1,4 @@
+import sys
 from typing import Dict, Collection, Any, List
 
 
@@ -22,3 +23,17 @@ def topo_sort(succ: Dict[Any, Collection[Any]]) -> List[Any]:
             if in_degree[tgt] == 0:
                 ret.append(tgt)
     return ret
+
+
+def is_src_file(filename: str) -> bool:
+    return filename.endswith('.py')
+
+
+def srcfile_to_name(srcfile: str) -> str:
+    if srcfile.endswith('.py'):
+        return srcfile.rstrip('.py')
+    return srcfile
+
+
+def builtin_module_names():
+    return sys.builtin_module_names

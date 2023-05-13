@@ -1,4 +1,4 @@
-import ast
+from ast import Module, parse
 from typing import *
 
 from .ir_scope import IRScope
@@ -10,10 +10,10 @@ __all__ = ["IRModule"]
 class IRModule(IRScope, IRStatement):
     name: str
     filename: str
-    ast: ast.Module
+    ast: Module
 
-    def __init__(self, module: ast.Module, cfg=None, name="", filename=None, defs=None):
-        super().__init__(cfg, defs)
+    def __init__(self, module: Module, name="", filename=None, defs=None):
+        super().__init__(defs)
         self.name = name
         if filename is None:
             self.filename = "None"
@@ -24,7 +24,7 @@ class IRModule(IRScope, IRStatement):
     def get_name(self) -> str:
         return f'<module \'{self.name}\' from \'{self.filename}\'>'
 
-    def get_ast(self) -> ast.AST:
+    def get_ast(self) -> Module:
         return self.ast
 
     def get_stores(self) -> Set[str]:
@@ -47,6 +47,6 @@ class IRModule(IRScope, IRStatement):
         if content is None:
             with open(filename, 'r') as f:
                 content = f.read()
-        mod_ast = ast.parse(content, filename)
+        mod_ast = parse(content, filename)
         mod = cls(mod_ast, name=name, filename=filename)
         return mod

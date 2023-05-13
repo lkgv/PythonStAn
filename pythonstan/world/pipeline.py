@@ -57,6 +57,13 @@ class Pipeline:
                 self.do_transform(analyzer, module_graph)
 
     def run(self):
+        for entry_module in World().get_entries():
+            World().load_module(entry_module)
+
+
+
+
+
         module_graph = World().scope_manager.get_module_graph()
         analyzer_generator = World().analysis_manager.generator()
         self.do_analysis(module_graph, analyzer_generator)

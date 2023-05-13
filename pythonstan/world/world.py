@@ -13,11 +13,10 @@ from .config import Config
 
 class World(Singleton):
     analysis_manager: AnalysisManager
-    cls_manager: ClassManager = ClassManager()
-    mod_manager: ModuleManager = ModuleManager()
-    entrypoints: List[IRScope] = []
+    cls_manager: ClassManager
+    mod_manager: ModuleManager
+    entrypoints: List[IRScope]
     exec_module_dag: Dict[IRScope, List[IRScope]]
-    entry_module: Optional[IRScope] = None
 
     @classmethod
     def setup(cls):
@@ -30,13 +29,21 @@ class World(Singleton):
     def add_entry(self, scope: IRScope):
         self.entrypoints.append(scope)
 
+    def get_entries(self) -> List[IRScope]:
+        return self.entrypoints
+
     def get_namespace(self, namespace: Namespace) -> IRScope:
         ...
 
-    def load_module(self, filename) -> IRModule:
-        namespace = Namespace.from_str(filename)
-        module = IRModule.load_module(namespace.module_name(), filename)
-        # ...
+    def load_module(self, mod: IRModule):
+        self.scope_manager.add_module(mod)
+        tha_trans = self.analysis_manager.get_analyzer('ThreeAddressTransformer')
+        mod_tha = tha_trans.analyze(mod)
+        self.scope_manager.
+        imports = ... # from tha_trans
+
+        for imp in imports:
+            self.load_module(mod)
         return module
 
     def build(self, config: Config):
