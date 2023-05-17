@@ -1,69 +1,103 @@
 import ast
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 import os
 
 from pythonstan.ir import IRImport
 from pythonstan.utils.common import is_src_file, srcfile_to_name, builtin_module_names
 
 
+def get_root(path: str, names: List[str]) -> str:
+    prev_num = len(names)
+    root_names = path.rstrip('/__init__.py').strip('.py').split('/')
+    root_path = '/'.join(root_names[: -prev_num])
+    if len(root_path) == 0 and path.startswith('/'):
+        root_path = '/'
+    return root_path
+
+
 class Namespace:
     names: List[str] # just keep this
     empty_ns = None
 
+    ns_dict: Dict[str, 'Namespace'] = {}
+
     def __init__(self, names):
+        assert len(names) > 0, "Cannot  construct empty namespace"
         self.names = names
+        self.ns_dict['.'.join(names)] = self
 
     def __str__(self):
         return '.'.join(self.names)
 
-    # TODO resolve filename into full namespace in detail
-    @classmethod
-    def from_str(cls, filename: str) -> 'Namespace':
-        names = filename.split('/')
-        return cls(names)
-
-    @classmethod
-    def get_empty_ns(cls) -> 'Namespace':
-        if cls.empty_ns is None:
-            cls.empty_ns = Namespace([])
-        return cls.empty_ns
-
     @classmethod
     def build(cls, names: List[str]) -> 'Namespace':
-        if len(names) > 0:
-            return cls(names)
+        name_str = '.'.join(names)
+        if name_str in cls.ns_dict:
+            return cls.ns_dict[name_str]
         else:
-            return cls.get_empty_ns()
+            return cls.build(names)
 
-    def is_empty(self) -> bool:
-        return self == self.empty_ns
+    @classmethod
+    def from_str(cls, name_str: str) -> 'Namespace':
+        return cls.build(name_str.split('.'))
 
-    def from_import(self, stmt: IRImport):
-        ...
+    @classmethod
+    def from_path(cls, filename: str) -> 'Namespace':
+        s = filename.rstrip('/')
+        if s.endswith('__init__.py'):
+            s = s.rstrip('/__init__.py')
+        if s.endswith('.py'):
+            s = s.rstrip('.py')
+        return cls(s.split('.'))
 
     def to_str(self):
         return '.'.join(self.names)
 
-    def get_name(self):
-        return self.names[-1]
+    def to_filepath(self, rootpath: Optional[str] = None) -> str:
+        path = f'{"/".join(self.names)}.py'
+        if rootpath is not None:
+            path = os.path.join(rootpath, path)
+        return path
 
-    def get_item(self, name):
+    def to_dirpath(self, rootpath: Optional[str] = None) -> str:
+        path =  f'{"/".join(self.names)}/__init__.py'
+        if rootpath is not None:
+            path = os.path.join(rootpath, path)
+        return path
+
+    def base(self):
+        return self.names[0]
+
+    def relative_ns(self, names: List[str], level: int) -> 'Namespace':
+        assert level >= 0
+        assert len(self.names) <= level
+        return self.build(self.names[: -level] + names)
+
+    def next_ns(self, names: List[str]) -> 'Namespace':
+        return self.build(self.names + names)
+
+    def subns(self, name):
         return Namespace(self.names + [name])
+
+    def prev_ns(self) -> 'Namespace':
+        assert len(self.names) > 0
+        return Namespace(self.names[:-1])
+
 
 
 class NamespaceManager:
     homepath: str
     paths: List[str]
     names2path: Dict[str, str]
+    ns2path: Dict[Namespace, str]
 
-    def __init__(self, homepath, paths: List[str]):
+    def build(self, homepath, paths: List[str]):
         self.homepath = homepath
         self.paths = [homepath] + paths
 
     # path to namespace
     def get_module(self, filepath: str) -> Namespace:
         full_path = filepath
-        names = []
         if not os.path.isabs(filepath):
             for path in self.paths:
                 cur_path = os.path.join(path, filepath)
@@ -71,15 +105,15 @@ class NamespaceManager:
                         or os.path.isdir(cur_path):
                     full_path = cur_path
                     break
-        else:
-            names = filepath.split('/')
         ns = Namespace.from_str(full_path)
         return ns
 
-    def ns2path(self, ns: Namespace) -> str:
+    def get_ns2path(self, ns: Namespace) -> str:
         return self.names2path[ns.to_str()]
 
-    def add_import(self, names: List[str]) -> Tuple[str, Namespace, List]:
+
+
+    def _add_Import(self, names: List[str]) -> Tuple[str, Namespace, List]:
         ns = Namespace.build(names)
         root_name = names[0]
         new_modules = []
@@ -122,59 +156,77 @@ class NamespaceManager:
                     return root_path, sub_ns, new_modules
         raise ValueError(f"Cannot find root module in <{names[0]}>")
 
-    # import to namespace, and gen the filepath
+    def names_from_import(self, ir: IRImport):
+        ...
 
-    # return the path of module imported and rest namespace to be resolved, and the new modules
-    def get_import(self, cur_ns: Namespace, ir: IRImport) -> Tuple[str, Namespace, Any]:
-        if isinstance(ir.stmt, ast.Import):
-            names = ir.name[0].split('.')
-            root_name = names[0]
-            if root_name in builtin_module_names():
-                ns = Namespace.build([root_name])
-                filepath = f"__builtin__.{root_name}"
-                self.names2path[ns.to_str()] = filepath
-                return filepath, Namespace.build(names[1:]), []
+    def find_ns_in_path(self, paths: List[str], ns: Namespace) -> Optional[str]:
+        for path in paths:
+            if os.path.isfile(ns.to_filepath(rootpath=path)):
+                mod_path = ns.to_filepath(path)
+                self.ns2path[ns] = mod_path
+                break
+            elif os.path.isfile(ns.to_dirpath(rootpath=path)):
+                mod_path = ns.to_dirpath(path)
+                self.ns2path[ns] = mod_path
+                break
+        else:
+            if ns.base() in builtin_module_names():
+                mod_path = f"__builtin__.{ns.base()}"
+                self.ns2path[ns] = mod_path
             else:
-                return self.add_import(ir.name.split('.'))
+                return None
+        return mod_path
+
+    def resolve_import(self, name) -> Optional[Tuple[Namespace, str]]:
+        ns = Namespace.from_str(name)
+        path = self.find_ns_in_path(self.paths, ns)
+        if path is not None:
+            return ns, path
+        return None
+
+    def resolve_importfrom(self, module, name) -> Optional[Tuple[Namespace, str]]:
+        mod_ns = Namespace.from_str(module)
+        succ_mod_ns = mod_ns.next_ns([name])
+        succ_mod_path = self.find_ns_in_path(self.paths, succ_mod_ns)
+        mod_path = self.find_ns_in_path(self.paths, mod_ns)
+        if succ_mod_path is not None:
+            self.ns2path[succ_mod_ns] = succ_mod_path
+            return succ_mod_ns, succ_mod_path
+        elif mod_path is not None:
+            self.ns2path[mod_ns] = mod_path
+            return mod_ns, mod_path
+        return None
+
+    def resolve_rel_importfrom(self, cur_ns, module, name, level) -> Optional[Tuple[Namespace, str]]:
+        rel_ns = cur_ns.relative_ns(module.split('.'), level)
+        root_path = get_root(self.ns2path[cur_ns], cur_ns.names)
+        if os.path.isfile(rel_ns.to_filepath(root_path)):
+            rel_ns_path = rel_ns.to_filepath(root_path)
+            self.ns2path[rel_ns] = rel_ns_path
+            return rel_ns, rel_ns_path
+        elif os.path.isfile(rel_ns.to_dirpath(root_path)):
+            succ_rel_ns = rel_ns.next_ns([name])
+            if os.path.isfile(succ_rel_ns.to_filepath(root_path)):
+                succ_rel_path = succ_rel_ns.to_filepath(root_path)
+                self.ns2path[succ_rel_ns] = succ_rel_path
+                return succ_rel_ns, succ_rel_path
+            elif os.path.isfile(succ_rel_ns.to_dirpath(root_path)):
+                succ_rel_path = succ_rel_ns.to_dirpath(root_path)
+                self.ns2path[succ_rel_ns] = succ_rel_path
+                return succ_rel_ns, succ_rel_path
+            else:
+                rel_path = rel_ns.to_dirpath(root_path)
+                self.ns2path[rel_ns] = rel_path
+                return rel_ns, rel_path
+        return None
+
+    def get_import(self, cur_ns: Namespace, ir: IRImport) -> Optional[Tuple[Namespace, str]]:
+        if isinstance(ir.stmt, ast.Import):
+            return self.resolve_import(ir.name)
         elif isinstance(ir.stmt, ast.ImportFrom):
             if ir.level == 0:
-                root_path, sub_ns, new_modules = self.add_import(ir.module.split('.'))
-                if sub_ns.is_empty() and root_path.endswith('/__init__.py'):
-                    path = os.path.join(root_path.rstrip('/__init__.py'), ir.name)
-                    if os.path.isdir(path):
-                        root_path = os.path.join(path, "__init__.py")
-                        sub_ns = Namespace.get_empty_ns()
-                        return root_path, sub_ns, new_modules
-                    if os.path.isdir(f"{path}.py"):
-                        root_path = f"{path}.py"
-                        sub_ns = Namespace.get_empty_ns()
-                        return root_path, sub_ns, new_modules
-                sub_ns = sub_ns.get_item(ir.name)
-                return root_path, sub_ns, new_modules
+                return self.resolve_importfrom(ir.module, ir.name)
             else:
-                level = ir.level
-                root_path = self.ns2path(cur_ns)
-                cur_names = cur_ns.names
-                while level > 0:
-                    root_path = root_path[: root_path.rfind('/')]
-                    cur_names = cur_names[: -1]
-                    level -= 1
-                names = ir.module.split('.')
-                idx = 0
-                new_modules = []
-                while os.path.isdir(root_path):
-                    submodule_init = os.path.join(root_path, "__init__.py")
-                    cur_names.append(names[idx])
-                    submodule_names = '.'.join(cur_names)
-                    if submodule_names not in self.names2path:
-                        self.names2path[submodule_names] = submodule_init
-                        new_modules.append((submodule_names, submodule_init))
-                    idx += 1
-                    if idx == len(names):
-                        break
-                    root_path = os.path.join(root_path, names[idx])
-                # ...
-
-        else:
-            raise NotImplementedError("No such import stmt")
+                return self.resolve_rel_importfrom(cur_ns, ir.module, ir.name, ir.level)
+        return None
 

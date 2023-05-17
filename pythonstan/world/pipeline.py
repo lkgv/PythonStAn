@@ -17,7 +17,8 @@ class Pipeline:
         World().build(self.config)
 
 
-    def analyse_intra_procedure(self, analyzer, module_graph):
+    def analyse_intra_procedure(self, analyzer):
+        module_graph = World().scope_manager.get_module_graph()
         q = Queue()
         for entry in module_graph.get_entries():
             q.put(entry)
@@ -30,10 +31,11 @@ class Pipeline:
                 if not succ in visited:
                     q.put(succ)
 
-    def analyse_inter_procedure(self, analyzer, module_graph):
+    def analyse_inter_procedure(self, analyzer):
         ...
 
-    def do_transform(self, analyzer, module_graph):
+    def do_transform(self, analyzer):
+        module_graph = World().scope_manager.get_module_graph()
         q = Queue()
         for entry in module_graph.get_entries():
             q.put(entry)
@@ -46,24 +48,16 @@ class Pipeline:
                 if not succ in visited:
                     q.put(succ)
 
-    def do_analysis(self, analyzer_generator, module_graph):
+    def do_analysis(self, analyzer_generator):
         for analyzer in analyzer_generator:
             if analyzer.type == "dataflow_analysis":
                 if analyzer.config.inter_procedural:
-                    self.analyse_inter_procedure(analyzer, module_graph)
+                    self.analyse_inter_procedure(analyzer)
                 else:
-                    self.analyse_intra_procedure(analyzer, module_graph)
+                    self.analyse_intra_procedure(analyzer)
             if analyzer.type == 'transform':
-                self.do_transform(analyzer, module_graph)
+                self.do_transform(analyzer)
 
     def run(self):
-        for entry_module in World().get_entries():
-            World().load_module(entry_module)
-
-
-
-
-
-        module_graph = World().scope_manager.get_module_graph()
         analyzer_generator = World().analysis_manager.generator()
-        self.do_analysis(module_graph, analyzer_generator)
+        self.do_analysis(analyzer_generator)

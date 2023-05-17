@@ -1,4 +1,4 @@
-from typing import Set, Dict
+from typing import Set, Dict, List
 from queue import Queue
 import yaml
 
@@ -11,6 +11,7 @@ __all__ = ["Config"]
 class Config:
     filename: str
     project_path: str
+    library_paths: List[str]
     analysis: Dict[str, AnalysisConfig]
     succ_analysis: Dict[str, Set[str]]
 
@@ -29,6 +30,8 @@ class Config:
                 anal_info['name'], anal_info['id'], anal_info['description'],
                 anal_info['prev_analysis'], anal_info['options'])
             cfg.add_analysis(anal_cfg)
+        for library_path in info['library_paths']:
+            cfg.add_library_path(library_path)
         return cfg
 
     def add_analysis(self, cfg: AnalysisConfig):
@@ -38,6 +41,9 @@ class Config:
                 self.succ_analysis[prev_id].add(cfg.id)
             else:
                 self.succ_analysis[prev_id] = {cfg.id}
+
+    def add_library_path(self, path: str):
+        self.library_paths.append(path)
 
     def get_analysis_list(self):
         analysis_id_list = topo_sort(self.succ_analysis)
