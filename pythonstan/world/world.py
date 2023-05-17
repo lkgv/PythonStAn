@@ -1,5 +1,4 @@
-import ast
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 
 from pythonstan.graph.cfg import IRScope
 from pythonstan.utils.common import Singleton
@@ -19,7 +18,7 @@ class World(Singleton):
     cls_manager: ClassManager
     mod_manager: ModuleManager
     namespace_manager: NamespaceManager
-    entrypoints: List[IRScope]
+    entrypoints: List[Tuple[Namespace, IRModule]]
     exec_module_dag: Dict[IRScope, List[IRScope]]
     three_address_builder: ThreeAddressTransformer
     cfg_builder: CFGBuilder
@@ -43,8 +42,9 @@ class World(Singleton):
 
     def build(self, config: Config):
         entry_path = config.filename
-        entry_mod = self.scope_manager.add_module(Namespace.build(["__entry__"]), entry_path)
-        self.add_entry(entry_mod)
+        entry_ns = Namespace.build(["__main__"])
+        entry_mod = self.scope_manager.add_module(entry_ns, entry_path)
+        self.add_entry((entry_ns, entry_mod))
         self.build_scope_graph()
         self.analysis_manager.build(config.get_analysis_list())
         self.scope_manager.build(config.filename, config.project_path)
@@ -54,7 +54,7 @@ class World(Singleton):
     # from ... also the ... is package
     # but problem: from a.b import c; a.func() exists
     def build_scope_graph(self):
-        q = [(Namespace.build(['__main__']), entry) for entry in self.entrypoints]
+        q = [* self.entrypoints]
         g = ModuleGraph()
         while len(q) > 0:
             ns, mod = q.pop()

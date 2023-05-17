@@ -11,13 +11,21 @@ class AnalysisManager:
     analyzers: Dict[str, AnalysisDriver]
     results: Dict[str, Any]
 
-    def reset(self, configs):
+    def reset(self):
         self.prev_analyzers = {}
         self.next_analyzers = {}
         self.analysis_configs = []
         self.analyzers = {}
         self.results = {}
         self.load_default_analysis()
+
+    def build(self, configs: List[AnalysisConfig]):
+        self.reset()
+        for config in configs:
+            self.add_analyzer(config)
+
+    def add_analyzer(self, config: AnalysisConfig):
+        analyzer = analasisDriver
 
     def analysis(self, analyzer, module):
         prev_analysis = analyzer.config.prev_analysis
