@@ -10,15 +10,16 @@ __all__ = ["IRScope"]
 
 
 class IRScope(ABC):
-    defs: PersistentMap[str, IRStatement]
+    qualname: str
 
     @abstractmethod
-    def __init__(self, defs=None):
-        if defs is not None:
-            self.defs = defs
-        else:
-            self.defs = PersistentMap()
+    def __init__(self, qualname: str):
+        self.qualname = qualname
 
     @abstractmethod
     def get_name(self) -> str:
         raise NotImplementedError
+
+    def get_qualname(self) -> str:
+        return self.qualname
+

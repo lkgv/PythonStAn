@@ -12,8 +12,8 @@ class IRModule(IRScope, IRStatement):
     filename: str
     ast: Module
 
-    def __init__(self, module: Module, name="", filename=None, defs=None):
-        super().__init__(defs)
+    def __init__(self, qualname: str, module: Module, name="", filename=None):
+        super().__init__(qualname)
         self.name = name
         if filename is None:
             self.filename = "None"

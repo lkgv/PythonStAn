@@ -2,21 +2,47 @@ import ast
 from ast import stmt as Statement
 from queue import Queue
 import copy
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 
-from .base_block import BaseBlock
-from .edges import *
-from .cfg import ControlFlowGraph
+from ..analysis import AnalysisConfig
+from .transform import Transform
+from pythonstan.graph.cfg import *
+from pythonstan.world import World
 from pythonstan.ir import *
-from .scope import *
 
 
-class CFGBuilder:
+class BlockCFG(Transform):
+    transformer: 'BlockCFGBuilder'
+
+    def __init__(self, config: AnalysisConfig):
+        super().__init__(config)
+        self.transformer = BlockCFGBuilder()
+
+    def transform(self, module: IRModule):
+        three_address_form = World().scope_manager.get_ir(module, "three address form")
+        imports = self.transformer.build_module(self.module, three_address_form)
+        self.results = imports
+
+
+class LabelGenerator:
+    next_idx: int
+
+    def __init__(self):
+        next_idx = 0
+
+    def gen(self) -> Label:
+        label = Label(self.next_idx)
+        self.next_idx += 1
+        return label
+
+
+class BlockCFGBuilder:
     cfg: ControlFlowGraph
     funcs: List[IRFunc]
     classes: List[IRClass]
     next_idx: int
     scope: Optional[IRScope]
+    label_gen: LabelGenerator
 
     def __init__(self, scope=None, next_idx=1, cfg=None):
         self.next_idx = next_idx
@@ -24,6 +50,7 @@ class CFGBuilder:
         self.scope = scope
         self.funcs = []
         self.classes = []
+        self.label_gen = LabelGenerator()
 
     def set_scope(self, scope: IRScope):
         self.scope = scope
@@ -33,30 +60,25 @@ class CFGBuilder:
         self.next_idx += 1
         return blk
 
-    def build_module(self, stmts: List[Statement]) -> IRModule:
-        mod = IRModule()
-        builder = CFGBuilder(scope=mod)
-
+    def build_module(self, module: IRModule, stmts: List[Statement]) -> List[IRImport]:
+        builder = BlockCFGBuilder(scope=module)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
         mod_info = builder._build(stmts, builder.cfg, new_blk)
         builder.cfg.add_exit(mod_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
+        World().scope_manager.set_ir(module, "block cfg", builder.cfg)
+        return [ir_stmt for _, ir_stmt in mod_info['import']]
 
-        mod.set_cfg(builder.cfg)
-        mod.set_funcs(mod_info['func'])
-        mod.set_classes(mod_info['class'])
-        mod.set_imports(mod_info['import'])
-        return mod
-
-    def build_func(self, stmt, func_def) -> IRFunc:
-        func = IRFunc(func_def, scope=self.scope)
-        builder = CFGBuilder(scope=func)
+    def build_func(self, func_def) -> Tuple[IRFunc, List[Tuple[BaseBlock, IRImport]]]:
+        qualname = f"{self.scope.get_qualname()}.{func_def.name}"
+        func = IRFunc(qualname, func_def)
+        builder = BlockCFGBuilder(scope=func)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
-        func_info = builder._build(stmt.body, builder.cfg, new_blk)
+        func_info = builder._build(func_def.body, builder.cfg, new_blk)
         for ret_blk, _ in func_info['return']:
             builder.cfg.add_exit(ret_blk)
         for yield_blk, _ in func_info['yield']:
@@ -65,29 +87,25 @@ class CFGBuilder:
             builder.cfg.add_exit(raise_blk)
         builder.cfg.add_exit(func_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
+        World().scope_manager.add_func(self.scope, func)
+        World().scope_manager.set_ir(func, "block cfg", builder.cfg)
+        return func, func_info['import']
 
-        func.set_cfg(builder.cfg)
-        func.set_funcs(func_info['func'])
-        func.set_classes(func_info['class'])
-        func.set_imports(func_info['import'])
-        return func
-
-    def build_class(self, stmt: ast.ClassDef,
-                    cls_def: IRClassDef) -> Tuple[IRClass, Dict]:
-        cls = IRClass(cls_def, scope=self.scope)
-        builder = CFGBuilder(scope=cls)
+    def build_class(self, cls_def: ast.ClassDef) -> Tuple[IRClass, List[Tuple[BaseBlock, IRImport]]]:
+        qualname = f"{self.scope.get_qualname()}.{cls_def.name}"
+        cls = IRClass(qualname, cls_def)
+        builder = BlockCFGBuilder(scope=cls)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
-        cls_info = builder._build(stmt.body, builder.cfg, new_blk)
+        cls_info = builder._build(cls_def.body, builder.cfg, new_blk)
+        for raise_blk, _ in cls_info['raise']:
+            builder.cfg.add_exit(raise_blk)
         builder.cfg.add_exit(cls_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
-
-        cls.set_cfg(builder.cfg)
-        cls.set_funcs(cls_info['func'])
-        cls.set_classes(cls_info['class'])
-        cls.set_imports(cls_info['import'])
-        return cls, cls_info
+        World().scope_manager.add_class(self.scope, cls)
+        World().scope_manager.set_ir(cls, "block cfg", builder.cfg)
+        return cls, cls_info['import']
 
     def _build(self, stmts: List[Statement],
                cfg: ControlFlowGraph,
@@ -121,22 +139,19 @@ class CFGBuilder:
 
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                func_def = IRFuncDef(stmt)
-                cfg.add_stmt(cur_blk, func_def)
-                func = self.build_func(stmt, func_def)
-                exit_stmt['func'].append(func)
+                func, imports = self.build_func(stmt)
+                cfg.add_stmt(cur_blk, func)
+                exit_stmt['import'].extend(imports)
 
             elif isinstance(stmt, ast.AsyncFunctionDef):
-                func_def = CFGAsyncFuncDef(stmt)
-                cfg.add_stmt(cur_blk, func_def)
-                func = self.build_func(stmt, func_def)
-                exit_stmt['func'].append(func)
+                func, imports = self.build_func(stmt)
+                cfg.add_stmt(cur_blk, func)
+                exit_stmt['import'].extend(imports)
 
             elif isinstance(stmt, ast.ClassDef):
-                cls_def = IRClassDef(stmt)
-                cfg.add_stmt(cur_blk, cls_def)
-                cls, build_info = self.build_class(stmt, cls_def)
-                exit_stmt['class'].append(cls)
+                cls, imports = self.build_class(stmt)
+                cfg.add_stmt(cur_blk, cls)
+                exit_stmt['import'].extend(imports)
                 # extend_info(build_info, include=['raise'])
 
             elif isinstance(stmt, ast.Break):
@@ -154,25 +169,29 @@ class CFGBuilder:
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, ast.Return):
-                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
-                exit_stmt['return'].append((cur_blk, stmt))
+                ir_stmt = IRAstStmt(stmt)
+                cfg.add_stmt(cur_blk, ir_stmt)
+                exit_stmt['return'].append((cur_blk, ir_stmt))
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, (ast.Import, ast.ImportFrom)):
-                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
-                exit_stmt['import'].append((cur_blk, IRImport(stmt)))
+                ir_stmt = IRImport(stmt)
+                cfg.add_stmt(cur_blk, ir_stmt)
+                exit_stmt['import'].append((cur_blk, ir_stmt))
 
             elif isinstance(stmt, ast.While):
                 new_stmt = JumpIfFalse(test=stmt.test)
                 cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
                 cfg.add_stmt(cur_blk, new_stmt)
-                cur_label = cur_blk.gen_label()
+                cur_label = self.label_gen.gen()
+                cfg.add_label(cur_label, cur_blk)
                 loop_blk = gen_next_blk(i, cur_blk, WhileEdge, True)
                 loop_info = self._build(stmt.body, cfg, loop_blk)
                 extend_info(loop_info, exclude=['break', 'continue'])
                 next_blk = self.new_blk()
-                next_label = next_blk.gen_label()
+                next_label = self.label_gen.gen()
+                cfg.add_label(next_label, next_blk)
                 for blk, break_stmt in loop_info['break']:
                     cfg.add_edge(NormalEdge(blk, next_blk))
                     break_stmt.set_label(next_label)
@@ -187,7 +206,9 @@ class CFGBuilder:
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
                     back_goto = Goto(cur_label)
                     cfg.add_stmt(else_info['last_block'], back_goto)
-                    new_stmt.set_label(else_blk.gen_label())
+                    else_label = self.label_gen.gen()
+                    cfg.add_label(else_label, else_blk)
+                    new_stmt.set_label(else_label)
                 else:
                     cfg.add_edge(NormalEdge(cur_blk, next_blk))
                     new_stmt.set_label(next_label)
@@ -210,14 +231,17 @@ class CFGBuilder:
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
                     cfg.add_edge(NormalEdge(else_info['last_block'], next_blk))
-                    next_label = next_blk.gen_label()
+                    next_label = self.label_gen.gen()
+                    cfg.add_label(next_label, next_blk)
                     then_end_goto = Goto(next_label)
                     cfg.add_stmt(then_info['last_block'],then_end_goto)
-                    label = else_blk.gen_label()
+                    else_label = self.label_gen.gen()
+                    cfg.add_label(else_label, else_blk)
                 else:
                     cfg.add_edge(IfEdge(cur_blk, next_blk, False))
-                    label = next_blk.gen_label()
-                if_false_jump.set_label(label)
+                    else_label = self.label_gen.gen()
+                    cfg.add_label(else_label, next_blk)
+                if_false_jump.set_label(else_label)
                 cur_blk = next_blk
 
             elif isinstance(stmt, ast.With):
@@ -249,8 +273,9 @@ class CFGBuilder:
                                        lambda u, v: WithEndEdge(u, v, var))
 
             elif isinstance(stmt, ast.Raise):
-                exit_stmt['raise'].append((cur_blk, stmt))
-                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
+                ir_stmt = IRAstStmt(stmt)
+                exit_stmt['raise'].append((cur_blk, ir_stmt))
+                cfg.add_stmt(cur_blk, ir_stmt)
                 cur_blk = self.new_blk()
                 self.cfg.add_blk(cur_blk)
 
@@ -295,14 +320,16 @@ class CFGBuilder:
             else:
                 if isinstance(stmt, ast.Assign) and \
                         isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
-                    exit_stmt['yield'].append((cur_blk, stmt))
-                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
+                    ir_stmt = IRAstStmt(stmt)
+                    exit_stmt['yield'].append((cur_blk, ir_stmt))
+                    cfg.add_stmt(cur_blk, ir_stmt)
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
 
                 elif isinstance(stmt, ast.Assign) and \
                         isinstance(stmt.value, ast.Call):
+                    ir_stmt = IRCall(stmt)
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
-                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
+                    cfg.add_stmt(cur_blk, ir_stmt)
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
 
                 else:
@@ -321,80 +348,3 @@ class CFGBuilder:
             if cfg.in_degree_of(cur) > 1:
                 lab = Label(cur)
                 cur.stmts.insert(0, lab)
-
-
-
-class StmtCFGTransformer:
-    scope: IRScope
-
-    # map a bblock in source cfg to the head block in the target cfg
-    head_map: Dict[BaseBlock, BaseBlock]
-    next_idx: int
-
-    def trans(self, scope: IRScope):
-        self.scope = copy.deepcopy(scope)
-        entry = scope.cfg.entry_blk
-        self.scope.set_cfg(ControlFlowGraph())
-        self.next_idx = 1
-        self.head_map = {scope.cfg.entry_blk: self.scope.cfg.entry_blk}
-        self._trans(scope.cfg, entry, self.scope.cfg.entry_blk)
-        super_exit = self.new_blk()
-        self.scope.cfg.add_super_exit_blk(super_exit)
-        self.scope.set_funcs([
-            StmtCFGTransformer().trans_func(f) for f in scope.funcs])
-        self.scope.set_classes(
-            [StmtCFGTransformer().trans_cls(c) for c in scope.classes])
-        return self.scope
-
-    def trans_func(self, func: IRFunc) -> IRFunc:
-        ret = self.trans(func)
-        assert isinstance(ret, IRFunc)
-        return ret
-
-    def trans_cls(self, func: IRClass) -> IRClass:
-        ret = self.trans(func)
-        assert isinstance(ret, IRClass)
-        return ret
-
-    def new_blk(self, statement: Optional[IRStatement] = None):
-        if statement is not None:
-            stmts = [statement]
-        else:
-            stmts = []
-        blk = BaseBlock(self.next_idx, stmts)
-        self.next_idx += 1
-        return blk
-
-    def _trans(self, cfg: ControlFlowGraph, entry: BaseBlock, stmt_entry: BaseBlock):
-        tgt_cfg = self.scope.cfg
-        if entry in cfg.exit_blks:
-            tgt_cfg.add_exit(stmt_entry)
-        for e in cfg.out_edges_of(entry):
-            if e.tgt == cfg.super_exit_blk:
-                continue
-            stmt_e = copy.deepcopy(e)
-            stmt_e.src = stmt_entry
-            if e.tgt in self.head_map:
-                stmt_e.tgt = self.head_map[e.tgt]
-                tgt_cfg.add_edge(stmt_e)
-            else:
-                head_blk = stmt_entry
-                tail_blk = stmt_entry
-                if e.tgt.n_stmt() > 0:
-                    for idx, cur_stmt in enumerate(e.tgt.stmts):
-                        blk = self.new_blk(cur_stmt)
-                        tgt_cfg.add_blk(blk)
-                        if idx == 0:
-                            head_blk = blk
-                        else:
-                            tgt_cfg.add_edge(NormalEdge(tail_blk, blk))
-                        tail_blk = blk
-                else:
-                    blk = self.new_blk()
-                    tgt_cfg.add_blk(blk)
-                    head_blk = blk
-                    tail_blk = blk
-                self.head_map[e.tgt] = head_blk
-                stmt_e.tgt = head_blk
-                tgt_cfg.add_edge(stmt_e)
-                self._trans(cfg, e.tgt, tail_blk)

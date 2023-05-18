@@ -83,7 +83,9 @@ class Namespace:
         assert len(self.names) > 0
         return Namespace(self.names[:-1])
 
-
+    def get_name(self) -> str:
+        assert len(self.names) > 0
+        return self.names[-1]
 
 class NamespaceManager:
     homepath: str

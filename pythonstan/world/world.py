@@ -18,8 +18,6 @@ class World(Singleton):
     cls_manager: ClassManager
     mod_manager: ModuleManager
     namespace_manager: NamespaceManager
-    entrypoints: List[Tuple[Namespace, IRModule]]
-    exec_module_dag: Dict[IRScope, List[IRScope]]
     three_address_builder: ThreeAddressTransformer
     cfg_builder: CFGBuilder
 
@@ -30,31 +28,21 @@ class World(Singleton):
         cls.analysis_manager = AnalysisManager()
         cls.scope_manager = ScopeManager()
         cls.namespace_manager = NamespaceManager()
-        cls.entrypoints = []
         cls.three_address_builder = ThreeAddressTransformer()
         cls.cfg_builder = CFGBuilder()
 
-    def add_entry(self, scope: IRScope):
-        self.entrypoints.append(scope)
-
-    def get_entries(self) -> List[IRScope]:
-        return self.entrypoints
-
     def build(self, config: Config):
-        entry_path = config.filename
-        entry_ns = Namespace.build(["__main__"])
-        entry_mod = self.scope_manager.add_module(entry_ns, entry_path)
-        self.add_entry((entry_ns, entry_mod))
-        self.build_scope_graph()
-        self.analysis_manager.build(config.get_analysis_list())
-        self.scope_manager.build(config.filename, config.project_path)
         self.namespace_manager.build(config.project_path, config.library_paths)
+        self.build_scope_graph(config.filename)
+        self.analysis_manager.build(config.get_analysis_list())
 
     # import a.b.c : only import packages(so no sub_namespace exists)
     # from ... also the ... is package
     # but problem: from a.b import c; a.func() exists
-    def build_scope_graph(self):
-        q = [* self.entrypoints]
+    def build_scope_graph(self, entry_path: str):
+        entry_ns = Namespace.build(["__main__"])
+        entry_mod = self.scope_manager.add_module(entry_ns, entry_path)
+        q: List[Tuple[Namespace, IRModule]] = [(entry_ns, entry_mod)]
         g = ModuleGraph()
         while len(q) > 0:
             ns, mod = q.pop()
@@ -63,11 +51,11 @@ class World(Singleton):
 
             # Preprocess module
             # TODO to be completed
-            three_address = self.three_address_builder.visit(mod.ast)
-            cfg, imports = self.cfg_builder.build_module(three_address)
+            self.analysis_manager.analysis("Three Address", mod)
+            self.analysis_manager.analysis("Block Control Flow Graph", mod)
+            self.analysis_manager.analysis("Control Flow Graph", mod)
+            imports = self.analysis_manager.get_results("Control Flow Graph")[mod]
 
-            self.scope_manager.set_ir(mod, "three-address", three_address)
-            self.scope_manager.set_ir(mod, "cfg", cfg)
             for stmt in imports:
                 get_import = self.namespace_manager.get_import(ns, stmt)
                 if get_import is None:
@@ -76,4 +64,5 @@ class World(Singleton):
                 new_mod = self.scope_manager.add_module(mod_ns, mod_path)
                 g.add_edge(mod, new_mod)
                 q.append((mod_ns, new_mod))
+
         self.scope_manager.set_module_graph(g)

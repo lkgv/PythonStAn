@@ -10,6 +10,7 @@ Fact = TypeVar('Fact')
 class DataflowAnalysis(Generic[Fact], Analysis):
     is_forward: bool
     scope: IRScope
+    inter_procedure: bool
     
     @abstractmethod
     def __init__(self, scope: IRScope, config: AnalysisConfig):

@@ -4,6 +4,25 @@ from queue import Queue
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
 from pythonstan.ir import IRModule
 
+DEFAULT_ANALYSIS = [
+    AnalysisConfig(
+        name="three address",
+        id="ThreeAddress",
+        phase=...
+    ),
+    AnalysisConfig(
+        name="block cfg",
+        id="BlockCFG",
+        phase=...
+    ),
+    AnalysisConfig(
+        name="cfg",
+        id="CFG",
+        phase=...
+    )
+]
+
+
 class AnalysisManager:
     prev_analyzers: Dict[str, List[AnalysisDriver]]
     next_analyzers: Dict[str, List[AnalysisDriver]]
@@ -21,13 +40,21 @@ class AnalysisManager:
 
     def build(self, configs: List[AnalysisConfig]):
         self.reset()
+        for config in DEFAULT_ANALYSIS:
+            self.add_analyzer(config)
         for config in configs:
             self.add_analyzer(config)
 
     def add_analyzer(self, config: AnalysisConfig):
         analyzer = analasisDriver
 
-    def analysis(self, analyzer, module):
+    def analysis(self, analyzer_name: str, module):
+        analyzer = self.analyzers.get(analyzer_name, None)
+        if analyzer is None:
+            raise NotImplementedError(f"Analysis {analyzer_name} not implemented!")
+        self.do_analysis(analyzer, module)
+
+    def do_analysis(self, analyzer, module):
         prev_analysis = analyzer.config.prev_analysis
         prev_results = {}
         for anal in prev_analysis:

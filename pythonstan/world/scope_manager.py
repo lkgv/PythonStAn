@@ -41,13 +41,21 @@ class ModuleGraph:
 
 
 class ScopeManager:
-    # imported modules should be founded and added in the SSA-transformation
     module_graph: ModuleGraph
     scopes: Set[IRScope]
-    subscope: Dict[Tuple[IRScope, str], IRScope]
+    subscope_idx: Dict[Tuple[IRScope, str], IRScope]
+    subscopes: Dict[IRScope, List[IRScope]]
     father: Dict[IRScope, IRScope]
     names2scope: Dict[str, IRScope]
     scope_ir: Dict[Tuple[IRScope, str], Any]
+
+    def build(self):
+        self.scopes = {*()}
+        self.subscope_idx = {}
+        self.subscopes = {}
+        self.father = {}
+        self.names2scope = {}
+        self.scope_ir = {}
 
     def get_module_graph(self) -> ModuleGraph:
         return self.module_graph
@@ -65,21 +73,36 @@ class ScopeManager:
         return (scope, analysis_name) in self.scope_ir
 
     def add_func(self, scope: IRScope, func: IRFunc):
-        self.subscope[(scope, func.name)] = func
+        self.names2scope[func.get_qualname()] = func
+        self.father[func] = scope
+        self.subscope_idx[(scope, func.name)] = func
+        if scope in self.subscopes:
+            self.subscopes[scope].append(func)
+        else:
+            self.subscopes[scope] = [func]
 
     def add_class(self, scope: IRScope, cls: IRClass):
-        self.subscope[(scope, cls.name)] = cls
+        self.names2scope[cls.get_qualname()] = cls
+        self.father[cls] = scope
+        self.subscope_idx[(scope, cls.name)] = cls
+        if scope in self.subscopes:
+            self.subscopes[scope].append(cls)
+        else:
+            self.subscopes[scope] = [cls]
 
     def add_module(self, ns: Namespace, filename: str) -> IRModule:
         with open(filename, 'r') as f:
             m_ast = ast.parse(f.read())
-        mod = IRModule(m_ast, ns.to_str(), filename)
+        mod = IRModule(ns.to_str(), m_ast, ns.get_name(), filename)
         self.scopes.add(mod)
-        self.names2scope[ns.to_str()] = mod
+        self.names2scope[mod.get_qualname()] = mod
         return mod
 
     def get_module(self, names: str) -> IRScope:
         return self.names2scope.get(names, None)
 
     def get_subscope(self, scope: IRScope, name: str) -> IRScope:
-        return self.subscope.get((scope, name), None)
+        return self.subscope_idx.get((scope, name), None)
+
+    def get_subscopes(self, scope: IRScope) -> List[IRScope]:
+        return self.subscopes[scope]

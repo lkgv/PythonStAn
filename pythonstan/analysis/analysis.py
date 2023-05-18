@@ -9,7 +9,7 @@ class AnalysisConfig:
     description: str
     type: Literal['dataflow_analysis', 'transform']
     phase: str    # ['ast', 'three-address', 'ssa', ...]
-    prev_analysis: List[str]
+    prev_analysis: List[str]  # previous analysis name
     options: Dict[str, Any]
 
     def __init__(self, name, id, phase, description="", prev_analysis=None, options=None):

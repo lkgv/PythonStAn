@@ -11,6 +11,7 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRRStatement]]):
 
     def __init__(self, scope, config):
         self.is_forward = True
+        self.inter_procedure = False
         self.defs = self.compute_defs(scope)
         super().__init__(scope, config)
     

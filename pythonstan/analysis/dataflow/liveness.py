@@ -7,6 +7,7 @@ from . import DataflowAnalysis
 class LivenessAnalysis(DataflowAnalysis[Set[str]]):
     def __init__(self, scope, config):
         self.is_forward = False
+        self.inter_procedure = False
         super().__init__(scope, config)
     
     def new_boundary_fact(self) -> Set[str]:

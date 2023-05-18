@@ -1,9 +1,10 @@
 from typing import *
 
 from ..graph import Edge, Node, Graph
-from .statements import IRRStatement, Label
+
 from .base_block import BaseBlock
 from .edges import NormalEdge
+from pythonstan.ir import *
 from pythonstan.utils.var_collector import VarCollector
 
 __all__ = ["ControlFlowGraph"]
@@ -16,8 +17,9 @@ class ControlFlowGraph(Graph):
     in_edges: Dict[BaseBlock, List[Edge]]
     out_edges: Dict[BaseBlock, List[Edge]]
     blks: Set[BaseBlock]
-    stmts: Set[IRRStatement]
+    stmts: Set[IRStatement]
     label2blk: Dict[Label, BaseBlock]
+    blk2label: Dict[BaseBlock, Label]
 
     def __init__(self, entry_blk=None):
         self.blks = {*()}
@@ -33,6 +35,7 @@ class ControlFlowGraph(Graph):
         self.super_exit_blk = None
         self.var_collector = VarCollector()
         self.label2blk = {}
+        self.blk2label = {}
 
     def preds_of(self, node: Node) -> List[BaseBlock]:
         preds = []
@@ -108,7 +111,7 @@ class ControlFlowGraph(Graph):
             self.in_edges[blk] = []
             self.out_edges[blk] = []
 
-    def add_stmt(self, blk: BaseBlock, stmt: IRRStatement):
+    def add_stmt(self, blk: BaseBlock, stmt: IRStatement):
         blk.add(stmt)
         self.stmts.add(stmt)
 
@@ -195,3 +198,4 @@ class ControlFlowGraph(Graph):
 
     def add_label(self, label: Label, block: BaseBlock):
         self.label2blk[label] = block
+        self.blk2label[block] = label
