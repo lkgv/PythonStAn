@@ -32,7 +32,8 @@ class Pipeline:
                     q.put(succ)
 
     def analyse_inter_procedure(self, analyzer):
-        ...
+        entry_mod = World().get_entry_module()
+
 
     def do_transform(self, analyzer):
         module_graph = World().scope_manager.get_module_graph()

@@ -16,15 +16,14 @@ from .config import Config
 class World(Singleton):
     analysis_manager: AnalysisManager
     cls_manager: ClassManager
-    mod_manager: ModuleManager
     namespace_manager: NamespaceManager
     three_address_builder: ThreeAddressTransformer
     cfg_builder: CFGBuilder
+    entry_module: IRModule
 
     @classmethod
     def setup(cls):
         cls.cls_manager = ClassManager()
-        cls.mod_manager = ModuleManager()
         cls.analysis_manager = AnalysisManager()
         cls.scope_manager = ScopeManager()
         cls.namespace_manager = NamespaceManager()
@@ -36,12 +35,16 @@ class World(Singleton):
         self.build_scope_graph(config.filename)
         self.analysis_manager.build(config.get_analysis_list())
 
+    def get_entry_module(self) -> IRModule:
+        return self.entry_module
+
     # import a.b.c : only import packages(so no sub_namespace exists)
     # from ... also the ... is package
     # but problem: from a.b import c; a.func() exists
     def build_scope_graph(self, entry_path: str):
         entry_ns = Namespace.build(["__main__"])
         entry_mod = self.scope_manager.add_module(entry_ns, entry_path)
+        self.entry_module = entry_mod
         q: List[Tuple[Namespace, IRModule]] = [(entry_ns, entry_mod)]
         g = ModuleGraph()
         while len(q) > 0:

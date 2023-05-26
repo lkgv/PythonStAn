@@ -169,7 +169,7 @@ class BlockCFGBuilder:
                 self.cfg.add_blk(cur_blk)
 
             elif isinstance(stmt, ast.Return):
-                ir_stmt = IRAstStmt(stmt)
+                ir_stmt = IRReturn(stmt)
                 cfg.add_stmt(cur_blk, ir_stmt)
                 exit_stmt['return'].append((cur_blk, ir_stmt))
                 cur_blk = self.new_blk()
@@ -320,7 +320,7 @@ class BlockCFGBuilder:
             else:
                 if isinstance(stmt, ast.Assign) and \
                         isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
-                    ir_stmt = IRAstStmt(stmt)
+                    ir_stmt = IRYield(stmt)
                     exit_stmt['yield'].append((cur_blk, ir_stmt))
                     cfg.add_stmt(cur_blk, ir_stmt)
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge)

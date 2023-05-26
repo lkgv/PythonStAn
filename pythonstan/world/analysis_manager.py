@@ -7,18 +7,22 @@ from pythonstan.ir import IRModule
 DEFAULT_ANALYSIS = [
     AnalysisConfig(
         name="three address",
-        id="ThreeAddress",
-        phase=...
+        id="ThreeAddress"
     ),
     AnalysisConfig(
         name="block cfg",
         id="BlockCFG",
-        phase=...
+        prev_analysis=["three address"]
     ),
     AnalysisConfig(
         name="cfg",
         id="CFG",
-        phase=...
+        prev_analysis=["block cfg"]
+    ),
+    AnalysisConfig(
+        name="ssa",
+        id="SSA",
+        prev_analysis=["cfg"]
     )
 ]
 

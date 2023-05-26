@@ -139,15 +139,15 @@ class ThreeAddressTransformer(NodeTransformer):
                                          value=tmp_l, slice=slc, ctx=Load()))
                     ast.copy_location(ins, stmt)
                     unpack_blk.append(ins)
-                else:
-                    for idx, t in enumerate(texp.elts):
-                        ins = ast.Assign(targets=[t], value=ast.Subscript(
-                            value=tmp_l,
-                            slice=ast.Constant(value=idx),
-                            ctx=ast.Load()))
-                        ast.copy_location(ins, stmt)
-                        unpack_blk.append(ins)
-                ass_blk.extend(self.visit_stmt_list(unpack_blk))
+            else:
+                for idx, t in enumerate(texp.elts):
+                    ins = ast.Assign(targets=[t], value=ast.Subscript(
+                        value=tmp_l,
+                        slice=ast.Constant(value=idx),
+                        ctx=ast.Load()))
+                    ast.copy_location(ins, stmt)
+                    unpack_blk.append(ins)
+            ass_blk.extend(self.visit_stmt_list(unpack_blk))
         else:
             tmp_l, tmp_s = self.tmp_gen()
             ins1 = ast.Assign(targets=[tmp_s], value=value)
@@ -177,7 +177,7 @@ class ThreeAddressTransformer(NodeTransformer):
                 ast.copy_location(ins, exp)
                 blk.append(ins)
                 e = tmp_l
-        return blk, e
+        return self.visit_stmt_list(blk), e
 
     def visit_BinOp(self, node):
         lblk, lval = self.split_expr(node.left)
