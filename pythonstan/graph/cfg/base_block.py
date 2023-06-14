@@ -5,9 +5,6 @@ from ..graph import Node
 
 __all__ = ["BaseBlock"]
 
-S1 = 182239
-S2 = 120721
-S3 = 219943
 
 class BaseBlock(Node):
     idx: int
@@ -71,6 +68,3 @@ class BaseBlock(Node):
             label = Label(self.get_idx())
             self.add_front(label)
             return label
-
-    def __hash__(self):
-        return ((self.idx * S2) + S1) % S3

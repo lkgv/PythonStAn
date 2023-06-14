@@ -1,14 +1,17 @@
 import ast
 from abc import ABC, abstractmethod
+from typing import Set
 
+from pythonstan.ir import IRScope
 from ..graph import Edge, Node
 from .base_block import BaseBlock
 
-__all__ = ["CFGEdge", "NormalEdge", "IfEdge", "CallEdge",
+__all__ = ["CFGEdge", "NormalEdge", "IfEdge",
            "WhileEdge", "WhileElseEdge",
            "WithEdge", "WithEndEdge",
            "ExceptionEdge", "ExceptionEndEdge",
-           "FinallyEdge", "FinallyEndEdge"]
+           "FinallyEdge", "FinallyEndEdge",
+           "CallEdge", "ReturnEdge", "CallToReturnEdge"]
 
 
 class CFGEdge(Edge):
@@ -57,11 +60,35 @@ class IfEdge(CFGEdge):
 
 
 class CallEdge(CFGEdge):
+    scope: IRScope
+
+    def __init__(self, src, tgt, scope: IRScope):
+        super().__init__(src, tgt)
+        self.scope = scope
+
+    def get_callee(self) -> IRScope:
+        return self.scope
+
+
+class ReturnEdge(CFGEdge):
+    call_site: BaseBlock
+    ret_vars: Set[ast.Expr]
+
+    def __init__(self, src, tgt, call_site: BaseBlock, ret_vars: Set[ast.Expr]):
+        super().__init__(src, tgt)
+        self.call_site = call_site
+        self.ret_vars = ret_vars
+
+    def get_ret_vars(self) -> Set[ast.Expr]:
+        return self.ret_vars
+
+    def get_call_site(self) -> BaseBlock:
+        return self.call_site
+
+
+class CallToReturnEdge(CFGEdge):
     def __init__(self, src, tgt):
         super().__init__(src, tgt)
-
-    def get_name(self) -> str:
-        return 'call'
 
 
 class WhileEdge(CFGEdge):

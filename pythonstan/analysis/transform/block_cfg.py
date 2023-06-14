@@ -335,7 +335,7 @@ class BlockCFGBuilder:
                     ir_stmt = IRCall(stmt)
                     cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
                     cfg.add_stmt(cur_blk, ir_stmt)
-                    cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
+                    cur_blk = gen_next_blk(i, cur_blk, CallToReturnEdge, True)
 
                 else:
                     cfg.add_stmt(cur_blk, IRAstStmt(stmt))
