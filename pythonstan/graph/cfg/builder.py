@@ -8,7 +8,6 @@ from .base_block import BaseBlock
 from .edges import *
 from .cfg import ControlFlowGraph
 from pythonstan.ir import *
-from .scope import *
 
 
 class CFGBuilder:
@@ -33,26 +32,24 @@ class CFGBuilder:
         self.next_idx += 1
         return blk
 
-    def build_module(self, stmts: List[Statement]) -> IRModule:
-        mod = IRModule()
-        builder = CFGBuilder(scope=mod)
+    def build_module(self, mod_def: IRModule) -> IRModule:
+        builder = CFGBuilder(scope=mod_def)
 
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
-        mod_info = builder._build(stmts, builder.cfg, new_blk)
+        mod_info = builder._build(mod_def.ast.body, builder.cfg, new_blk)
         builder.cfg.add_exit(mod_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
 
-        mod.set_cfg(builder.cfg)
+        mod_def.set_cfg(builder.cfg)
         mod.set_funcs(mod_info['func'])
         mod.set_classes(mod_info['class'])
         mod.set_imports(mod_info['import'])
-        return mod
+        return mod_def
 
-    def build_func(self, stmt, func_def) -> IRFunc:
-        func = IRFunc(func_def, scope=self.scope)
-        builder = CFGBuilder(scope=func)
+    def build_func(self, func_def: IRFunc) -> IRFunc:
+        builder = CFGBuilder(scope=func_def)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
@@ -72,14 +69,12 @@ class CFGBuilder:
         func.set_imports(func_info['import'])
         return func
 
-    def build_class(self, stmt: ast.ClassDef,
-                    cls_def: IRClassDef) -> Tuple[IRClass, Dict]:
-        cls = IRClass(cls_def, scope=self.scope)
+    def build_class(self, cls: IRClass) -> Tuple[IRClass, Dict]:
         builder = CFGBuilder(scope=cls)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
-        cls_info = builder._build(stmt.body, builder.cfg, new_blk)
+        cls_info = builder._build(cls.ast.body, builder.cfg, new_blk)
         builder.cfg.add_exit(cls_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
 

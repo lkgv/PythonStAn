@@ -7,7 +7,7 @@ from typing import List, Dict, Optional, Tuple, Any
 from ..analysis import AnalysisConfig
 from .transform import Transform
 from pythonstan.graph.cfg import *
-from pythonstan.world import World
+
 from pythonstan.ir import *
 
 
@@ -19,8 +19,9 @@ class BlockCFG(Transform):
         self.transformer = BlockCFGBuilder()
 
     def transform(self, module: IRModule):
+        from pythonstan.world import World
         three_address_form = World().scope_manager.get_ir(module, "three address form")
-        imports = self.transformer.build_module(self.module, three_address_form)
+        imports = self.transformer.build_module(module, three_address_form.body)
         self.results = imports
 
 
@@ -28,7 +29,7 @@ class LabelGenerator:
     next_idx: int
 
     def __init__(self):
-        next_idx = 0
+        self.next_idx = 0
 
     def gen(self) -> Label:
         label = Label(self.next_idx)
@@ -61,6 +62,7 @@ class BlockCFGBuilder:
         return blk
 
     def build_module(self, module: IRModule, stmts: List[Statement]) -> List[IRImport]:
+        from pythonstan.world import World
         builder = BlockCFGBuilder(scope=module)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
@@ -72,6 +74,7 @@ class BlockCFGBuilder:
         return [ir_stmt for _, ir_stmt in mod_info['import']]
 
     def build_func(self, func_def) -> Tuple[IRFunc, List[Tuple[BaseBlock, IRImport]]]:
+        from pythonstan.world import World
         qualname = f"{self.scope.get_qualname()}.{func_def.name}"
         func = IRFunc(qualname, func_def)
         builder = BlockCFGBuilder(scope=func)
@@ -92,6 +95,7 @@ class BlockCFGBuilder:
         return func, func_info['import']
 
     def build_class(self, cls_def: ast.ClassDef) -> Tuple[IRClass, List[Tuple[BaseBlock, IRImport]]]:
+        from pythonstan.world import World
         qualname = f"{self.scope.get_qualname()}.{cls_def.name}"
         cls = IRClass(qualname, cls_def)
         builder = BlockCFGBuilder(scope=cls)
@@ -215,10 +219,11 @@ class BlockCFGBuilder:
                 cur_blk = next_blk
 
             elif isinstance(stmt, ast.If):
-                if_false_jump = JumpIfFalse(test=stmt.test)
+                test_expr = stmt.test
+                if_false_jump = JumpIfFalse(test=test_expr)
                 cfg.add_stmt(cur_blk, if_false_jump)
                 then_blk = gen_next_blk(i, cur_blk,
-                                        lambda u, v: IfEdge(u, v, True),
+                                        lambda u, v: IfEdge(u, v, test_expr, True),
                                         True)
                 then_info = self._build(stmt.body, cfg, then_blk)
                 extend_info(then_info)
@@ -226,7 +231,7 @@ class BlockCFGBuilder:
                 cfg.add_edge(NormalEdge(then_info['last_block'], next_blk))
                 if len(stmt.orelse) > 0:
                     else_blk = gen_next_blk(i, cur_blk,
-                                            lambda u, v: IfEdge(u, v, False),
+                                            lambda u, v: IfEdge(u, v, test_expr, False),
                                             True)
                     else_info = self._build(stmt.orelse, cfg, else_blk)
                     extend_info(else_info)
@@ -238,7 +243,7 @@ class BlockCFGBuilder:
                     else_label = self.label_gen.gen()
                     cfg.add_label(else_label, else_blk)
                 else:
-                    cfg.add_edge(IfEdge(cur_blk, next_blk, False))
+                    cfg.add_edge(IfEdge(cur_blk, next_blk, test_expr, False))
                     else_label = self.label_gen.gen()
                     cfg.add_label(else_label, next_blk)
                 if_false_jump.set_label(else_label)

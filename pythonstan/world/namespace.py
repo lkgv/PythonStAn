@@ -35,7 +35,7 @@ class Namespace:
         if name_str in cls.ns_dict:
             return cls.ns_dict[name_str]
         else:
-            return cls.build(names)
+            return cls(names)
 
     @classmethod
     def from_str(cls, name_str: str) -> 'Namespace':

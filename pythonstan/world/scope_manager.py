@@ -30,6 +30,11 @@ class ModuleGraph:
         self.preds[tgt].append(src)
         self.succs[src].append(tgt)
 
+    def add_node(self, node: IRModule):
+        self.nodes.add(node)
+        self.preds[node] = []
+        self.succs[node] = []
+
     def preds_of(self, node: IRModule):
         return self.preds[node]
 
@@ -105,4 +110,4 @@ class ScopeManager:
         return self.subscope_idx.get((scope, name), None)
 
     def get_subscopes(self, scope: IRScope) -> List[IRScope]:
-        return self.subscopes[scope]
+        return self.subscopes.get(scope, [])

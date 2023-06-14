@@ -1,35 +1,41 @@
 from typing import Dict, List, Any, Tuple, Literal
 from queue import Queue
 
-from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.analysis import Analysis, AnalysisDriver, AnalysisConfig
+from pythonstan.analysis.transform import TransformDriver
+from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.ir import IRModule
 
 DEFAULT_ANALYSIS = [
     AnalysisConfig(
         name="three address",
-        id="ThreeAddress"
+        id="ThreeAddress",
+        options={"type": "transform"}
     ),
     AnalysisConfig(
         name="block cfg",
         id="BlockCFG",
-        prev_analysis=["three address"]
+        prev_analysis=["three address"],
+        options={"type": "transform"}
     ),
     AnalysisConfig(
         name="cfg",
         id="CFG",
-        prev_analysis=["block cfg"]
+        prev_analysis=["block cfg"],
+        options={"type": "transform"}
     ),
     AnalysisConfig(
         name="ssa",
         id="SSA",
-        prev_analysis=["cfg"]
+        prev_analysis=["cfg"],
+        options={"type": "transform"}
     )
 ]
 
 
 class AnalysisManager:
-    prev_analyzers: Dict[str, List[AnalysisDriver]]
-    next_analyzers: Dict[str, List[AnalysisDriver]]
+    prev_analyzers: Dict[str, List[str]]
+    next_analyzers: Dict[str, List[str]]
     analysis_configs: List[AnalysisConfig]
     analyzers: Dict[str, AnalysisDriver]
     results: Dict[str, Any]
@@ -40,7 +46,6 @@ class AnalysisManager:
         self.analysis_configs = []
         self.analyzers = {}
         self.results = {}
-        self.load_default_analysis()
 
     def build(self, configs: List[AnalysisConfig]):
         self.reset()
@@ -50,52 +55,57 @@ class AnalysisManager:
             self.add_analyzer(config)
 
     def add_analyzer(self, config: AnalysisConfig):
-        analyzer = analasisDriver
+        name = config.name
+        analyzer = self.gen_analyzer(config)
+        self.analysis_configs.append(config)
+        self.analyzers[name] = analyzer
+        self.prev_analyzers[name] = []
+        self.next_analyzers[name] = []
+        for prev_name in config.prev_analysis:
+            self.prev_analyzers[name].append(prev_name)
+            self.next_analyzers[prev_name].append(name)
 
-    def analysis(self, analyzer_name: str, module):
+    def gen_analyzer(self, config: AnalysisConfig) -> AnalysisDriver:
+        if config.type == "transform":
+            analyzer = TransformDriver(config)
+        elif config.type == "dataflow analysis":
+            analyzer = DataflowAnalysisDriver(config)
+        else:
+            raise NotImplementedError
+        return analyzer
+
+    def analysis(self, analyzer_name: str, module: IRModule):
         analyzer = self.analyzers.get(analyzer_name, None)
         if analyzer is None:
             raise NotImplementedError(f"Analysis {analyzer_name} not implemented!")
         self.do_analysis(analyzer, module)
 
-    def do_analysis(self, analyzer, module):
-        prev_analysis = analyzer.config.prev_analysis
+    def do_analysis(self, analyzer: AnalysisDriver, module: IRModule):
         prev_results = {}
-        for anal in prev_analysis:
-            prev_results[anal.name] = self.results[anal.name]
-        # get ir is in the implement of analysis like World().scope_manager.get_ir(...)
-        ...
-        self.results[analyzer] = ...
+        for anal_name in self.prev_analyzers[analyzer.config.name]:
+            prev_results[anal_name] = self.results[anal_name]
+        # print(analyzer.config.id, analyzer.config.name)
+        analyzer.analyze(module, prev_results)
+        self.results[analyzer.config.name] = analyzer.results
 
     def generator(self):
         visited = {*()}
         queue = Queue()
-        for name, analyzer in self.analyzers:
+        for name, analyzer in self.analyzers.items():
             if len(self.prev_analyzers[name]) == 0:
-                queue.put(analyzer)
+                queue.put(name)
         while not queue.empty():
-            cur_analyzer = queue.get()
-            cur_name = cur_analyzer.name
+            cur_name = queue.get()
             visited.add(cur_name)
-            ...
-
-            yield cur_analyzer
-
+            cur_analyzer = self.analyzers[cur_name]
+            if cur_analyzer.config not in DEFAULT_ANALYSIS:
+                yield cur_analyzer
             for succ in self.next_analyzers[cur_name]:
-                if succ.name not in visited:
+                if succ not in visited:
                     queue.put(succ)
-
-    def transform(self, transformer, module):
-        ...
 
     def get_analyzer(self, name):
         return self.analyzers[name]
 
-    def get_results(self, analysis: Analysis):
-        return self.results[analysis.config.name]
-
-    def load_default_analysis(self):
-        three_address_config = AnalysisConfig()
-        cfg_gen_config = AnalysisConfig()
-        ssa_gen_config = AnalysisConfig()
-        # Here need to add transformers
+    def get_results(self, name: str):
+        return self.results[name]

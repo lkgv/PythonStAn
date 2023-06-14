@@ -1,27 +1,28 @@
 from typing import Set, Dict
 from ast import stmt
 
-from pythonstan.graph.cfg import BaseBlock, IRScope, IRRStatement
+from pythonstan.graph.cfg import BaseBlock
+from pythonstan.ir import IRScope, IRStatement
 from pythonstan.utils.var_collector import VarCollector
 from .analysis import DataflowAnalysis
 
 
-class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRRStatement]]):
-    defs: Dict[str, Set[IRRStatement]]
+class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRStatement]]):
+    defs: Dict[str, Set[IRStatement]]
 
-    def __init__(self, scope, config):
+    def __init__(self, scope, cfg, config):
         self.is_forward = True
         self.inter_procedure = False
         self.defs = self.compute_defs(scope)
-        super().__init__(scope, config)
+        super().__init__(scope, cfg, config)
     
-    def new_boundary_fact(self) -> Set[IRRStatement]:
+    def new_boundary_fact(self) -> Set[IRStatement]:
         return self.new_init_fact()
     
-    def new_init_fact(self) -> Set[IRRStatement]:
+    def new_init_fact(self) -> Set[IRStatement]:
         return {*()}
     
-    def meet(self, fact_1: Set[IRRStatement], fact_2: Set[IRRStatement]) -> Set[IRRStatement]:
+    def meet(self, fact_1: Set[IRStatement], fact_2: Set[IRStatement]) -> Set[IRStatement]:
         return fact_1.union(fact_2)
 
     def need_transfer_edge(self, edge):
@@ -37,7 +38,7 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRRStatement]]):
                     defs[var_id] = {cur_stmt}
         return defs
 
-    def transfer_node(self, node: BaseBlock, fact: Set[IRRStatement]) -> Set[IRRStatement]:
+    def transfer_node(self, node: BaseBlock, fact: Set[IRStatement]) -> Set[IRStatement]:
         fact_out = fact.copy()
         for cur_stmt in node.stmts:
             for var_id in cur_stmt.get_stores():

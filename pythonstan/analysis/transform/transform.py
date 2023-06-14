@@ -2,7 +2,6 @@ import copy
 from typing import Dict, Any
 from abc import abstractmethod
 
-from pythonstan.world import World
 from pythonstan.ir.ir_module import IRModule
 from ..analysis import Analysis, AnalysisConfig, AnalysisDriver
 
@@ -14,7 +13,7 @@ class Transform(Analysis):
 
     @abstractmethod
     def __init__(self, config: AnalysisConfig):
-        super(Transform, self.__class__).__init__(config)
+        super().__init__(config)
         self.inputs = {}
 
     def set_input(self, key, value):

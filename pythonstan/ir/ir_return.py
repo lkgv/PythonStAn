@@ -10,13 +10,11 @@ __all__ = ["IRReturn"]
 
 
 class IRReturn(IRAbstractStmt):
-    stmt: Statement
     value: ast.expr
     load_collector: VarCollector
 
-    def __init__(self, stmt):
-        self.stmt = stmt
-        self.value = self.value
+    def __init__(self, value):
+        self.value = value
         ast.fix_missing_locations(self.value)
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.value)
@@ -33,4 +31,4 @@ class IRReturn(IRAbstractStmt):
         self.value = renamer.visit(self.value)
 
     def get_ast(self):
-        return self.stmt
+        return self.value

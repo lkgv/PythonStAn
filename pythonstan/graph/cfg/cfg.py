@@ -199,3 +199,4 @@ class ControlFlowGraph(Graph):
     def add_label(self, label: Label, block: BaseBlock):
         self.label2blk[label] = block
         self.blk2label[block] = label
+

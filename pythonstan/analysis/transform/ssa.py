@@ -6,7 +6,6 @@ import ast
 from ..analysis import AnalysisConfig
 from .transform import Transform
 from pythonstan.graph.cfg import *
-from pythonstan.world import World
 from pythonstan.ir import *
 from pythonstan.graph.dominator_tree import DominatorTree
 
@@ -21,6 +20,8 @@ class SSA(Transform):
         self.transformer = SSATransformer()
 
     def transform(self, module: IRModule):
+        from pythonstan.world import World
+
         visited = {*()}
         q = [module]
         while len(q) > 0:

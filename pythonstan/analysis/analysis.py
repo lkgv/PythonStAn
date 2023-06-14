@@ -8,7 +8,7 @@ class AnalysisConfig:
     name: str
     id: str
     description: str
-    type: Literal['dataflow_analysis', 'transform']
+    type: Literal['dataflow analysis', 'transform']
     inter_procedure: bool
     prev_analysis: List[str]  # previous analysis name
     options: Dict[str, Any]
@@ -55,11 +55,12 @@ class Analysis(ABC):
 
 class AnalysisDriver(ABC):
     config: AnalysisConfig
+    results: Any
 
     @abstractmethod
     def __init__(self, config):
         self.config = config
 
     @abstractmethod
-    def analyze(self, scope: IRScope):
+    def analyze(self, scope: IRScope, prev_results: Dict[str, Any]):
         pass
