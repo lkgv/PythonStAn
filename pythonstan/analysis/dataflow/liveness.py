@@ -1,13 +1,14 @@
 from typing import Set
 
-from pythonstan.graph.cfg import BaseBlock
+from pythonstan.graph.cfg import BaseBlock, ControlFlowGraph
 from . import DataflowAnalysis
 
 
 class LivenessAnalysis(DataflowAnalysis[Set[str]]):
-    def __init__(self, scope, config):
+    def __init__(self, scope, cfg: ControlFlowGraph, config):
         self.is_forward = False
-        super().__init__(scope, config)
+        self.inter_procedure = False
+        super().__init__(scope, cfg, config)
     
     def new_boundary_fact(self) -> Set[str]:
         return self.new_init_fact()

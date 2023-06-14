@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Dict, Any
 
-from pythonstan.graph.cfg import CFGScope, Edge, BaseBlock
+from pythonstan.graph.cfg import CFGEdge, BaseBlock, ControlFlowGraph
+from pythonstan.ir import *
 from ..analysis import Analysis, AnalysisConfig
 
 Fact = TypeVar('Fact')
@@ -9,12 +10,17 @@ Fact = TypeVar('Fact')
 
 class DataflowAnalysis(Generic[Fact], Analysis):
     is_forward: bool
-    scope: CFGScope
-    
+    scope: IRScope
+    inputs: Dict[str, Any]
+    cfg: ControlFlowGraph
+    inter_procedure: bool
+
     @abstractmethod
-    def __init__(self, scope: CFGScope, config: AnalysisConfig):
+    def __init__(self, scope: IRScope, cfg: ControlFlowGraph, config: AnalysisConfig):
         super(Analysis, self.__class__).__init__(config)
+        self.cfg = cfg
         self.scope = scope
+        self.inputs = {}
 
     @abstractmethod
     def new_boundary_fact(self) -> Fact:
@@ -33,11 +39,20 @@ class DataflowAnalysis(Generic[Fact], Analysis):
         pass
 
     @abstractmethod
-    def need_transfer_edge(self, edge: Edge) -> bool:
+    def need_transfer_edge(self, edge: CFGEdge) -> bool:
         return False
 
-    def transfer_edge(self, edge: Edge, node_fact: Fact) -> Fact:
+    def transfer_edge(self, edge: CFGEdge, node_fact: Fact) -> Fact:
         return node_fact
 
-    def get_scope(self) -> CFGScope:
+    def get_scope(self) -> IRScope:
         return self.scope
+
+    def get_cfg(self) -> ControlFlowGraph:
+        return self.cfg
+
+    def set_input(self, item: str, value: Any):
+        self.inputs[item] = value
+
+    def get_input(self, item) -> Any:
+        return self.inputs[item]

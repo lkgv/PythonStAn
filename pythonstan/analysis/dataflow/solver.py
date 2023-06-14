@@ -32,7 +32,7 @@ class Solver(Generic[Fact], ABC):
     def init_forward(cls, analysis: DataflowAnalysis[Fact]
              ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.get_cfg()
         for node in cfg.blks:
             if node == cfg.entry_blk:
                 in_facts[node] = analysis.new_boundary_fact()
@@ -46,7 +46,7 @@ class Solver(Generic[Fact], ABC):
     def init_backward(cls, analysis: DataflowAnalysis[Fact]
              ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.cfg
         for node in cfg.blks:
             if node == cfg.super_exit_blk:
                 in_facts[node] = analysis.new_boundary_fact()
@@ -85,7 +85,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
     def init_forward(cls, analysis: DataflowAnalysis[Fact]
                      ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.get_cfg()
         for node in cfg.blks:
             if node == cfg.entry_blk:
                 in_facts[node] = analysis.new_boundary_fact()
@@ -108,7 +108,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
     def solve_forward(cls, analysis: DataflowAnalysis[Fact],
                       in_facts: Dict[BaseBlock, Fact],
                       out_facts: Dict[BaseBlock, Fact]):
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.get_cfg()
         work_list = Queue()
         for blk in cfg.blks:
             if blk != cfg.entry_blk:
@@ -133,7 +133,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
     def init_backward(cls, analysis: DataflowAnalysis[Fact]
                       ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.get_cfg()
         for node in cfg.blks:
             if node == cfg.super_exit_blk:
                 in_facts[node] = analysis.new_boundary_fact()
@@ -156,7 +156,7 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
     def solve_backward(cls, analysis: DataflowAnalysis[Fact],
                        in_facts: Dict[BaseBlock, Fact],
                        out_facts: Dict[BaseBlock, Fact]):
-        cfg = analysis.get_scope().cfg
+        cfg = analysis.get_cfg()
         work_list = Queue()
         for blk in cfg.blks:
             if blk != cfg.super_exit_blk:

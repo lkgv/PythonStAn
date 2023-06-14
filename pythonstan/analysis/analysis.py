@@ -1,22 +1,32 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Type
-from pythonstan.graph.cfg import CFGScope
+from typing import Dict, Any, Type, Literal, List
+
+from pythonstan.ir import IRScope
 
 
 class AnalysisConfig:
     name: str
     id: str
     description: str
+    type: Literal['dataflow analysis', 'transform']
+    inter_procedure: bool
+    prev_analysis: List[str]  # previous analysis name
     options: Dict[str, Any]
 
-    def __init__(self, name, id, description="", options=None):
+    def __init__(self, name, id, description="", prev_analysis=None, inter_procedure=False, options=None):
         self.name = name
         self.id = id
         self.description = description
+        self.type = options["type"]
+        self.inter_procedure = inter_procedure
         if options is None:
             self.options = {}
         else:
             self.options = options
+        if prev_analysis is None:
+            self.prev_analysis = []
+        else:
+            self.prev_analysis = prev_analysis
 
 
 class Analysis(ABC):
@@ -45,11 +55,12 @@ class Analysis(ABC):
 
 class AnalysisDriver(ABC):
     config: AnalysisConfig
+    results: Any
 
     @abstractmethod
     def __init__(self, config):
         self.config = config
 
     @abstractmethod
-    def analyze(self, scope: CFGScope):
+    def analyze(self, scope: IRScope, prev_results: Dict[str, Any]):
         pass

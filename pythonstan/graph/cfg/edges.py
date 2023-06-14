@@ -44,14 +44,16 @@ class NormalEdge(CFGEdge):
 
 
 class IfEdge(CFGEdge):
-    test: bool
+    test: ast.expr
+    value: bool
 
-    def __init__(self, src, tgt, test):
+    def __init__(self, src, tgt, test, value):
         super().__init__(src, tgt)
         self.test = test
+        self.value = value
 
     def get_name(self) -> str:
-        return "if_" + str(self.test)
+        return f"if_{ast.unparse(self.test)}_is_{self.value}"
 
 
 class CallEdge(CFGEdge):

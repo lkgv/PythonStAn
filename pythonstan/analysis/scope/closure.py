@@ -1,6 +1,6 @@
 from typing import Set
 
-from pythonstan.graph.cfg import CFGClass, CFGFunc, CFGModule
+from pythonstan.graph.cfg import IRClass, IRFunc, IRModule
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.analysis import AnalysisConfig
 from pythonstan.utils.var_collector import VarCollector
@@ -18,7 +18,7 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
         self.liveness_driver = DataflowAnalysisDriver(liveness_config)
         self.in_place = config.options.get('in_place', False)
     
-    def analyze_function(self, fn: CFGFunc, fact=None) -> Set[str]:
+    def analyze_function(self, fn: IRFunc, fact=None) -> Set[str]:
         if fact is None:
             fact = self.init_function(fn)
         self.liveness_driver.analyze(fn)
@@ -39,7 +39,7 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
             fn.func_def.set_cell_vars(fact)
         return fact
 
-    def analyze_class(self, cls: CFGClass, fact=None) -> Set[str]:
+    def analyze_class(self, cls: IRClass, fact=None) -> Set[str]:
         if fact is None:
             fact = self.init_class(cls)
         self.liveness_driver.analyze(cls)
@@ -54,7 +54,7 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
             cls.class_def.set_cell_vars(fact)
         return fact
 
-    def analyze_module(self, mod: CFGModule, fact=None) -> Set[str]:
+    def analyze_module(self, mod: IRModule, fact=None) -> Set[str]:
         if fact is None:
             fact = self.init_module(mod)
         self.liveness_driver.analyze(mod)
@@ -71,11 +71,11 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
         fact.update(free_vars)
         return fact
     
-    def init_function(self, fn: CFGFunc) -> Set[str]:
+    def init_function(self, fn: IRFunc) -> Set[str]:
         return {*()}
 
-    def init_class(self, cls: CFGClass) -> Set[str]:
+    def init_class(self, cls: IRClass) -> Set[str]:
         return {*()}
 
-    def init_module(self, mod: CFGModule) -> Set[str]:
+    def init_module(self, mod: IRModule) -> Set[str]:
         return {*()}

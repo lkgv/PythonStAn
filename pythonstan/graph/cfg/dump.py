@@ -1,7 +1,7 @@
 import ast
 from queue import Queue
 
-from . import ControlFlowGraph, BaseBlock, Label
+from . import ControlFlowGraph, BaseBlock
 
 def dump(cfg: ControlFlowGraph):
     entry = cfg.get_entry()
