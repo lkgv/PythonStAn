@@ -14,13 +14,14 @@ class IRYield(IRAbstractStmt):
     value: ast.expr
     load_collector: VarCollector
     store_collector: VarCollector
-    target: Optional[str]
+    target: Optional[ast.expr]
 
     def __init__(self, stmt):
         self.stmt = stmt
         if isinstance(stmt, ast.Assign):
             assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
             self.value = stmt.value.value
+            self.target = stmt.targets[0]
         else:
             assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
             self.value = stmt.value.value

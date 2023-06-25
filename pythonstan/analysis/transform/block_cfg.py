@@ -7,7 +7,7 @@ from typing import List, Dict, Optional, Tuple, Any
 from ..analysis import AnalysisConfig
 from .transform import Transform
 from pythonstan.graph.cfg import *
-
+from pythonstan.world import World
 from pythonstan.ir import *
 
 
@@ -19,7 +19,6 @@ class BlockCFG(Transform):
         self.transformer = BlockCFGBuilder()
 
     def transform(self, module: IRModule):
-        from pythonstan.world import World
         three_address_form = World().scope_manager.get_ir(module, "three address form")
         imports = self.transformer.build_module(module, three_address_form.body)
         self.results = imports
@@ -62,7 +61,6 @@ class BlockCFGBuilder:
         return blk
 
     def build_module(self, module: IRModule, stmts: List[Statement]) -> List[IRImport]:
-        from pythonstan.world import World
         builder = BlockCFGBuilder(scope=module)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
@@ -74,7 +72,6 @@ class BlockCFGBuilder:
         return [ir_stmt for _, ir_stmt in mod_info['import']]
 
     def build_func(self, func_def) -> Tuple[IRFunc, List[Tuple[BaseBlock, IRImport]]]:
-        from pythonstan.world import World
         qualname = f"{self.scope.get_qualname()}.{func_def.name}"
         func = IRFunc(qualname, func_def)
         builder = BlockCFGBuilder(scope=func)
@@ -95,7 +92,6 @@ class BlockCFGBuilder:
         return func, func_info['import']
 
     def build_class(self, cls_def: ast.ClassDef) -> Tuple[IRClass, List[Tuple[BaseBlock, IRImport]]]:
-        from pythonstan.world import World
         qualname = f"{self.scope.get_qualname()}.{cls_def.name}"
         cls = IRClass(qualname, cls_def)
         builder = BlockCFGBuilder(scope=cls)
@@ -278,7 +274,7 @@ class BlockCFGBuilder:
                                        lambda u, v: WithEndEdge(u, v, var))
 
             elif isinstance(stmt, ast.Raise):
-                ir_stmt = IRAstStmt(stmt)
+                ir_stmt = IRRaise(stmt)
                 exit_stmt['raise'].append((cur_blk, ir_stmt))
                 cfg.add_stmt(cur_blk, ir_stmt)
                 cur_blk = self.new_blk()
@@ -322,23 +318,36 @@ class BlockCFGBuilder:
                     next_blk = gen_next_blk(i, final_info['last_block'], NormalEdge)
                 cur_blk = next_blk
 
+            elif isinstance(stmt, ast.Assign):
+                    if isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
+                        ir_stmt = IRYield(stmt)
+                        exit_stmt['yield'].append((cur_blk, ir_stmt))
+                        cfg.add_stmt(cur_blk, ir_stmt)
+                        cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
+                    elif isinstance(stmt.value, ast.Call):
+                        ir_stmt = IRCall(stmt)
+                        cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
+                        cfg.add_stmt(cur_blk, ir_stmt)
+                        cur_blk = gen_next_blk(i, cur_blk, CallToReturnEdge, True)
+                    elif isinstance(stmt.targets[0], ast.Subscript):
+                        cfg.add_stmt(cur_blk, IRStoreSubscr(stmt))
+                    elif isinstance(stmt.value, ast.Subscript):
+                        cfg.add_stmt(cur_blk, IRLoadSubscr(stmt))
+                    elif isinstance(stmt.targets[0], ast.Attribute):
+                        cfg.add_stmt(cur_blk, IRStoreAttr(stmt))
+                    elif isinstance(stmt.value, ast.Attribute):
+                        cfg.add_stmt(cur_blk, IRLoadAttr(stmt))
+                    else:
+                        cfg.add_stmt(cur_blk, IRAssign(stmt))
+
+            elif isinstance(stmt, ast.AnnAssign):
+                cfg.add_stmt(cur_blk, IRAnno(stmt))
+
+            elif isinstance(stmt, ast.Delete):
+                cfg.add_stmt(cur_blk, IRDel(stmt))
+
             else:
-                if isinstance(stmt, ast.Assign) and \
-                        isinstance(stmt.value, (ast.Yield, ast.YieldFrom)):
-                    ir_stmt = IRYield(stmt)
-                    exit_stmt['yield'].append((cur_blk, ir_stmt))
-                    cfg.add_stmt(cur_blk, ir_stmt)
-                    cur_blk = gen_next_blk(i, cur_blk, NormalEdge)
-
-                elif isinstance(stmt, ast.Assign) and \
-                        isinstance(stmt.value, ast.Call):
-                    ir_stmt = IRCall(stmt)
-                    cur_blk = gen_next_blk(i, cur_blk, NormalEdge, True)
-                    cfg.add_stmt(cur_blk, ir_stmt)
-                    cur_blk = gen_next_blk(i, cur_blk, CallToReturnEdge, True)
-
-                else:
-                    cfg.add_stmt(cur_blk, IRAstStmt(stmt))
+                cfg.add_stmt(cur_blk, IRAstStmt(stmt))
 
         ret_info = exit_stmt
         ret_info['last_block'] = cur_blk

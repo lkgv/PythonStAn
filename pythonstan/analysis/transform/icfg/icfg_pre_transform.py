@@ -58,7 +58,8 @@ class ICFGPreTransform(ICFGTransformBase):
             for kw in cls.keywords:
                 if kw.arg == "metaclass":
                     for v in self.resolve_node(env, kw.value):
-                        if self.resolve_attribute()
+                        if self.resolve_attribute():
+                            ...
         ...
 
     def analysis_func(self, func: IRFunc, env: PersistentMap):

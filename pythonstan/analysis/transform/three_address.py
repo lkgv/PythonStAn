@@ -6,7 +6,7 @@ from .transform import Transform
 
 from pythonstan.utils import update_ctx, destructable, TempVarGenerator
 from pythonstan.ir import IRModule
-
+from pythonstan.world import World
 from ..analysis import AnalysisConfig
 
 FUNC_TEMPLATE = "func$%d"
@@ -22,7 +22,6 @@ class ThreeAddress(Transform):
         self.transformer = ThreeAddressTransformer()
 
     def transform(self, module: IRModule):
-        from pythonstan.world import World
         three_address_form = self.transformer.visit(module.ast)
         World().scope_manager.set_ir(module, "three address form", three_address_form)
 

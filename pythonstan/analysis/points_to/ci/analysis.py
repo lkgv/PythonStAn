@@ -3,10 +3,12 @@ from typing import Dict, Any
 from abc import abstractmethod
 
 from pythonstan.ir import IRScope
-from ..analysis import Analysis, AnalysisConfig
+from .node_transfer import NodeTransfer
+from .edge_transfer import EdgeTransfer
+from ...analysis import Analysis, AnalysisConfig
 
 
-class Transform(Analysis):
+class CIPTSAnalysis(Analysis):
     module: IRScope
     inputs: Dict[str, Any]
     results: Any
@@ -22,6 +24,14 @@ class Transform(Analysis):
     def get_input(self, key):
         return self.inputs[key]
 
-    @abstractmethod
-    def transform(self, module: IRScope):
+    def analyze(self, module: IRScope):
+        ...
+
+    def make_analysis_lattice(self, graph):
+        pass
+
+    def get_node_transfer_functions(self) -> NodeTransfer:
+        ...
+
+    def get_edge_transfer_functions(self) -> EdgeTransfer:
         ...

@@ -6,25 +6,25 @@ from .ir_statement import IRAbstractStmt
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
 
-__all__ = ["IRReturn"]
+__all__ = ["IRDel"]
 
 
-class IRReturn(IRAbstractStmt):
+class IRDel(IRAbstractStmt):
     value: ast.expr
-    load_collector: VarCollector
+    del_collector: VarCollector
 
-    def __init__(self, stmt: ast.Return):
+    def __init__(self, stmt: ast.Delete):
         ast.fix_missing_locations(stmt)
-        self.value = stmt.value
-        self.load_collector = VarCollector("load")
-        self.load_collector.visit(self.value)
+        self.value = stmt.targets[0]
+        self.del_collector = VarCollector("del")
+        self.del_collector.visit(self.value)
 
     def __str__(self):
         val_str = ast.unparse(self.value)
-        return f"return {val_str}"
+        return f"del {val_str}"
 
-    def get_loads(self) -> Set[str]:
-        return self.load_collector.get_vars()
+    def get_dels(self) -> Set[str]:
+        return self.del_collector.get_vars()
 
     def rename(self, old_name, new_name, ctxs):
         renamer = RenameTransformer(old_name, new_name, ctxs)

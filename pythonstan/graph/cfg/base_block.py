@@ -1,6 +1,6 @@
 from typing import List, Optional, Set
 
-from pythonstan.ir import IRStatement, Label
+from pythonstan.ir import IRStatement, Label, IRPass
 from ..graph import Node
 
 __all__ = ["BaseBlock"]
@@ -8,14 +8,20 @@ __all__ = ["BaseBlock"]
 
 class BaseBlock(Node):
     idx: int
+    only_pass: bool
     stmts: List[IRStatement]
 
-    def __init__(self, idx=-1, stmts=None):
+    def __init__(self, idx: int = -1, stmts: List[IRStatement] = None):
         self.idx = idx
-        if stmts is None:
-            self.stmts = []
+        if stmts is None or len(stmts) == 0:
+            self.stmts = [IRPass()]
+            self.only_pass = True
+        elif len(stmts) == 1 and isinstance(stmts[0], Label):
+            self.stmts = stmts + [IRPass()]
+            self.only_pass = True
         else:
             self.stmts = [x for x in stmts]
+            self.only_pass = False
 
     def get_stmts(self):
         return self.stmts
@@ -26,10 +32,21 @@ class BaseBlock(Node):
     def get_name(self) -> str:
         return f"[{self.idx}]"
 
+    def check_only_pass(self):
+        if self.only_pass:
+            for stmt in self.stmts:
+                if isinstance(stmt, IRPass):
+                    self.stmts.remove(stmt)
+            self.only_pass = False
+
     def add(self, stmt: IRStatement):
+        if not isinstance(stmt, Label):
+            self.check_only_pass()
         self.stmts.append(stmt)
 
     def add_front(self, stmt: IRStatement):
+        if not isinstance(stmt, Label):
+            self.check_only_pass()
         if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
             self.stmts.insert(1, stmt)
         else:
