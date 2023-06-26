@@ -141,8 +141,20 @@ class LabelKind(Enum):
 
 class ObjLabel:
      source: Optional[BaseBlock]
-     is_singleton: bool
+     singleton: bool
      kind: LabelKind
 
      def __init__(self, ):
+         ...
+
+     def get_kind(self) -> LabelKind:
+         return self.kind
+
+     def get_source(self) -> Optional[BaseBlock]:
+         return self.source
+
+     def get_source_location(self) -> BaseBlock:
+         ...
+
+     def is_singleton(self) -> bool:
          ...
