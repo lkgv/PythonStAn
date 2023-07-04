@@ -26,7 +26,7 @@ CONFIG = {
 def main():
     ppl = Pipeline(config=CONFIG)
     ppl.run()
-    print(World().analysis_manager.get_results("liveness"))
+    print(ppl.analysis_manager.get_results("liveness"))
 
 
 if __name__ == "__main__":

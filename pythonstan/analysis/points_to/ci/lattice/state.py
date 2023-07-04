@@ -8,12 +8,15 @@ from .value import Value
 from .obj import Obj
 from .obj_label import ObjLabel
 
+
+
 class State:
     is_bottom: bool
     c: SolverInterface
     block: BaseBlock
     context: Context
     store: PersistentMap[ObjLabel, Obj]
+    store_default: Obj
     basis_store: PersistentMap[ObjLabel, Obj]
     registers: List[Value]
     stacked_obj_labels: Set[ObjLabel]
@@ -25,7 +28,7 @@ class State:
     def __init__(self, c=None, blk=None, s: Optional['State'] = None):
         if s is None:
             self.c = c
-            self.base_block = blk
+            self.block = blk
             self.set_to_bottom()
         else:
             self.c = s.c
@@ -41,8 +44,11 @@ class State:
         self.stacked_obj_labels = {x for x in s.stacked_obj_labels}
         self.stacked_scope_entries = {x for x in s.stacked_scope_entries}
 
-    def set_base_block(self, block: BaseBlock):
+    def set_block(self, block: BaseBlock):
         self.block = block
+
+    def get_block(self) -> BaseBlock:
+        return self.block
 
     def set_context(self, context: Context):
         self.context = context
@@ -90,9 +96,10 @@ class State:
 
     def is_bottom(self):
         raise NotImplementedError
+
     def clone(self) -> 'State':
         return State(s=self)
 
-    def propagate(self, ...):
+    def propagate(self, s: 'State', is_entry: bool, widen: bool = False) -> bool:
         ...
 

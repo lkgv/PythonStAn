@@ -2,6 +2,8 @@ from enum import Enum
 from typing import Optional, Set
 
 from pythonstan.graph.cfg import BaseBlock
+from pythonstan.ir import IRScope, IRStatement
+from .context import Context
 
 
 class Renamings:
@@ -131,30 +133,36 @@ class LabelKind(Enum):
     Class = 3
     List = 4
     Tuple = 5
-    Dict = 6
-    Int = 7
-    Float = 8
-    Str = 9
-    Bool = 10
-    Error = 11
+    Set = 6
+    Dict = 7
+    Int = 8
+    Float = 9
+    Str = 10
+    Bool = 11
+    Error = 12
 
 
 class ObjLabel:
-     source: Optional[BaseBlock]
-     singleton: bool
-     kind: LabelKind
+    source: Optional[BaseBlock]
+    singleton: bool
+    kind: LabelKind
 
-     def __init__(self, ):
-         ...
+    def __init__(self, source: Optional[BaseBlock], ir_scope: Optional[IRScope], kind: LabelKind,
+                 ctx: Optional[Context] = None, singleton: bool = False):
+        self.source = source
+        self.ir_scope = ir_scope
+        self.kind = kind
+        self.ctx = Context.make_empty() if ctx is None else ctx
+        self.singleton = singleton
 
-     def get_kind(self) -> LabelKind:
-         return self.kind
+    def get_kind(self) -> LabelKind:
+        return self.kind
 
-     def get_source(self) -> Optional[BaseBlock]:
-         return self.source
+    def get_source(self) -> Optional[BaseBlock]:
+        return self.source
 
-     def get_source_location(self) -> BaseBlock:
-         ...
+    def get_source_location(self) -> BaseBlock:
+        ...
 
-     def is_singleton(self) -> bool:
-         ...
+    def is_singleton(self) -> bool:
+        return self.singleton

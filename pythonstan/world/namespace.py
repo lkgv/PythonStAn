@@ -16,7 +16,7 @@ def get_root(path: str, names: List[str]) -> str:
 
 
 class Namespace:
-    names: List[str] # just keep this
+    names: List[str]
     empty_ns = None
 
     ns_dict: Dict[str, 'Namespace'] = {}
@@ -87,6 +87,7 @@ class Namespace:
         assert len(self.names) > 0
         return self.names[-1]
 
+
 class NamespaceManager:
     homepath: str
     paths: List[str]
@@ -112,8 +113,6 @@ class NamespaceManager:
 
     def get_ns2path(self, ns: Namespace) -> str:
         return self.names2path[ns.to_str()]
-
-
 
     def _add_Import(self, names: List[str]) -> Tuple[str, Namespace, List]:
         ns = Namespace.build(names)

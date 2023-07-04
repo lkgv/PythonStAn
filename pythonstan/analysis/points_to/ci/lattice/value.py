@@ -2125,7 +2125,82 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
                 ret.included_strs = {s for s in v.included_strs if self.is_maybe_str(s)}
             ret.excluded_strs = None
         else:
-            ...
+            v_is_not_undef_absent_or_none = not (v.is_maybe_undef() or v.is_maybe_absent() or v.is_maybe_none())
+            v_is_not_true = not v.is_maybe_true()
+            v_is_not_false = not v.is_maybe_false()
+            v_is_not_str = v.is_not_str()
+            v_is_not_int = v.is_not_int()
+            v_is_not_float = v.is_not_float()
+            v_is_not_zero = not v.is_maybe_zero()
+            v_is_not_empty_str = not v.is_maybe_str("")
+            if v_is_not_undef_absent_or_none:
+                ret.flags &= ~(UNDEF | ABSENT | NONE)
+            if v_is_not_true:
+                ret.flags &= ~BOOL_TRUE
+            if v_is_not_str and v_is_not_int and v_is_not_float and v_is_not_false:
+                ret.flags &= ~STR
+                ret.string = None
+                ret.included_strs = ret.excluded_strs = None
+            if v_is_not_int and v_is_not_false and v_is_not_empty_str:
+                ret.flags &= ~INT
+                ret.int_num = None
+            if v_is_not_float and v_is_not_false and v_is_not_empty_str:
+                ret.flags &= ~FLOAT
+                ret.float_num = None
+            if v_is_not_zero and v_is_not_false and v_is_not_empty_str:
+                ret.float_num &= ~(BOOL_FALSE | INT_ZERO | FLOAT_ZERO)
+                if ret.int_num is not None and ret.int_num == 0:
+                    ret.int_num = None
+                if ret.float_num is not None and ret.float_num == 0:
+                    ret.float_num = None
+                ret.remove_included_add_excluded_str("")
+        ret.cleanup_included_excluded()
+        return self.canonicalize(ret)
+
+    def restrict_to_loose_not_equals(self, v: 'Value') -> 'Value':
+        if v.is_maybe_fuzzy_str() or v.is_maybe_fuzzy_int() or v.is_maybe_fuzzy_float() or v.obj_labels is not None:
+            return self
+        v_is_undef_or_absent_or_none = v.is_maybe_undef() or v.is_maybe_absent() or v.is_maybe_none()
+        v_is_true = v.is_maybe_true()
+        v_is_false = v.is_maybe_false()
+        v_is_str = not v.is_not_str()
+        v_is_int = not v.is_not_int()
+        v_is_float = not v.is_not_float()
+        if (int(v_is_undef_or_absent_or_none) + int(v_is_true) + int(v_is_false) +
+            int(v_is_int) + int(v_is_float) + int(v_is_str)) != 1:
+            return self
+        v_is_int_zero = v_is_int and self.is_zero(v.int_num)
+        v_is_float_zero = v_is_float and self.is_zero(v.float_num)
+        v_is_str_empty = v_is_str and len("" if v.string is None else v.string) == 0
+        ret = Value.from_value(self)
+        if v_is_undef_or_absent_or_none:
+            ret.flags &= ~(UNDEF | ABSENT | NONE)
+        elif v_is_true:
+            ret.flags &= ~BOOL_TRUE
+        elif v_is_int_zero or v_is_float_zero or v_is_false:
+            if ret.int_num is not None and self.is_zero(ret.int_num):
+                ret.int_num = None
+            if ret.float_num is not None and self.is_zero(ret.float_num):
+                ret.float_num = None
+            ret.flags &= ~(INT_ZERO | FLOAT_ZERO | BOOL_FALSE)
+            ret.remove_included_add_excluded_str("")
+        elif v_is_int:
+            if ret.int_num is not None and ret.int_num == v.int_num:
+                ret.int_num = None
+        elif v_is_float:
+            if ret.float_num is not None and ret.float_num == v.float_num:
+                ret.float_num = None
+        elif v_is_str_empty:
+            ret.flags &= ~(INT_ZERO | FLOAT_ZERO | BOOL_FALSE)
+            if ret.is_maybe_single_str() and ret.string == v.string:
+                ret.string = None
+            ret.remove_included_add_excluded_str(v.string)
+        else:
+            if ret.is_maybe_single_str() and ret.string == v.string:
+                ret.str = None
+            ret.remove_included_add_excluded_str(v.string)
+        ret.cleanup_included_excluded()
+        return self.canonicalize(ret)
 
     def cleanup_included_excluded(self):
         if self.included_strs is not None:

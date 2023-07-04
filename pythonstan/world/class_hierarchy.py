@@ -17,9 +17,16 @@ class ClassHierarchy:
             self._add_item(self.bases, sub_cls, cls)
             self._add_item(self.subclasses, cls, sub_cls)
 
+    def get_subclasses(self, cls: IRClass) -> List[IRClass]:
+        return self.subclasses.get(cls, [])
+
+    def get_bases(self, cls: IRClass) -> List[IRClass]:
+        return self.bases.get(cls, [])
+
     @staticmethod
     def _add_item(kv_map, key, value):
         if key in kv_map:
             kv_map[key].append(value)
         else:
             kv_map[key] = [value]
+

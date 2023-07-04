@@ -75,6 +75,10 @@ class A(base1, base2, metaclass=meta):
 p = {p(x, y+1) for x, (t, y), *args in p if x for y in ast if z if y  if (p + z) for t in xz}
 q = {k:(v*20) for k, v in dlist}
 w = (k for k, p in x)
+    ''',
+
+    '''
+a, b.v, (c, g.v, [q, w, z]) = t
     '''
     ]
 

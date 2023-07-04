@@ -12,7 +12,7 @@ class IRCall(IRAbstractStmt):
     stmt: Union[ast.Assign, ast.Call]
     call: ast.Call
     target: Optional[str]
-    func: ast.expr
+    func_name: str
     args: List[ast.expr]
     keywords: List[ast.keyword]
     load_collector: VarCollector
@@ -28,7 +28,9 @@ class IRCall(IRAbstractStmt):
             assert isinstance(stmt, ast.Call)
             self.call = stmt
             self.target = None
-        self.func = self.call.func
+        assert isinstance(self.call.func, ast.Name)
+
+        self.func_name = self.call.func.id
         self.args = self.call.args
         self.keywords = self.call.keywords
         self.load_collector = VarCollector("load")
@@ -37,6 +39,11 @@ class IRCall(IRAbstractStmt):
     def __str__(self):
         ast.unparse(self.stmt)
 
+    def get_func_name(self) -> str:
+        return self.func_name
+
+    def get_args(self) -> :
+        ast
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()
 

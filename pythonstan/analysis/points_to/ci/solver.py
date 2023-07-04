@@ -1,5 +1,6 @@
 from typing import Optional, Callable, Tuple
 
+from pythonstan.ir import IRScope
 from pythonstan.graph.icfg.icfg import InterControlFlowGraph
 from pythonstan.graph.cfg import BaseBlock
 from .lattice.state import State
@@ -59,6 +60,13 @@ class SolverInterface:
 
     def add_to_work_list(self, blk: BaseBlock, ctx: Context):
         self.solver.work_list.add((blk, ctx))
+
+    def get_scope(self) -> IRScope:
+        return self.solver.graph.blk2scope[self.solver.current_node]
+
+    def get_world(self):
+        from pythonstan.world import World
+        return World()
 
 
 class Solver:

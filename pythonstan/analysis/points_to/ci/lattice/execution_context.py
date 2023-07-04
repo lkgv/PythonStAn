@@ -6,13 +6,28 @@ from .value import Value
 
 class ExecutionContext:
     scope_chain: Optional[ScopeChain]
-    var_obj: Set[ObjLabel]
-    vself: Value
+    self_val: Value
 
     def __init__(self,
                  scope_chain: Optional[ScopeChain] = None,
-                 var_obj: Optional[Set[ObjLabel]] = None,
-                 vself: Optional[Value] = None):
+                 self_val: Optional[Value] = None):
         self.scope_chain = scope_chain
-        self.var_obj = {*()} if var_obj is None else var_obj
-        self.vself = Value.make_none() if vself is None else vself
+        self.self_val = Value.make_none() if self_val is None else self_val
+
+    def clone(self) -> 'ExecutionContext':
+        return ExecutionContext(self.scope_chain, self.self_val)
+
+    def is_empty(self) -> bool:
+        return self.scope_chain is None and len(self.var_obj) == 0 and self.self_val.is_none()
+
+    def get_var(self, var_name: str) -> Optional[Value]:
+        if var_name == 'self':
+            return self.self_val
+        else:
+            return self.scope_chain.get_var(var_name)
+
+    def set_var(self, var_name: str, val: Value) -> bool:
+        ...
+
+    def add(self) -> bool:
+        ...

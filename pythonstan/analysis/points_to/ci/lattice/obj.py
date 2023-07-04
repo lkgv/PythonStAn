@@ -1,9 +1,34 @@
-from typing import Optional
+from typing import Optional, Set, List, Dict
 
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 from pythonstan.ir import IRClass, IRScope
+from pythonstan.graph.cfg import BaseBlock
 from .scope_chain import ScopeChain
 from .value import Value
+
+
+class Cls:
+    name: str
+    ir: Optional[IRClass]
+    is_internal: bool
+    properties: Dict[str, Value]
+
+    def __init__(self, name: str, ir: Optional[IRClass], is_internal: bool = False):
+        self.name = name
+        self.ir = ir
+        self.is_internal = is_internal
+
+    @classmethod
+    def make_internal_cls(cls, name: str) -> 'Cls':
+        return cls(name, None, True)
+
+    def get_fathers(self):
+        from pythonstan.world import World
+        World().class_
+
+    def get_property(self, pkey: str) -> Value:
+        if pkey in self.
+
 
 
 class Obj:
@@ -13,6 +38,7 @@ class Obj:
     writable: bool
     internal_value: 'Value'
     default_other_property: 'Value'
+    cls: Cls
 
     number_of_objs_created = 0
     number_of_makewritable_properties = 0
@@ -65,6 +91,9 @@ class Obj:
     @classmethod
     def from_obj(cls, o: 'Obj') -> 'Obj':
         ret = cls()
+
+    def set_cls(self, cls: Cls):
+        self.cls = cls
 
     def is_unknown(self) -> bool:
         for _, v in self.properties.items():

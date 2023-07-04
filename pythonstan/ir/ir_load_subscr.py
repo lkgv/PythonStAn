@@ -26,7 +26,7 @@ class IRLoadSubscr(IRAssign):
     def get_obj(self) -> ast.expr:
         return self.obj
 
-    def get_attr(self) -> ast.expr:
+    def get_slice(self) -> ast.expr:
         return self.slice
 
     def has_slice(self) -> bool:

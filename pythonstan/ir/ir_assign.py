@@ -10,7 +10,7 @@ __all__ = ["IRAssign"]
 
 
 class IRAssign(IRAbstractStmt):
-    lval: ast.expr
+    lval: ast.Name
     rval: ast.expr
     stmt: Statement
     store_collector: VarCollector
@@ -25,6 +25,7 @@ class IRAssign(IRAbstractStmt):
         return f"{lstr} = {rstr}"
 
     def set_stmt(self, stmt: ast.Assign):
+        assert isinstance(stmt.targets[0], ast.Name)
         self.lval = stmt.targets[0]
         self.rval = stmt.value
         self.stmt = stmt
@@ -35,7 +36,7 @@ class IRAssign(IRAbstractStmt):
     def get_ast(self) -> Statement:
         return self.stmt
 
-    def get_lval(self) -> ast.expr:
+    def get_lval(self) -> ast.Name:
         return self.lval
 
     def get_rval(self) -> ast.expr:
