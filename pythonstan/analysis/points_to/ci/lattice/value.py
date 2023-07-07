@@ -463,6 +463,10 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         return cls.canonicalize(ret)
 
     @classmethod
+    def make_absent(cls) -> 'Value':
+        return cls.the_absent
+
+    @classmethod
     def really_make_absent_modified(cls) -> 'Value':
         ret = Value()
         ret |= ABSENT | MODIFIED

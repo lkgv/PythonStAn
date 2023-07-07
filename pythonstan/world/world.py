@@ -5,16 +5,19 @@ from pythonstan.ir import IRModule, IRScope
 from .namespace import Namespace, NamespaceManager
 from .scope_manager import ScopeManager
 from .config import Config
+from .class_hierarchy import ClassHierarchy
 
 
 class World(Singleton):
     namespace_manager: NamespaceManager
     entry_module: IRModule
+    class_hierarchy: ClassHierarchy
 
     @classmethod
     def setup(cls):
         cls.scope_manager = ScopeManager()
         cls.namespace_manager = NamespaceManager()
+        cls.class_hierarchy = ClassHierarchy()
 
     def build(self, config: Config):
         self.scope_manager.build()

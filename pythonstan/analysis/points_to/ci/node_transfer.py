@@ -1,20 +1,14 @@
 import ast
-from typing import Set
+from typing import Set, Optional
 
 from .solver import SolverInterface
 from .lattice.value import Value
 from .lattice.state import State
 from .lattice.obj import Obj
 from .lattice.obj_label import ObjLabel, LabelKind
+from .lattice.value_resolver import ValueResolver
 from pythonstan.ir import *
 
-
-class VarHelper:
-    def get_var(self, vname: str, s: State) -> Value:
-
-
-    def write_var(self, vname: str, v: Value, s: State):
-        ...
 
 class Operators:
     @staticmethod
@@ -50,7 +44,11 @@ class Conversion:
 
 class NodeTransfer(IRVisitor):
     c: SolverInterface
-    v: VarHelper
+    v: ValueResolver
+
+    def __init__(self, c: SolverInterface, v: Optional[ValueResolver] = None):
+        self.c = c
+        self.v = v if v is not None else ValueResolver()
 
     def visit_IRAstStmt(self, ir: IRAstStmt):
         ...
@@ -144,10 +142,24 @@ class NodeTransfer(IRVisitor):
             self.v.write_var(lval_id, val, s)
 
     def visit_IRLoadAttr(self, ir: IRLoadAttr):
-        ...
+        s = self.c.get_state()
+        obj_val = s.read_memory(ir.get_obj().id)
+        if obj_val is not None and len(obj_val.get_obj_labels()) > 0:
+            vals = [self.v.retrive_property(l, ir.get_attr(), s).restrict_to_not_absent() for l in obj_val.get_obj_labels()]
+            val = Value.join_values(vals)
+            s.write_memory(ir.get_lval().id, val)
+        else:
+            s.write_memory(ir.get_lval().id, Value.make_absent())
 
     def visit_IRStoreAttr(self, ir: IRStoreAttr):
-        ...
+        s = self.c.get_state()
+        obj_val = s.read_memory(ir.get_obj().id)
+        src_val = s.read_memory(ir.get_rval().id)
+        if src_val is None:
+            src_val = Value.make_absent()
+        if obj_val is not None and len(obj_val.get_obj_labels()) > 0:
+            for obj_label in obj_val.get_obj_labels():
+                self.v.write_property(obj_label, ir.get_attr(), src_val)
 
     def visit_IRLoadSubscr(self, ir: IRLoadSubscr):
         lval_id = ir.get_lval().id
@@ -166,8 +178,11 @@ class NodeTransfer(IRVisitor):
     def visit_IRStoreSubscr(self, ir: IRStoreSubscr):
         ...
 
+    # declare a function
     def visit_IRFunc(self, ir: IRFunc):
-        ...
+        s = self.c.get_state()
+        name = ir.get_name()
+
 
     def visit_IRClass(self, ir: IRClass):
         ...

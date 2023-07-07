@@ -6,6 +6,10 @@ class ClassHierarchy:
     bases: Dict[IRClass, List[IRClass]]
     subclasses: Dict[IRClass, List[IRClass]]
 
+    def __init__(self):
+        self.bases = {}
+        self.subclasses = {}
+
     def is_subclass(self, cls: IRClass, sub_cls: IRClass) -> bool:
         if cls in self.subclasses and sub_cls in self.subclasses[cls]:
             return True
@@ -29,4 +33,3 @@ class ClassHierarchy:
             kv_map[key].append(value)
         else:
             kv_map[key] = [value]
-

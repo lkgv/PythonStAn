@@ -48,12 +48,11 @@ class Pipeline:
 
             for stmt in imports:
                 get_import = World().namespace_manager.get_import(ns, stmt)
-                if get_import is None:
-                    continue
-                mod_ns, mod_path = get_import
-                new_mod = World().scope_manager.add_module(mod_ns, mod_path)
-                g.add_edge(mod, new_mod)
-                q.append((mod_ns, new_mod))
+                if get_import is not None:
+                    mod_ns, mod_path = get_import
+                    new_mod = World().scope_manager.add_module(mod_ns, mod_path)
+                    g.add_edge(mod, new_mod)
+                    q.append((mod_ns, new_mod))
         World().scope_manager.set_module_graph(g)
 
     def analyse_intra_procedure(self, analyzer):

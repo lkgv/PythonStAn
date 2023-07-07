@@ -64,6 +64,9 @@ class SolverInterface:
     def get_scope(self) -> IRScope:
         return self.solver.graph.blk2scope[self.solver.current_node]
 
+    def get_analysis_lattice_element(self) -> AnalysisLatticeElement:
+        return self.solver.analysis_lattice_element
+
     def get_world(self):
         from pythonstan.world import World
         return World()

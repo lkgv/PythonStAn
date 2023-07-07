@@ -3,8 +3,6 @@ from typing import Set, List, Dict, Tuple, Any, Optional
 
 from .namespace import Namespace
 from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule
-from pythonstan.ir.ir_func import IRFunc
-from pythonstan.ir.ir_class import IRClass
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 
 

@@ -2,7 +2,7 @@ from typing import Set, Tuple, Optional, List
 
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 from pythonstan.graph.cfg import BaseBlock
-from ..solver_interface import SolverInterface
+from ..solver import SolverInterface
 from pythonstan.analysis.points_to.ci.lattice.context import Context
 from .value import Value
 from .obj import Obj
@@ -23,6 +23,8 @@ class State:
     stacked_scope_entries: Set[Tuple[BaseBlock, Context]]
     store_default: Obj
 
+    memory: PersistentMap[str, Value]
+
     # TODO add mustequals
 
     def __init__(self, c=None, blk=None, s: Optional['State'] = None):
@@ -32,6 +34,7 @@ class State:
             self.set_to_bottom()
         else:
             self.c = s.c
+            self.memory = PersistentMap()
             self.block = s.block
             self.context = s.context
             self.set_to_state(s)
@@ -43,6 +46,15 @@ class State:
         self.registers = [x for x in s.registers]
         self.stacked_obj_labels = {x for x in s.stacked_obj_labels}
         self.stacked_scope_entries = {x for x in s.stacked_scope_entries}
+        self.memory.recover(s.memory.backup())
+
+
+    def set_to_bottom(self):
+        self.store = PersistentMap()
+        self.registers = []
+        self.stacked_obj_labels = {*()}
+        self.stacked_scope_entries = {*()}
+        self.store_default = Obj.make_none()
 
     def set_block(self, block: BaseBlock):
         self.block = block
@@ -53,13 +65,16 @@ class State:
     def set_context(self, context: Context):
         self.context = context
 
+    def get_context(self) -> Context:
+        return self.context
+
     def write_store(self, obj_label: ObjLabel, obj: Obj):
         self.store[obj_label] = obj
 
     def remove_obj(self, obj_label: ObjLabel):
         del self.store[obj_label]
 
-    def get_obj(self, obj_label):
+    def get_obj(self, obj_label: ObjLabel):
         obj = self.store.get[obj_label]
         if obj is not None:
             obj = Obj(obj)
@@ -87,13 +102,6 @@ class State:
     def get_stacked_scope_entries(self):
         return self.stacked_scope_entries
 
-    def set_to_bottom(self):
-        self.store = PersistentMap()
-        self.registers = []
-        self.stacked_obj_labels = {*()}
-        self.stacked_scope_entries = {*()}
-        self.store_default = Obj.make_none()
-
     def is_bottom(self):
         raise NotImplementedError
 
@@ -102,4 +110,10 @@ class State:
 
     def propagate(self, s: 'State', is_entry: bool, widen: bool = False) -> bool:
         ...
+
+    def read_memory(self, var: str) -> Optional['Value']:
+        return self.memory[var]
+
+    def write_memory(self, var: str, value: Value):
+        self.memory[var] = value
 
