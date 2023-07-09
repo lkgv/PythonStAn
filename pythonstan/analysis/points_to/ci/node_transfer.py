@@ -92,12 +92,14 @@ class NodeTransfer(IRVisitor):
         blk = self.c.get_node()
         scope = self.c.get_scope()
         if isinstance(rval_ast, ast.Name):
-            rval = self.v.get_var(rval_ast.id, s)
-            self.v.write_var(lval_id, rval, s)
+            rval = s.get_memmory(rval_ast.id)
+            if rval is not None:
+                rval = Value.make_absent()
+            s.write_memory(lval_id, rval)
 
         elif isinstance(rval_ast, ast.BinOp):
-            left_val = self.v.get_var(rval_ast.left.id, s)
-            right_val = self.v.get_var(rval_ast.right.id, s)
+            left_val = s.get_memory(rval_ast.left.id)
+            right_val = s.get_memory(rval_ast.right.id)
             result = Operators.bin_op(rval_ast.op, left_val, right_val, s)
             self.v.write_var(lval_id, result, s)
 

@@ -84,6 +84,7 @@ class Solver:
 
     def __init__(self, analysis: CIPTSAnalysis):
         self.c = SolverInterface(self)
+        self.analysis = analysis
 
     def init(self, graph: InterControlFlowGraph):
         self.graph = graph

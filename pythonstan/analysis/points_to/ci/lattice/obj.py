@@ -3,139 +3,51 @@ from typing import Optional, Set, List, Dict
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 from pythonstan.ir import IRClass, IRScope
 from pythonstan.graph.cfg import BaseBlock
-from .scope_chain import ScopeChain
+from .scope_chain import ScopeChain, Scope
 from .value import Value
 from .obj_label import ObjLabel
 
 
-class Cls:
-    name: str
-    ir: Optional[IRClass]
-    is_internal: bool
-    bases: List['Cls']
-    static_properties: Dict[str, Value]
-    class_properties: Dict[str, Value]
-    instance_properties: Dict[str, Value]
-
-
-    def __init__(self, name: str, ir: Optional[IRClass], is_internal: bool = False):
-        self.name = name
-        self.ir = ir
-        self.is_internal = is_internal
-        self.bases = []
-        self.static_properties = {}
-        self.class_properties = {}
-        self.instance_properties = {}
-
-    @classmethod
-    def make_internal_cls(cls, name: str) -> 'Cls':
-        return cls(name, None, True)
-
-    @classmethod
-    def make_user_defined_cls(cls, ir: IRClass) -> 'Cls':
-        return cls(ir.get_name(), ir, False)
-
-    def get_bases(self) -> List['Cls']:
-        return self.bases
-
-    def add_base(self, base: 'Cls'):
-        self.bases.append(base)
-
-    @staticmethod
-    def _retrive_property(cls: 'Cls', pkey: str, kind: str) -> Optional[Value]:
-        assert kind in ['static_properties', 'class_properties', 'instance_properties']
-        if pkey in getattr(cls, kind):
-            return getattr(cls, kind)[pkey]
-        for base_cls in cls.get_bases():
-            prop = base_cls._retrive_property(base_cls, pkey, kind)
-            if prop is not None:
-                return prop
-        return None
-
-    def get_static_property(self, pkey: str) -> Optional[Value]:
-        return self._retrive_property(self, pkey, 'static_properties')
-
-    def get_class_property(self, pkey: str) -> Optional[Value]:
-        return self._retrive_property(self, pkey, 'class_properties')
-
-    def get_instance_property(self, pkey: str) -> Optional[Value]:
-        return self._retrive_property(self, pkey, 'instance_properties')
-
-
 class Obj:
-    cls: ObjLabel
+    cls: Optional[ObjLabel]
 
     scope_chain: Optional[ScopeChain]
-    properties: Dict[str, Value]
-    static_properties: Optional[Dict[str, Value]]
-    class_properties: Optional[Dict[str, Value]]
-
-    writable_properties: bool
-    writable: bool
     internal_value: 'Value'
     default_other_property: 'Value'
 
-    is_cls: bool
     base_classes: Optional[List[ObjLabel]]
+    self_scope: Scope
 
-    number_of_objs_created = 0
-    number_of_makewritable_properties = 0
-    the_none: 'Obj'
-    the_absent_modified: 'Obj'
-    the_none_modified: 'Obj'
-    the_unknown: 'Obj'
+    @property
+    def the_none(self) -> 'Obj':
+        return ObjDefaults.the_none
 
-    @classmethod
-    def _make_the_none(cls) -> 'Obj':
-        obj = cls()
-        obj.properties = PersistentMap()
-        obj.default_other_property = obj.internal_value = Value.make_none()
-        return obj
+    @property
+    def the_absent_modified(self) -> 'Obj':
+        return ObjDefaults.the_absent_modified
 
-    @classmethod
-    def _make_the_absent_modified(cls) -> 'Obj':
-        obj = cls()
-        obj.properties = PersistentMap()
-        obj.default_other_property = obj.internal_value = Value.make_absent_modified()
-        return obj
+    @property
+    def the_none_modified(self) -> 'Obj':
+        return ObjDefaults.the_none_modified
 
-    @classmethod
-    def _make_the_none_modified(cls) -> 'Obj':
-        obj = cls()
-        obj.properties = PersistentMap()
-        obj.default_other_property = obj.internal_value = Value.make_none_modified()
-        return obj
+    @property
+    def the_unknown(self) -> 'Obj':
+        return ObjDefaults.the_unknown
+
+    def __init__(self, scope_chain: Optional[ScopeChain] = None,
+                 cls: Optional[ObjLabel] = None,
+                 base_classes: Optional[List[ObjLabel]] = None):
+        self.scope_chain = scope_chain
+        self.cls = cls
+        self.base_classes = base_classes
 
     @classmethod
-    def _make_the_unknown(cls) -> 'Obj':
-        obj = Obj()
-        obj.properties = PersistentMap()
-        obj.default_other_property = obj.internal_value = Value.make_unknown()
-        obj.scope_chain = None
-        return obj
-
-    @classmethod
-    def _make_default_values(cls):
-        cls.the_none = cls._make_the_none()
-        cls.the_absent_modified = cls._make_the_absent_modified()
-        cls.the_none_modified = cls._make_the_none_modified()
-        cls.the_unknown = cls._make_the_unknown()
-
-    _make_default_values()
-
-    def __init__(self):
-        self.number_of_objs_created += 1
-
-    @classmethod
-    def make_cls(cls) -> 'Obj':
+    def make_cls(cls, scope_chain: ScopeChain) -> 'Obj':
         ret = cls()
-        ret.is_cls = True
-        ret.static_properties = {}
-        ret.class_properties = {}
-        ret.base_classes = {}
+
 
     def is_cls(self):
-        return self.is_cls
+        return self.cls is not None
 
     def get_property(self, prop: str) -> Optional[Value]:
         return self.properties.get(prop)
@@ -192,3 +104,57 @@ class Obj:
         ...
 
     def restrict_class(self) -> 'Cls':
+        ...
+
+
+class ObjDefaults:
+    '''
+    the_none: 'Obj'
+    the_absent_modified: 'Obj'
+    the_none_modified: 'Obj'
+    the_unknown: 'Obj'
+
+    class Defaults:
+        @classmethod
+        def _make_the_none(cls) -> 'Obj':
+            obj = Obj()
+            obj.properties = PersistentMap()
+            obj.default_other_property = obj.internal_value = Value.make_none()
+            return obj
+
+    @classmethod
+    def _make_the_absent_modified(cls) -> 'Obj':
+        obj = Obj()
+        obj.properties = PersistentMap()
+        obj.default_other_property = obj.internal_value = Value.make_absent_modified()
+        return obj
+
+    @classmethod
+    def _make_the_none_modified(cls) -> 'Obj':
+        obj = cls()
+        obj.properties = PersistentMap()
+        obj.default_other_property = obj.internal_value = Value.make_none_modified()
+        return obj
+
+    @classmethod
+    def _make_the_unknown(cls) -> 'Obj':
+        obj = Obj()
+        obj.properties = PersistentMap()
+        obj.default_other_property = obj.internal_value = Value.make_unknown()
+        obj.scope_chain = None
+        return obj
+
+    @classmethod
+    def _make_default_values(cls):
+        cls.the_none = cls._make_the_none()
+        cls.the_absent_modified = cls._make_the_absent_modified()
+        cls.the_none_modified = cls._make_the_none_modified()
+        cls.the_unknown = cls._make_the_unknown()
+
+    _make_default_values()
+    '''
+
+    the_none = Obj()
+    the_absent_modified = Obj()
+    the_none_modified = Obj()
+    the_unknown = Obj()

@@ -7,6 +7,7 @@ from pythonstan.analysis.points_to.ci.lattice.context import Context
 from .value import Value
 from .obj import Obj
 from .obj_label import ObjLabel
+from .execution_context import ExecutionContext
 
 
 
@@ -21,9 +22,7 @@ class State:
     registers: List[Value]
     stacked_obj_labels: Set[ObjLabel]
     stacked_scope_entries: Set[Tuple[BaseBlock, Context]]
-    store_default: Obj
-
-    memory: PersistentMap[str, Value]
+    execution_context: ExecutionContext
 
     # TODO add mustequals
 
@@ -116,4 +115,6 @@ class State:
 
     def write_memory(self, var: str, value: Value):
         self.memory[var] = value
+
+    def
 
