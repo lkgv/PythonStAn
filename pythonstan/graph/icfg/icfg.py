@@ -67,6 +67,10 @@ class InterControlFlowGraph(ControlFlowGraph):
     def get_scopes(self) -> Set[IRScope]:
         return set(self.scope2cfg.keys())
 
+    def get_scope_from_base_block(self, blk: BaseBlock) -> IRScope:
+        assert blk in self.blk2scope, "Block not in ICFG!"
+        return self.blk2scope[blk]
+
     def get_cfg(self, scope: IRScope) -> ControlFlowGraph:
         return self.scope2cfg[scope]
 

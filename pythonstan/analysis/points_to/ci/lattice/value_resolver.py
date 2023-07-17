@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Set, Tuple
 
 from .state import State
 from .obj import Obj
@@ -14,37 +14,49 @@ class ValueResolver:
         if obj_label.kind == LabelKind.Class:
             return self.retrive_cls_property(obj_label, prop_name, s)
         else:
-            return self.retrive_obj_property(obj_label, prop_name, s)
+            prop = self.retrive_obj_property(obj_label, prop_name, s)
+            return self.retrive_cls_property(obj_label, prop_name, s) if prop is None else prop
 
-    def retrive_obj_property(self, obj_label: ObjLabel, prop_name: str, s: State) -> Value:
+    def retrive_obj_properties(self, obj_label: ObjLabel, s: State) -> Set[Tuple[str, Value]]:
         obj = s.get_obj(obj_label)
-        prop = obj.get_property(prop_name)
-        if prop is None:
-            prop = self.optional_retrive_cls_property(obj.get_cls_label(), prop_name, s, True)
-        return prop if prop is not None else Value.make_absent()
+        return set(obj.self_scope.var_map.items())
+
+    def retrive_obj_property(self, obj_label: ObjLabel, prop_name: str, s: State) -> Optional[Value]:
+        obj = s.get_obj(obj_label)
+        return obj.get_attr(prop_name)
 
     def retrive_cls_property(self, obj_label: ObjLabel, prop_name: str, s: State) -> Value:
         prop = self.optional_retrive_cls_property(obj_label, prop_name, s, False)
         return prop if prop is not None else Value.make_absent()
 
-    def optional_retrive_cls_property(self, obj_label: ObjLabel, prop_name: str, s: State,
-                                      retrive_instance: bool = False) -> Optional[Value]:
+    def optional_retrive_cls_property(self, obj_label: ObjLabel, prop_name: str, s: State) -> Optional[Value]:
         cls = s.get_obj(obj_label)
         assert obj_label.kind == LabelKind.Class and cls.is_cls(), "the obj to be retrived is not class"
-        prop: Optional[Value] = None
-        if retrive_instance:
-            prop = cls.get_property(prop_name)
-        if prop is None:
-            prop = cls.get_class_property(prop_name)
-        if prop is None:
-            prop = cls.get_instance_property(prop_name)
+        prop: Optional[Value] = cls.get_attr(prop_name)
         if prop is None:
             for base_label in cls.get_bases_label():
-                prop = self.optional_retrive_cls_property(base_label, prop_name, s, retrive_instance)
+                prop = self.optional_retrive_cls_property(base_label, prop_name, s)
                 if prop is not None:
                     return prop
         return None
 
     def write_property(self, obj_label: ObjLabel, prop_name: str, value: Value, s: State):
         if obj_label.kind == LabelKind.Class:
-            
+            return self.write_cls_property(obj_label, prop_name, value, s)
+        else:
+            return self.write_obj_property(obj_label, prop_name, value, s)
+
+    def write_obj_property(self, obj_label: ObjLabel, prop_name: str, value: Value, s: State):
+        obj = s.get_obj(obj_label)
+        obj.write_attr(prop_name, value)
+
+    def write_cls_property(self, obj_label: ObjLabel, prop_name: str, value: Value, s: State):
+        cls = s.get_obj(obj_label)
+        cls.write_attr(prop_name, value)
+
+    def get_var(self, var_name: str, s: State) -> Optional[Value]:
+        return s.get_execution_context().get_var(var_name)
+
+    def set_var(self, var_name: str, value: Value, s: State) -> bool:
+        return s.get_execution_context().set_var(var_name, value)
+

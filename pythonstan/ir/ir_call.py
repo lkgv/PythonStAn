@@ -1,4 +1,4 @@
-from typing import Set, List, Union, Optional
+from typing import Set, List, Union, Optional, Tuple
 import ast
 
 from .ir_statement import IRAbstractStmt
@@ -13,8 +13,8 @@ class IRCall(IRAbstractStmt):
     call: ast.Call
     target: Optional[str]
     func_name: str
-    args: List[ast.expr]
-    keywords: List[ast.keyword]
+    args: List[Tuple[str, bool]]
+    keywords: List[Tuple[Optional[str], str]]
     load_collector: VarCollector
 
     def __init__(self, stmt):
@@ -31,8 +31,21 @@ class IRCall(IRAbstractStmt):
         assert isinstance(self.call.func, ast.Name)
 
         self.func_name = self.call.func.id
-        self.args = self.call.args
-        self.keywords = self.call.keywords
+        self.args = []
+        for arg in self.call.args:
+            if isinstance(arg, ast.Name):
+                self.args.append((arg.id, False))
+            elif isinstance(arg, ast.Starred) and isinstance(arg.value, ast.Name):
+                self.args.append((arg.value.id, True))
+            else:
+                raise AssertionError("Args in function call should be Name or Starred[Name]")
+        self.keywords = []
+        for kw in self.call.keywords:
+            assert isinstance(kw.value, ast.Name), "Keywords in function call should be Name"
+            if kw.arg is None:
+                self.keywords.append((None, kw.value.id))
+            else:
+                self.keywords.append((kw.arg, kw.value.id))
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.stmt)
 
@@ -42,10 +55,17 @@ class IRCall(IRAbstractStmt):
     def get_func_name(self) -> str:
         return self.func_name
 
-    def get_args(self) -> :
-        ast
+    def get_args(self) -> List[Tuple[str, bool]]:
+        return self.args
+
+    def get_keywords(self) -> List[Tuple[Optional[str], str]]:
+        return self.keywords
+
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()
+
+    def get_target(self) -> Optional[str]:
+        return self.target
 
     def get_stores(self) -> Set[str]:
         if self.target is not None:

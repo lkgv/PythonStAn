@@ -15,14 +15,32 @@ class IRFunc(IRScope, IRStatement):
     type_comment: str
     ast: ast.stmt
     is_async: bool
+    is_getter: bool
+    is_setter: bool
+    is_static_method: bool
+    is_class_method: bool
+    is_instance_method: bool
 
     cell_vars: Set[str]
 
-    def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None):
+    def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None, under_class: bool = False):
         super().__init__(qualname)
         self.name = fn.name
         self.args = fn.args
         self.decorator_list = fn.decorator_list
+        self.is_static_method = self.is_class_method = self.is_setter = self.is_getter = False
+        for decr in fn.decorator_list:
+            if isinstance(decr, ast.Name):
+                if decr.id == 'staticmethod':
+                    self.is_static_method = True
+                elif decr.id == 'classmethod':
+                    self.is_class_method = True
+                elif decr.id == 'property':
+                    self.is_getter = True
+            elif isinstance(decr, ast.Attribute):
+                if decr.attr == 'setter':
+                    self.is_setter = True
+        self.is_instance_method = (under_class and not self.is_static_method and not self.is_class_method)
         self.returns = fn.returns
         self.type_comment = fn.type_comment
         self.ast = fn

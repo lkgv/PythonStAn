@@ -53,6 +53,7 @@ class Pipeline:
                     new_mod = World().scope_manager.add_module(mod_ns, mod_path)
                     g.add_edge(mod, new_mod)
                     q.append((mod_ns, new_mod))
+                    World().import_manager.set_import(mod, stmt, new_mod)
         World().scope_manager.set_module_graph(g)
 
     def analyse_intra_procedure(self, analyzer):

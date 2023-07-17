@@ -2,6 +2,7 @@ from typing import Optional, Dict, List, Set
 
 from pythonstan.ir import IRScope
 from .value import Value
+from .obj_label import ObjLabel
 
 
 class Scope:
@@ -85,3 +86,9 @@ class ScopeChain:
                 break
         self.cur_scope().update_var(var_name, val)
         return False
+
+    def __add__(self, other):
+        return ScopeChain(self.scopes + other.scopes)
+
+    def __eq__(self, other):
+        return self.scopes == other.scopes

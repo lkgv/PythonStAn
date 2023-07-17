@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Optional, Set
 
 from pythonstan.graph.cfg import BaseBlock
-from pythonstan.ir import IRScope, IRStatement
+from pythonstan.ir import IRScope
 from .context import Context
 
 
@@ -143,26 +143,79 @@ class LabelKind(Enum):
 
 
 class ObjLabel:
-    source: Optional[BaseBlock]
+    host_obj_label: Optional['ObjLabel']
+    block: Optional[BaseBlock]
+    scope: Optional[IRScope]
+    heap_ctx: Context
     singleton: bool
     kind: LabelKind
 
-    def __init__(self, source: Optional[BaseBlock], ir_scope: Optional[IRScope], kind: LabelKind,
-                 ctx: Optional[Context] = None, singleton: bool = False):
-        self.source = source
-        self.ir_scope = ir_scope
+    def __init__(self, block: Optional[BaseBlock], scope: Optional[IRScope], kind: LabelKind,
+                 heap_ctx: Optional[Context] = None, singleton: bool = True,
+                 host_obj_label: Optional['ObjLabel'] = None):
+        self.block = block
+        self.scope = scope
         self.kind = kind
-        self.ctx = Context.make_empty() if ctx is None else ctx
+        self.heap_ctx = Context.make_empty() if heap_ctx is None else heap_ctx
         self.singleton = singleton
+        self.host_obj_label = host_obj_label
+
+    def __eq__(self, other) -> bool:
+        return (self.block == other.block and self.scope == other.scope and
+                self.kind == other.kind and self.heap_ctx == other.heap_ctx and
+                self.singleton == other.singleton and
+                self.host_obj_label == other.host_obj_label)
+    @classmethod
+    def make(cls, block: Optional[BaseBlock], kind: LabelKind,
+             host_obj_label: Optional['ObjLabel'] = None) -> 'ObjLabel':
+        return cls(block, None, kind, None, True, host_obj_label)
+
+    @classmethod
+    def make_with_ctx(cls, block: Optional[BaseBlock], kind: LabelKind, heap_ctx: Context,
+                      host_obj_label: Optional['ObjLabel'] = None) -> 'ObjLabel':
+        return cls(block, None, kind, heap_ctx, True, host_obj_label)
+
+    @classmethod
+    def make_scope(cls, scope: IRScope, host_obj_label: Optional['ObjLabel'] = None) -> 'ObjLabel':
+        return cls(None, scope, LabelKind.Function, None, True, host_obj_label)
+
+    @classmethod
+    def make_scope_with_ctx(cls, scope: IRScope, heap_ctx: Context,
+                            host_obj_label: Optional['ObjLabel'] = None) -> 'ObjLabel':
+        return cls(None, scope, LabelKind.Function, heap_ctx, True, host_obj_label)
+
+    def set_host_obj_label(self, host_obj_label: 'ObjLabel'):
+        self.host_obj_label = host_obj_label
+
+    def get_host_obj_label(self) -> 'ObjLabel':
+        assert self.host_obj_label is not None, "Host Obj Label of a method label cannot be None!"
+        return self.host_obj_label
+
+    def get_scope(self) -> IRScope:
+        assert self.scope is not None, "Scope of a function/class label cannot be None!"
+        return self.scope
 
     def get_kind(self) -> LabelKind:
         return self.kind
 
-    def get_source(self) -> Optional[BaseBlock]:
-        return self.source
-
-    def get_source_location(self) -> BaseBlock:
-        ...
+    def get_call_block(self) -> Optional[BaseBlock]:
+        return self.block
 
     def is_singleton(self) -> bool:
         return self.singleton
+
+    def get_heap_context(self) -> Context:
+        return self.heap_ctx
+
+    def make_summary(self) -> 'ObjLabel':
+        assert self.is_singleton(), "Attempt to obtain summary of non-singleton"
+        return ObjLabel(self.block, self.scope, self.kind, self.heap_ctx, False)
+
+    def make_singleton(self) -> 'ObjLabel':
+        if self.is_singleton():
+            return self
+        return ObjLabel(self.block, self.scope, self.kind, self.heap_ctx, True)
+
+    @staticmethod
+    def allow_strong_update(objs: Set['ObjLabel']) -> bool:
+        return len(objs) == 1 and next(iter(objs)).is_singleton()

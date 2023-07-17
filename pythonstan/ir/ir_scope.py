@@ -19,4 +19,3 @@ class IRScope(ABC):
 
     def get_qualname(self) -> str:
         return self.qualname
-

@@ -85,3 +85,10 @@ class BaseBlock(Node):
             label = Label(self.get_idx())
             self.add_front(label)
             return label
+
+    def __lt__(self, other: 'BaseBlock') -> bool:
+        if self.n_stmt() == 0:
+            return True
+        if other.n_stmt() == 0:
+            return False
+        return self.stmts[0] < other.stmts[0]

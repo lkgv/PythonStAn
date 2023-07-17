@@ -12,53 +12,54 @@ class Obj:
     cls: Optional[ObjLabel]
 
     scope_chain: Optional[ScopeChain]
+    scope_chain_unknown: bool
     internal_value: 'Value'
     default_other_property: 'Value'
+    writable: bool
 
     base_classes: Optional[List[ObjLabel]]
     self_scope: Scope
 
-    @property
-    def the_none(self) -> 'Obj':
+    @classmethod
+    def make_the_none(cls) -> 'Obj':
         return ObjDefaults.the_none
 
-    @property
-    def the_absent_modified(self) -> 'Obj':
+    @classmethod
+    def make_absent_modified(cls) -> 'Obj':
         return ObjDefaults.the_absent_modified
 
-    @property
-    def the_none_modified(self) -> 'Obj':
+    @classmethod
+    def make_the_none_modified(cls) -> 'Obj':
         return ObjDefaults.the_none_modified
 
-    @property
-    def the_unknown(self) -> 'Obj':
+    @classmethod
+    def make_the_unknown(cls) -> 'Obj':
         return ObjDefaults.the_unknown
 
     def __init__(self, scope_chain: Optional[ScopeChain] = None,
                  cls: Optional[ObjLabel] = None,
                  base_classes: Optional[List[ObjLabel]] = None):
         self.scope_chain = scope_chain
+        self.scope_chain_unknown = scope_chain is None
         self.cls = cls
         self.base_classes = base_classes
 
     @classmethod
     def make_cls(cls, scope_chain: ScopeChain) -> 'Obj':
         ret = cls()
-
+        ...
 
     def is_cls(self):
         return self.cls is not None
 
-    def get_property(self, prop: str) -> Optional[Value]:
-        return self.properties.get(prop)
+    def get_cls(self) -> Optional[ObjLabel]:
+        return self.cls
 
-    def get_static_property(self, prop: str) -> Optional[Value]:
-        assert self.is_cls(), "Cannot retrive property from Object!"
-        return self.static_properties.get(prop)
+    def get_attr(self, var_name: str) -> Optional[Value]:
+        return self.self_scope.get_var(var_name)
 
-    def get_class_property(self, prop: str) -> Optional[Value]:
-        assert self.is_cls(), "Cannot retrive property from Object!"
-        return self.class_properties.get(prop)
+    def write_attr(self, var_name: str, value: Value) -> bool:
+        return self.self_scope.update_var(var_name, value)
 
     def get_bases_label(self) -> List[ObjLabel]:
         assert self.is_cls and self.base_classes is not None, "Cannot get bases from Object!"
@@ -66,7 +67,9 @@ class Obj:
 
     @classmethod
     def from_obj(cls, o: 'Obj') -> 'Obj':
-        ret = cls()
+        ret = cls(o.scope_chain, o.cls, o.base_classes)
+        ...
+        return ret
 
     def set_cls_label(self, cls: ObjLabel):
         self.cls = cls
@@ -75,7 +78,9 @@ class Obj:
         return self.cls
 
     def is_unknown(self) -> bool:
-        for _, v in self.properties.items():
+        if self.scope_chain is None:
+            return False
+        for _, v in self.scope_chain.get_vars():
             if not v.is_unknown():
                 return False
         return self.default_other_property.is_unknown() and \
@@ -105,6 +110,24 @@ class Obj:
 
     def restrict_class(self) -> 'Cls':
         ...
+
+    def set_scope_chain(self, sc: ScopeChain):
+        self.scope_chain = sc
+        self.scope_chain_unknown = False
+
+    def set_scope_chain_unknown(self):
+        self.scope_chain = None
+        self.scope_chain_unknown = True
+
+    def is_scope_chain_unknown(self) -> bool:
+        return self.scope_chain_unknown
+
+    def add_to_scope_chain(self, new_sc: ScopeChain):
+        assert not self.scope_chain_unknown, "Calling add_to_scope_chain when scope is 'unknown'"
+        res = self.scope_chain + new_sc
+        changed = res == self.scope_chain
+        self.scope_chain = res
+        return changed
 
 
 class ObjDefaults:
@@ -155,6 +178,7 @@ class ObjDefaults:
     '''
 
     the_none = Obj()
+
     the_absent_modified = Obj()
     the_none_modified = Obj()
     the_unknown = Obj()

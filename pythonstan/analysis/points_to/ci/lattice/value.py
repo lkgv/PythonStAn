@@ -277,18 +277,65 @@ PRIMITIVE = UNDEF | NONE | BOOL | INT | FLOAT | STR
 
 
 class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
-    the_none: 'Value'
-    the_none_modified: 'Value'
-    the_undef: 'Value'
-    the_bool_true: 'Value'
-    the_bool_false: 'Value'
-    the_bool_any: 'Value'
-    the_str_any: 'Value'
-    the_int_any: 'Value'
-    the_float_any: 'Value'
-    the_absent: 'Value'
-    the_absent_modified: 'Value'
-    the_unknown: 'Value'
+    @classmethod
+    @property
+    def the_none(cls):
+        return ValueDefault.the_none
+
+    @classmethod
+    @property
+    def the_none_modified(cls):
+        return ValueDefault.the_none_modified
+
+    @classmethod
+    @property
+    def the_undef(cls):
+        return ValueDefault.the_undef
+
+    @classmethod
+    @property
+    def the_bool_true(cls):
+        return ValueDefault.the_bool_true
+
+    @classmethod
+    @property
+    def the_bool_false(cls):
+        return ValueDefault.the_bool_false
+
+    @classmethod
+    @property
+    def the_bool_any(cls):
+        return ValueDefault.the_bool_any
+
+    @classmethod
+    @property
+    def the_str_any(cls):
+        return ValueDefault.the_str_any
+
+    @classmethod
+    @property
+    def the_int_any(cls):
+        return ValueDefault.the_int_any
+
+    @classmethod
+    @property
+    def the_float_any(cls):
+        return ValueDefault.the_float_any
+
+    @classmethod
+    @property
+    def the_absent(cls):
+        return ValueDefault.the_absent
+
+    @classmethod
+    @property
+    def the_absent_modified(cls):
+        return ValueDefault.the_absent_modified
+
+    @classmethod
+    @property
+    def the_unknown(cls):
+        return ValueDefault.the_unknown
 
     @staticmethod
     def canonicalize(v: 'Value') -> 'Value':
@@ -477,27 +524,6 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         ret = Value()
         ret.flags |= UNKNOWN
         return cls.canonicalize(ret)
-
-    @classmethod
-    def reset(cls):
-        cls._init()
-
-    @classmethod
-    def _init(cls):
-        cls.the_none = cls.really_make_none()
-        cls.the_none_modified = cls.really_make_none_modified()
-        cls.the_undef = cls.really_make_undef()
-        cls.the_none = cls.really_make_none()
-        cls.the_bool_true = cls.really_make_bool(True)
-        cls.the_bool_false = cls.really_make_bool(False)
-        cls.the_str_any = cls.really_make_any_str()
-        cls.the_int_any = cls.really_make_any_int()
-        cls.the_float_any = cls.really_make_any_float()
-        cls.the_absent = cls.really_make_absent()
-        cls.the_absent_modified = cls.really_make_absent_modified()
-        cls.the_unknown = cls.really_make_unknown()
-
-    _init()
 
     flags: int
     var: Optional[Property]
@@ -2231,3 +2257,17 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
                 self.included_strs = None
         else:
             self.excluded_strs = set_deoptional(self.excluded_strs).union({string})
+
+
+class ValueDefault:
+    the_none = Value.really_make_none()
+    the_none_modified = Value.really_make_none_modified()
+    the_undef = Value.really_make_undef()
+    the_bool_true = Value.really_make_bool(True)
+    the_bool_false = Value.really_make_bool(False)
+    the_str_any = Value.really_make_any_str()
+    the_int_any = Value.really_make_any_int()
+    the_float_any = Value.really_make_any_float()
+    the_absent = Value.really_make_absent()
+    the_absent_modified = Value.really_make_absent_modified()
+    the_unknown = Value.really_make_unknown()

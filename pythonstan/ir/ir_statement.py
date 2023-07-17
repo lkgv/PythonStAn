@@ -35,6 +35,9 @@ class IRStatement(ABC):
     def rename(self, old_name, new_name, ctxs):
         ...
 
+    def __lt__(self, other: 'IRStatement') -> bool:
+        return str(self) < str(other)
+
 
 class IRAbstractStmt(IRStatement, ABC):
     def get_stores(self) -> Set[str]:

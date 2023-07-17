@@ -212,7 +212,7 @@ class ThreeAddressTransformer(NodeTransformer):
                     raise NotImplementedError("The op is not a bool op!")
                 tmp_blk.append(ast.If(test=tmp_test, body=blk, orelse=[]))
             blk = tmp_blk
-            elts.insert(0,p tmp_elt)
+            elts.insert(0, tmp_elt)
         return blk, tmp_l
 
     def visit_IfExp(self, node):

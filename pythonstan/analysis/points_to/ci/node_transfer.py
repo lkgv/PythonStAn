@@ -66,12 +66,48 @@ class NodeTransfer(IRVisitor):
         ...
 
     def visit_IRCall(self, ir: IRCall):
-        ...
+        state = self.c.get_state()
+        fname = ir.get_func_name()
+        fval = self.v.get_var(fname, state)
+        if fval.is_maybe_obj():
+            for l in fval.get_obj_labels():
+                if l.get_kind() == LabelKind.Function:
+                    ir_scope = l.get_scope()
+                    assert isinstance(ir_scope, IRFunc), "Scope of a function label should be IRFunc"
+                    if ir_scope.is_instance_method:
+                        self_val = Value.make_obj([l.get_host_obj_label()])
+
+                        # call method
+                        ...
+
+                    if ir_scope.is_class_method:
+                        cls_val = Value.make_obj([l.get_host_obj_label()])
+
+                        # call method
+                        ...
+
+                    else:
+                        # call method
+                        ...
+                    ...
+                elif l.get_kind() == LabelKind.Class:
+                    # obj = new_obj
+                    init_fn_val = self.v.retrive_property(l, "__init__", state)
+                    if init_fn_val.is_maybe_obj():
+                        for init_fn_label in init_fn_val.get_obj_labels():
+                            if init_fn_label.get_kind() == LabelKind.Function:
+                                new_obj = ... # make the new_obj
+                                # call init function to the new_obj
+
 
     def visit_IRImport(self, ir: IRImport):
         from pythonstan.world import World
         world : World = self.c.get_world()
-        world.scope_manager.get
+        mod = world.import_manager.get_import(self.c.get_module, ir)
+        mod_cfg = world.scope_manager.get_ir(mod, "CFG")
+        # go through mod_cfg
+        # mod_state =
+
 
     def visit_IRReturn(self, ir: IRReturn):
         ...
@@ -101,32 +137,32 @@ class NodeTransfer(IRVisitor):
             left_val = s.get_memory(rval_ast.left.id)
             right_val = s.get_memory(rval_ast.right.id)
             result = Operators.bin_op(rval_ast.op, left_val, right_val, s)
-            self.v.write_var(lval_id, result, s)
+            self.v.set_var(lval_id, result, s)
 
         elif isinstance(rval_ast, ast.UnaryOp):
             operand = self.v.get_var(rval_ast.operand.id, s)
             result = Operators.unary_op(rval_ast.op, operand, s)
-            self.v.write_var(lval_id, result, s)
+            self.v.set_var(lval_id, result, s)
 
         elif isinstance(rval_ast, ast.Tuple):
             obj_label = ObjLabel(blk, scope, LabelKind.Tuple), ...
             tuple_val = self.c.get_state().new_tuple(obj_label, rval_ast)
-            self.v.write_var(lval_id, tuple_val, s)
+            self.v.set_var(lval_id, tuple_val, s)
 
         elif isinstance(rval_ast, ast.List):
             obj_label = ObjLabel(blk, scope, LabelKind.List), ...
             list_val = self.c.get_state().new_list(obj_label, rval_ast)
-            self.v.write_var(lval_id, list_val, s)
+            self.v.set_var(lval_id, list_val, s)
 
         elif isinstance(rval_ast, ast.Set):
             obj_label = ObjLabel(blk, scope, LabelKind.Set)
             set_val = self.c.get_state().new_set(obj_label, rval_ast)
-            self.v.write_var(lval_id, set_val, s)
+            self.v.set_var(lval_id, set_val, s)
 
         elif isinstance(rval_ast, ast.Dict):
             obj_label = ObjLabel(blk, scope, LabelKind.Dict)
             set_val = self.c.get_state().new_set(obj_label, rval_ast)
-            self.v.write_var(lval_id, set_val, s)
+            self.v.set_var(lval_id, set_val, s)
 
         elif isinstance(rval_ast, ast.Constant):
             if isinstance(rval_ast.value, int):
@@ -141,27 +177,27 @@ class NodeTransfer(IRVisitor):
                 val = Value.make_none()
             else:
                 raise ValueError(f"Not supported constant! <{ast.unparse(rval_ast)}>")
-            self.v.write_var(lval_id, val, s)
+            self.v.set_var(lval_id, val, s)
 
     def visit_IRLoadAttr(self, ir: IRLoadAttr):
         s = self.c.get_state()
-        obj_val = s.read_memory(ir.get_obj().id)
+        obj_val = self.v.get_var(ir.get_obj().id, s)
         if obj_val is not None and len(obj_val.get_obj_labels()) > 0:
             vals = [self.v.retrive_property(l, ir.get_attr(), s).restrict_to_not_absent() for l in obj_val.get_obj_labels()]
             val = Value.join_values(vals)
-            s.write_memory(ir.get_lval().id, val)
+            self.v.set_var(ir.get_lval().id, val, s)
         else:
-            s.write_memory(ir.get_lval().id, Value.make_absent())
+            self.v.set_var(ir.get_lval().id, Value.make_absent(), s)
 
     def visit_IRStoreAttr(self, ir: IRStoreAttr):
         s = self.c.get_state()
-        obj_val = s.read_memory(ir.get_obj().id)
-        src_val = s.read_memory(ir.get_rval().id)
+        obj_val = self.v.get_var(ir.get_obj().id, s)
+        src_val = self.v.get_var(ir.get_rval().id, s)
         if src_val is None:
             src_val = Value.make_absent()
-        if obj_val is not None and len(obj_val.get_obj_labels()) > 0:
+        if obj_val is not None:
             for obj_label in obj_val.get_obj_labels():
-                self.v.write_property(obj_label, ir.get_attr(), src_val)
+                self.v.write_property(obj_label, ir.get_attr(), src_val, s)
 
     def visit_IRLoadSubscr(self, ir: IRLoadSubscr):
         lval_id = ir.get_lval().id
@@ -175,7 +211,7 @@ class NodeTransfer(IRVisitor):
         else:
             slice = self.v.get_var(ir.get_slice().id, self.c.get_state())
             subscr = ...
-        self.v.write_var(lval_id, subscr, self.c.get_state())
+        self.v.set_var(lval_id, subscr, self.c.get_state())
 
     def visit_IRStoreSubscr(self, ir: IRStoreSubscr):
         ...
@@ -183,8 +219,21 @@ class NodeTransfer(IRVisitor):
     # declare a function
     def visit_IRFunc(self, ir: IRFunc):
         s = self.c.get_state()
-        name = ir.get_name()
+        blk = s.get_block()
+        fn = self.init_function(ir, s.get_execution_context().scope_chain, blk, s, self.c)
+        fnval = self.get_initialized_functions(fn, ir, blk, self.c)
+        self.v.set_var(ir.get_name(), fnval, s)
 
+    def get_initialized_functions(self, fn: ObjLabel, scope: IRScope, blk, c: SolverInterface) -> Value:
+        return Value.make_obj([fn])
+
+    def init_function(self, ir: IRFunc, scope, blk, state: State, c: SolverInterface) -> ObjLabel:
+        ctx = c.get_analysis().get_context_sensitive_strategy().make_function_heap_context(ir_func, c)
+        func_label = ObjLabel.make_scope_with_ctx(ir, ctx)
+        state.new_obj(func_label)
+        state.write_obj_scope(func_label, state.get_execution_context().scope_chain)
+        self.v.write_property(func_label, "__name__", Value.make_str(ir.get_name()), state)
+        return func_label
 
     def visit_IRClass(self, ir: IRClass):
         ...

@@ -73,7 +73,7 @@ class BlockCFGBuilder:
 
     def build_func(self, func_def) -> Tuple[IRFunc, List[Tuple[BaseBlock, IRImport]]]:
         qualname = f"{self.scope.get_qualname()}.{func_def.name}"
-        func = IRFunc(qualname, func_def)
+        func = IRFunc(qualname, func_def, under_class=isinstance(self.scope, IRClass))
         builder = BlockCFGBuilder(scope=func)
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
