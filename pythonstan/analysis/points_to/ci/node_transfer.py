@@ -1,13 +1,16 @@
 import ast
-from typing import Set, Optional
+from typing import Set, Optional, Tuple
 
 from .solver import SolverInterface
+from .lattice.context import Context
+from .lattice.scope_chain import Scope
 from .lattice.value import Value
 from .lattice.state import State
 from .lattice.obj import Obj
 from .lattice.obj_label import ObjLabel, LabelKind
 from .lattice.value_resolver import ValueResolver
 from pythonstan.ir import *
+from pythonstan.graph.cfg import BaseBlock
 
 
 class Operators:
@@ -96,7 +99,7 @@ class NodeTransfer(IRVisitor):
                     if init_fn_val.is_maybe_obj():
                         for init_fn_label in init_fn_val.get_obj_labels():
                             if init_fn_label.get_kind() == LabelKind.Function:
-                                new_obj = ... # make the new_obj
+                                ...
                                 # call init function to the new_obj
 
 
@@ -106,6 +109,10 @@ class NodeTransfer(IRVisitor):
         mod = world.import_manager.get_import(self.c.get_module, ir)
         mod_cfg = world.scope_manager.get_ir(mod, "CFG")
         # go through mod_cfg
+        mod_state = self.c.get_state().clone()
+        ec = self.c.get_analysis().new_execution_context()
+        mod_state.set_execution_context(ec)
+
         # mod_state =
 
 
@@ -231,7 +238,9 @@ class NodeTransfer(IRVisitor):
         ctx = c.get_analysis().get_context_sensitive_strategy().make_function_heap_context(ir_func, c)
         func_label = ObjLabel.make_scope_with_ctx(ir, ctx)
         state.new_obj(func_label)
-        state.write_obj_scope(func_label, state.get_execution_context().scope_chain)
+        fn_scope = state.get_execution_context().scope_chain.clone()
+        fn_scope.add_scope(Scope(ir))
+        state.write_obj_scope(func_label, fn_scope)
         self.v.write_property(func_label, "__name__", Value.make_str(ir.get_name()), state)
         return func_label
 
@@ -240,3 +249,8 @@ class NodeTransfer(IRVisitor):
 
     def visit_IRModule(self, ir: IRModule):
         ...
+
+    def transfer_return(self, blk: BaseBlock, state: State, caller_bc: Tuple[BaseBlock, Context], edge_ctx: Context):
+        v = self.v.get_var("__return__", state)
+        ... # leave_function(
+

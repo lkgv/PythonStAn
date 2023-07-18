@@ -1,8 +1,10 @@
 from typing import Optional, Dict, Set, Tuple
 
-from pythonstan.analysis.points_to.ci.lattice.state import State
-from pythonstan.analysis.points_to.ci.lattice.context import Context
+from .state import State
+from .context import Context
+from .call_graph import CallGraph
 from pythonstan.graph.cfg import BaseBlock
+
 
 
 class AnalysisLatticeElement:
@@ -19,6 +21,9 @@ class AnalysisLatticeElement:
         ...
 
     def num_of_states(self) -> int:
+        ...
+
+    def get_call_graph(self) -> CallGraph:
         ...
 
 

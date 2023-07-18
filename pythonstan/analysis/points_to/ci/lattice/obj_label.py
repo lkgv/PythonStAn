@@ -149,16 +149,19 @@ class ObjLabel:
     heap_ctx: Context
     singleton: bool
     kind: LabelKind
+    pre_defined: bool
 
     def __init__(self, block: Optional[BaseBlock], scope: Optional[IRScope], kind: LabelKind,
                  heap_ctx: Optional[Context] = None, singleton: bool = True,
-                 host_obj_label: Optional['ObjLabel'] = None):
+                 host_obj_label: Optional['ObjLabel'] = None,
+                 is_predefined: bool = False):
         self.block = block
         self.scope = scope
         self.kind = kind
         self.heap_ctx = Context.make_empty() if heap_ctx is None else heap_ctx
         self.singleton = singleton
         self.host_obj_label = host_obj_label
+        self.pre_defined = is_predefined
 
     def __eq__(self, other) -> bool:
         return (self.block == other.block and self.scope == other.scope and
@@ -194,6 +197,9 @@ class ObjLabel:
     def get_scope(self) -> IRScope:
         assert self.scope is not None, "Scope of a function/class label cannot be None!"
         return self.scope
+
+    def is_predefined(self) -> bool:
+        return self.pre_defined
 
     def get_kind(self) -> LabelKind:
         return self.kind

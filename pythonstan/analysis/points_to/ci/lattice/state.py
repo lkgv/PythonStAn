@@ -187,7 +187,7 @@ class State:
         if writable:
             self.make_writable_store()
         obj = self.store.get(obj_label)
-        if obj is not None:
+        if obj is not None and not obj.is_writable() and writable:
             obj = Obj.from_obj(obj)
             self.write_store(obj_label, obj)
         if obj is None and hasattr(self, 'basis_store'):

@@ -3,13 +3,20 @@ from typing import Optional, Callable, Tuple
 from pythonstan.ir import *
 from pythonstan.graph.icfg.icfg import InterControlFlowGraph
 from pythonstan.graph.cfg import BaseBlock
-from .lattice.state import State
 from .analysis import CIPTSAnalysis
-from pythonstan.analysis.points_to.ci.lattice.context import Context
-from pythonstan.analysis.points_to.ci.lattice.analysis_lattice_element import AnalysisLatticeElement
+from .lattice.state import State
+from .lattice.context import Context
+from .lattice.analysis_lattice_element import AnalysisLatticeElement
+from .lattice.call_edge import CallEdge
+from .lattice.call_graph import CallGraph
 from .work_list import WorkList
 
 class SolverInterface:
+    @staticmethod
+    def get_world():
+        from pythonstan.world import World
+        return World()
+
     from .solver import Solver
     solver: Solver
 
@@ -73,10 +80,19 @@ class SolverInterface:
     def get_module(self) -> IRModule:
         return self.solver.module
 
-    @staticmethod
-    def get_world():
-        from pythonstan.world import World
-        return World()
+    def propagate_to_function_entry(self, call_blk: BaseBlock, caller_ctx: Context, edge: CallEdge,
+                                    callee_scope: IRScope, edge_ctx: Context, callee_entry: BaseBlock):
+        cg = self.get_analysis_lattice_element().get_call_graph()
+        callee_ctx = edge_ctx
+        cg.register_scope_entry((callee_entry, callee_ctx))
+        if cg.add_target(call_blk, caller_ctx, callee_entry, callee_scope, edge_ctx, edge):
+            cg.add_source(call_blk, caller_ctx, callee_entry, callee_ctx, edge_ctx)
+            self.propagate_update_work_list(edge.get_state(), callee_entry, callee_ctx, True)
+        stored_state = self.solver.current_state
+        stored_node = self.solver.current_node
+        self.solver.current_state = None
+        self.solver.current_node = None
+        self.get_analysis().get_node_transfer_functions().transfer_return(call_blk, callee_entry, caller_ctx, callee_ctx, edge_ctx)
+        self.solver.current_state = stored_state
+        self.solver.current_node = stored_node
 
-    def propagate_to_function_entry(self, call_ir: IRCall, caller_ctx: Context, edge):
-        ...

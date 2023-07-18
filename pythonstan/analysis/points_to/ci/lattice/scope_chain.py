@@ -58,8 +58,11 @@ class ScopeChain:
     def cur_scope(self) -> Scope:
         return self.scopes[-1]
 
-    def add_scope(self, scope: Scope):
-        self.scopes.append(scope)
+    def add_scope(self, scope: Optional[Scope] = None):
+        if scope is not None:
+            self.scopes.append(scope)
+        else:
+            self.scopes.append(Scope())
 
     def get_var(self, var_name: str) -> Optional[Value]:
         for scope in self.scopes[:-1]:
@@ -86,6 +89,9 @@ class ScopeChain:
                 break
         self.cur_scope().update_var(var_name, val)
         return False
+
+    def clone(self) -> 'ScopeChain':
+        return ScopeChain([x for x in self.scopes])
 
     def __add__(self, other):
         return ScopeChain(self.scopes + other.scopes)

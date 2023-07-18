@@ -8,6 +8,8 @@ from .edge_transfer import EdgeTransfer
 from ...analysis import Analysis, AnalysisConfig
 from .solver_interface import SolverInterface
 from .context_sensitive_strategy import ContextSensitiveStrategy
+from .lattice.execution_context import ExecutionContext
+from .predefined_functions import PREDEFINED_FUNCTIONS_LIST
 
 
 class CIPTSAnalysis(Analysis):
@@ -32,6 +34,7 @@ class CIPTSAnalysis(Analysis):
         ...
 
     def get_solver_interface(self):
+        ...
 
     def make_analysis_lattice(self, graph):
         pass
@@ -44,4 +47,12 @@ class CIPTSAnalysis(Analysis):
 
     def get_context_sensitive_strategy(self) -> ContextSensitiveStrategy:
         return self.context_sensitive_strategy
+
+    def new_execution_context(self) -> ExecutionContext:
+        ec = ExecutionContext()
+        ec.new_scope_chain()
+        ec.scope_chain.add_scope()
+        for name, f_obj in PREDEFINED_FUNCTIONS_LIST:
+            ec.set_var(name, f_obj)
+        return ec
 

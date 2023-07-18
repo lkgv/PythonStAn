@@ -77,6 +77,9 @@ class Obj:
     def get_cls_label(self) -> ObjLabel:
         return self.cls
 
+    def is_writable(self) -> bool:
+        return self.writable
+
     def is_unknown(self) -> bool:
         if self.scope_chain is None:
             return False
@@ -128,6 +131,9 @@ class Obj:
         changed = res == self.scope_chain
         self.scope_chain = res
         return changed
+
+    def get_scope_chain(self) -> ScopeChain:
+        return self.scope_chain
 
 
 class ObjDefaults:

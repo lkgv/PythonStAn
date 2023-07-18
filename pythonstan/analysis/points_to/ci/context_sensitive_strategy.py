@@ -1,7 +1,9 @@
 from .lattice.context import Context
 from .lattice.state import State
+from .lattice.value import Value
 from .lattice.obj_label import ObjLabel
 from .solver_interface import SolverInterface
+from .call_info import CallInfo
 from pythonstan.ir import *
 
 class ContextSensitiveStrategy:
@@ -16,4 +18,7 @@ class ContextSensitiveStrategy:
         ...
 
     def make_initial_context(self) -> Context:
+        ...
+
+    def make_constructor_heap_context(self, state: State, fn_label: ObjLabel, call_info: CallInfo, c: SolverInterface):
         ...
