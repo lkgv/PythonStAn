@@ -135,6 +135,10 @@ class Obj:
     def get_scope_chain(self) -> ScopeChain:
         return self.scope_chain
 
+    def replace_non_modified_parts(self, other: 'Obj'):
+        ...
+
+
 
 class ObjDefaults:
     '''

@@ -11,6 +11,7 @@ from .lattice.call_edge import CallEdge
 from .lattice.call_graph import CallGraph
 from .work_list import WorkList
 
+
 class SolverInterface:
     @staticmethod
     def get_world():
@@ -95,4 +96,3 @@ class SolverInterface:
         self.get_analysis().get_node_transfer_functions().transfer_return(call_blk, callee_entry, caller_ctx, callee_ctx, edge_ctx)
         self.solver.current_state = stored_state
         self.solver.current_node = stored_node
-

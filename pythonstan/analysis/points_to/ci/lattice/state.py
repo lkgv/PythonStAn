@@ -67,6 +67,9 @@ class State:
         ret.set_to_state(self)
         return ret
 
+    def get_store(self) -> PersistentMap[ObjLabel, Obj]:
+        return self.store
+
     def set_to_bottom(self):
         self.store = PersistentMap()
         self.registers = []
@@ -93,6 +96,14 @@ class State:
         self.execution_context = e
         self.writable_execution_context = True
 
+    def set_stacked(self, so: Set[ObjLabel], sse: Set[Tuple[BaseBlock, Context]]):
+        self.stacked_obj_labels = so
+        self.stacked_scope_entries = sse
+        self.writable_stacked = True
+
+    def get_stacked_objs(self) -> Set[ObjLabel]:
+        return self.stacked_obj_labels
+
     def make_writable_store(self):
         if not self.writable_store:
             backup = self.store.backup()
@@ -113,6 +124,14 @@ class State:
 
     def write_store(self, obj_label: ObjLabel, obj: Obj):
         self.store[obj_label] = obj
+
+    def put_obj(self, obj_label: ObjLabel, obj: Obj):
+        self.make_writable_store()
+        self.write_store(obj_label, obj)
+
+    def remove_obj(self, obj_label: ObjLabel):
+        self.make_writable_store()
+        self.store.delete(obj_label)
 
     def remove_obj(self, obj_label: ObjLabel):
         del self.store[obj_label]
@@ -204,6 +223,9 @@ class State:
 
     def set_store_default(self, obj: Obj):
         self.store_default = obj
+
+    def get_store_default(self) -> Obj:
+        return self.store_default
 
     def remove_default_from_store(self, default_none_at_entry: bool):
         for k, v in self.store.items():

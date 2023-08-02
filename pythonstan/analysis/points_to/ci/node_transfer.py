@@ -2,6 +2,7 @@ import ast
 from typing import Set, Optional, Tuple
 
 from .solver import SolverInterface
+from .operators import Operators
 from .lattice.context import Context
 from .lattice.scope_chain import Scope
 from .lattice.value import Value
@@ -12,15 +13,6 @@ from .lattice.value_resolver import ValueResolver
 from pythonstan.ir import *
 from pythonstan.graph.cfg import BaseBlock
 
-
-class Operators:
-    @staticmethod
-    def bin_op(self, left: Value, right: Value, s: State) -> Value:
-        ...
-
-    @staticmethod
-    def unary_op(self, op, s: State) -> Value:
-        ...
 
 class Conversion:
     @classmethod
@@ -117,7 +109,7 @@ class NodeTransfer(IRVisitor):
 
 
     def visit_IRReturn(self, ir: IRReturn):
-        ...
+        self.transfer_return(...)
 
     def visit_IRYield(self, ir: IRYield):
         ...
@@ -250,7 +242,8 @@ class NodeTransfer(IRVisitor):
     def visit_IRModule(self, ir: IRModule):
         ...
 
-    def transfer_return(self, blk: BaseBlock, state: State, caller_bc: Tuple[BaseBlock, Context], edge_ctx: Context):
-        v = self.v.get_var("__return__", state)
+
+    def transfer_return(self, blk: BaseBlock, state: State, return_val: Value, caller_bc: Tuple[BaseBlock, Context], edge_ctx: Context):
+
         ... # leave_function(
 
