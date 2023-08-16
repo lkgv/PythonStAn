@@ -9,6 +9,7 @@ from .obj import Obj
 from .obj_label import ObjLabel, LabelKind
 from .execution_context import ExecutionContext
 from .scope_chain import ScopeChain
+from .summarized import Summarized
 
 
 
@@ -185,6 +186,10 @@ class State:
             if self.get_obj(summary).is_unknown() and self.store_default.is_unknown():
                 self.store.delete(summary)
         self.write_store(singleton, new_obj)
+
+    def summarize(self, vs: List[Value], s: Summarized) -> List[Value]:
+        return [v.summarize(s) for v in vs]
+
 
     # TODO end
     ###########

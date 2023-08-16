@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Set, Union, Collection, Callable
 
-import libcst
-
 from pythonstan.utils.common import set_deoptional
 from .obj_label import ObjLabel, LabelKind, Renamings
-from .property import Property
+from .summarized import Summarized
 
 
 class VBool(ABC):
@@ -524,6 +522,10 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         ret = Value()
         ret.flags |= UNKNOWN
         return cls.canonicalize(ret)
+
+    @classmethod
+    def make_unknown(cls) -> 'Value':
+        return cls.the_unknown
 
     flags: int
     var: Optional[Property]
@@ -2096,6 +2098,16 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
             if len(ret.obj_labels) == 0:
                 ret.obj_labels = None
         return self.canonicalize(ret)
+
+    def summarize(self, s: Summarized) -> 'Value':
+        if self.is_unknown() or self.is_polymorphic():
+            return self
+        ss = s.summarize(self.get_obj_labels())
+        if ss == self.get_obj_labels():
+            return self
+        r = Value.from_value(self)
+        r.obj_labels = ss if len(ss) > 0 else None
+        return self.canonicalize(r)
 
     def restrict_to_strict_not_equals(self, v: 'Value') -> 'Value':
         self.check_not_polymorphic_or_unknown()
