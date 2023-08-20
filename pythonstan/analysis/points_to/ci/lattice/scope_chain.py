@@ -1,4 +1,4 @@
-from typing import Optional, Dict, List, Set
+from typing import Optional, Dict, List, Set, Iterator
 
 from pythonstan.ir import IRScope
 from .value import Value
@@ -131,6 +131,11 @@ class ScopeChain:
             return False
         return self.get_obj() == other.get_obj()
 
+    @staticmethod
+    def iterator(sc: Optional['ScopeChain']) -> Iterator['ScopeChain']:
+        while sc is not None:
+            yield sc
+            sc = sc.get_next()
 
 
 

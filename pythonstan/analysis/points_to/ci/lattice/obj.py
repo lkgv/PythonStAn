@@ -216,9 +216,6 @@ class Obj:
         v = self.items.get(v)
         if v is None:
             v = self.default_item
-        for k, v in self.items.items():
-            if k.
-        return v
 
     def set_item(self, k: Value, v: Value):
         if k

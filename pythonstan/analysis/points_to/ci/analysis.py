@@ -34,7 +34,7 @@ class CIPTSAnalysis(Analysis):
         ...
 
     def get_solver_interface(self):
-        ...
+        return self.solver_interface
 
     def make_analysis_lattice(self, graph):
         pass

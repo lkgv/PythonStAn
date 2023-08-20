@@ -239,7 +239,8 @@ class NodeTransfer(IRVisitor):
     def visit_IRClass(self, ir: IRClass):
         ...
 
-    def visit_IRModule(self, ir: IRModule):
+    def visit_IRImport(self, ir: IRImport):
+        # call and back the specific values (in the leave_function method)
         ...
 
 

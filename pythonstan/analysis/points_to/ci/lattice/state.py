@@ -187,9 +187,6 @@ class State:
                 self.store.delete(summary)
         self.write_store(singleton, new_obj)
 
-    def summarize(self, vs: List[Value], s: Summarized) -> List[Value]:
-        return [v.summarize(s) for v in vs]
-
 
     # TODO end
     ###########
@@ -250,3 +247,46 @@ class State:
 
     def propagate(self, s: 'State', is_entry: bool, widen: bool = False) -> bool:
         ...
+
+    @staticmethod
+    def summarize(vs: List[Value], s: Summarized) -> List[Value]:
+        return [v.summarize(s) for v in vs]
+
+    def read_property_direct(self, obj_label: ObjLabel, prop_str: Value) -> Value:
+        if prop_str.is_maybe_single_str():
+            return ValueResolver.get_property(...)
+
+
+    def read_property_raw(self, obj_labels: Set[ObjLabel], prop_str: Value) -> Value:
+        values = []
+        for ol in obj_labels:
+            ol2 = {*()}
+            for l in ol:
+
+
+    def read_var(self, name: str) -> Value:
+        values = []
+        definitely_found = False
+        for sc in ScopeChain.iterator(self.execution_context.get_scope_chain()):
+            definitely_found = True
+            for obj_label in sc.get_obj():
+                v: Value = self.read_property_raw({obj_label}, Value.make_str(name))
+                if v.is_maybe_present():
+                    v2 = v.restrict_to_not_absent()
+                    values.append(v2)
+                if v.is_maybe_absent():
+                    definitely_found = False
+            if definitely_found:
+                break
+        if not definitely_found:
+            values.append(Value.make_absent())
+        res = Value.join_values(values)
+        return res
+
+
+
+
+
+
+
+    def write_property_raw

@@ -85,9 +85,9 @@ def propagate_to_function_entry(edge: CallEdge, call_site: BaseBlock, obj_f: Obj
 
 
 def leave_function(ret_val: Value, scope: IRScope, state: State, c: SolverInterface):
-        cg = c.get_analysis_lattice_element().get_call_graph()
-        for caller, caller_ctx, edge_ctx in cg.get_sources((state.get_block(), state.get_context())):
-            return_to_caller(caller, caller_ctx, edge_ctx, ret_val, scope, state.clone(), c)
+    cg = c.get_analysis_lattice_element().get_call_graph()
+    for caller, caller_ctx, edge_ctx in cg.get_sources((state.get_block(), state.get_context())):
+        return_to_caller(caller, caller_ctx, edge_ctx, ret_val, scope, state.clone(), c)
 
 
 def leave_specific_function(ret_val: Value, scope: IRScope, state: State, c: SolverInterface,
@@ -130,5 +130,6 @@ def merge_function_return(return_state: State, caller_state: State, call_edge_st
                              {sse for sse in caller_state.get_stacked_scope_entries()})
     res = return_val
     return res
+
 
 
