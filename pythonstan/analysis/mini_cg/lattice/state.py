@@ -1,4 +1,4 @@
-from typing import Set, Tuple, Optional, List
+from typing import Set, Tuple, Optional, List, Dict
 
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 from pythonstan.graph.cfg import BaseBlock
@@ -18,7 +18,7 @@ class State:
     c: SolverInterface
     block: BaseBlock
     context: Context
-    store: PersistentMap[ObjLabel, Obj]
+    store: Dict[ObjLabel, Obj]
     store_default: Obj
     basis_store: PersistentMap[ObjLabel, Obj]
     stacked_obj_labels: Set[ObjLabel]
@@ -53,8 +53,7 @@ class State:
 
     def set_to_state(self, s: 'State'):
         self.store_default = s.store_default
-        self.store = PersistentMap()
-        self.store.recover(s.store.backup())
+        self.store = {k: v for k, v in s.store.items()}
         self.writable_store = True
         self.basis_store = s.basis_store
         self.execution_context = s.execution_context.clone()
@@ -262,7 +261,6 @@ class State:
         for ol in obj_labels:
             ol2 = {*()}
             for l in ol:
-                obj = self.get_obj(l, )
 
 
     def read_var(self, name: str) -> Value:

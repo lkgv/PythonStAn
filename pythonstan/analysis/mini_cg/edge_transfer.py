@@ -22,7 +22,5 @@ class EdgeTransfer(EdgeVisitor):
     def visit_NormalEdge(self, state, edge):
         return state
 
-    def visit_IfEdge(self, state, edge: IfEdge):
-        if edge.value is True:
-            edge.test
-        return state
+    def visit_IfEdge(self, state, edge):
+

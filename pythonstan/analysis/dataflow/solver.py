@@ -30,7 +30,7 @@ class Solver(Generic[Fact], ABC):
 
     @classmethod
     def init_forward(cls, analysis: DataflowAnalysis[Fact]
-             ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
+                     ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_cfg()
         for node in cfg.blks:
@@ -44,7 +44,7 @@ class Solver(Generic[Fact], ABC):
     
     @classmethod
     def init_backward(cls, analysis: DataflowAnalysis[Fact]
-             ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
+                      ) -> Tuple[Dict[BaseBlock, Fact], Dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.cfg
         for node in cfg.blks:

@@ -1,16 +1,13 @@
 from typing import Tuple, Set
-from abc import ABC
 
 from pythonstan.ir import IRScope, IRCall
 from pythonstan.graph.cfg import BaseBlock
-from .lattice.state import State
 from .lattice.value import Value
 from .lattice.obj_label import ObjLabel, LabelKind
 from .lattice.execution_context import ExecutionContext
 
 
-class CallInfo(ABC):
-
+class CallInfo:
     def get_call_site(self) -> BaseBlock:
         ...
 
@@ -43,13 +40,3 @@ class CallInfo(ABC):
 
     def get_call_ir(self) -> IRCall:
         ...
-
-
-class OrdinaryCallInfo(CallInfo):
-    call_site: BaseBlock
-    state: State
-
-    def __init__(self, cs: blk):
-
-    def is_constructor(self) -> bool:
-        return False

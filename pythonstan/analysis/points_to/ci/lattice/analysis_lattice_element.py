@@ -9,7 +9,8 @@ from pythonstan.graph.cfg import BaseBlock
 
 class AnalysisLatticeElement:
     def get_state(self, ctx: Context, blk: Optional[BaseBlock] = None):
-        ...
+        if blk is not None:
+            return self.
 
 
     def get_states(self, blk: BaseBlock) -> Dict[Context, State]:
