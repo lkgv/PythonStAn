@@ -479,8 +479,8 @@ class ThreeAddressTransformer(NodeTransformer):
     def visit_Call(self, node):
         blk, args, keywords = [], [], []
         func_blk, func_elt = self.visit(node.func)
-        if not (isinstance(func_elt, ast.Name) or
-                isinstance(func_elt, ast.Attribute)):
+        if not (isinstance(func_elt, ast.Name)):
+                # or isinstance(func_elt, ast.Attribute)):
             func_blk, func_elt = self.split_expr(node.func)
         blk.extend(func_blk)
         for arg in node.args:

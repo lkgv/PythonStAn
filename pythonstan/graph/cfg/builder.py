@@ -43,9 +43,9 @@ class CFGBuilder:
         builder.cfg.add_super_exit_blk(builder.new_blk())
 
         mod_def.set_cfg(builder.cfg)
-        mod.set_funcs(mod_info['func'])
-        mod.set_classes(mod_info['class'])
-        mod.set_imports(mod_info['import'])
+        mod_def.set_funcs(mod_info['func'])
+        mod_def.set_classes(mod_info['class'])
+        mod_def.set_imports(mod_info['import'])
         return mod_def
 
     def build_func(self, func_def: IRFunc) -> IRFunc:
@@ -53,7 +53,7 @@ class CFGBuilder:
         new_blk = builder.new_blk()
         edge = NormalEdge(builder.cfg.entry_blk, new_blk)
         builder.cfg.add_edge(edge)
-        func_info = builder._build(stmt.body, builder.cfg, new_blk)
+        func_info = builder._build(func_def.ast.body, builder.cfg, new_blk)
         for ret_blk, _ in func_info['return']:
             builder.cfg.add_exit(ret_blk)
         for yield_blk, _ in func_info['yield']:
@@ -63,11 +63,11 @@ class CFGBuilder:
         builder.cfg.add_exit(func_info['last_block'])
         builder.cfg.add_super_exit_blk(builder.new_blk())
 
-        func.set_cfg(builder.cfg)
-        func.set_funcs(func_info['func'])
-        func.set_classes(func_info['class'])
-        func.set_imports(func_info['import'])
-        return func
+        func_def.set_cfg(builder.cfg)
+        func_def.set_funcs(func_info['func'])
+        func_def.set_classes(func_info['class'])
+        func_def.set_imports(func_info['import'])
+        return func_def
 
     def build_class(self, cls: IRClass) -> Tuple[IRClass, Dict]:
         builder = CFGBuilder(scope=cls)
@@ -116,7 +116,7 @@ class CFGBuilder:
 
         for i, stmt in enumerate(stmts):
             if isinstance(stmt, ast.FunctionDef):
-                func_def = IRFuncDef(stmt)
+                func_def = IRFunc(stmt)
                 cfg.add_stmt(cur_blk, func_def)
                 func = self.build_func(stmt, func_def)
                 exit_stmt['func'].append(func)

@@ -43,7 +43,7 @@ class Operators:
 
 
     @classmethod
-    def unary_op(cls, op: ast.operator, s: State) -> Value:
+    def unary_op(cls, op: ast.operator, s) -> Value:
         ...
 
     @staticmethod

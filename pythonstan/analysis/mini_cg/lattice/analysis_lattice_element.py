@@ -24,8 +24,19 @@ class AnalysisLatticeElement:
     def get_states(self, blk: BaseBlock) -> Dict[Context, State]:
         return {c: s for (c, b), s in self.states.items() if blk == b}
 
-    def propagate(self, s: State, bc: Tuple[BaseBlock, Context], localize: bool):
-        ...
+    def propagate(self, s: State, bc: Tuple[BaseBlock, Context], overwrite: bool):
+        blk, ctx = bc
+        cur_state = None
+        if not overwrite:
+            states = self.get_state(ctx, blk)
+            if len(states) > 0:
+                cur_state = next(iter(states))
+        s.set_block(blk)
+        s.set_context(ctx)
+        if cur_state is None:
+            self.states[(ctx, blk)] = s
+        else:
+            cur_state.propagate(s)
 
     def num_of_states(self) -> int:
         return len(self.states)

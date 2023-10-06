@@ -10,3 +10,6 @@ class IRExit(IRAbstractStmt):
 
     def get_scope(self) -> IRScope:
         return self.scope
+
+    def __str__(self):
+        return 'exit'

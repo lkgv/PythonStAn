@@ -41,20 +41,25 @@ class Solver:
         entry = graph.get_entry()
         init_ctx = ContextSensitiveStrategy.make_initial_context()
         self.work_list.add((entry, init_ctx))
+        init_s = State.gen_init_state(self.c, entry)
+        self.c.propagate_to_base_block(init_s, entry, init_ctx)
+        self.analysis_lattice_element.get_call_graph().register_scope_entry((entry, init_ctx))
 
     def solve(self):
         while not self.work_list.empty():
             blk, ctx = self.work_list.pop()
-            state = self.analysis_lattice_element.get_state(ctx, blk)
+            states = self.analysis_lattice_element.get_state(ctx, blk)
+            assert len(states) > 0, "No state get here"
+            state = next(iter(states))
             self.current_state = state.clone()
-            if self.global_entry_block == blk:
-                self.current_state.localize(None)
+            # if self.global_entry_block == blk:
+            #     self.current_state.localize(None)
             for stmt in blk.get_stmts():
-                self.analysis.get_node_transfer_functions().transfer(stmt)
+                self.analysis.get_node_transfer_functions().visit(stmt)
             s = self.current_state
             for e in self.graph.out_edges_of(blk):
                 self.current_state = s.clone()
-                new_ctx = self.analysis.get_edge_transfer_functions().transfer(e)
+                new_ctx = self.analysis.get_edge_transfer_functions().visit(e)
                 if new_ctx is not None:
                     self.c.propagate_to_base_block(self.current_state, e.get_tgt(), new_ctx)
 

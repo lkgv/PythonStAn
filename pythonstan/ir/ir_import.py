@@ -28,10 +28,10 @@ class IRImport(IRAbstractStmt):
         self.asname = stmt.names[0].asname
 
     def __str__(self):
-        ast.unparse(self.stmt)
+        return ast.unparse(self.stmt)
 
     def __repr__(self):
-        ast.unparse(self.stmt)
+        return ast.unparse(self.stmt)
 
     def get_stores(self) -> Set[str]:
         stores = {*()}

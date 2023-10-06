@@ -78,6 +78,11 @@ class BaseBlock(Node):
         stmts_str = '\\n'.join([str(s) for s in self.stmts])
         return '\\n'.join([head, stmts_str])
 
+    def __repr__(self):
+        head = self.get_name()
+        stmts_str = '\\n'.join([str(s) for s in self.stmts])
+        return '\\n'.join([head, stmts_str])
+
     def gen_label(self) -> Label:
         if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
             return self.stmts[0]

@@ -14,7 +14,7 @@ __all__ = ["CFGEdge", "NormalEdge", "IfEdge",
            "CallEdge", "ReturnEdge", "CallToReturnEdge"]
 
 
-class CFGEdge(ABC, Edge):
+class CFGEdge(Edge):
     src: BaseBlock
     tgt: BaseBlock
 

@@ -28,7 +28,8 @@ class IRCall(IRAbstractStmt):
             assert isinstance(stmt, ast.Call)
             self.call = stmt
             self.target = None
-        assert isinstance(self.call.func, ast.Name)
+
+        assert isinstance(self.call.func, ast.Name), ast.dump(self.call.func, indent=4)
 
         self.func_name = self.call.func.id
         self.args = []
@@ -50,7 +51,7 @@ class IRCall(IRAbstractStmt):
         self.load_collector.visit(self.stmt)
 
     def __str__(self):
-        ast.unparse(self.stmt)
+        return ast.unparse(self.stmt)
 
     def get_func_name(self) -> str:
         return self.func_name

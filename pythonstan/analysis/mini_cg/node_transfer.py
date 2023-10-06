@@ -1,7 +1,6 @@
 import ast
 from typing import Set, Optional, Tuple
 
-from .solver import SolverInterface
 from .operators import Operators
 from .lattice.context import Context
 from .lattice.scope_chain import Scope
@@ -12,9 +11,11 @@ from .lattice.obj_label import ObjLabel, LabelKind
 from .lattice.value_resolver import ValueResolver
 from pythonstan.ir import *
 from pythonstan.graph.cfg import BaseBlock
+from .solver_interface import SolverInterface
 
 
 class Conversion:
+    from .solver_interface import SolverInterface
     @classmethod
     def to_obj_labels(cls, v: Value, c: SolverInterface) -> Set[ObjLabel]:
         res = {l for l in v.get_obj_labels()}

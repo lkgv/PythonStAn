@@ -218,7 +218,7 @@ class Obj:
             v = self.default_item
 
     def set_item(self, k: Value, v: Value):
-        if k
+        # if k
         # need to split k first
         ...
 

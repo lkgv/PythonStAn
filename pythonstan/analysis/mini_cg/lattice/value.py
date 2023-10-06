@@ -515,7 +515,7 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
     @classmethod
     def really_make_absent_modified(cls) -> 'Value':
         ret = Value()
-        ret |= ABSENT | MODIFIED
+        ret.flags |= ABSENT | MODIFIED
         return cls.canonicalize(ret)
 
     @classmethod
@@ -566,6 +566,7 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         ret.excluded_strs = v.excluded_strs
         ret.included_strs = v.included_strs
         ret.var = v.var
+        return ret
 
     def is_polymorphic(self) -> bool:
         return self.var is not None
@@ -595,11 +596,11 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         return self.canonicalize(ret)
 
     def check_not_unknown(self):
-        assert self.is_unknown(), "Unexpected UNKNOWN value!"
+        assert not self.is_unknown(), "Unexpected UNKNOWN value!"
 
     def check_not_polymorphic_or_unknown(self):
-        assert self.is_polymorphic(), "Unexpected POLYMORPHIC value!"
-        assert self.is_unknown(), "Unexpected UNKNOWN value!"
+        assert not self.is_polymorphic(), "Unexpected POLYMORPHIC value!"
+        assert not self.is_unknown(), "Unexpected UNKNOWN value!"
 
     def check_no_getters_setters(self):
         assert self.getters is None or self.setters is None, "Unexpected getter/setter value!"
@@ -640,6 +641,10 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         if ret.var is not None and (ret.flags & (PRESENT_DATA | PRESENT_ACCESOR)) == 0:
             ret.var = None
         return self.canonicalize(ret)
+
+    def restrict_to_null(self) -> 'Value':
+        self.check_not_polymorphic_or_unknown()
+        return self.the_none
 
     def restrict_to_getter_setter(self) -> 'Value':
         self.check_not_polymorphic_or_unknown()
@@ -1331,10 +1336,32 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         ret.int_num = self.int_num
         return self.canonicalize(ret)
 
+    def restrict_to_not_int(self) -> 'Value':
+        self.check_not_polymorphic_or_unknown()
+        ret = Value.from_value(self)
+        ret.flags &= ~INT
+        ret.int_num = None
+        return self.canonicalize(ret)
+
+    def restrict_to_not_zero(self) -> 'Value':
+        self.check_not_polymorphic_or_unknown()
+        ret = Value.from_value(self)
+        ret.flags &= ~INT_ZERO
+        if ret.int_num == 0:
+            ret.int_num = None
+        return self.canonicalize(ret)
+
     def restrict_to_not_int_other(self) -> 'Value':
         self.check_not_polymorphic_or_unknown()
         ret = Value.from_value(self)
         ret.flags &= ~INT_OTHER
+        return self.canonicalize(ret)
+
+    def restrict_to_not_float(self) -> 'Value':
+        self.check_not_polymorphic_or_unknown()
+        ret = Value.from_value(self)
+        ret.flags &= ~FLOAT
+        ret.float_num = None
         return self.canonicalize(ret)
 
     def is_zero(self, n: Union[int, float]) -> bool:
@@ -1431,6 +1458,11 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
         ret = Value.from_value(self)
         ret.flags &= ~FLOAT_OTHER
         return self.canonicalize(ret)
+
+    def is_maybe_single_str(self) -> bool:
+        self.check_not_polymorphic_or_unknown()
+
+        return self.string is not None and (self.flags & STR_OTHER) != 0
 
     def is_maybe_any_str(self) -> bool:
         self.check_not_polymorphic_or_unknown()

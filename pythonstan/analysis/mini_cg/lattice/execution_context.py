@@ -18,6 +18,8 @@ class ExecutionContext:
         self.scope_chain = scope_chain
         if self_val is not None:
             self.self_val = Value.make_none()
+        else:
+            self.self_val = self_val
 
     @classmethod
     def from_execution_context(cls, ec: 'ExecutionContext') -> 'ExecutionContext':
@@ -55,6 +57,9 @@ class ExecutionContext:
     def remove(self, other: 'ExecutionContext'):
         self.scope_chain = ScopeChain.remove(self.scope_chain, other.scope_chain)
         self.self_val = self.self_val.remove_objs(other.self_val.get_obj_labels())
+
+    def clone(self) -> 'ExecutionContext':
+        return ExecutionContext(self.scope_chain, self.self_val)
 
     def __eq__(self, other) -> bool:
         if other == self:

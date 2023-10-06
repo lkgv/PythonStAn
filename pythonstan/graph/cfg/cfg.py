@@ -67,6 +67,8 @@ class ControlFlowGraph(Graph):
                 "The type of Node in the current CFG can only be BaseBlock!")
 
     def out_edges_of(self, node: Node):
+        print("node: ", str(node))
+        print("keys: ", self.out_edges.keys())
         if isinstance(node, BaseBlock):
             return self.out_edges[node]
         else:

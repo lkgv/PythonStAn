@@ -4,6 +4,7 @@ from typing import Optional, Set, Union, Collection, Callable
 from pythonstan.utils.common import set_deoptional
 from .obj_label import ObjLabel, LabelKind, Renamings
 from .summarized import Summarized
+from .
 
 
 class VBool(ABC):
@@ -1017,7 +1018,7 @@ class Value(VUndef, VNone, VBool, VInt, VFloat, VStr):
             ((self.int_num is None and other.int_num is None) or (
                         self.int_num is not None and other.int_num is not None and self.int_num == other.int_num)) and \
             ((self.float_num is None and other.float_num is None) or (
-                        self.float_num is not None and other.float_num is not None and \ 
+                        self.float_num is not None and other.float_num is not None and \
                         self.float_num == other.float_num)) and \
             (self.string == other.string or (
                         self.string is not None and other.string is not None and self.string == other.string)) and \

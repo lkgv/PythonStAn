@@ -2,8 +2,8 @@ from typing import Set, Tuple, Optional, List, Dict
 
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 from pythonstan.graph.cfg import BaseBlock
-from ..solver import SolverInterface
-from pythonstan.analysis.points_to.ci.lattice.context import Context
+from ..solver_interface import SolverInterface
+from .context import Context
 from .value import Value
 from .obj import Obj
 from .obj_label import ObjLabel, LabelKind
@@ -20,7 +20,7 @@ class State:
     context: Context
     store: Dict[ObjLabel, Obj]
     store_default: Obj
-    basis_store: PersistentMap[ObjLabel, Obj]
+    basis_store: Dict[ObjLabel, Obj]
     stacked_obj_labels: Set[ObjLabel]
     stacked_scope_entries: Set[Tuple[BaseBlock, Context]]
     execution_context: ExecutionContext
@@ -33,21 +33,25 @@ class State:
     number_of_makewritable_store = 0
 
     @classmethod
+    def gen_init_state(cls, c, blk) -> 'State':
+        s = cls(c, blk)
+
+        return s
+
+    @classmethod
     def reset(cls):
         cls.number_of_makewritable_store = 0
         cls.number_of_status_created = 0
 
     # TODO add mustequals
 
-    def __init__(self, c=None, blk=None, s: Optional['State'] = None):
+    def __init__(self, c=None, blk=None,
+                 s: Optional['State'] = None):
         if s is None:
             self.c = c
             self.block = blk
             self.set_to_bottom()
         else:
-            self.c = s.c
-            self.block = s.block
-            self.context = s.context
             self.set_to_state(s)
         self.number_of_status_created += 1
 
@@ -71,11 +75,13 @@ class State:
         return self.store
 
     def set_to_bottom(self):
-        self.store = PersistentMap()
+        self.store = {}
+        self.basis_store = {}
         self.registers = []
         self.stacked_obj_labels = {*()}
         self.stacked_scope_entries = {*()}
         self.store_default = Obj.make_none()
+        self.execution_context = ExecutionContext()
 
     def set_block(self, block: BaseBlock):
         self.block = block
@@ -162,7 +168,6 @@ class State:
         if is_recency_disabled:
             obj = self.get_obj(obj_label, True)
             obj.set_default_other_property(v.get_default_other_property(obj_label, self))
-            obj.
             obj.set_internal_value(v.get_internal_value(obj_label, self).join_absent_modified())
             obj.set_cls(v.get_cls(obj_label, self).join_absent_modified())
         else:
@@ -261,6 +266,7 @@ class State:
         for ol in obj_labels:
             ol2 = {*()}
             for l in ol:
+                ...
 
 
     def read_var(self, name: str) -> Value:
@@ -288,4 +294,4 @@ class State:
 
 
 
-    def write_property_raw
+    # def write_property_raw

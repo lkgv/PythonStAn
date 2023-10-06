@@ -76,7 +76,6 @@ class Pipeline:
         entry_mod = World().get_entry_module()
         self.analysis_manager.do_analysis(analyzer, entry_mod)
 
-
     def do_transform(self, analyzer):
         module_graph = World().scope_manager.get_module_graph()
         q = Queue()
@@ -85,11 +84,15 @@ class Pipeline:
         visited = {*()}
         while not q.empty():
             cur_module = q.get()
-            self.analysis_manager.do_transform(analyzer, cur_module)
+            self.analysis_manager.do_analysis(analyzer, cur_module)
             visited.add(cur_module)
             for succ in module_graph.succs_of(cur_module):
                 if not succ in visited:
                     q.put(succ)
+
+    def do_inter_procedure(self, analyzer):
+        entry = World().get_entry_module()
+        self.analysis_manager.do_analysis(analyzer, entry)
 
     def do_analysis(self, analyzer_generator):
         for analyzer in analyzer_generator:
@@ -100,6 +103,8 @@ class Pipeline:
                     self.analyse_intra_procedure(analyzer)
             if analyzer.config.type == 'transform':
                 self.do_transform(analyzer)
+            if analyzer.config.type == 'inter-procedure':
+                self.do_inter_procedure(analyzer)
 
     def run(self):
         analyzer_generator = self.analysis_manager.generator()

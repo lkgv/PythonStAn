@@ -6,7 +6,6 @@ from pythonstan.ir import IRScope
 from .node_transfer import NodeTransfer
 from .edge_transfer import EdgeTransfer
 from ...analysis import Analysis, AnalysisConfig
-from .solver_interface import SolverInterface
 from .context_sensitive_strategy import ContextSensitiveStrategy
 from .lattice.execution_context import ExecutionContext
 from .lattice.analysis_lattice_element import AnalysisLatticeElement
@@ -18,20 +17,21 @@ __all__ = ['MiniCGAnalysis']
 
 
 class MiniCGAnalysis(Analysis):
+    # from .solver_interface import SolverInterface
+
     module: IRScope
     inputs: Dict[str, Any]
     results: Any
-    solver_interface: SolverInterface
+    # solver_interface: SolverInterface
     context_sensitive_strategy: ContextSensitiveStrategy
     node_transfer: NodeTransfer
     edge_transfer: EdgeTransfer
 
-    @abstractmethod
     def __init__(self, config: AnalysisConfig):
         super().__init__(config)
         self.inputs = {}
 
-    def set_solver_interface(self, c: SolverInterface):
+    def set_solver_interface(self, c): # c: SolverInterface):
         self.solver_interface = c
 
     def set_input(self, key, value):

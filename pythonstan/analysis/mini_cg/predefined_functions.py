@@ -3,7 +3,7 @@ from pythonstan.ir import IRFunc, IRScope
 
 
 PREDEFINED_FUNCTIONS_LIST = [
-    ('dict', ObjLabel()),
+    # ('dict', ObjLabel()),
     ...
 ]
 

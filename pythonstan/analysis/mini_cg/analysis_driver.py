@@ -1,11 +1,14 @@
 from typing import Dict, Any
 
-from .analysis import MiniCGAnalysis
 from .solver import Solver
+from .analysis import MiniCGAnalysis
 
 from pythonstan.ir import IRScope, IRModule
 from pythonstan.graph.icfg.icfg import InterControlFlowGraph
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+
+
+__all__ = ['MiniCGAnalysisDriver']
 
 
 class MiniCGAnalysisDriver(AnalysisDriver):
@@ -28,5 +31,6 @@ class MiniCGAnalysisDriver(AnalysisDriver):
         self.results = {
             'call_graph': c.get_analysis_lattice_element().get_call_graph(),
             'icfg': c.get_graph()}
+        print(self.results)
 
 
