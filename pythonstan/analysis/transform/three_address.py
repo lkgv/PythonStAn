@@ -382,7 +382,13 @@ class ThreeAddressTransformer(NodeTransformer):
             ast.copy_location(ins, node)
             ast.fix_missing_locations(ins)
         fn = ast.FunctionDef(name=fn_name.id,
-                             args=[],
+                             args=ast.arguments(
+                                 posonlyargs=[],
+                                 args=[],
+                                 kwonlyargs=[],
+                                 kw_defaults=[],
+                                 defaults=[]
+                             ),
                              body=blk,
                              decorator_list=[])
         call_elt = ast.Call(func=fn_name, args=[], keywords=[])
@@ -744,14 +750,20 @@ class ThreeAddressTransformer(NodeTransformer):
         for item in node.items:
             ctx_blk, ctx_e = self.split_expr(item.context_expr)
             tmp_l, tmp_s = self.tmp_gen()
-            with_blk = self.resolve_single_Assign(
-                item.optional_vars, tmp_l, item)
-            items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+            if item.optional_vars is not None:
+                with_blk = self.resolve_single_Assign(
+                    item.optional_vars, tmp_l, item)
+                items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+            else:
+                items.append((ctx_blk, ctx_e, tmp_s, None))
         blk = self.visit_stmt_list(node.body)
 
         for idx in range(len(items) - 1, -1, -1):
             ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
-            with_blk.extend(blk)
+            if with_blk is not None:
+                with_blk.extend(blk)
+            else:
+                with_blk = blk
             with_stmt = ast.With(
                 items=[ast.withitem(
                     context_expr=ctx_e, optional_vars=tmp_s)],
@@ -871,6 +883,7 @@ class ThreeAddressTransformer(NodeTransformer):
         return ins
 
     def visit_FunctionDef(self, node):
+        ast.fix_missing_locations(node)
         blk, args = self.visit_arguments(node.args)
         ins = ast.FunctionDef(
             name=node.name,

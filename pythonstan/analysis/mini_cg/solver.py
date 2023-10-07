@@ -57,6 +57,7 @@ class Solver:
             for stmt in blk.get_stmts():
                 self.analysis.get_node_transfer_functions().visit(stmt)
             s = self.current_state
+            print(str(self.graph.super_entry_blk), str(self.graph.super_exit_blk))
             for e in self.graph.out_edges_of(blk):
                 self.current_state = s.clone()
                 new_ctx = self.analysis.get_edge_transfer_functions().visit(e)

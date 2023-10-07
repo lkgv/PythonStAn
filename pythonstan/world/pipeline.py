@@ -63,9 +63,7 @@ class Pipeline:
             q.put(entry)
         visited = {*()}
         while not q.empty():
-
             cur_module = q.get()
-            print(cur_module)
             self.analysis_manager.do_analysis(analyzer, cur_module)
             visited.add(cur_module)
             for succ in module_graph.succs_of(cur_module):

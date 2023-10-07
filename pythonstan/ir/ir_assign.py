@@ -25,7 +25,8 @@ class IRAssign(IRAbstractStmt):
         return f"{lstr} = {rstr}"
 
     def set_stmt(self, stmt: ast.Assign):
-        assert isinstance(stmt.targets[0], ast.Name)
+        # print(ast.dump(stmt))
+        # assert isinstance(stmt.targets[0], ast.Name)
         self.lval = stmt.targets[0]
         self.rval = stmt.value
         self.stmt = stmt

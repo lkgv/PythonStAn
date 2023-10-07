@@ -97,6 +97,8 @@ class NamespaceManager:
     def build(self, homepath, paths: List[str]):
         self.homepath = homepath
         self.paths = [homepath] + paths
+        self.names2path = {}
+        self.ns2path = {}
 
     # path to namespace
     def get_module(self, filepath: str) -> Namespace:

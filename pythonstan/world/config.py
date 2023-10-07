@@ -54,5 +54,4 @@ class Config:
 
     def get_analysis_list(self):
         analysis_id_list = topo_sort(self.succ_analysis)
-        print(self.analysis)
         return [self.analysis[anal_id] for anal_id in analysis_id_list if anal_id in self.analysis]

@@ -18,6 +18,7 @@ class InterControlFlowGraph(ControlFlowGraph):
     def __init__(self):
         super().__init__()
         self.super_entry_blk = BaseBlock()
+        self.add_blk(self.super_entry_blk)
         self.entry_scopes = {*()}
         self.scope2cfg = {}
         self.call_sites = {*()}

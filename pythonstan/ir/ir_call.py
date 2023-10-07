@@ -38,6 +38,8 @@ class IRCall(IRAbstractStmt):
                 self.args.append((arg.id, False))
             elif isinstance(arg, ast.Starred) and isinstance(arg.value, ast.Name):
                 self.args.append((arg.value.id, True))
+            elif isinstance(arg, ast.Constant):
+                self.args.append((f'<Constant: {str(arg.value)}>', False))
             else:
                 raise AssertionError("Args in function call should be Name or Starred[Name]")
         self.keywords = []
