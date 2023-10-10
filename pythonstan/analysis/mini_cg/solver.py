@@ -38,16 +38,18 @@ class Solver:
         self.current_node = self.global_entry_block = graph.get_entry()
         self.module = entry_module
         self.work_list: WorkList[Tuple[BaseBlock, Context]] = WorkList()
-        entry = graph.get_entry()
+        entry = graph.super_entry_blk
         init_ctx = ContextSensitiveStrategy.make_initial_context()
         self.work_list.add((entry, init_ctx))
         init_s = State.gen_init_state(self.c, entry)
+        init_s.set_context(init_ctx)
         self.c.propagate_to_base_block(init_s, entry, init_ctx)
         self.analysis_lattice_element.get_call_graph().register_scope_entry((entry, init_ctx))
 
     def solve(self):
         while not self.work_list.empty():
             blk, ctx = self.work_list.pop()
+            print(blk, ctx)
             states = self.analysis_lattice_element.get_state(ctx, blk)
             assert len(states) > 0, "No state get here"
             state = next(iter(states))
@@ -57,10 +59,9 @@ class Solver:
             for stmt in blk.get_stmts():
                 self.analysis.get_node_transfer_functions().visit(stmt)
             s = self.current_state
-            print(str(self.graph.super_entry_blk), str(self.graph.super_exit_blk))
             for e in self.graph.out_edges_of(blk):
                 self.current_state = s.clone()
-                new_ctx = self.analysis.get_edge_transfer_functions().visit(e)
+                new_ctx = self.analysis.get_edge_transfer_functions().visit(s, e)
                 if new_ctx is not None:
                     self.c.propagate_to_base_block(self.current_state, e.get_tgt(), new_ctx)
 

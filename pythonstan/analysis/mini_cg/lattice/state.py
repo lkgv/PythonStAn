@@ -56,6 +56,7 @@ class State:
         self.number_of_status_created += 1
 
     def set_to_state(self, s: 'State'):
+        self.context = s.context
         self.store_default = s.store_default
         self.store = {k: v for k, v in s.store.items()}
         self.writable_store = True
@@ -65,6 +66,9 @@ class State:
         self.stacked_obj_labels = {x for x in s.stacked_obj_labels}
         self.stacked_scope_entries = {x for x in s.stacked_scope_entries}
         self.writable_stacked = True
+
+    def set_context(self, ctx: Context):
+        self.context = ctx
 
     def clone(self) -> 'State':
         ret = State()
