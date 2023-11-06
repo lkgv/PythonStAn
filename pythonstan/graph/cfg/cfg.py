@@ -200,3 +200,5 @@ class ControlFlowGraph(Graph):
         self.label2blk[label] = block
         self.blk2label[block] = label
 
+    def get_stmts(self) -> Set[IRStatement]:
+        return self.stmts

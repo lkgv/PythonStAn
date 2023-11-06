@@ -110,6 +110,34 @@ class Label(IRAbstractStmt):
         return None
 
 
+'''
+  catch exp as e from Label_1 to Label_2 goto Label_3
+'''
+class IRCatchException(IRAbstractStmt):
+    exception: str
+    name: str
+    from_label: Label
+    to_label: Label
+    goto_label: Label
+    exception_ast: ast.ExceptHandler
+
+    def __init__(self, exception: str, name: str,
+                 from_label: Label, to_label: Label, goto_label: Label,
+                 exception_ast: ast.ExceptHandler):
+        self.exception = exception
+        self.name = name
+        self.from_label = from_label
+        self.to_label = to_label
+        self.goto_label = goto_label
+        self.exception_ast = exception_ast
+
+    def __str__(self):
+        return "pass"
+
+    def get_ast(self):
+        return self.pass_ast
+
+
 class Goto(IRAbstractStmt):
     label: Optional[Label]
 

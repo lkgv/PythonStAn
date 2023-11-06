@@ -23,7 +23,7 @@ class IRFunc(IRScope, IRStatement):
 
     cell_vars: Set[str]
 
-    def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None, under_class: bool = False):
+    def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None, is_method: bool = False):
         super().__init__(qualname)
         self.name = fn.name
         self.args = fn.args
@@ -40,7 +40,7 @@ class IRFunc(IRScope, IRStatement):
             elif isinstance(decr, ast.Attribute):
                 if decr.attr == 'setter':
                     self.is_setter = True
-        self.is_instance_method = (under_class and not self.is_static_method and not self.is_class_method)
+        self.is_instance_method = (is_method and not self.is_static_method and not self.is_class_method)
         self.returns = fn.returns
         self.type_comment = fn.type_comment
         self.ast = fn

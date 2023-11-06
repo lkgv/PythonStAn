@@ -2,7 +2,7 @@
 from pythonstan.world.pipeline import Pipeline
 from pythonstan.world import World
 
-TEST_ROOT = '/home/codergwy/code/test/'
+TEST_ROOT = '/home/khabir/code/test/'
 LIB_PATH = '/usr/lib/python3.10'
 
 CONFIG = {
