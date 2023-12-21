@@ -9,9 +9,9 @@ from pythonstan.ir import IRModule
 from pythonstan.world import World
 from ..analysis import AnalysisConfig
 
-FUNC_TEMPLATE = "func$%d"
-CONST_TEMPLATE = "const$%d"
-VAR_TEMPLATE = "tmp$%d"
+FUNC_TEMPLATE = "$func_%d"
+CONST_TEMPLATE = "$const_%d"
+VAR_TEMPLATE = "$tmp_%d"
 
 
 class ThreeAddress(Transform):
@@ -840,6 +840,7 @@ class ThreeAddressTransformer(NodeTransformer):
 
     def visit_Try(self, node):
         handlers = []
+        body_stmts = self.visit_stmt_list(node.body)
         for old_handler in node.handlers:
             handler = ast.ExceptHandler(
                 type=old_handler.type,
@@ -848,7 +849,7 @@ class ThreeAddressTransformer(NodeTransformer):
             ast.copy_location(handler, old_handler)
             handlers.append(handler)
         ins = ast.Try(
-            body=self.visit_stmt_list(node.body),
+            body=body_stmts,
             handlers=handlers,
             orelse=self.visit_stmt_list(node.orelse),
             finalbody=self.visit_stmt_list(node.finalbody))

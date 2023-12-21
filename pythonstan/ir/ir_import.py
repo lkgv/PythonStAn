@@ -13,7 +13,7 @@ class IRImport(IRAbstractStmt):
     asname: Optional[str]
     level: int
 
-    def __init__(self, stmt):
+    def __init__(self, stmt: Union[ast.Import, ast.ImportFrom]):
         self.stmt = stmt
         if isinstance(stmt, ast.ImportFrom):
             if stmt.module is not None:

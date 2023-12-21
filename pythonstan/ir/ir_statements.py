@@ -7,7 +7,7 @@ from .ir_statement import IRAbstractStmt
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
 
-__all__ = ["IRAstStmt", "Phi", "Label", "Goto", "JumpIfTrue", "JumpIfFalse"]
+__all__ = ["IRAstStmt", "Phi", "Label", "Goto", "JumpIfTrue", "JumpIfFalse", "IRCatchException", "Nop"]
 
 
 class IRAstStmt(IRAbstractStmt):
@@ -109,23 +109,34 @@ class Label(IRAbstractStmt):
     def get_ast(self):
         return None
 
+class Nop(IRAbstractStmt):
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return f"nop"
+
+    def to_s(self):
+        return f"nop"
+
+    def get_ast(self):
+        return None
+
 
 '''
-  catch exp as e from Label_1 to Label_2 goto Label_3
+  catch exp from Label_1 to Label_2 goto Label_3
 '''
 class IRCatchException(IRAbstractStmt):
-    exception: str
-    name: str
+    exception: Optional[str]
     from_label: Label
     to_label: Label
     goto_label: Label
-    exception_ast: ast.ExceptHandler
+    exception_ast: Optional[ast.ExceptHandler]
 
-    def __init__(self, exception: str, name: str,
+    def __init__(self, exception: Optional[str],
                  from_label: Label, to_label: Label, goto_label: Label,
-                 exception_ast: ast.ExceptHandler):
+                 exception_ast: Optional[ast.ExceptHandler] = None):
         self.exception = exception
-        self.name = name
         self.from_label = from_label
         self.to_label = to_label
         self.goto_label = goto_label
@@ -135,7 +146,7 @@ class IRCatchException(IRAbstractStmt):
         return "pass"
 
     def get_ast(self):
-        return self.pass_ast
+        return self.exception_ast
 
 
 class Goto(IRAbstractStmt):
@@ -157,9 +168,10 @@ class Goto(IRAbstractStmt):
 class JumpIfFalse(IRAbstractStmt):
     test: ast.expr
     label: Label
+    stmt_ast: Optional[ast.stmt]
     load_collector: VarCollector
 
-    def __init__(self, test, label=None):
+    def __init__(self, test, label=None, stmt_ast=None):
         self.test = test
         ast.fix_missing_locations(self.test)
         self.load_collector = VarCollector("load")
@@ -168,6 +180,7 @@ class JumpIfFalse(IRAbstractStmt):
             self.label = Label(-1)
         else:
             self.label = label
+        self.stmt_ast = stmt_ast
 
     def set_label(self, label):
         self.label = label
@@ -184,24 +197,29 @@ class JumpIfFalse(IRAbstractStmt):
         self.test = renamer.visit(self.test)
 
     def get_ast(self):
-        return None
+        return self.stmt_ast
 
 
 class JumpIfTrue(IRAbstractStmt):
     test: ast.expr
     label: Label
     load_collector: VarCollector
+    stmt_ast: Optional[ast.stmt]
 
-    def __init__(self, test, label):
+    def __init__(self, test, label, stmt_ast = None):
         self.test = test
         ast.fix_missing_locations(self.test)
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.test)
         self.label = label
+        self.stmt_ast = stmt_ast
 
     def __str__(self):
         test_str = ast.unparse(self.test)
         return f"if not ({test_str}) goto {self.label.to_s()}"
+
+    def set_label(self, label):
+        self.label = label
 
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()
@@ -211,4 +229,4 @@ class JumpIfTrue(IRAbstractStmt):
         self.test = renamer.visit(self.test)
 
     def get_ast(self):
-        return None
+        return self.stmt_ast
