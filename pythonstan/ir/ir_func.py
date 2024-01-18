@@ -44,10 +44,7 @@ class IRFunc(IRScope, IRStatement):
         self.returns = fn.returns
         self.type_comment = fn.type_comment
         self.ast = fn
-        if isinstance(fn, ast.AsyncFunctionDef):
-            self.is_async = False
-        else:
-            self.is_async = True
+        self.is_async = isinstance(fn, ast.AsyncFunctionDef)
         if cell_vars is None:
             self.cell_vars = {*()}
         else:

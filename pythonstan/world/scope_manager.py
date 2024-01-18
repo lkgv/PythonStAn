@@ -77,6 +77,7 @@ class ScopeManager:
 
     def add_func(self, scope: IRScope, func: IRFunc):
         self.names2scope[func.get_qualname()] = func
+        self.scopes.add(func)
         self.father[func] = scope
         self.subscope_idx[(scope, func.name)] = func
         if scope in self.subscopes:
@@ -86,6 +87,7 @@ class ScopeManager:
 
     def add_class(self, scope: IRScope, cls: IRClass):
         self.names2scope[cls.get_qualname()] = cls
+        self.scopes.add(cls)
         self.father[cls] = scope
         self.subscope_idx[(scope, cls.name)] = cls
         if scope in self.subscopes:
@@ -109,3 +111,6 @@ class ScopeManager:
 
     def get_subscopes(self, scope: IRScope) -> List[IRScope]:
         return self.subscopes.get(scope, [])
+
+    def get_scopes(self) -> Set[IRScope]:
+        return self.scopes

@@ -143,7 +143,7 @@ class IRCatchException(IRAbstractStmt):
         self.exception_ast = exception_ast
 
     def __str__(self):
-        return "pass"
+        return f"catch {self.exception} from {self.from_label} to {self.to_label} with {self.goto_label}"
 
     def get_ast(self):
         return self.exception_ast

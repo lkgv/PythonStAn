@@ -13,9 +13,11 @@ class IRScope(ABC):
     def __init__(self, qualname: str):
         self.qualname = qualname
 
+    '''
     @abstractmethod
-    def get_name(self) -> str:
+    def get_fname(self) -> str:
         raise NotImplementedError
+    '''
 
     def get_qualname(self) -> str:
         return self.qualname

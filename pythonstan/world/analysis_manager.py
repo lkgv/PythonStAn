@@ -14,6 +14,11 @@ DEFAULT_ANALYSIS = [
         options={"type": "transform"}
     ),
     AnalysisConfig(
+        name="ir",
+        id="IR",
+        options={"type": "transform"}
+    ),
+    AnalysisConfig(
         name="block cfg",
         id="BlockCFG",
         prev_analysis=["three address"],

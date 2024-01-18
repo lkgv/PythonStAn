@@ -10,7 +10,9 @@ from pythonstan.world import World
 from pythonstan.ir import *
 
 
+__all__ = ['STAGE_NAME', 'IR', 'IRTransformer']
 STAGE_NAME = "ir"
+
 
 class IR(Transform):
     transformer: 'IRTransformer'
@@ -21,7 +23,7 @@ class IR(Transform):
     def transform(self, module: IRModule):
         three_address_form = World().scope_manager.get_ir(module, "three address form")
         self.transformer = IRTransformer(module)
-        self.transformer.visit_stmts(three_address_form)
+        self.transformer.visit_stmts(three_address_form.body)
         ir = self.transformer.stmts
         World().scope_manager.set_ir(module, STAGE_NAME, ir)
 
@@ -37,7 +39,7 @@ class LabelGenerator:
         self.next_idx += 1
         return label
 
-
+# TODO add enough NOP
 class IRTransformer(NodeVisitor):
     imports: List[IRImport]
     stmts: List[IRStatement]
@@ -51,9 +53,16 @@ class IRTransformer(NodeVisitor):
 
     def __init__(self, scope: IRScope):
         self.scope = scope
+        self.reset()
+
+    def reset(self):
         self.breaks_stack = []
         self.continues_stack = []
-
+        self.imports = []
+        self.classes = []
+        self.stmts = []
+        self.funcs = []
+        self.label_gen = LabelGenerator()
 
     def visit_stmts(self, stmts: List[stmt]):
         for stmt in stmts:
@@ -70,6 +79,7 @@ class IRTransformer(NodeVisitor):
         func = IRFunc(qualname, func_def, is_method=isinstance(self.scope, IRClass))
         trans = IRTransformer(func)
         trans.visit_stmts(func_def.body)
+        World().scope_manager.add_class(self.scope, func)
         World().scope_manager.set_ir(func, "ir", trans.get_stmts())
         self.stmts.append(func)
 
@@ -78,6 +88,7 @@ class IRTransformer(NodeVisitor):
         cls = IRClass(qualname, cls_def)
         trans = IRTransformer(cls)
         trans.visit_stmts(cls_def.body)
+        World().scope_manager.add_class(self.scope, cls)
         World().scope_manager.set_ir(cls, "ir", trans.get_stmts())
         self.stmts.append(cls)
 

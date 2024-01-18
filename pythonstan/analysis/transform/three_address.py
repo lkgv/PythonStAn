@@ -9,6 +9,8 @@ from pythonstan.ir import IRModule
 from pythonstan.world import World
 from ..analysis import AnalysisConfig
 
+
+__all__ = ["ThreeAddress", "ThreeAddressTransformer"]
 FUNC_TEMPLATE = "$func_%d"
 CONST_TEMPLATE = "$const_%d"
 VAR_TEMPLATE = "$tmp_%d"

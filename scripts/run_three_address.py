@@ -1,5 +1,5 @@
 import ast
-from pythonstan.ir.three_address import ThreeAddressTransformer
+from pythonstan.analysis.transform import IRTransformer, ThreeAddressTransformer
 
 
 src = '''
@@ -82,17 +82,19 @@ a, b.v, (c, g.v, [q, w, z]) = t
     '''
     ]
 
+from pythonstan.ir import IRModule
+tha = ThreeAddressTransformer()
 
-trans = ThreeAddressTransformer()
 for src_str in srcs:
-
     src = ast.parse(src_str)
-    res = trans.visit(src)
+    res = tha.visit(src)
     res = ast.fix_missing_locations(res)
+    ir = IRTransformer(IRModule("test", res, "test"))
+    ir.visit_stmts(res.body)
 
     print(f"\nParse: {{ {src_str} }}")
     # print(ast.dump(res, indent=4))
 
-    print(ast.unparse(res))
+    print('\n'.join([str(s) for s in ir.get_stmts()]))
 
 

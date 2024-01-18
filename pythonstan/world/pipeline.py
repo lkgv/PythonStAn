@@ -27,6 +27,9 @@ class Pipeline:
         self.analysis_manager.build(self.config.get_analysis_list())
         self.build_scope_graph(self.config.filename)
 
+    def get_world(self):
+        return World()
+
     def build_scope_graph(self, entry_path: str):
         entry_ns = Namespace.build(["__main__"])
         entry_mod = World().scope_manager.add_module(entry_ns, entry_path)
@@ -41,10 +44,12 @@ class Pipeline:
             # Preprocess module
             # TODO to be completed
             self.analysis_manager.analysis("three address", mod)
-            self.analysis_manager.analysis("block cfg", mod)
-            self.analysis_manager.analysis("cfg", mod)
-            self.analysis_manager.analysis("ssa", mod)
-            imports = self.analysis_manager.get_results("block cfg")[mod]
+            self.analysis_manager.analysis("ir", mod)
+            # self.analysis_manager.analysis("block cfg", mod)
+            # self.analysis_manager.analysis("cfg", mod)
+            # self.analysis_manager.analysis("ssa", mod)
+            # imports = self.analysis_manager.get_results("block cfg")[mod]
+            imports = []
 
             for stmt in imports:
                 get_import = World().namespace_manager.get_import(ns, stmt)
