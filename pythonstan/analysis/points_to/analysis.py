@@ -1,0 +1,13 @@
+class PointsToAnalysis:
+    def analyze(self):
+        ...
+
+    def run_analysis(self, heap_model, selector):
+        ...
+
+    def set_plugin(self, solver, options):
+        ...
+
+    def add_plugin(self, plugin):
+        ...
+    
