@@ -37,6 +37,7 @@ def main():
         print(f'<Scope: {scope.get_qualname()}>')
         print('\n'.join([str(x) for x in ppl.get_world().scope_manager.get_ir(scope, 'ir')]))
         print()
+    print(ppl.get_world().scope_manager.get_scopes())
     # print(ppl.analysis_manager.get_results("ir"))
 
 

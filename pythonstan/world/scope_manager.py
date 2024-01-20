@@ -1,4 +1,5 @@
 import ast
+import os
 from typing import Set, List, Dict, Tuple, Any, Optional
 
 from .namespace import Namespace
@@ -95,7 +96,9 @@ class ScopeManager:
         else:
             self.subscopes[scope] = [cls]
 
-    def add_module(self, ns: Namespace, filename: str) -> IRModule:
+    def add_module(self, ns: Namespace, filename: str) -> Optional[IRModule]:
+        if not os.path.isfile(filename):
+            return None
         with open(filename, 'r') as f:
             m_ast = ast.parse(f.read())
         mod = IRModule(ns.to_str(), m_ast, ns.get_name(), filename)

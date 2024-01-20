@@ -11,7 +11,7 @@ __all__ = ["IRYield"]
 
 class IRYield(IRAbstractStmt):
     stmt: Statement
-    value: ast.expr
+    value: Optional[ast.expr]
     load_collector: VarCollector
     store_collector: VarCollector
     target: Optional[ast.expr]
@@ -25,7 +25,7 @@ class IRYield(IRAbstractStmt):
         else:
             assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
             self.value = stmt.value.value
-        self.value = self.value
+            self.target = None
         ast.fix_missing_locations(self.stmt)
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.stmt)
@@ -33,8 +33,11 @@ class IRYield(IRAbstractStmt):
         self.store_collector.visit(self.stmt)
 
     def __str__(self):
-        val_str = ast.unparse(self.value)
-        return f"yield {val_str}"
+        if self.value is not None:
+            val_str = ast.unparse(self.value)
+            return f"yield {val_str}"
+        else:
+            return "yield"
 
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()

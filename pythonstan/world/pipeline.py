@@ -37,25 +37,30 @@ class Pipeline:
         q: List[Tuple[Namespace, IRModule]] = [(entry_ns, entry_mod)]
         g = ModuleGraph()
         g.add_node(entry_mod)
+        visited_ns = set()
         while len(q) > 0:
             ns, mod = q.pop()
             ns: Namespace
             mod: IRModule
+            visited_ns.add(ns)
+            print(ns.to_str())
             # Preprocess module
             # TODO to be completed
             self.analysis_manager.analysis("three address", mod)
             self.analysis_manager.analysis("ir", mod)
-            # self.analysis_manager.analysis("block cfg", mod)
+            self.analysis_manager.analysis("block cfg", mod)
             # self.analysis_manager.analysis("cfg", mod)
             # self.analysis_manager.analysis("ssa", mod)
-            # imports = self.analysis_manager.get_results("block cfg")[mod]
-            imports = []
+            # imports = self.analysis_manager.get_results("imports")[mod]
+            imports = World().scope_manager.get_ir(mod, "imports")
 
             for stmt in imports:
                 get_import = World().namespace_manager.get_import(ns, stmt)
                 if get_import is not None:
                     mod_ns, mod_path = get_import
                     new_mod = World().scope_manager.add_module(mod_ns, mod_path)
+                    if new_mod is None or mod_ns in visited_ns:
+                        continue
                     g.add_edge(mod, new_mod)
                     q.append((mod_ns, new_mod))
                     World().import_manager.set_import(mod, stmt, new_mod)

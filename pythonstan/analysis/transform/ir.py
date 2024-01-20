@@ -1,11 +1,8 @@
 from ast import *
-from queue import Queue
-import copy
-from typing import List, Dict, Optional, Tuple, Any, Union
+from typing import List, Dict, Optional, Any, Union
 
 from ..analysis import AnalysisConfig
 from .transform import Transform
-from pythonstan.graph.cfg import *
 from pythonstan.world import World
 from pythonstan.ir import *
 
@@ -14,6 +11,8 @@ __all__ = ['STAGE_NAME', 'IR', 'IRTransformer']
 STAGE_NAME = "ir"
 
 
+imports = []
+
 class IR(Transform):
     transformer: 'IRTransformer'
 
@@ -21,11 +20,15 @@ class IR(Transform):
         super().__init__(config)
 
     def transform(self, module: IRModule):
+        global imports
         three_address_form = World().scope_manager.get_ir(module, "three address form")
+        imports = []
         self.transformer = IRTransformer(module)
-        self.transformer.visit_stmts(three_address_form.body)
+        self.transformer.process_stmts(three_address_form.body)
         ir = self.transformer.stmts
         World().scope_manager.set_ir(module, STAGE_NAME, ir)
+        World().scope_manager.set_ir(module, "imports", imports)
+        # self.results = imports
 
 
 class LabelGenerator:
@@ -39,7 +42,7 @@ class LabelGenerator:
         self.next_idx += 1
         return label
 
-# TODO add enough NOP
+
 class IRTransformer(NodeVisitor):
     imports: List[IRImport]
     stmts: List[IRStatement]
@@ -74,11 +77,27 @@ class IRTransformer(NodeVisitor):
     def get_stmts(self) -> List[IRStatement]:
         return self.stmts
 
+    def postprocess(self):
+        self.dedumplicate_nop()
+
+    def dedumplicate_nop(self):
+        del_list = []
+        for stmt, next_stmt in zip(self.stmts, self.stmts[1:]):
+            if isinstance(stmt, Nop) and not isinstance(next_stmt, Label):
+                del_list.append(stmt)
+        for stmt in del_list:
+            self.stmts.remove(stmt)
+
+    def process_stmts(self, stmts: List[stmt]):
+        self.reset()
+        self.visit_stmts(stmts)
+        self.postprocess()
+
     def visit_FunctionDef(self, func_def: Union[FunctionDef, AsyncFunctionDef]):
         qualname = f"{self.scope.get_qualname()}.{func_def.name}"
         func = IRFunc(qualname, func_def, is_method=isinstance(self.scope, IRClass))
         trans = IRTransformer(func)
-        trans.visit_stmts(func_def.body)
+        trans.process_stmts(func_def.body)
         World().scope_manager.add_class(self.scope, func)
         World().scope_manager.set_ir(func, "ir", trans.get_stmts())
         self.stmts.append(func)
@@ -87,7 +106,7 @@ class IRTransformer(NodeVisitor):
         qualname = f"{self.scope.get_qualname()}.{cls_def.name}"
         cls = IRClass(qualname, cls_def)
         trans = IRTransformer(cls)
-        trans.visit_stmts(cls_def.body)
+        trans.process_stmts(cls_def.body)
         World().scope_manager.add_class(self.scope, cls)
         World().scope_manager.set_ir(cls, "ir", trans.get_stmts())
         self.stmts.append(cls)
@@ -113,6 +132,7 @@ class IRTransformer(NodeVisitor):
 
     def visit_Import(self, node: Import):
         stmt = IRImport(node)
+        imports.append(stmt)
         self.stmts.append(stmt)
 
     def visit_ImportFrom(self, node: ImportFrom):
@@ -125,6 +145,7 @@ class IRTransformer(NodeVisitor):
 
         label_begin = self.label_gen.gen()
         self.stmts.append(label_begin)
+        self.stmts.append(Nop())
         cond_jmp = JumpIfFalse(test=node.test, stmt_ast=node)
         self.stmts.append(cond_jmp)
         self.visit_stmts(node.body)
@@ -136,13 +157,17 @@ class IRTransformer(NodeVisitor):
 
         if node.orelse is not None:
             label_orelse = self.label_gen.gen()
+            self.stmts.append(label_orelse)
+            self.stmts.append(Nop())
             cond_jmp.set_label(label_orelse)
             self.visit_stmts(node.orelse)
             label_end = self.label_gen.gen()
             self.stmts.append(label_end)
+            self.stmts.append(Nop())
         else:
             label_end = self.label_gen.gen()
             self.stmts.append(label_end)
+            self.stmts.append(Nop())
             cond_jmp.set_label(label_end)
 
         for stmt in loop_breaks:
@@ -158,14 +183,17 @@ class IRTransformer(NodeVisitor):
             self.stmts.append(true_end_jmp)
             label_else = self.label_gen.gen()
             self.stmts.append(label_else)
+            self.stmts.append(Nop())
             self.visit_stmts(node.orelse)
             label_end = self.label_gen.gen()
             self.stmts.append(label_end)
+            self.stmts.append(Nop())
             cond_jmp.set_label(label_else)
             true_end_jmp.set_label(label_end)
         else:
             label_end = self.label_gen.gen()
             self.stmts.append(label_end)
+            self.stmts.append(Nop())
             cond_jmp.set_label(label_end)
 
     def visit_Raise(self, node: Raise):
@@ -215,37 +243,50 @@ label_fin:
    fin()
 
     '''
+
+    # TODO refine the handling of the exception expression, eg., try a.b.E: ...
     def visit_Try(self, node: Try):
         label_try = self.label_gen.gen()
+        self.stmts.append(label_try)
+        self.stmts.append(Nop())
         self.visit_stmts(node.body)
         try_goto = Goto()
         self.stmts.append(try_goto)
         goto_fin_list = [try_goto]
         label_catch = self.label_gen.gen()
         self.stmts.append(label_catch)
+        self.stmts.append(Nop())
 
         catch_idx = len(self.stmts)
         for expt in node.handlers:
             label_e = self.label_gen.gen()
             self.stmts.append(label_e)
-            e_ass_stmt = Assign(targets=[Name(id=expt.name, ctx=Store())],
-                           value=Name(id="@caught_except", ctx=Load()))
-            copy_location(e_ass_stmt, expt)
-            e_ass = IRAssign(e_ass_stmt)
-            self.stmts.append(e_ass)
+            self.stmts.append(Nop())
+            if expt.name is not None:
+                e_ass_stmt = Assign(targets=[Name(id=expt.name, ctx=Store())],
+                                    value=Name(id="@caught_except", ctx=Load()))
+                copy_location(e_ass_stmt, expt)
+                e_ass = IRAssign(e_ass_stmt)
+                self.stmts.append(e_ass)
             self.visit_stmts(expt.body)
-            e_del_stmt = Delete(targets=[Name(id=expt.name, ctx=Del())])
-            copy_location(e_del_stmt, expt)
-            e_del = IRDel(e_del_stmt)
-            self.stmts.append(e_del)
+            if expt.name is not None:
+                e_del_stmt = Delete(targets=[Name(id=expt.name, ctx=Del())])
+                copy_location(e_del_stmt, expt)
+                e_del = IRDel(e_del_stmt)
+                self.stmts.append(e_del)
             goto_fin = Goto()
             self.stmts.append(goto_fin)
             goto_fin_list.append(goto_fin)
-
-            assert isinstance(expt.type, Name) or expt.type is None,\
-                "Type of Exception should be Name or None!"
-            expt_type = expt.type.id if isinstance(expt.type, Name) else None
-            catch_stmt = IRCatchException(expt_type,
+            assert isinstance(expt.type, (Name, Tuple)) or expt.type is None, \
+                "Type of Exception should be Name or None or [Name]!"
+            expt_types = []
+            if isinstance(expt.type, Name):
+                expt_types.append(expt.type.id)
+            elif isinstance(expt.type, Tuple):
+                for e in expt.type.elts:
+                    assert isinstance(e, Name), "Type of Exception should be Name or None or [Name]!"
+                    expt_types.append(e.id)
+            catch_stmt = IRCatchException(expt_types,
                                           label_try, label_catch, label_e, expt)
             self.stmts.insert(catch_idx, catch_stmt)
             catch_idx += 1
@@ -253,6 +294,7 @@ label_fin:
         if len(node.orelse) > 0:
             label_else = self.label_gen.gen()
             self.stmts.append(label_else)
+            self.stmts.append(Nop())
             try_goto.set_label(label_else)
             goto_fin_list.remove(try_goto)
             self.visit_stmts(node.orelse)
@@ -272,10 +314,9 @@ label_fin:
         else:
             label_fin = self.label_gen.gen()
             self.stmts.append(label_fin)
+            self.stmts.append(Nop())
             for goto in goto_fin_list:
                 goto.set_label(label_fin)
-            nop = Nop()
-            self.stmts.append(nop)
 
     def visit_Assign(self, stmt: Assign):
         if isinstance(stmt.value, (Yield, YieldFrom)):

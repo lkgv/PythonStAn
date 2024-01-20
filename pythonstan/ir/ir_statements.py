@@ -127,13 +127,13 @@ class Nop(IRAbstractStmt):
   catch exp from Label_1 to Label_2 goto Label_3
 '''
 class IRCatchException(IRAbstractStmt):
-    exception: Optional[str]
+    exception: List[str]
     from_label: Label
     to_label: Label
     goto_label: Label
     exception_ast: Optional[ast.ExceptHandler]
 
-    def __init__(self, exception: Optional[str],
+    def __init__(self, exception: List[str],
                  from_label: Label, to_label: Label, goto_label: Label,
                  exception_ast: Optional[ast.ExceptHandler] = None):
         self.exception = exception
