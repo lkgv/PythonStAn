@@ -1,13 +1,17 @@
-class CSObj:
+from typing import Union
+
+
+class Obj:
     ...
 
 
-class CSVar:
+class Var:
     ...
 
+class Pointer:
+    ...
 
 class StaticField:
     ...
 
 
-class

@@ -30,4 +30,3 @@ class Worklist:
             return k, v
         else:
             return None
-
