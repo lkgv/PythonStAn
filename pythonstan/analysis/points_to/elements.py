@@ -1,10 +1,6 @@
 from typing import Union
 
 
-class Obj:
-    ...
-
-
 class Var:
     ...
 
