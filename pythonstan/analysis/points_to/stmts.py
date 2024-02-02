@@ -6,14 +6,25 @@ from pythonstan.ir import *
 
 class AbstractPtStmt(ABC):
     ir_stmt: IRStatement
+    container_scope: IRScope
 
     @abstractmethod
-    def __init__(self, ir_stmt: IRStatement):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         self.ir_stmt = ir_stmt
+        self.container_scope = container_scope
+
+    def get_container_scope(self) -> IRScope:
+        return self.container_scope
+
+    def get_container_type(self) -> str:
+        return self.container_scope.get_qualname()
 
 
 class PtAllocation(AbstractPtStmt):
-    ...
+    def get_type(self) -> str:
+        ...
+
+
 
 class PtInvoke(AbstractPtStmt):
     ...
