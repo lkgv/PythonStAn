@@ -143,9 +143,13 @@ class MockObj(Obj):
         self.type = type
         self.scope = scope
         self.is_callable = is_callable
-
-    ...
-
+    
+    def __eq__(self, other):
+        if self == other:
+            return True
+        if other is None or not isinstance(other, MockObj):
+            return False
+        return self.desc == other.desc and self.alloc == other.alloc and self.type == other.type
 
 
 class HeapModel(ABC):
@@ -162,25 +166,67 @@ class HeapModel(ABC):
         ...
 
     @abstractmethod
-    def get_mock_obj(self, alloc: PtAllocation) -> Obj:
+    def get_mock_obj(self, desc: str, alloc: AbstractPtStmt, type: str, scope: IRScope, is_callable: bool) -> Obj:
         ...
-
-    @abstractmethod
-    def get_objs(self) -> Set[Obj]:
-        ...
-
 
 
 class AbstractHeapModel(HeapModel):
     constant_objs: Dict[Literals, Obj]
-
+    new_objs: Dict[PtAllocation, NewObj]
+    merged_objs: Dict[str, MergedObj]
+    mock_objs: Dict[MockObj, MockObj]
 
     @abstractmethod
-    def __init__(self):
-        ...
+    def __init__(self, options):
+        self.constant_objs = {}
+        self.new_objs = {}
+        self.merged_objs = {}
+        self.mock_objs = {}
+        self.options = options
 
     def get_obj(self, alloc_site: PtAllocation) -> Obj:
-        type = alloc_site.get_type()
-        if
+        return self.do_get_obj(alloc_site)
+
+    def get_merged_obj(self, alloc_site: PtAllocation) -> MergedObj:
+        t = alloc_site.get_type()
+        if t not in self.merged_objs:
+            self.merged_objs[t] = MergedObj(f"<Merged {t}>", t)
+        merged_obj = self.merged_objs[t]
+        merged_obj.add_represented_obj(self.get_new_obj(alloc_site))
+        return merged_obj
+
+    def get_new_obj(self, alloc_site: PtAllocation) -> NewObj:
+        if alloc_site not in self.new_objs:
+            self.new_objs[alloc_site] = NewObj(alloc_site)
+        return self.new_objs[alloc_site]
+
+    def get_constant_obj(self, value: Literals) -> Obj:
+        obj = self.do_get_constant_obj(value)
+        return obj
+
+    def get_mock_obj(self, desc: str, alloc: AbstractPtStmt, type: str, scope: IRScope, is_callable: bool) -> Obj:
+        mock_obj = MockObj(desc, alloc, type, scope, is_callable)
+        if mock_obj not in self.mock_objs:
+            self.mock_objs[mock_obj] = mock_obj
+        return self.mock_objs[mock_obj]
+
+    def do_get_constant_obj(self, value: Literals) -> Obj:
+        if value not in self.constant_objs:
+            self.constant_objs[value] = ConstantObj(value)
+        return self.constant_objs[value]
+
+    def is_str_obj(self, obj: Obj) -> bool:
+        return isinstance(obj.get_allocation(), str)
+
+    @abstractmethod
+    def do_get_obj(self, alloc_site: PtAllocation) -> Obj:
+        ...
 
 
+class AllocationSiteBasedModel(AbstractHeapModel):
+
+    def __init__(self, options, obj_groups):
+        super().__init__(options)
+
+    def do_get_obj(self, alloc_site: PtAllocation) -> Obj:
+        return self.get_new_obj(alloc_site)

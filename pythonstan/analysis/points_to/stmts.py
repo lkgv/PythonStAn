@@ -21,28 +21,37 @@ class AbstractPtStmt(ABC):
 
 
 class PtAllocation(AbstractPtStmt):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
+
     def get_type(self) -> str:
         ...
 
 
 
 class PtInvoke(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 class PtCopy(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 class PtLoadSubscr(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 class PtStoreSubscr(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 class PtLoadAttr(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 class PtStoreAttr(AbstractPtStmt):
-    ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+        super().__init__(ir_stmt, container_scope)
 
 
 class StmtCollector:
