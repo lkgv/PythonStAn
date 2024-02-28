@@ -1,21 +1,36 @@
 from typing import Dict, Set
+from enum import Enum
 
 from .elements import Pointer
+
+
+class FlowKind(Enum):
+    LOCAL_ASSIGN = 0
+    INSTANCE_STORE = 1
+    INSTANCE_LOAD = 2
+    STATIC_STORE = 3
+    STATIC_LOAD = 4
 
 
 class PointerFlowEdge:
     src: Pointer
     tgt: Pointer
+    kind: FlowKind
 
-    def __init__(self, src, tgt):
+    def __init__(self, kind, src, tgt):
+        self.kind = kind
         self.src = src
         self.tgt = tgt
 
     def __eq__(self, other):
-        return self.src == other.src and self.tgt == other.tgt
+        if self == other:
+            return True
+        if other is None or not isinstance(other, PointerFlowEdge):
+            return False
+        return (self.kind, self.src, self.tgt) == (other.kind, other.src, other.tgt)
 
     def __str__(self):
-        return f"<edge: {self.src} -> {self.tgt}>"
+        return f"<edge[{self.kind}]: {self.src} -> {self.tgt}>"
 
 
 class PointerFlowGraph:

@@ -51,3 +51,13 @@ def deoptional(v: Optional[T], default: T) -> T:
 
 def set_deoptional(v: Optional[Set[T]]) -> Set[T]:
     return deoptional(v, {*()})
+
+
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+def multimap_add(m: Dict[K, Set[V]], k: K, v: V):
+    if k not in m:
+        m[k] = {*()}
+    m[k].add(v)

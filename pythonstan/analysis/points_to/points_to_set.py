@@ -1,33 +1,39 @@
-from typing import Set
+from typing import Set, Optional
+
+from .context import CSObj
 
 
 class PointsToSet:
-    pts: Set
+    pts: Set[CSObj]
 
-    def __init__(self):
-        self.pts = set()
+    def __init__(self, obj: Optional[CSObj] = None):
+        if obj is None:
+            self.pts = set()
+        else:
+            self.pts = {obj}
 
-    def add_obj(self, obj):
+    def add_obj(self, obj: CSObj) -> bool:
         ret = obj in self.pts
         self.pts.add(obj)
         return ret
 
-    def add_all(self, pts):
+    def add_all(self, pts: 'PointsToSet') -> bool:
         if self.pts.issuperset(pts):
             return False
         else:
             self.pts.update(pts)
+            return True
 
-    def has(self, obj):
+    def has(self, obj: CSObj) -> bool:
         return obj in self.pts
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         return len(self.pts) == 0
 
-    def size(self):
+    def size(self) -> int:
         return len(self.pts)
 
-    def get_objs(self):
+    def get_objs(self) -> Set[CSObj]:
         return self.pts
 
     def __str__(self):
