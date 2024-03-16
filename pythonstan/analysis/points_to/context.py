@@ -31,7 +31,7 @@ class Context:
 
 CSScope = Tuple[Context, IRScope]
 CSObj = Tuple[Context, Obj]
-CSVar = Tuple[Context, Obj]
+CSVar = Tuple[Context, Var]
 
 
 class CSCallSite:

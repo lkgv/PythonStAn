@@ -10,7 +10,7 @@ class Var:
 class Pointer:
     pts: Optional[PointsToSet]
 
-    def get_points_to_set(self)-> Optional[PointsToSet]:
+    def get_points_to_set(self) -> Optional[PointsToSet]:
         return self.pts
 
     def set_points_to_set(self, pts: PointsToSet):

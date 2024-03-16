@@ -24,6 +24,12 @@ class PointsToSet:
             self.pts.update(pts)
             return True
 
+    @classmethod
+    def from_set(cls, pts: Set['CSObj']) -> 'PointsToSet':
+        ret = cls()
+        ret.pts = {x for x in pts}
+        return ret
+
     def has(self, obj: CSObj) -> bool:
         return obj in self.pts
 
@@ -35,6 +41,9 @@ class PointsToSet:
 
     def get_objs(self) -> Set[CSObj]:
         return self.pts
+
+    def __sub__(self, other: 'PointsToSet') -> 'PointsToSet':
+        return self.from_set(self.pts - other.pts)
 
     def __str__(self):
         return str(self.pts)

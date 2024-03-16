@@ -1,14 +1,9 @@
 from typing import Dict, Set, Optional, TypeVar, Generic, Tuple
 
 from .cs_manager import CSManager
-from .context import Context
-from .stmts import PtInvoke
-from pythonstan.ir import IRScope
+from .context import CSCallSite, CSScope
 from pythonstan.utils.common import multimap_add
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
-
-
-
 
 
 class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):

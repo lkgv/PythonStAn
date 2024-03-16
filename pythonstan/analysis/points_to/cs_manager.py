@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Collection
 
-from .context import Context
+from .context import Context, CSVar, CSObj
 from .elements import Var, StaticField, InstanceField, ArrayIndex
 from .heap_model import Obj
 from .stmts import PtInvoke
@@ -23,7 +23,7 @@ class CSManager(ABC):
     def get_static_field(self, ctx: Context, static_field: StaticField) -> Context:
         ...
 
-    def get_instance_field(self, ctx: Context, instance_field: InstanceField) -> Context:
+    def get_instance_field(self, cs_obj: CSObj, instance_field: InstanceField) -> Context:
         ...
 
     def get_array_index(self, ctx: Context, array: Obj) -> ArrayIndex:

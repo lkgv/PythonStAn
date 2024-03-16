@@ -4,7 +4,17 @@ from typing import List
 from pythonstan.ir import *
 
 
-class AbstractPtStmt(ABC):
+class PtStmt(ABC):
+    @abstractmethod
+    def get_container_scope(self) -> IRScope:
+        ...
+
+    @abstractmethod
+    def get_container_type(self) -> str:
+        ...
+
+
+class AbstractPtStmt(PtStmt):
     ir_stmt: IRStatement
     container_scope: IRScope
 
@@ -28,26 +38,30 @@ class PtAllocation(AbstractPtStmt):
         ...
 
 
-
 class PtInvoke(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
+
 
 class PtCopy(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
 
+
 class PtLoadSubscr(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
+
 
 class PtStoreSubscr(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
 
+
 class PtLoadAttr(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
+
 
 class PtStoreAttr(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
@@ -71,3 +85,24 @@ class StmtCollector:
         self.load_subscrs = []
         self.allocs = []
         self.invokes = []
+
+    def get_assigns(self) -> List[IRAssign]:
+        return self.assigns
+
+    def get_store_attrs(self) -> List[IRStoreAttr]:
+        return self.store_attrs
+
+    def get_load_attrs(self) -> List[IRLoadAttr]:
+        return self.load_attrs
+
+    def get_store_subscrs(self) -> List[IRStoreSubscr]:
+        return self.store_subscrs
+
+    def get_load_subscrs(self) -> List[IRLoadAttr]:
+        return self.load_subscrs
+
+    def get_allocs(self) -> List[IRCall]:
+        return self.allocs
+
+    def get_invokes(self) -> List[IRCall]:
+        return self.invokes

@@ -1,7 +1,9 @@
 from typing import Dict, Set
 from enum import Enum
+from abc import ABC, abstractmethod
 
 from .elements import Pointer
+from .points_to_set import PointsToSet
 
 
 class FlowKind(Enum):
@@ -31,6 +33,17 @@ class PointerFlowEdge:
 
     def __str__(self):
         return f"<edge[{self.kind}]: {self.src} -> {self.tgt}>"
+
+
+class EdgeTransfer(ABC):
+    @abstractmethod
+    def apply(self, edge: PointerFlowEdge, input: PointsToSet) -> PointsToSet:
+        ...
+
+
+class IdentityEdgeTransfer(EdgeTransfer):
+    def apply(self, edge: PointerFlowEdge, input: PointsToSet) -> PointsToSet:
+        return input
 
 
 class PointerFlowGraph:
