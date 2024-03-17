@@ -82,11 +82,11 @@ class Solver:
             for stmt in stmt_colle.get_store_attrs():
                 from_var = stmt.get_rval()
                 cs_from_var = self.c.cs_manager.get_var(ctx, from_var)
-                field = stmt.get_field_ref().resolve()
+                field = stmt.get_field()
                 for base_obj in pts:
                     if base_obj[1].is_functional():
                         inst_field = self.c.cs_manager.get_instance_field(base_obj, field)
-                        self.add_pfg_edge(from_var, inst_field, FlowKind.INSTANCE_STORE)
+                        self.add_pfg_edge(cs_from_var, inst_field, FlowKind.INSTANCE_STORE)
 
     def process_instance_load(self, base_var: CSVar, pts: PointsToSet):
         ctx, var = base_var
@@ -94,12 +94,21 @@ class Solver:
         if stmt_colle is not None:
             for stmt in stmt_colle.get_load_attrs():
                 to_var = stmt.get_lval()
-                to = self.c.cs_manager.get_var(ctx, to_var)
-                field = stmt.get_field_ref().resolve()
+                cs_to_var = self.c.cs_manager.get_var(ctx, to_var)
+                field = stmt.get_field()
                 for base_obj in pts:
                     if base_obj[1].is_functional():
                         inst_field = self.c.cs_manager.get_instance_field(base_obj, field)
-                        self.add_pfg_edge(inst_field, to, FlowKind.INSTANCE_LOAD)
+                        self.add_pfg_edge(inst_field, cs_to_var, FlowKind.INSTANCE_LOAD)
+
+    def process_call(self, recv: CSVar, pts: PointsToSet):
+        ctx, var = recv
+        stmt_colle = self.c.var2stmtcolle.get(var)
+        if stmt_colle is not None:
+            for stmt in stmt_colle.get_invokes():
+                callee: OptiIRScope = self.c.call_graph.get_callees_of(stmt)
+
+
 
     def process_new_scope(self, scope: IRScope):
         if scope not in self.c.reachable_scopes:
@@ -108,7 +117,12 @@ class Solver:
             for stmt in self.get_pt_ir(scope):
                 self.plugin.on_new_stmt(stmt, scope)
 
+
     # logic ends
+
+    def resolve_field(self, var: Var, field: str) -> :
+        self.c.
+
     def get_pt_ir(self, scope: IRScope) -> List[PtStmt]:
         return self.c.scope2pt_ir.get(scope, [])
 

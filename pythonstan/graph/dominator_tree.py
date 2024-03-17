@@ -15,7 +15,7 @@ class DominatorTree:
     ran: Dict[Node, Node]
     df: Dict[Node, Set[Node]]
 
-    def __init__(self, graph: Graph, is_post=False):
+    def __init__(self, graph: Graph, is_post: bool = False):
         self.graph = graph
         self.is_post = is_post
 

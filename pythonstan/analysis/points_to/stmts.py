@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-
 from typing import List
+
 from pythonstan.ir import *
+from .elements import Var, InstanceField
 
 
 class PtStmt(ABC):
@@ -49,7 +50,7 @@ class PtCopy(AbstractPtStmt):
 
 
 class PtLoadSubscr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, ):
         super().__init__(ir_stmt, container_scope)
 
 
@@ -59,26 +60,50 @@ class PtStoreSubscr(AbstractPtStmt):
 
 
 class PtLoadAttr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, lval: Var, rval: Var, field: str):
         super().__init__(ir_stmt, container_scope)
+        self.lval = lval
+        self.rval = rval
+        self.field = field
+
+    def get_lval(self) -> Var:
+        ...
+
+    def get_rval(self) -> Var:
+        ...
+
+    def get_field(self) -> str:
+        return self.field
 
 
 class PtStoreAttr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, lval: Var, rval: Var, field: str):
         super().__init__(ir_stmt, container_scope)
+        self.lval = lval
+        self.rval = rval
+        self.field = field
+
+    def get_lval(self) -> Var:
+        ...
+
+    def get_rval(self) -> Var:
+        ...
+
+    def get_field(self) -> str:
+        return self.field
 
 
 class StmtCollector:
-    assigns: List[IRAssign]
-    store_attrs: List[IRStoreAttr]
-    load_attrs: List[IRLoadAttr]
-    store_subscrs: List[IRStoreSubscr]
-    load_subscrs: List[IRLoadAttr]
-    allocs: List[IRCall]
-    invokes: List[IRCall]
+    copies: List[PtCopy]
+    store_attrs: List[PtStoreAttr]
+    load_attrs: List[PtLoadAttr]
+    store_subscrs: List[PtStoreSubscr]
+    load_subscrs: List[PtLoadSubscr]
+    allocs: List[PtAllocation]
+    invokes: List[PtInvoke]
 
     def __init__(self):
-        self.assigns = []
+        self.copies = []
         self.store_attrs = []
         self.load_attrs = []
         self.store_subscrs = []
@@ -86,23 +111,23 @@ class StmtCollector:
         self.allocs = []
         self.invokes = []
 
-    def get_assigns(self) -> List[IRAssign]:
-        return self.assigns
+    def get_copies(self) -> List[PtCopy]:
+        return self.copies
 
-    def get_store_attrs(self) -> List[IRStoreAttr]:
+    def get_store_attrs(self) -> List[PtStoreAttr]:
         return self.store_attrs
 
-    def get_load_attrs(self) -> List[IRLoadAttr]:
+    def get_load_attrs(self) -> List[PtLoadAttr]:
         return self.load_attrs
 
-    def get_store_subscrs(self) -> List[IRStoreSubscr]:
+    def get_store_subscrs(self) -> List[PtStoreSubscr]:
         return self.store_subscrs
 
-    def get_load_subscrs(self) -> List[IRLoadAttr]:
+    def get_load_subscrs(self) -> List[PtLoadSubscr]:
         return self.load_subscrs
 
-    def get_allocs(self) -> List[IRCall]:
+    def get_allocs(self) -> List[PtAllocation]:
         return self.allocs
 
-    def get_invokes(self) -> List[IRCall]:
+    def get_invokes(self) -> List[PtInvoke]:
         return self.invokes
