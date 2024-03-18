@@ -4,8 +4,9 @@ from .work_list import Worklist
 from .cs_manager import CSManager
 from .heap_model import HeapModel
 from .context_selector import ContextSelector
-from .context import CSVar
-from .cs_call_graph import CSCallGraph, CallEdge
+from .context import CSVar, CSCallSite, CSScope
+from .cs_call_graph import CSCallGraph
+from pythonstan.graph.call_graph import CallEdge, CallKind
 from .pointer_flow_graph import PointerFlowGraph, PointerFlowEdge, FlowKind
 from .points_to_set import PointsToSet
 from .elements import Pointer
@@ -13,7 +14,7 @@ from ..analysis import AnalysisConfig
 from .plugin import Plugin
 from pythonstan.ir import IRScope
 from .solver_interface import SolverInterface
-from .stmts import PtStmt
+from .stmts import PtStmt, PtInvoke
 
 
 class StmtProcessor:
@@ -106,7 +107,34 @@ class Solver:
         stmt_colle = self.c.var2stmtcolle.get(var)
         if stmt_colle is not None:
             for stmt in stmt_colle.get_invokes():
-                callee: OptiIRScope = self.c.call_graph.get_callees_of(stmt)
+                for recv_obj in pts:
+                    callees = stmt.get_callees()
+                    if len(callees) > 0:
+                        for callee in stmt.get_callees():
+                            cs_callsite = self.c.cs_manager.get_callsite(ctx, stmt)
+                            callee_ctx = self.c.context_selector.select_instance_context(cs_callsite, recv_obj, callee)
+                            cs_callee = self.c.cs_manager.get_scope(callee_ctx, callee)
+                            self.add_call_edge(CallEdge(self.get_call_kind(stmt), cs_callsite, cs_callee))
+                            # TODO should add the self obj
+                            self.add_var_points_to(callee_ctx, callee, recv_obj)
+                    else:
+                        self.plugin.on_unresolved_call(recv_obj, ctx, stmt)
+
+    def process_call_edge(self, edge: CallEdge[CSCallSite, CSScope]):
+        if self.c.call_graph.add_edge(edge):
+            cs_callee = edge.get_callee()
+            self.add_cs_scope(cs_callee)
+            if edge.get_kind() != CallKind.OTHER:
+                caller_ctx = edge.get_callsite().get_context()
+                call_site = edge.get_callsite().get_callsite()
+                callee_ctx, callee = cs_callee
+                n_args = len(call_site.get_args())
+                for i in range(n_args):
+                    ...
+
+
+
+
 
 
 
@@ -120,13 +148,13 @@ class Solver:
 
     # logic ends
 
-    def resolve_field(self, var: Var, field: str) -> :
-        self.c.
+    def get_call_kind(self, stmt: PtInvoke) -> CallKind:
+        ...
 
     def get_pt_ir(self, scope: IRScope) -> List[PtStmt]:
         return self.c.scope2pt_ir.get(scope, [])
 
-    def add_cs_method(self):
+    def add_cs_scope(self, scope: CSScope):
         ...
 
     def add_stmts(self):

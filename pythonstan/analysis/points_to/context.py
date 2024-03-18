@@ -49,6 +49,9 @@ class CSCallSite:
     def get_callsite(self) -> PtInvoke:
         return self.callsite
 
+    def get_context(self) -> Context:
+        return self.context
+
     def get_container(self) -> CSScope:
         return self.container
 

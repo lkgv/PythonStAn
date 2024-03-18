@@ -5,6 +5,8 @@ from .context import CSCallSite, CSScope
 from pythonstan.utils.common import multimap_add
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 
+__all__ = ['CSCallGraph']
+
 
 class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):
     cs_manager: CSManager
@@ -21,7 +23,7 @@ class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):
         self.reachable_scopes.add(scope)
         return ret
 
-    def add_edge(self, edge: CallEdge[CSCallSite, CSScope]):
+    def add_edge(self, edge: CallEdge[CSCallSite, CSScope]) -> bool:
         if edge not in self.edges:
             self.edges.add(edge)
             callsite = edge.get_callsite()
