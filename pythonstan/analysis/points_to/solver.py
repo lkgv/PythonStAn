@@ -133,11 +133,6 @@ class Solver:
                     ...
 
 
-
-
-
-
-
     def process_new_scope(self, scope: IRScope):
         if scope not in self.c.reachable_scopes:
             self.c.reachable_scopes.add(scope)
