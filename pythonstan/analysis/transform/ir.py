@@ -42,6 +42,9 @@ class LabelGenerator:
         self.next_idx += 1
         return label
 
+# TODO create var Class
+# TODO add global/local attribute
+
 
 class IRTransformer(NodeVisitor):
     imports: List[IRImport]

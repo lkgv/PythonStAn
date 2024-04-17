@@ -13,7 +13,7 @@ class IRFunc(IRScope, IRStatement):
     decorator_list: List[ast.expr]
     returns: ast.expr
     type_comment: str
-    ast: ast.stmt
+    stmt: ast.stmt
     is_async: bool
     is_getter: bool
     is_setter: bool
@@ -43,7 +43,7 @@ class IRFunc(IRScope, IRStatement):
         self.is_instance_method = (is_method and not self.is_static_method and not self.is_class_method)
         self.returns = fn.returns
         self.type_comment = fn.type_comment
-        self.ast = fn
+        self.stmt = fn
         self.is_async = isinstance(fn, ast.AsyncFunctionDef)
         if cell_vars is None:
             self.cell_vars = {*()}
@@ -51,7 +51,7 @@ class IRFunc(IRScope, IRStatement):
             self.cell_vars = cell_vars
 
     def get_ast(self) -> ast.stmt:
-        return self.ast
+        return self.stmt
 
     def set_cell_vars(self, cell_vars):
         self.cell_vars = cell_vars
@@ -73,6 +73,9 @@ class IRFunc(IRScope, IRStatement):
             return f'<async function {self.name}>'
         else:
             return f'<function {self.name}'
+
+    def get_arg_names(self) -> ast.arguments:
+        return self.args
 
     def __repr__(self) -> str:
         decrs = ', '.join([ast.unparse(decr) for decr in self.decorator_list])

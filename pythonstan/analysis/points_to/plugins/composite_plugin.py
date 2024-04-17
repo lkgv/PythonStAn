@@ -1,33 +1,5 @@
-from abc import ABC
+from .plugin import Plugin
 from typing import List
-
-__all__ = ['Plugin', 'CompositePlugin']
-
-
-class Plugin(ABC):
-    def on_start(self):
-        ...
-
-    def on_finish(self):
-        ...
-
-    def on_new_pts(self, cs_var, pts):
-        ...
-
-    def on_new_call_edge(self, edge):
-        ...
-
-    def on_new_scope(self, scope):
-        ...
-
-    def on_new_stmt(self, stmt, container):
-        ...
-
-    def on_new_cs_scope(self, cs_scope):
-        ...
-
-    def on_unresolved_call(self, recv, context, invoke):
-        ...
 
 
 class CompositePlugin(Plugin):
@@ -36,10 +8,10 @@ class CompositePlugin(Plugin):
     def __init__(self):
         self.plugins = []
 
-    def add_plugin(self, plugin: 'Plugin'):
+    def add_plugin(self, plugin: Plugin):
         self.plugins.append(plugin)
 
-    def get_plugins(self) -> List['Plugin']:
+    def get_plugins(self) -> List[Plugin]:
         return self.plugins
 
     def on_start(self):

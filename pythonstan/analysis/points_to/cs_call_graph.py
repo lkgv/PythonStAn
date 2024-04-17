@@ -7,6 +7,8 @@ from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 
 __all__ = ['CSCallGraph']
 
+CSCallEdge = CallEdge[CSCallSite, CSScope]
+
 
 class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):
     cs_manager: CSManager
@@ -23,7 +25,7 @@ class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):
         self.reachable_scopes.add(scope)
         return ret
 
-    def add_edge(self, edge: CallEdge[CSCallSite, CSScope]) -> bool:
+    def add_edge(self, edge: CSCallEdge) -> bool:
         if edge not in self.edges:
             self.edges.add(edge)
             callsite = edge.get_callsite()
@@ -36,5 +38,5 @@ class CSCallGraph(AbstractCallGraph[CSCallSite, CSScope]):
         else:
             return False
 
-    def get_edges(self) -> Set[CallEdge[CSCallSite, CSScope]]:
+    def get_edges(self) -> Set[CSCallEdge]:
         return self.edges

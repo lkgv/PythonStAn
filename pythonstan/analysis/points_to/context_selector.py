@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from .context import Context, CSCallSite, CSObj, CSScope
+from .context import Context
+from .elements import CSCallSite, CSObj, CSScope
 from .heap_model import Obj
 from pythonstan.ir import IRScope
 
