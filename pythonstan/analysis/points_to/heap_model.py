@@ -7,7 +7,7 @@ from .stmts import PtAllocation, AbstractPtStmt
 
 class Obj(ABC):
     idx: Optional[int]
-    callable: bool
+    _callable: bool = False
 
     def set_idx(self, idx: int):
         assert self.idx is not None, "idx already set"
@@ -65,6 +65,15 @@ class ConstantObj(Obj):
 
     def __str__(self):
         return f"ConstantObj<{self.get_type()}: {self.value}>"
+
+
+class InstanceObj(Obj):
+    ...
+
+
+class ClassObj(Obj):
+    _callable = True
+    ...
 
 
 class UnknownObj(Obj):
@@ -180,6 +189,9 @@ class HeapModel(ABC):
 
     @abstractmethod
     def get_constant_obj(self, value: Literals) -> Obj:
+        ...
+
+    def get_unknown_obj(self) -> UnknownObj:
         ...
 
     @abstractmethod

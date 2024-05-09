@@ -1,7 +1,8 @@
 from typing import Set, Optional
 
-from .context import CSObj
 
+
+# TODO has been moved into elements.py, remove this file
 
 class PointsToSet:
     pts: Set[CSObj]
@@ -29,6 +30,10 @@ class PointsToSet:
         ret = cls()
         ret.pts = {x for x in pts}
         return ret
+
+    @classmethod
+    def from_obj(cls, obj: CSObj) -> 'PointsToSet':
+        return cls(obj)
 
     def has(self, obj: CSObj) -> bool:
         return obj in self.pts
