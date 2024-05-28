@@ -46,8 +46,8 @@ class Solver:
         self.plugin.on_start()
 
     def analyze(self):
-        while not self.work_list.is_empty():
-            entry = self.work_list.get()
+        while not self.c.work_list.is_empty():
+            entry = self.c.work_list.get()
             if entry is None:
                 break
             elif isinstance(entry, CallEdge):
@@ -67,7 +67,7 @@ class Solver:
         self.get_points_to_set_of(pointer).add_all(pts)
         if not diff.is_empty():
             for e in self.c.pfg.get_out_edges_of(pointer):
-                self.c.add_points_to(e.tgt, diff)
+                self.c.add_points_to_pts(e.get_tgt(), diff)
         return diff
 
     def process_instance_store(self, base_var: CSVar, pts: PointsToSet):
@@ -107,7 +107,7 @@ class Solver:
                         cs_callsite = self.c.cs_manager.get_callsite(ctx, stmt)
                         callee_ctx = self.c.context_selector.select_instance_context(cs_callsite, recv_obj, callee)
                         cs_callee = self.c.cs_manager.get_scope(callee_ctx, callee)
-                        self.add_call_edge(CallEdge(self.get_call_kind(stmt), cs_callsite, cs_callee))
+                        self.c.add_call_edge(CallEdge(self.c.get_call_kind(stmt), cs_callsite, cs_callee))
                         # TODO should add the self obj
                         # self.add_var_points_to(callee_ctx, callee, recv_obj)
                     else:

@@ -10,7 +10,7 @@ __all__ = ["IRAssign"]
 
 
 class IRAssign(IRAbstractStmt):
-    lval: ast.Name
+    lval: ast.expr
     rval: ast.expr
     stmt: Statement
     store_collector: VarCollector
@@ -37,7 +37,7 @@ class IRAssign(IRAbstractStmt):
     def get_ast(self) -> Statement:
         return self.stmt
 
-    def get_lval(self) -> ast.Name:
+    def get_lval(self) -> ast.expr:
         return self.lval
 
     def get_rval(self) -> ast.expr:

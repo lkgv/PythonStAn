@@ -7,9 +7,9 @@ from pythonstan.utils.var_collector import VarCollector
 __all__ = ["IRLoadAttr"]
 
 
+# lval = rval( obj.attr )
 class IRLoadAttr(IRAssign):
     lval: ast.Name
-    rval: ast.expr
     obj: ast.Name
     attr: str
     stmt: Statement

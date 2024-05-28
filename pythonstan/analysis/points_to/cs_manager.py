@@ -1,42 +1,52 @@
-from abc import ABC
-from typing import Collection, Dict
+from abc import ABC, abstractmethod
+from typing import Collection, Dict, Union
 
-from .context import Context, CSVar, CSObj, CSCallSite, CSScope
-from .elements import Var, StaticField, InstanceField, ArrayIndex
+from .context import Context
+from .elements import *
 from .heap_model import Obj
 from .stmts import PtInvoke
 from pythonstan.ir import IRScope
 
 
 class CSManager(ABC):
-    def get_var(self, ctx: Context, var: Var) -> CSVar:
+    @abstractmethod
+    def get_var(self, ctx: Context, var: Var) -> Union[CSVar, ClassField]:
+        # if context belongs to a class then return the Class Instance, and add it into class manager
         ...
 
+    @abstractmethod
     def get_obj(self, ctx: Context, obj: Obj) -> CSObj:
         ...
 
+    @abstractmethod
     def get_callsite(self, ctx: Context, call_site: PtInvoke) -> CSCallSite:
         ...
 
+    @abstractmethod
     def get_scope(self, ctx: Context, scope: IRScope) -> CSScope:
         ...
 
-    # may be replaced by instance_field for the class object.
-    def get_static_field(self, ctx: Context, field: str) -> StaticField:
+    @abstractmethod
+    def get_class_field(self, ctx: Context, field: str) -> ClassField:
         ...
 
+    @abstractmethod
     def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
         ...
 
+    @abstractmethod
     def get_array_index(self, ctx: Context, array: Obj) -> ArrayIndex:
         ...
 
+    @abstractmethod
     def get_vars(self) -> Collection[Var]:
         ...
 
+    @abstractmethod
     def get_cs_vars_of(self, var: Var) -> Collection[CSVar]:
         ...
 
+    @abstractmethod
     def get_contexs_from_var(self, var: Var) -> Collection[Context]:
         ...
 
@@ -55,8 +65,40 @@ class PointerManager:
         self.array_indexes = {}
         self.counter = 0
 
-    def get_cs_var(self, ):
+    def get_cs_var(self, context: Context, name: str) -> CSVar:
+        ...
 
 
 class MapBasedCSManager(CSManager):
-    ptr_manager =
+    ptr_manager = PointerManager()
+
+    def get_var(self, ctx: Context, var: Var) -> Union[CSVar, ClassField]:
+        # if context belongs to a class then return the Class Instance, and add it into class manager
+        ...
+
+    def get_obj(self, ctx: Context, obj: Obj) -> CSObj:
+        ...
+
+    def get_callsite(self, ctx: Context, call_site: PtInvoke) -> CSCallSite:
+        ...
+
+    def get_scope(self, ctx: Context, scope: IRScope) -> CSScope:
+        ...
+
+    def get_class_field(self, ctx: Context, field: str) -> ClassField:
+        ...
+
+    def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
+        ...
+
+    def get_array_index(self, ctx: Context, array: Obj) -> ArrayIndex:
+        ...
+
+    def get_vars(self) -> Collection[Var]:
+        ...
+
+    def get_cs_vars_of(self, var: Var) -> Collection[CSVar]:
+        ...
+
+    def get_contexs_from_var(self, var: Var) -> Collection[Context]:
+        ...

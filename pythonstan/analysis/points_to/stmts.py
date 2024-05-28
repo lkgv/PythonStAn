@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 from typing import List
 
 from pythonstan.ir import *
-from .elements import Var, InstanceField
+from .elements import *
+from pythonstan.graph.call_graph import CallKind
+
+__all__ = ['PtStmt', 'PtAllocation', 'PtInvoke', 'PtCopy', 'PtLoadAttr', 'PtStoreAttr', 'PtLoadSubscr', 'PtStoreSubscr',
+           'StmtCollector']
 
 
 class PtStmt(ABC):
@@ -40,8 +44,13 @@ class PtAllocation(AbstractPtStmt):
 
 
 class PtInvoke(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, call_kind: CallKind):
         super().__init__(ir_stmt, container_scope)
+        self.call_kind = call_kind
+
+    def get_call_kind(self) -> CallKind:
+        return self.call_kind
+
 
 
 class PtCopy(AbstractPtStmt):
@@ -60,7 +69,7 @@ class PtStoreSubscr(AbstractPtStmt):
 
 
 class PtLoadAttr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, lval: Var, rval: Var, field: str):
+    def __init__(self, ir_stmt: IRStatement, container_scope: CSScope, lval: Var, rval: Var, field: str):
         super().__init__(ir_stmt, container_scope)
         self.lval = lval
         self.rval = rval
@@ -110,6 +119,9 @@ class StmtCollector:
         self.load_subscrs = []
         self.allocs = []
         self.invokes = []
+
+    def add_load_attr(self, stmt: PtLoadAttr):
+        self.load_attrs.append(stmt)
 
     def get_copies(self) -> List[PtCopy]:
         return self.copies

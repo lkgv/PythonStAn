@@ -11,7 +11,7 @@ __all__ = ["IRYield"]
 
 class IRYield(IRAbstractStmt):
     stmt: Statement
-    value: Optional[ast.expr]
+    value: Optional[ast.Name]
     load_collector: VarCollector
     store_collector: VarCollector
     target: Optional[ast.expr]
@@ -21,7 +21,12 @@ class IRYield(IRAbstractStmt):
         self.stmt = stmt
         assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
         self.target = stmt.targets[0] if isinstance(stmt, ast.Assign) else None
-        self.value = stmt.value.value
+        yield_value = stmt.value.value
+        if yield_value is None:
+            self.value = None
+        else:
+            assert isinstance(yield_value, ast.Name)
+            self.value = yield_value
         self._is_yield_from = isinstance(self.value, ast.YieldFrom)
         ast.fix_missing_locations(self.stmt)
         self.load_collector = VarCollector("load")

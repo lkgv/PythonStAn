@@ -4,13 +4,14 @@ from ..solver_interface import SolverInterface
 from ..context import Context
 from ..elements import *
 from ..pointer_flow_graph import FlowKind
-from ..heap_model import Obj
+from ..stmts import *
 from pythonstan.graph.call_graph import CallKind
 from pythonstan.utils.persistent_rb_tree import PersistentMap, PersistentSet
 from pythonstan.ir import *
 
 from typing import Iterable, Tuple, Optional, Dict, Set
 import ast
+
 
 ALLOW_UNKNOWN_OBJ = True
 
@@ -31,10 +32,11 @@ class Values:
 
 class State:
     mem: PersistentMap[str, CSVar]
-    val_map: Dict[Pointer, Values]
+    val_map: PersistentMap[Pointer, Values]
 
     def __init__(self, c: SolverInterface):
         self.mem = PersistentMap()
+        self.val_map = PersistentMap()
         self.c = c
 
     def items(self) -> Iterable[Tuple[CSVar, CSVar]]:
@@ -69,12 +71,28 @@ class State:
         result.mem.recover(self.mem.backup())
         return result
 
+    @staticmethod
+    def search_vars(var_name: str, states: Iterable['State']) -> Set[CSVar]:
+        ret = set()
+        for state in states:
+            var = state.get(var_name)
+            if var is not None:
+                ret.add(var)
+        return ret
+
+
 
 class StmtProcessor(IRVisitor):
     cur_state: State
     state_before: Dict[IRStatement, State]
     state_after: Dict[IRStatement, State]
+    ret_var: CSVar
     context: Context
+    stmt_collector: StmtCollector
+
+    # do weak update just in special cases
+    # do dataflow, add edges in PFG just in static case, eg. y = 3, y = x.
+    # staticproperty and class property seen as instance property of class obj.
 
 
     def __init__(self, c: SolverInterface, scope: CSScope):
@@ -82,73 +100,82 @@ class StmtProcessor(IRVisitor):
         self.scope = scope
         self.state_before = {}
         self.state_after = {}
+        self.stmt_collector = StmtCollector()
 
     def visit_stmts(self, stmts: Iterable[IRStatement], init_state: State, context: Context):
         self.cur_state = init_state
         self.context = context
+        self.ret_var = self.get_var('return')
         for stmt in stmts:
             self.state_before[stmt] = self.cur_state.copy()
             self.visit(stmt)
             self.state_after[stmt] = self.cur_state.copy()
 
-    def generate_new_var(self, var_name: str, old_vars: Optional[Iterable[CSVar]] = None) -> CSVar:
-        new_var = self.c.cs_manager.get_var(self.context, Var(var_name))
-        if old_vars is not None:
-            for old_var in old_vars:
-                self.c.add_pfg_edge(old_var, new_var, FlowKind.LOCAL_ASSIGN)
-        self.cur_state.set(var_name, new_var)
-        return new_var
+    def retrive_var(self, name: str) -> Optional[CSVar]:
+        return  self.cur_state.get(name)
 
-    @staticmethod
-    def collect_vars(var_name: str, states: Iterable[State]) -> Iterable[CSVar]:
-        ret = []
-        for state in states:
-            var = state.get(var_name)
-            if var is not None:
-                ret.append(var)
-        return ret
+    def get_var(self, name: str) -> CSVar:
+        var = self.retrive_var(name)
+        if var is None:
+            new_var = self.c.cs_manager.get_var(self.context, Var(name))
+            self.cur_state.set(name, new_var)
+            return new_var
+        else:
+            return var
 
     def visit_IRAssign(self, stmt: IRAssign):
-        lval = self.generate_new_var(stmt.lval.id, self.collect_vars(stmt.lval.id, [self.cur_state]))
+        lval = self.get_var(stmt.lval.id)
+
+        # Copy
         if isinstance(stmt.rval, ast.Name):
-            rval = self.cur_state.get(stmt.rval.id)
-            if rval is None:
-                if ALLOW_UNKNOWN_OBJ:
-                    unknown_obj = self.c.heap_model.get_unknown_obj()
-                    rval = self.generate_new_var(stmt.rval.id)
-                    self.c.add_var_points_to_heap_obj(self.context, rval.get_var(), self.context, unknown_obj)
-                    self.c.add_pfg_edge(rval, lval, FlowKind.LOCAL_ASSIGN)
-                else:
-                    raise ValueError(f"Unresolved variable {stmt.rval.id}")
-            else:
-                self.c.add_pfg_edge(rval, lval, FlowKind.LOCAL_ASSIGN)
+            rval = self.get_var(stmt.rval.id)
+            self.c.add_pfg_edge(rval, lval, FlowKind.LOCAL_ASSIGN)
+
+        # Assign Constant
         elif isinstance(stmt.rval, ast.Constant):
             obj = self.c.heap_model.get_constant_obj(stmt.rval.value)
             heap_ctx = self.c.context_selector.select_heap_context(self.scope, obj)
             self.c.add_var_points_to_heap_obj(self.context, lval.get_var(), heap_ctx, obj)
+
+        # Assign Tuple
         elif isinstance(stmt.rval, ast.Tuple):
             ...
-        elif isinstance(stmt.rval, ast.Add):
-            ...
 
-    # TODO fix it
+
+        elif isinstance(stmt.rval, ast.Add):
+            expr = stmt.rval
+            assert isinstance(expr, ast.Add)
+            expr.
+            if isinstance(stmt.)
+
+
+
     def visit_IRStoreAttr(self, stmt: IRStoreAttr):
-        base = self.cur_state.get(stmt.base.id)
+        base = self.cur_state.get(stmt.get_obj().id)
         if base is None:
-            if ALLOW_UNKNOWN_OBJ:
-                base = self.c.heap_model.get_unknown_obj()
+            raise ValueError(f"Unresolved variable {stmt.get_obj().id}")
+        field = stmt.get_attr()
+        for obj in base.get_points_to_set():
+            inst_field = self.c.cs_manager.get_instance_field(obj, field)
+            rval = self.retrive_var(stmt.get_rval().id)
+            if rval is None:
+                if ALLOW_UNKNOWN_OBJ:
+                    unknown_obj = self.c.heap_model.get_unknown_obj()
+                    rval = self.get_var(stmt.get_rval().id)
+                    self.c.add_var_points_to_heap_obj(self.context, rval.get_var(), self.context, unknown_obj)
+                    self.c.add_pfg_edge(rval, inst_field, FlowKind.INSTANCE_STORE)
+                else:
+                    raise ValueError(f"Unresolved variable {stmt.get_rval().id}")
             else:
-                raise ValueError(f"Unresolved variable {stmt.base.id}")
-        field = stmt.field
-        for base_obj in base:
-            if base_obj.is_functional():
-                inst_field = self.c.cs_manager.get_instance_field(base_obj, field)
-                self.c.add_pfg_edge(base_obj, inst_field, FlowKind.INSTANCE_STORE)
+                self.c.add_pfg_edge(rval, inst_field, FlowKind.INSTANCE_STORE)
+
+            # Generate PtIR
+            self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, inst_field, rval, field))
 
 
     def visit_IRLoadAttr(self, stmt: IRLoadAttr):
-        lval = self.generate_new_var(stmt.lval.id, self.collect_vars(stmt.lval.id, [self.cur_state]))
-        base = self.cur_state.get(stmt.get_obj().id)
+        lval = self.get_var(stmt.lval.id)
+        base = self.retrive_var(stmt.get_obj().id)
         if base is None:
             if ALLOW_UNKNOWN_OBJ:
                 unknown_obj = self.c.heap_model.get_unknown_obj()
@@ -160,9 +187,14 @@ class StmtProcessor(IRVisitor):
             inst_field = self.c.cs_manager.get_instance_field(obj, field)
             self.c.add_pfg_edge(inst_field, lval, FlowKind.INSTANCE_LOAD)
 
+            # Generate PtIR
+            self.stmt_collector.add_load_attr(PtLoadAttr(stmt, self.scope, lval, inst_field, field))
+
     # TODO fix it
     def visit_IRCall(self, stmt: IRCall):
         fn_var = self.cur_state.get(stmt.get_func_name())
+        for arg in stmt.get_args():
+            var_arg = self.cur_state.get()
         if fn_var is not None:
             for fn_obj in fn_var.get_points_to_set():
                 if fn_obj.is_functional():
@@ -170,6 +202,23 @@ class StmtProcessor(IRVisitor):
                         cs_callee = self.c.cs_manager.get_scope(self.context, callee)
                         self.c.add_call_edge(CSCallEdge(self.c.get_call_kind(stmt), self.context, cs_callee))
 
+    def visit_IRClass(self, stmt: IRClass):
+        cls_obj = ...
+
+    def visit_IRFunc(self, stmt: IRFunc):
+        func_obj = ...
+        ...
+
+    def visit_IRReturn(self, stmt: IRReturn):
+        val = self.get_var(stmt.value)
+        if val is None:
+            none_obj = self.c.heap_model.get_constant_obj(None)
+            self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
+        else:
+            self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
+
+    def visit_IRYield(self, stmt: IRYield):
+        val = self.get_var(stmt.get)
 
 
 class BasicDataFlowPlugin(Plugin):

@@ -1,8 +1,11 @@
 from typing import Union, Set, Dict, Optional
 from abc import ABC, abstractmethod
 
-from pythonstan.ir import IRScope
-from .stmts import PtAllocation, AbstractPtStmt
+from .stmts import *
+from pythonstan.ir import IRScope, IRCall
+
+__all__ = ['Obj', 'ConstantObj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'UnknownObj', 'NewObj',
+           'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel']
 
 
 class Obj(ABC):
@@ -30,9 +33,6 @@ class Obj(ABC):
     def get_container_scope(self) -> Optional[IRScope]:
         ...
 
-    @abstractmethod
-    def get_container_type(self) -> str:
-        ...
 
     @abstractmethod
     def __str__(self):
@@ -46,25 +46,22 @@ Literals = Union[int, float, str, None]
 
 
 class ConstantObj(Obj):
-    value: Literals
+    _value: Literals
 
     def __init__(self, value: Literals):
-        self.value = value
+        self._value = value
 
     def get_type(self) -> str:
-        return str(type(self.value))
+        return str(type(self._value))
 
     def get_allocation(self):
         return None
 
-    def get_container_type(self):
-        return None
-
-    def get_container_scope(self):
+    def get_container_scope(self) -> Optional[IRScope]:
         return None
 
     def __str__(self):
-        return f"ConstantObj<{self.get_type()}: {self.value}>"
+        return f"ConstantObj<{self.get_type()}: {self._value}>"
 
 
 class InstanceObj(Obj):
@@ -73,6 +70,41 @@ class InstanceObj(Obj):
 
 class ClassObj(Obj):
     _callable = True
+
+    ...
+
+
+class AwaitableObj(Obj):
+    _scope: IRScope
+    _value: IRCall
+    _alloc: PtAllocation
+
+    def __init__(self, scope: IRScope, alloc: PtAllocation, value: IRCall):
+        self._scope = scope
+        self._alloc = alloc
+        self._value = value
+
+    def get_type(self) -> str:
+        return f"<Awaitable {str(self._value)}>"
+
+    def get_allocation(self) -> PtAllocation:
+        return self._alloc
+
+    def get_container_scope(self) -> Optional[IRScope]:
+        return self._scope
+
+    def get_value(self) -> IRCall:
+        return self._value
+
+
+class FunctionObj(Obj):
+    from pythonstan.ir import IRFunc
+
+    _ir: IRFunc
+
+    def __init__(self, scope: IRScope, ir: IRFunc):
+        self._ir = ir
+
     ...
 
 
@@ -162,12 +194,12 @@ class MergedObj(Obj):
 
 class MockObj(Obj):
     desc: str
-    alloc: AbstractPtStmt
+    alloc: PtStmt
     type: str
     scope: IRScope
     is_callable: bool
 
-    def __init__(self, desc: str, alloc: AbstractPtStmt, type: str, scope: IRScope, is_callable: bool):
+    def __init__(self, desc: str, alloc: PtStmt, type: str, scope: IRScope, is_callable: bool):
         self.desc = desc
         self.alloc = alloc
         self.type = type
@@ -199,11 +231,13 @@ class HeapModel(ABC):
         ...
 
     @abstractmethod
-    def get_mock_obj(self, desc: str, alloc: AbstractPtStmt, type: str, scope: IRScope, is_callable: bool) -> Obj:
+    def get_mock_obj(self, desc: str, alloc: PtStmt, type: str, scope: IRScope, is_callable: bool) -> Obj:
         ...
 
 
 class AbstractHeapModel(HeapModel):
+    from .stmts import PtAllocation, AbstractPtStmt
+
     constant_objs: Dict[Literals, Obj]
     new_objs: Dict[PtAllocation, NewObj]
     merged_objs: Dict[str, MergedObj]
@@ -260,6 +294,7 @@ class AbstractHeapModel(HeapModel):
 
 
 class AllocationSiteBasedModel(AbstractHeapModel):
+    from .stmts import PtAllocation
 
     def __init__(self, options, obj_groups):
         super().__init__(options)

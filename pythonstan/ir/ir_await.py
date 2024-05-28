@@ -11,7 +11,7 @@ __all__ = ["IRAwait"]
 
 class IRAwait(IRAbstractStmt):
     stmt: Statement
-    value: Optional[ast.expr]
+    value: ast.expr
     load_collector: VarCollector
     store_collector: VarCollector
     target: Optional[ast.expr]
@@ -33,11 +33,8 @@ class IRAwait(IRAbstractStmt):
         self.store_collector.visit(self.stmt)
 
     def __str__(self):
-        if self.value is not None:
-            val_str = ast.unparse(self.value)
-            return f"await {val_str}"
-        else:
-            return "await"
+        val_str = ast.unparse(self.value)
+        return f"await {val_str}"
 
     def get_loads(self) -> Set[str]:
         return self.load_collector.get_vars()

@@ -1,11 +1,9 @@
 from typing import Union, Optional, Set
 
-from .stmts import PtInvoke
-from .heap_model import Obj
 from .context import Context
 from pythonstan.ir import IRScope
 
-__all__ = ['Var', 'Pointer', 'StaticField', 'CSScope', 'CSObj', 'CSVar', 'InstanceField', 'ArrayIndex', 'CSCallSite']
+__all__ = ['Var', 'Pointer', 'ClassField', 'CSScope', 'CSObj', 'CSVar', 'InstanceField', 'ArrayIndex', 'CSCallSite']
 
 
 class Var:
@@ -29,10 +27,6 @@ class Pointer:
 
     def set_points_to_set(self, pts: 'PointsToSet'):
         self.pts = pts
-
-
-class StaticField(Pointer):
-    ...
 
 
 class CSScope(Pointer):
@@ -59,6 +53,8 @@ class CSScope(Pointer):
 
 
 class CSObj(Pointer):
+    from .heap_model import Obj
+
     _context: Context
     _obj: Obj
 
@@ -104,13 +100,45 @@ class CSVar(Pointer):
         return hash((self._context, self._var))
 
 
+class ClassField(Pointer):
+    _base: CSObj
+    _context: Context
+    _field: str
+
+    def __init__(self, base: CSObj, field: str):
+        from .heap_model import ClassObj
+
+        assert isinstance(base.get_obj(), ClassObj)
+        self._base = base
+        self._context = base.get_context()
+        self._field = field
+
+    def __eq__(self, other):
+        if not isinstance(other, ClassField):
+            return False
+        return self._base == other._base and self._field == other._field
+
+    def __hash__(self):
+        return hash((self._base, self._field))
+
+
 class InstanceField(Pointer):
     _base: CSObj
+    _context: Context
+    _field: str
 
-    def get_base(self) -> CSObj:
-        return self._base
+    def __init__(self, base: CSObj, field: str):
+        self._base = base
+        self._context = base.get_context()
+        self._field = field
 
-    ...
+    def __eq__(self, other):
+        if not isinstance(other, InstanceField):
+            return False
+        return self._base == other._base and self._field == other._field
+
+    def __hash__(self):
+        return hash((self._base, self._field))
 
 
 class ArrayIndex(Pointer):
@@ -118,6 +146,8 @@ class ArrayIndex(Pointer):
 
 
 class CSCallSite:
+    from .stmts import PtInvoke
+
     _callsite: PtInvoke
     _context: Context
     _container: CSScope

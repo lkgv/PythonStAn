@@ -11,7 +11,7 @@ from .points_to_set import PointsToSet
 from .pointer_flow_graph import PointerFlowGraph, FlowKind, EdgeTransfer
 from ..analysis import AnalysisConfig
 from pythonstan.ir import IRScope
-from .stmts import StmtCollector, PtStmt
+from .stmts import StmtCollector, PtStmt, PtInvoke
 from .elements import Var, Pointer, CSCallSite, CSScope, CSObj, Obj
 from .work_list import Worklist
 
@@ -80,4 +80,4 @@ class SolverInterface:
 
 
     def get_call_kind(self, stmt: PtInvoke) -> CallKind:
-        ...
+        return stmt.get_call_kind()

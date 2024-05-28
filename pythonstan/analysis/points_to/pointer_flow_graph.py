@@ -12,6 +12,7 @@ class FlowKind(Enum):
     INSTANCE_LOAD = 2
     STATIC_STORE = 3
     STATIC_LOAD = 4
+    RETURN = 5
 
 
 class PointerFlowEdge:
@@ -31,6 +32,15 @@ class PointerFlowEdge:
 
     def get_transfers(self) -> Set['EdgeTransfer']:
         return self._transfers
+
+    def get_src(self) -> Pointer:
+        return self._src
+
+    def get_tgt(self) -> Pointer:
+        return self._tgt
+
+    def get_kind(self) -> FlowKind:
+        return self._kind
 
     def __hash__(self):
         return hash((self._src, self._tgt, self._kind))
