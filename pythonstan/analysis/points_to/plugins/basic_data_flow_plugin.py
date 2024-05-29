@@ -143,6 +143,8 @@ class StmtProcessor(IRVisitor):
 
 
         elif isinstance(stmt.rval, ast.Add):
+            # generate 2 instructions. op = a1.__add__; call(op, a1, a2);
+
             expr = stmt.rval
             assert isinstance(expr, ast.Add)
             expr.
@@ -150,6 +152,7 @@ class StmtProcessor(IRVisitor):
 
 
 
+    # StoreAttr should just emit the PtIR but resolving the points-to relation.
     def visit_IRStoreAttr(self, stmt: IRStoreAttr):
         base = self.cur_state.get(stmt.get_obj().id)
         if base is None:
@@ -172,7 +175,7 @@ class StmtProcessor(IRVisitor):
             # Generate PtIR
             self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, inst_field, rval, field))
 
-
+    # ...
     def visit_IRLoadAttr(self, stmt: IRLoadAttr):
         lval = self.get_var(stmt.lval.id)
         base = self.retrive_var(stmt.get_obj().id)
@@ -190,8 +193,16 @@ class StmtProcessor(IRVisitor):
             # Generate PtIR
             self.stmt_collector.add_load_attr(PtLoadAttr(stmt, self.scope, lval, inst_field, field))
 
+
+    def generate_call_instr(self, fn_var: CSVar, args: List[Tuple[str, bool]], keywords: List[Tuple[Optional[str], str]]
+                            ) -> PtInvoke:
+        ...
+
+
     # TODO fix it
+    # Just emit the call IR
     def visit_IRCall(self, stmt: IRCall):
+
         fn_var = self.cur_state.get(stmt.get_func_name())
         for arg in stmt.get_args():
             var_arg = self.cur_state.get()
