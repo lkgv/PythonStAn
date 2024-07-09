@@ -1,8 +1,8 @@
-from typing import Union, Set, Dict, Optional
+from typing import Union, Set, Dict, List, Optional
 from abc import ABC, abstractmethod
 
 from .stmts import *
-from pythonstan.ir import IRScope, IRCall
+from pythonstan.ir import IRScope, IRCall, IRClass, IRFunc
 
 __all__ = ['Obj', 'ConstantObj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'UnknownObj', 'NewObj',
            'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel']
@@ -69,9 +69,35 @@ class InstanceObj(Obj):
 
 
 class ClassObj(Obj):
+    from .elements import CSVar
+    _scope: IRScope
+    _ir: IRClass
+    _parents: List[CSVar]
+
     _callable = True
 
-    ...
+    def __init__(self, alloc_site: PtAllocation, parents: List[CSVar]):
+        self._scope = alloc_site.get_ir
+        self._ir = ir
+        self._parents = parents
+
+    def get_parents(self) -> List[CSVar]:
+        return self._parents
+
+    def get_ir(self) -> IRClass:
+        return self._ir
+
+
+class FunctionObj(Obj):
+    _scope: IRScope
+    _ir: IRFunc
+
+    def __init__(self, scope: IRScope, ir: IRFunc):
+        self._scope = scope
+        self._ir = ir
+
+    def get_ir(self) -> IRFunc:
+        return self._ir
 
 
 class AwaitableObj(Obj):
@@ -95,17 +121,6 @@ class AwaitableObj(Obj):
 
     def get_value(self) -> IRCall:
         return self._value
-
-
-class FunctionObj(Obj):
-    from pythonstan.ir import IRFunc
-
-    _ir: IRFunc
-
-    def __init__(self, scope: IRScope, ir: IRFunc):
-        self._ir = ir
-
-    ...
 
 
 class UnknownObj(Obj):
@@ -215,6 +230,8 @@ class MockObj(Obj):
 
 
 class HeapModel(ABC):
+    from .elements import CSVar
+
     @abstractmethod
     def get_obj(self, alloc_site: PtAllocation) -> Obj:
         ...
@@ -234,12 +251,21 @@ class HeapModel(ABC):
     def get_mock_obj(self, desc: str, alloc: PtStmt, type: str, scope: IRScope, is_callable: bool) -> Obj:
         ...
 
+    @abstractmethod
+    def get_cls_obj(self, alloc_site: ClassObj, parents: List[CSVar]) -> ClassObj:
+        ...
+
+    @abstractmethod
+    def get_func_obj(self) -> FunctionObj:
+        ...
+
 
 class AbstractHeapModel(HeapModel):
     from .stmts import PtAllocation, AbstractPtStmt
 
     constant_objs: Dict[Literals, Obj]
     new_objs: Dict[PtAllocation, NewObj]
+    cls_objs: Dict[PtAllocation, ClassObj]
     merged_objs: Dict[str, MergedObj]
     mock_objs: Dict[MockObj, MockObj]
 
@@ -248,6 +274,7 @@ class AbstractHeapModel(HeapModel):
         self.constant_objs = {}
         self.new_objs = {}
         self.merged_objs = {}
+        self.cls_objs = {}
         self.mock_objs = {}
         self.options = options
 
@@ -262,7 +289,10 @@ class AbstractHeapModel(HeapModel):
         merged_obj.add_represented_obj(self.get_new_obj(alloc_site))
         return merged_obj
 
-    def get_new_obj(self, alloc_site: PtAllocation) -> NewObj:
+    # Use the tuple <alloc_site, type_obj> to determine a obj. InstanceObj has ClassObj as type, while ...
+    def get_new_obj(self, alloc_site: PtAllocation, proto_obj: Obj) -> NewObj:
+        if begin_obj is ...:
+            ...
         if alloc_site not in self.new_objs:
             self.new_objs[alloc_site] = NewObj(alloc_site)
         return self.new_objs[alloc_site]
@@ -292,6 +322,16 @@ class AbstractHeapModel(HeapModel):
     def do_get_obj(self, alloc_site: PtAllocation) -> Obj:
         ...
 
+    def get_cls_obj(self, alloc_site: PtAllocation, parents) -> ClassObj:
+        if alloc_site not in self.cls_objs:
+            self.cls_objs[alloc_site] = ClassObj(alloc_site, parents)
+        return self.cls_objs[alloc_site]
+
+    def get_func_obj(self) -> FunctionObj:
+        ...
+
+    def get_attr(self):
+        ...
 
 class AllocationSiteBasedModel(AbstractHeapModel):
     from .stmts import PtAllocation

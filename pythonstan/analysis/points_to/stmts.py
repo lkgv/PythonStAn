@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from pythonstan.ir import *
 from .elements import *
@@ -34,6 +34,9 @@ class AbstractPtStmt(PtStmt):
     def get_container_type(self) -> str:
         return self.container_scope.get_qualname()
 
+    def get_ir(self) -> IRStatement:
+        return self.ir_stmt
+
 
 class PtAllocation(AbstractPtStmt):
     def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
@@ -41,6 +44,9 @@ class PtAllocation(AbstractPtStmt):
 
     def get_type(self) -> str:
         ...
+
+    def __eq__(self, other):
+        return isinstance(other, PtAllocation) and other.get_ir() == self.get_ir()
 
 
 class PtInvoke(AbstractPtStmt):
@@ -69,34 +75,34 @@ class PtStoreSubscr(AbstractPtStmt):
 
 
 class PtLoadAttr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: CSScope, lval: Var, rval: Var, field: str):
-        super().__init__(ir_stmt, container_scope)
+    def __init__(self, ir_stmt: IRStatement, container_scope: CSScope, lval: CSVar, rval: CSVar, field: str):
+        super().__init__(ir_stmt, container_scope.get_scope())
         self.lval = lval
         self.rval = rval
         self.field = field
 
-    def get_lval(self) -> Var:
-        ...
+    def get_lval(self) -> CSVar:
+        return self.lval
 
-    def get_rval(self) -> Var:
-        ...
+    def get_rval(self) -> CSVar:
+        return self.rval
 
     def get_field(self) -> str:
         return self.field
 
 
 class PtStoreAttr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, lval: Var, rval: Var, field: str):
-        super().__init__(ir_stmt, container_scope)
+    def __init__(self, ir_stmt: IRStatement, container_scope: CSScope, lval: CSVar, rval: CSVar, field: str):
+        super().__init__(ir_stmt, container_scope.get_scope())
         self.lval = lval
         self.rval = rval
         self.field = field
 
-    def get_lval(self) -> Var:
-        ...
+    def get_lval(self) -> CSVar:
+        return self.lval
 
-    def get_rval(self) -> Var:
-        ...
+    def get_rval(self) -> CSVar:
+        return self.rval
 
     def get_field(self) -> str:
         return self.field
@@ -123,11 +129,17 @@ class StmtCollector:
     def add_load_attr(self, stmt: PtLoadAttr):
         self.load_attrs.append(stmt)
 
+    def add_store_attr(self, stmt: PtStoreAttr):
+        self.store_attrs.append(stmt)
+
     def get_copies(self) -> List[PtCopy]:
         return self.copies
 
-    def get_store_attrs(self) -> List[PtStoreAttr]:
-        return self.store_attrs
+    def get_store_attrs(self, var: Optional[CSVar] = None) -> List[PtStoreAttr]:
+        if var is not None:
+            return [stmt for stmt in self.store_attrs if stmt.get_rval() == var]
+        else:
+            return self.store_attrs
 
     def get_load_attrs(self) -> List[PtLoadAttr]:
         return self.load_attrs

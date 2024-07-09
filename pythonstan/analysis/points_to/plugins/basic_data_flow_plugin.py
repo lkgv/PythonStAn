@@ -154,10 +154,12 @@ class StmtProcessor(IRVisitor):
 
     # StoreAttr should just emit the PtIR but resolving the points-to relation.
     def visit_IRStoreAttr(self, stmt: IRStoreAttr):
-        base = self.cur_state.get(stmt.get_obj().id)
-        if base is None:
-            raise ValueError(f"Unresolved variable {stmt.get_obj().id}")
+        base = self.get_var(stmt.get_obj().id)
         field = stmt.get_attr()
+        rval = self.get_var(stmt.get_rval().id)
+        self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, base, rval, field))
+
+    '''
         for obj in base.get_points_to_set():
             inst_field = self.c.cs_manager.get_instance_field(obj, field)
             rval = self.retrive_var(stmt.get_rval().id)
@@ -174,24 +176,13 @@ class StmtProcessor(IRVisitor):
 
             # Generate PtIR
             self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, inst_field, rval, field))
+    '''
 
-    # ...
     def visit_IRLoadAttr(self, stmt: IRLoadAttr):
-        lval = self.get_var(stmt.lval.id)
-        base = self.retrive_var(stmt.get_obj().id)
-        if base is None:
-            if ALLOW_UNKNOWN_OBJ:
-                unknown_obj = self.c.heap_model.get_unknown_obj()
-                self.c.add_var_points_to_heap_obj(self.context, lval.get_var(), self.context, unknown_obj)
-            else:
-                raise ValueError(f"Unresolved variable {stmt.get_obj().id}")
+        base = self.get_var(stmt.get_obj().id)
         field = stmt.get_attr()
-        for obj in base.get_points_to_set():
-            inst_field = self.c.cs_manager.get_instance_field(obj, field)
-            self.c.add_pfg_edge(inst_field, lval, FlowKind.INSTANCE_LOAD)
-
-            # Generate PtIR
-            self.stmt_collector.add_load_attr(PtLoadAttr(stmt, self.scope, lval, inst_field, field))
+        lval = self.get_var(stmt.get_lval().id)
+        self.stmt_collector.add_load_attr(PtLoadAttr(stmt, self.scope, lval, base, field))
 
 
     def generate_call_instr(self, fn_var: CSVar, args: List[Tuple[str, bool]], keywords: List[Tuple[Optional[str], str]]
@@ -214,7 +205,12 @@ class StmtProcessor(IRVisitor):
                         self.c.add_call_edge(CSCallEdge(self.c.get_call_kind(stmt), self.context, cs_callee))
 
     def visit_IRClass(self, stmt: IRClass):
-        cls_obj = ...
+        cls_name = stmt.get_name()
+        cls_var = self.get_var(cls_name)
+
+        cls_obj = self.c.heap_model.get_class
+
+        self.c.add_points_to_obj(cls_var, cls_obj)
 
     def visit_IRFunc(self, stmt: IRFunc):
         func_obj = ...

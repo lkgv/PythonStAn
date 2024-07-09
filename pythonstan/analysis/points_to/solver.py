@@ -75,8 +75,8 @@ class Solver:
         stmt_colle = self.c.var2stmtcolle.get(var)
         if stmt_colle is not None:
             for stmt in stmt_colle.get_store_attrs():
-                from_var = stmt.get_rval()
-                cs_from_var = self.c.cs_manager.get_var(ctx, from_var)
+                cs_from_var = stmt.get_rval()
+                # cs_from_var = self.c.cs_manager.get_var(ctx, from_var)
                 field = stmt.get_field()
                 for base_obj in pts:
                     if base_obj[1].is_functional():
