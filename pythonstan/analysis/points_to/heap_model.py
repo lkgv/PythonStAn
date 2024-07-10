@@ -1,4 +1,4 @@
-from typing import Union, Set, Dict, List, Optional
+from typing import Union, Set, Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 
 from .stmts import *
@@ -8,22 +8,37 @@ __all__ = ['Obj', 'ConstantObj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'Unkn
            'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel']
 
 
+class Type(ABC):
+    @abstractmethod
+    def __eq__(self, other):
+        ...
+
+    @abstractmethod
+    def __hash__(self):
+        ...
+
+    @abstractmethod
+    def __le__(self, rhs) -> bool:
+        ...
+
+
 class Obj(ABC):
-    idx: Optional[int]
+    _idx: Optional[int]
+    _type: Type
     _callable: bool = False
 
     def set_idx(self, idx: int):
-        assert self.idx is not None, "idx already set"
-        assert self.idx >= 0, f"idx must be 0 or positive number, given: {idx}"
-        self.idx = idx
+        assert self._idx is not None, "idx already set"
+        assert self._idx >= 0, f"idx must be 0 or positive number, given: {idx}"
+        self._idx = idx
 
     def get_idx(self) -> int:
-        assert self.idx is not None, "idx has not been set!"
-        return self.idx
+        assert self._idx is not None, "idx has not been set!"
+        return self._idx
 
     @abstractmethod
-    def get_type(self) -> str:
-        ...
+    def get_type(self) -> Type:
+        return self._type
 
     @abstractmethod
     def get_allocation(self) -> Optional[PtAllocation]:
@@ -42,11 +57,55 @@ class Obj(ABC):
         return str(self)
 
 
-Literals = Union[int, float, str, None]
+class TypeObj(Obj, Type, ABC):
+    ...
+
+
+class LiteralTypeObj(TypeObj):
+    ...
+
+
+class IntLiteralTypeObj(LiteralTypeObj):
+    ...
+
+
+add_attr(IntLiteralTypeObj, FuncObj('add', a.literal + b.literal)) ...
+
+
+from pythonstan.utils.common import Singleton
+
+class ClsTypeObj(TypeObj, Singleton):
+    def __init__(self):
+        pass
+
+    def get_type(self) -> Type:
+        return self
+
+    def get_allocation(self) -> Optional[PtAllocation]:
+        return None
+
+    def get_container_scope(self) -> Optional[IRScope]:
+        return None
+
+    def __str__(self):
+        return "<class 'type'>"
+
+    def __eq__(self, other):
+        return isinstance(other, ClsTypeObj)
+
+    def __hash__(self):
+        return hash(type)
+
+    def __le__(self, rhs) -> bool:
+        return isinstance(rhs, ClsTypeObj)
+
+
+ClassTypeObject = ClsTypeObj()
 
 
 class ConstantObj(Obj):
-    _value: Literals
+    _value: Any
+    _type: LiteralTypeObj
 
     def __init__(self, value: Literals):
         self._value = value
@@ -68,8 +127,9 @@ class InstanceObj(Obj):
     ...
 
 
-class ClassObj(Obj):
+class ClassObj(TypeObj):
     from .elements import CSVar
+    _alloc_site: PtAllocation
     _scope: IRScope
     _ir: IRClass
     _parents: List[CSVar]
@@ -77,7 +137,10 @@ class ClassObj(Obj):
     _callable = True
 
     def __init__(self, alloc_site: PtAllocation, parents: List[CSVar]):
-        self._scope = alloc_site.get_ir
+        ir = alloc_site.get_ir()
+        assert isinstance(ir, IRClass), "The ir of the allocation(PtAllocation) of ClassObj should be IRClass!"
+        self._alloc_site = alloc_site
+        self._scope = alloc_site.get_container_scope()
         self._ir = ir
         self._parents = parents
 
@@ -87,8 +150,29 @@ class ClassObj(Obj):
     def get_ir(self) -> IRClass:
         return self._ir
 
+    def get_type(self) -> Type:
+        return ClassTypeObject
 
-class FunctionObj(Obj):
+    def get_allocation(self) -> Optional[PtAllocation]:
+        return self._alloc_site
+
+    def get_container_scope(self) -> Optional[IRScope]:
+        return self._scope
+
+    def __str__(self):
+        return f"<class '{self._ir.get_qualname()}'>"
+
+    def __eq__(self, other):
+        return isinstance(other, ClassObj) and ...
+
+    def __hash__(self):
+        pass
+
+    def __le__(self, rhs) -> bool:
+        pass
+
+
+class AbstractFunctionObj(Obj, ABC):
     _scope: IRScope
     _ir: IRFunc
 
@@ -98,6 +182,13 @@ class FunctionObj(Obj):
 
     def get_ir(self) -> IRFunc:
         return self._ir
+
+
+class BuiltinFunctionObj(AbstractFunctionObj):
+    ...
+
+class FunctionObj(AbstractFunctionObj):
+    ...
 
 
 class AwaitableObj(Obj):
@@ -121,6 +212,9 @@ class AwaitableObj(Obj):
 
     def get_value(self) -> IRCall:
         return self._value
+
+
+
 
 
 class UnknownObj(Obj):
@@ -262,9 +356,10 @@ class HeapModel(ABC):
 
 class AbstractHeapModel(HeapModel):
     from .stmts import PtAllocation, AbstractPtStmt
+    new_objs: Dict[Tuple[PtAllocation, TypeObj], NewObj]
 
     constant_objs: Dict[Literals, Obj]
-    new_objs: Dict[PtAllocation, NewObj]
+    # new_objs: Dict[PtAllocation, NewObj]
     cls_objs: Dict[PtAllocation, ClassObj]
     merged_objs: Dict[str, MergedObj]
     mock_objs: Dict[MockObj, MockObj]
@@ -291,6 +386,10 @@ class AbstractHeapModel(HeapModel):
 
     # Use the tuple <alloc_site, type_obj> to determine a obj. InstanceObj has ClassObj as type, while ...
     def get_new_obj(self, alloc_site: PtAllocation, proto_obj: Obj) -> NewObj:
+        if isinstance(proto_obj, TypeClsObj):
+            ...
+        elif isinstance(proto_obj, LiteralTypeObj):
+            ...
         if begin_obj is ...:
             ...
         if alloc_site not in self.new_objs:
