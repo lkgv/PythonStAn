@@ -1,4 +1,4 @@
-from typing import Union, Set, Dict, List, Optional, Any
+from typing import Union, Set, Dict, List, Optional, Any, Generic, TypeVar
 from abc import ABC, abstractmethod
 
 from .stmts import *
@@ -48,7 +48,6 @@ class Obj(ABC):
     def get_container_scope(self) -> Optional[IRScope]:
         ...
 
-
     @abstractmethod
     def __str__(self):
         ...
@@ -58,15 +57,83 @@ class Obj(ABC):
 
 
 class TypeObj(Obj, Type, ABC):
-    ...
+    _type: 'ClsTypeObj'
+
+    def get_type(self) -> Type:
+        return ClassTypeObject
 
 
-class LiteralTypeObj(TypeObj):
-    ...
+T = TypeVar('T')
+
+class LiteralTypeObj(TypeObj, Generic[T], ABC):
+    @abstractmethod
+    def get_value(self) -> T:
+        ...
+
+    def get_allocation(self) -> Optional[PtAllocation]:
+        return None
+
+    def get_container_scope(self) -> Optional[IRScope]:
+        return None
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.get_value() == other.get_value()
+
+    def __hash__(self):
+        return hash(self.get_value())
+
+    def __le__(self, rhs) -> bool:
+        return isinstance(rhs, self.__class__) or isinstance(rhs, ClsTypeObj)
 
 
-class IntLiteralTypeObj(LiteralTypeObj):
-    ...
+class IntLiteralTypeObj(LiteralTypeObj[int]):
+    _value: int
+    def __init__(self, value: int):
+        self._value = value
+
+    def get_value(self) -> int:
+        return self._value
+
+    def __str__(self):
+        return f"<IntObj {self.get_value()}>"
+
+
+class FloatLiteralTypeObj(LiteralTypeObj[float]):
+    _value: float
+
+    def __init__(self, value: int):
+        self._value = value
+
+    def get_value(self) -> float:
+        return self._value
+
+    def __str__(self):
+        return f"<FloatObj {self.get_value()}>"
+
+
+class StrLiteralTypeObj(LiteralTypeObj[str]):
+    _value: str
+
+    def __init__(self, value: str):
+        self._value = value
+
+    def get_value(self) -> str:
+        return self._value
+
+    def __str__(self):
+        return f"<StrObj '{self.get_value()}'>"
+
+
+class NoneLiteralTypeObj(LiteralTypeObj[type(None)]):
+    def __init__(self):
+        pass
+
+    def get_value(self) -> type(None):
+        return None
+
+    def __str__(self):
+        return "<NoneObj>"
+
 
 
 add_attr(IntLiteralTypeObj, FuncObj('add', a.literal + b.literal)) ...
@@ -94,7 +161,7 @@ class ClsTypeObj(TypeObj, Singleton):
         return isinstance(other, ClsTypeObj)
 
     def __hash__(self):
-        return hash(type)
+        return hash(ClassTypeObject)
 
     def __le__(self, rhs) -> bool:
         return isinstance(rhs, ClsTypeObj)
@@ -103,28 +170,33 @@ class ClsTypeObj(TypeObj, Singleton):
 ClassTypeObject = ClsTypeObj()
 
 
-class ConstantObj(Obj):
-    _value: Any
-    _type: LiteralTypeObj
+class FuncTypeObj(TypeObj, Singleton):
+    def __init__(self):
+        pass
 
-    def __init__(self, value: Literals):
-        self._value = value
+    def get_type(self) -> Type:
+        return self
 
-    def get_type(self) -> str:
-        return str(type(self._value))
-
-    def get_allocation(self):
+    def get_allocation(self) -> Optional[PtAllocation]:
         return None
 
     def get_container_scope(self) -> Optional[IRScope]:
         return None
 
     def __str__(self):
-        return f"ConstantObj<{self.get_type()}: {self._value}>"
+        return "<class 'function'>"
+
+    def __eq__(self, other):
+        return isinstance(other, FuncTypeObj)
+
+    def __hash__(self):
+        return hash(FunctionTypeObject)
+
+    def __le__(self, rhs) -> bool:
+        return isinstance(rhs, FuncTypeObj) or isinstance(rhs, ClsTypeObj)
 
 
-class InstanceObj(Obj):
-    ...
+FunctionTypeObject = FuncTypeObj()
 
 
 class ClassObj(TypeObj):
@@ -133,8 +205,6 @@ class ClassObj(TypeObj):
     _scope: IRScope
     _ir: IRClass
     _parents: List[CSVar]
-
-    _callable = True
 
     def __init__(self, alloc_site: PtAllocation, parents: List[CSVar]):
         ir = alloc_site.get_ir()
@@ -170,6 +240,30 @@ class ClassObj(TypeObj):
 
     def __le__(self, rhs) -> bool:
         pass
+
+
+class InstanceObj(Obj):
+    _type: ClassObj
+    _alloc_site: PtAllocation
+    _scope: IRScope
+
+    def __init__(self, alloc_site: PtAllocation, type_obj: ClassObj):
+        self._alloc_site = alloc_site
+        self._type = type_obj
+        self._scope = alloc_site.get_container_scope()
+
+
+    def get_type(self) -> ClassObj:
+        return self._type
+
+    def get_allocation(self) -> PtAllocation:
+        return self._alloc_site
+
+    def get_container_scope(self) -> IRScope:
+        return self._scope
+
+    def __str__(self):
+        return f'<InstanceObj :{str(self.get_type())}>'
 
 
 class AbstractFunctionObj(Obj, ABC):
@@ -212,9 +306,6 @@ class AwaitableObj(Obj):
 
     def get_value(self) -> IRCall:
         return self._value
-
-
-
 
 
 class UnknownObj(Obj):
@@ -385,9 +476,10 @@ class AbstractHeapModel(HeapModel):
         return merged_obj
 
     # Use the tuple <alloc_site, type_obj> to determine a obj. InstanceObj has ClassObj as type, while ...
-    def get_new_obj(self, alloc_site: PtAllocation, proto_obj: Obj) -> NewObj:
-        if isinstance(proto_obj, TypeClsObj):
-            ...
+    def get_new_obj(self, alloc_site: PtAllocation, type_obj: Obj) -> NewObj:
+        if isinstance(type_obj, ClsTypeObj):
+            self.get_new_cls_obj(...)
+
         elif isinstance(proto_obj, LiteralTypeObj):
             ...
         if begin_obj is ...:
@@ -396,7 +488,7 @@ class AbstractHeapModel(HeapModel):
             self.new_objs[alloc_site] = NewObj(alloc_site)
         return self.new_objs[alloc_site]
 
-    def get_constant_obj(self, value: Literals) -> Obj:
+    def get_constant_obj(self, value: Any) -> Obj:
         obj = self.do_get_constant_obj(value)
         return obj
 
@@ -406,7 +498,7 @@ class AbstractHeapModel(HeapModel):
             self.mock_objs[mock_obj] = mock_obj
         return self.mock_objs[mock_obj]
 
-    def do_get_constant_obj(self, value: Literals) -> Obj:
+    def do_get_constant_obj(self, value: Any) -> Obj:
         if value not in self.constant_objs:
             self.constant_objs[value] = ConstantObj(value)
         return self.constant_objs[value]
@@ -431,6 +523,7 @@ class AbstractHeapModel(HeapModel):
 
     def get_attr(self):
         ...
+
 
 class AllocationSiteBasedModel(AbstractHeapModel):
     from .stmts import PtAllocation
