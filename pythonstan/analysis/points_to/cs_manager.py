@@ -91,6 +91,9 @@ class MapBasedCSManager(CSManager):
     def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
         ...
 
+    def get_parents(self, cs_obj: CSObj) -> List[CSObj]:
+        ...
+
     def get_array_index(self, ctx: Context, array: Obj) -> ArrayIndex:
         ...
 

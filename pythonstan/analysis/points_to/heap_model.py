@@ -3,8 +3,9 @@ from abc import ABC, abstractmethod
 
 from .stmts import *
 from pythonstan.ir import IRScope, IRCall, IRClass, IRFunc
+from pythonstan.utils.common import Singleton
 
-__all__ = ['Obj', 'ConstantObj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'UnknownObj', 'NewObj',
+__all__ = ['Obj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'UnknownObj', 'NewObj',
            'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel']
 
 
@@ -134,12 +135,6 @@ class NoneLiteralTypeObj(LiteralTypeObj[type(None)]):
     def __str__(self):
         return "<NoneObj>"
 
-
-
-add_attr(IntLiteralTypeObj, FuncObj('add', a.literal + b.literal)) ...
-
-
-from pythonstan.utils.common import Singleton
 
 class ClsTypeObj(TypeObj, Singleton):
     def __init__(self):
