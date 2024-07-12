@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Union
+from typing import Collection, Dict, Union, List
 
 from .context import Context
 from .elements import *
@@ -32,6 +32,14 @@ class CSManager(ABC):
 
     @abstractmethod
     def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
+        ...
+
+    @abstractmethod
+    def get_class_bases(self, cs_obj: CSObj) -> List[CSVar]:
+        ...
+
+    @abstractmethod
+    def set_class_bases(self, cs_obj: CSObj, bases: List[CSVar]):
         ...
 
     @abstractmethod

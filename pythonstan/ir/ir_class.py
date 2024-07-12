@@ -9,7 +9,7 @@ __all__ = ["IRClass"]
 
 class IRClass(IRScope, IRStatement):
     name: str
-    bases: List[ast.expr]
+    bases: List[str]
     keywords: List[ast.keyword]
     decorator_list: List[ast.expr]
     ast: ast.ClassDef
@@ -19,7 +19,9 @@ class IRClass(IRScope, IRStatement):
     def __init__(self, qualname: str, cls: ast.ClassDef, cell_vars=None):
         super().__init__(qualname)
         self.name = cls.name
-        self.bases = cls.bases
+        bases = cls.bases
+        assert all(isinstance(i, ast.Name) for i in bases), "Base of the class should be ast.Name"
+        self.bases = [base.id for base in cls.bases]
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
         self.ast_repr = cls
@@ -46,9 +48,12 @@ class IRClass(IRScope, IRStatement):
     def get_dels(self) -> Set[str]:
         return {*()}
 
+    def get_bases(self) -> List[str]:
+        return self.bases
+
     def __repr__(self) -> str:
         decrs = ', '.join([ast.unparse(decr) for decr in self.decorator_list])
-        bases = ', '.join([ast.unparse(base) for base in self.bases])
+        bases = ', '.join(self.bases)
         kws = ', '.join([ast.unparse(kw) for kw in self.keywords])
         if len(decrs) > 0:
             cls_repr = f'class [{decrs}] {self.name}'

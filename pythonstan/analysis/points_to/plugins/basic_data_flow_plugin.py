@@ -81,7 +81,6 @@ class State:
         return ret
 
 
-
 class StmtProcessor(IRVisitor):
     cur_state: State
     state_before: Dict[IRStatement, State]
@@ -205,12 +204,16 @@ class StmtProcessor(IRVisitor):
                         self.c.add_call_edge(CSCallEdge(self.c.get_call_kind(stmt), self.context, cs_callee))
 
     def visit_IRClass(self, stmt: IRClass):
+        alloc = PtAllocation(stmt, self.scope.get_scope())
         cls_name = stmt.get_name()
         cls_var = self.get_var(cls_name)
-
-        cls_obj = self.c.heap_model.get_class
-
-        self.c.add_points_to_obj(cls_var, cls_obj)
+        cls_obj = self.c.heap_model.get_cls_obj(alloc)
+        heap_ctx = self.c.context_selector.select_heap_context(self.scope, cls_obj)
+        cls_cs_obj = self.c.cs_manager.get_obj(heap_ctx, cls_obj)
+        bases = [self.get_var(base_name) for base_name in stmt.get_bases()]
+        self.c.cs_manager.set_cls_bases(cls_cs_obj, bases)
+        self.c.add_points_to_obj(cls_var, cls_cs_obj)
+        for 
 
     def visit_IRFunc(self, stmt: IRFunc):
         func_obj = ...

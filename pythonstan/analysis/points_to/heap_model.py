@@ -6,7 +6,8 @@ from pythonstan.ir import IRScope, IRCall, IRClass, IRFunc
 from pythonstan.utils.common import Singleton
 
 __all__ = ['Obj', 'InstanceObj', 'ClassObj', 'FunctionObj', 'UnknownObj', 'NewObj',
-           'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel']
+           'MergedObj', 'MockObj', 'HeapModel', 'AllocationSiteBasedModel',
+           "ClassTypeObject", "FuncTypeObj"]
 
 
 class Type(ABC):
@@ -413,11 +414,21 @@ class HeapModel(ABC):
     from .elements import CSVar
 
     @abstractmethod
-    def get_obj(self, alloc_site: PtAllocation) -> Obj:
+    def get_obj(self, alloc_site: PtAllocation, type_obj: TypeObj) -> Obj:
         ...
 
+    def get_cls_obj(self, alloc_site: PtAllocation) -> ClassObj:
+        obj = self.get_obj(alloc_site, ClassTypeObject)
+        assert isinstance(obj, ClassObj), "The results should be ClassObj"
+        return obj
+
+    def get_func_obj(self, alloc_site: PtAllocation) -> FunctionObj:
+        obj = self.get_obj(alloc_site, FunctionTypeObject)
+        assert isinstance(obj, FunctionObj), "The results should be FunctionObj"
+        return obj
+
     @abstractmethod
-    def get_constant_obj(self, value: Literals) -> Obj:
+    def get_constant_obj(self, value: Any) -> Obj:
         ...
 
     def get_unknown_obj(self) -> UnknownObj:
@@ -459,7 +470,7 @@ class AbstractHeapModel(HeapModel):
         self.mock_objs = {}
         self.options = options
 
-    def get_obj(self, alloc_site: PtAllocation) -> Obj:
+    def get_obj(self, alloc_site: PtAllocation, type_obj: TypeObj) -> Obj:
         return self.do_get_obj(alloc_site)
 
     def get_merged_obj(self, alloc_site: PtAllocation) -> MergedObj:
@@ -471,7 +482,7 @@ class AbstractHeapModel(HeapModel):
         return merged_obj
 
     # Use the tuple <alloc_site, type_obj> to determine a obj. InstanceObj has ClassObj as type, while ...
-    def get_new_obj(self, alloc_site: PtAllocation, type_obj: Obj) -> NewObj:
+    def get_new_obj(self, alloc_site: PtAllocation, type_obj: TypeObj) -> NewObj:
         if isinstance(type_obj, ClsTypeObj):
             self.get_new_cls_obj(...)
 
