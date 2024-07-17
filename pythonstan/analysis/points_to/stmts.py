@@ -39,33 +39,45 @@ class AbstractPtStmt(PtStmt):
 
 
 class PtAllocation(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
-        super().__init__(ir_stmt, container_scope)
+    _type: CSObj
 
-    def get_type(self) -> str:
-        ...
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, type_obj: CSObj):
+        super().__init__(ir_stmt, container_scope)
+        from .heap_model import Type
+        assert isinstance(type_obj.get_obj(), Type), "type of the type cs_obj should be Type"
+        self._type = type_obj
+
+    def get_type(self) -> CSObj:
+        return self._type
 
     def __eq__(self, other):
         return isinstance(other, PtAllocation) and other.get_ir() == self.get_ir()
 
 
 class PtInvoke(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, call_kind: CallKind):
+    _call_kind: CallKind
+    _func: CSVar
+    _args: List[CSVar]
+
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, call_kind: CallKind,
+                 func: CSVar, args: List[CSVar]):
         super().__init__(ir_stmt, container_scope)
-        self.call_kind = call_kind
+        self._call_kind = call_kind
+        self._func = func
+        self._args = args
 
     def get_call_kind(self) -> CallKind:
-        return self.call_kind
+        return self._call_kind
 
+    def get_func(self) -> CSVar:
+        return self._func
 
-
-class PtCopy(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
-        super().__init__(ir_stmt, container_scope)
+    def get_args(self) -> List[CSVar]:
+        return self._args
 
 
 class PtLoadSubscr(AbstractPtStmt):
-    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope, ):
+    def __init__(self, ir_stmt: IRStatement, container_scope: IRScope):
         super().__init__(ir_stmt, container_scope)
 
 
@@ -132,8 +144,8 @@ class StmtCollector:
     def add_store_attr(self, stmt: PtStoreAttr):
         self.store_attrs.append(stmt)
 
-    def get_copies(self) -> List[PtCopy]:
-        return self.copies
+    def add_invoke(self, stmt: PtInvoke):
+        self.invokes.append(stmt)
 
     def get_store_attrs(self, var: Optional[CSVar] = None) -> List[PtStoreAttr]:
         if var is not None:

@@ -10,7 +10,7 @@ __all__ = ["IRReturn"]
 
 
 class IRReturn(IRAbstractStmt):
-    value: Optional[str]
+    value: Optional[ast.Name]
     stmt: ast.stmt
     load_collector: VarCollector
 
@@ -18,7 +18,7 @@ class IRReturn(IRAbstractStmt):
         ast.fix_missing_locations(stmt)
         if stmt.value is not None:
             assert isinstance(stmt.value, ast.Name), "Return value of IR should be ast.Name or None!"
-            self.value = stmt.value.id
+            self.value = stmt.value
         else:
             self.value = None
         self.stmt = stmt

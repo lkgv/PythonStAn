@@ -27,7 +27,6 @@ class Type(ABC):
 class Obj(ABC):
     _idx: Optional[int]
     _type: Type
-    _callable: bool = False
 
     def set_idx(self, idx: int):
         assert self._idx is not None, "idx already set"
@@ -53,6 +52,9 @@ class Obj(ABC):
     @abstractmethod
     def __str__(self):
         ...
+
+    def is_callable(self) -> bool:
+        return False
 
     def __repr__(self):
         return str(self)
@@ -225,6 +227,9 @@ class ClassObj(TypeObj):
     def get_container_scope(self) -> Optional[IRScope]:
         return self._scope
 
+    def is_callable(self) -> bool:
+        return True
+
     def __str__(self):
         return f"<class '{self._ir.get_qualname()}'>"
 
@@ -273,11 +278,15 @@ class AbstractFunctionObj(Obj, ABC):
     def get_ir(self) -> IRFunc:
         return self._ir
 
+    def is_callable(self) -> bool:
+        return True
+
 
 class BuiltinFunctionObj(AbstractFunctionObj):
     ...
 
 class FunctionObj(AbstractFunctionObj):
+    _vars: List[Var]
     ...
 
 

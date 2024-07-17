@@ -7,16 +7,27 @@ __all__ = ['Var', 'Pointer', 'ClassField', 'CSScope', 'CSObj', 'CSVar', 'Instanc
 
 
 class Var:
-    name: str
-    is_global: bool
+    _id: str
+    _is_global: bool
 
-    def __init__(self, name: str, is_global: bool = False):
-        self.name = name
-        self.is_global = is_global
+    def __init__(self, id: str, is_global: bool = False):
+        self._id = id
+        self._is_global = is_global
 
-    @classmethod
-    def copy_from(cls, var: 'Var') -> 'Var':
-        return cls(var.name, var.is_global)
+    def get_id(self) -> str:
+        return self._id
+
+    def is_global(self) -> bool:
+        return self._is_global
+
+    def __eq__(self, other):
+        return isinstance(other, Var) and (self._id, self._is_global) == (other._id, other._is_global)
+
+    def __hash__(self):
+        return hash((self._id, self._is_global))
+
+    def __str__(self):
+        return f"<{'Global' if self._is_global else ''}Var {self._id}>"
 
 
 class Pointer:

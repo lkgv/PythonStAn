@@ -51,7 +51,7 @@ class State:
                 var_src = result.mem[name]
                 if var_src != var:
                     ctx, raw_var_src = var_src
-                    new_var = ctx, Var.copy_from(raw_var_src)
+                    new_var = ctx, raw_var_src.copy()
                     result.mem[name] = new_var
                     self.c.add_pfg_edge(var_src, new_var, FlowKind.LOCAL_ASSIGN)
                     self.c.add_pfg_edge(var, new_var, FlowKind.LOCAL_ASSIGN)
@@ -192,16 +192,16 @@ class StmtProcessor(IRVisitor):
     # TODO fix it
     # Just emit the call IR
     def visit_IRCall(self, stmt: IRCall):
-
-        fn_var = self.cur_state.get(stmt.get_func_name())
+        var = self.cur_state.get(stmt.get_func_name())
         for arg in stmt.get_args():
             var_arg = self.cur_state.get()
-        if fn_var is not None:
-            for fn_obj in fn_var.get_points_to_set():
-                if fn_obj.is_functional():
-                    for callee in self.c.cs_manager.get_callees(self.context, fn_obj):
-                        cs_callee = self.c.cs_manager.get_scope(self.context, callee)
-                        self.c.add_call_edge(CSCallEdge(self.c.get_call_kind(stmt), self.context, cs_callee))
+        ...
+        stmt = PtInvoke()
+        self.stmt_collector.add_invoke(stmt)
+
+
+
+
 
     def visit_IRClass(self, stmt: IRClass):
         alloc = PtAllocation(stmt, self.scope.get_scope())
@@ -213,22 +213,43 @@ class StmtProcessor(IRVisitor):
         bases = [self.get_var(base_name) for base_name in stmt.get_bases()]
         self.c.cs_manager.set_cls_bases(cls_cs_obj, bases)
         self.c.add_points_to_obj(cls_var, cls_cs_obj)
-        for 
+        for ...
 
     def visit_IRFunc(self, stmt: IRFunc):
-        func_obj = ...
-        ...
+        alloc = PtAllocation(stmt, self.scope.get_scope())
+        fn_name = stmt.get_name()
+        fn_var = self.get_var(fn_name)
+        fn_obj = self.c.heap_model.get_func_obj(alloc)
+        heap_ctx = self.c.context_selector.select_heap_context(self.scope, fn_obj)
+        fn_cs_obj = self.c.cs_manager.get_obj(heap_ctx, fn_obj)
+        self.c.add_points_to_obj(fn_var, fn_cs_obj)
+
 
     def visit_IRReturn(self, stmt: IRReturn):
-        val = self.get_var(stmt.value)
-        if val is None:
-            none_obj = self.c.heap_model.get_constant_obj(None)
-            self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
+        if stmt.value is not None
+            val = self.get_var(stmt.value.id)
+            if val is None:
+                none_obj = self.c.heap_model.get_constant_obj(None)
+                self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
+            else:
+                self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
         else:
-            self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
+            val = NoneObj()
 
     def visit_IRYield(self, stmt: IRYield):
-        val = self.get_var(stmt.get)
+        if stmt.value is not None:
+            val = self.get_var(stmt.value.id)
+            if val is None:
+                none_obj = self.c.heap_model.get_constant_obj(None)
+                self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
+            else:
+                self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
+            val = self.get_var(stmt.get)
+        else:
+            val = NoneObj()
+
+class ClsStmtProcessor(IRVisitor):
+    ...
 
 
 class BasicDataFlowPlugin(Plugin):
@@ -243,6 +264,10 @@ class BasicDataFlowPlugin(Plugin):
         stmts = self.c.scope_manager.get_ir(callee_scope, "ir")
         stmt_processor = StmtProcessor(self.c, callee_scope)
         stmt_processor.visit(stmts)
+
+    def on_new_cs_scope(self, cs_scope: CSScope):
+        if isinstance(cs_scope.get_scope(), IRClass):
+
 
 
         

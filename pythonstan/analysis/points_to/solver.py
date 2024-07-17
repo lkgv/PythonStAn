@@ -156,8 +156,9 @@ class Solver:
         if cs_scope not in self.c.call_graph.reachable_scopes:
             self.c.call_graph.reachable_scopes.add(cs_scope)
             _, scope = cs_scope
-            self.process_new_scope(scope)
             self.plugin.on_new_cs_scope(cs_scope)
+            self.process_new_scope(scope)
+
 
     def add_entry_point(self):
         ...

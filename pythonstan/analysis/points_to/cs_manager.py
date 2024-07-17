@@ -3,7 +3,7 @@ from typing import Collection, Dict, Union, List
 
 from .context import Context
 from .elements import *
-from .heap_model import Obj
+from .heap_model import *
 from .stmts import PtInvoke
 from pythonstan.ir import IRScope
 
@@ -27,11 +27,11 @@ class CSManager(ABC):
         ...
 
     @abstractmethod
-    def get_class_field(self, ctx: Context, field: str) -> ClassField:
+    def get_field(self, cs_obj: CSObj, field: str, is_write: bool) -> InstanceField:
         ...
 
     @abstractmethod
-    def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
+    def get_type(self, cs_obj: CSObj) -> CSObj:
         ...
 
     @abstractmethod
@@ -93,10 +93,18 @@ class MapBasedCSManager(CSManager):
     def get_scope(self, ctx: Context, scope: IRScope) -> CSScope:
         ...
 
-    def get_class_field(self, ctx: Context, field: str) -> ClassField:
-        ...
+    def get_field(self, cs_obj: CSObj, field: str, allow_none: bool = True) -> Optional[CSVar]:
+        type_obj = cs_obj.get_obj().get_type()
+        if isinstance(type_obj, ClassObj):
+            field = self.do_get_field(cs_obj, field)
+            if field is None:
+                field = self.do_get_field(type_obj, field)
 
-    def get_instance_field(self, cs_obj: CSObj, field: str) -> InstanceField:
+            self.get_obj
+        elif isinstance(type_obj, LiteralObj):
+            ...
+
+    def do_get_field(self, cs_obj: CSObj, field: str) -> ...:
         ...
 
     def get_parents(self, cs_obj: CSObj) -> List[CSObj]:
