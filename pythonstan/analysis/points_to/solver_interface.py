@@ -50,6 +50,9 @@ class SolverInterface:
             pointer.set_points_to_set(pts)
         return pts
 
+    def get_property(self, obj: Obj, ):
+        ...
+
     def add_call_edge(self, call_edge: CallEdge[CSCallSite, CSScope]):
         self.work_list.add_edge(call_edge)
 
@@ -76,8 +79,6 @@ class SolverInterface:
 
     def add_var_points_to_heap_obj(self, context: Context, var: Var, heap_context: Context, obj: Obj):
         self.add_points_to_obj(self.cs_manager.get_var(context, var), self.cs_manager.get_obj(heap_context, obj))
-
-
 
     def get_call_kind(self, stmt: PtInvoke) -> CallKind:
         return stmt.get_call_kind()

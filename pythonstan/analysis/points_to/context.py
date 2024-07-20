@@ -26,6 +26,16 @@ class Context(Generic[T]):
         return self.elements[item]
 
 
+class ContextSensitive:
+    _ctx: Context
+
+    def get_context(self) -> Context:
+        return self._ctx
+
+    def set_context(self, ctx: Context):
+        self._ctx = ctx
+
+
 class TrieContext(Generic[T], Context[T]):
     _parent: Optional['TrieContext']
     _elem: Any
