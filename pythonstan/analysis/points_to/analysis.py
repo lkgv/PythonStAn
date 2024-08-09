@@ -1,4 +1,5 @@
 from ..analysis import AnalysisConfig
+from .heap_model import HeapModel
 
 class PointsToAnalysis:
     def __init__(self, config: AnalysisConfig):
@@ -6,7 +7,7 @@ class PointsToAnalysis:
 
     def analyze(self):
         options = self.config.options
-        heap_model =
+        heap_model = HeapModel()
 
     def run_analysis(self, heap_model, selector):
         ...

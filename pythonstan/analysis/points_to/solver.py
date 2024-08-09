@@ -4,17 +4,14 @@ from .work_list import Worklist
 from .cs_manager import CSManager
 from .heap_model import HeapModel
 from .context_selector import ContextSelector
-from .context import CSVar, CSObj, CSCallSite, CSScope
-from .cs_call_graph import CSCallGraph
+from .cs_call_graph import CSCallGraph, CSCallEdge
 from pythonstan.graph.call_graph import CallEdge, CallKind
 from .pointer_flow_graph import PointerFlowGraph, PointerFlowEdge, FlowKind, EdgeTransfer
-from .points_to_set import PointsToSet
-from .elements import Pointer
+from .elements import *
 from ..analysis import AnalysisConfig
 from .plugins import Plugin
 from pythonstan.ir import IRScope, IRFunc
 from .solver_interface import SolverInterface
-from .stmts import PtStmt, PtInvoke
 
 
 class Solver:
@@ -50,12 +47,13 @@ class Solver:
             entry = self.c.work_list.get()
             if entry is None:
                 break
-            elif isinstance(entry, CallEdge):
-                self.process_call_edge(entry)
+            elif isinstance(entry, tuple) and isinstance(entry[0], CSCallEdge):
+                edge, frame = entry
+                self.process_call_edge(edge, frame)
             elif isinstance(entry, tuple):
                 p, pts = entry
                 diff = self.propagate(p, pts)
-                if not diff.is_empty() and isinstance(p, CSVar):
+                if not diff.is_empty() and isinstance(p, Var):
                     self.process_instance_store(p, diff)
                     self.process_instance_load(p, diff)
                     self.process_call(p, diff)
@@ -70,74 +68,77 @@ class Solver:
                 self.c.add_points_to_pts(e.get_tgt(), diff)
         return diff
 
-    def process_instance_store(self, base_var: CSVar, pts: PointsToSet):
-        ctx, var = base_var
-        stmt_colle = self.c.var2stmtcolle.get(var)
-        if stmt_colle is not None:
-            for stmt in stmt_colle.get_store_attrs():
-                cs_from_var = stmt.get_rval()
-                # cs_from_var = self.c.cs_manager.get_var(ctx, from_var)
-                field = stmt.get_field()
-                for base_obj in pts:
-                    if base_obj[1].is_functional():
-                        inst_field = self.c.cs_manager.get_instance_field(base_obj, field)
-                        self.c.add_pfg_edge(cs_from_var, inst_field, FlowKind.INSTANCE_STORE)
+    def process_instance_store(self, var: Var, pts: PointsToSet):
+        for stmt in var.get_stmt_collector().get_store_attrs():
+            from_var = stmt.get_rval()
+            for obj in pts:
+                field = self.c.get_property(obj, stmt.get_field(), True)
+                self.c.add_pfg_edge(from_var, field, FlowKind.INSTANCE_STORE)
 
-    def process_instance_load(self, base_var: CSVar, pts: PointsToSet):
-        ctx, var = base_var
-        stmt_colle = self.c.var2stmtcolle.get(var)
-        if stmt_colle is not None:
-            for stmt in stmt_colle.get_load_attrs():
-                to_var = stmt.get_lval()
-                cs_to_var = self.c.cs_manager.get_var(ctx, to_var)
-                field = stmt.get_field()
-                for base_obj in pts:
-                    if base_obj[1].is_functional():
-                        inst_field = self.c.cs_manager.get_instance_field(base_obj, field)
-                        self.c.add_pfg_edge(inst_field, cs_to_var, FlowKind.INSTANCE_LOAD)
+    def process_instance_load(self, var: Var, pts: PointsToSet):
+        for stmt in var.get_stmt_collector().get_load_attrs():
+            to_var = stmt.get_lval()
+            for obj in pts:
+                field = self.c.get_property(obj, stmt.get_field(), False)
+                if field is None:
+                    self.c.new_property(obj, stmt.get_field())
+                    field = self.c.get_property(obj, stmt.get_field(), False)
+                self.c.add_pfg_edge(field, to_var, FlowKind.INSTANCE_LOAD)
 
-    def process_call(self, recv: CSVar, pts: PointsToSet):
-        ctx, var = recv
-        stmt_colle = self.c.var2stmtcolle.get(var)
-        if stmt_colle is not None:
-            for stmt in stmt_colle.get_invokes():
-                for recv_obj in pts:
-                    callee = self.resolve_callee(recv_obj, stmt)
-                    if callee is not None:
-                        cs_callsite = self.c.cs_manager.get_callsite(ctx, stmt)
-                        callee_ctx = self.c.context_selector.select_instance_context(cs_callsite, recv_obj, callee)
-                        cs_callee = self.c.cs_manager.get_scope(callee_ctx, callee)
-                        self.c.add_call_edge(CallEdge(self.c.get_call_kind(stmt), cs_callsite, cs_callee))
-                        # TODO should add the self obj
-                        # self.add_var_points_to(callee_ctx, callee, recv_obj)
-                    else:
-                        self.plugin.on_unresolved_call(recv_obj, ctx, stmt)
+    def process_call(self, func: Var, pts: PointsToSet):
+        for stmt in func.get_stmt_collector().get_invokes():
+            for obj in pts:
+                if isinstance(obj, FunctionObj):
+                    callee_ctx = self.c.context_selector.select_static_context(stmt, obj)
+                    frame = self.c.cs_manager.get_frame(stmt, obj, callee_ctx)
+                    call_edge = CSCallEdge(CallKind.FUNCTION, stmt, obj)
+                    self.c.add_call_edge(call_edge, frame)
+                elif isinstance(obj, MethodObj):
+                    host_obj = obj.get_obj()
+                    callee_ctx = self.c.context_selector.select_instance_context(stmt, host_obj, obj)
+                    frame = self.c.cs_manager.get_frame(stmt, obj, callee_ctx)
+                    call_edge = CallEdge(CallKind.INSTANCE, stmt, obj)
+                    self.c.add_call_edge(call_edge, frame)
+                elif isinstance(obj, ClassObj):
+                    target = stmt.get_target()
+                    if target is not None:
+                        alloc = PtAllocation(stmt.get_ir(), stmt.get_frame(), obj)
+                        instance_obj = self.c.heap_model.get_obj(alloc, obj)
+                        init_func_obj = obj.get_init_method()
+                        if init_func_obj is not None:
+                            callee_ctx = self.c.context_selector.select_instance_context(stmt, instance_obj, init_func_obj)
+                            frame = self.c.cs_manager.get_frame(stmt, init_func_obj, callee_ctx)
+                            call_edge = CallEdge(CallKind.INSTANCE, stmt, init_func_obj)
+                            self.c.add_call_edge(call_edge, frame)
+                        self.c.add_points_to_obj(target, instance_obj)
+                else:
+                    pass
 
-    def process_call_edge(self, edge: CallEdge[CSCallSite, CSScope]):
+    def process_call_edge(self, edge: CSCallEdge, frame: PtFrame):
         if self.c.call_graph.add_edge(edge):
-            cs_callee = edge.get_callee()
-            self.add_cs_scope(cs_callee)
+            callee = edge.get_callee()
+            assert isinstance(callee, CallableObj), f'callee is not CallableObj: {callee}'
+            self.c.call_graph.set_edge_to_frame(edge, frame)
+            self.add_scope(callee)
             if edge.get_kind() != CallKind.OTHER:
                 caller_ctx = edge.get_callsite().get_context()
-                call_site = edge.get_callsite().get_callsite()
-                callee_ctx, callee = cs_callee
+                call_site = edge.get_callsite()
 
                 # input args should be more elegent and robust
-                if isinstance(callee, IRFunc):
-                    n_args = len(call_site.get_args())
-                    for i in range(n_args):
-                        arg = call_site.get_args()[i]
-                        param = callee.get_arg_names()[i]
-                        ...
+                if isinstance(callee, FunctionObj):
+                    for arg, param in zip(call_site.get_args(), callee.get_params()):
+                        self.c.add_pfg_edge(arg, param, FlowKind.PARAM)
+                elif isinstance(callee, MethodObj):
+                    recv_obj = call_site.get_args()[0]
+                    # TODO add method obj
 
-                if call_site.get_result() is not None:
-                    lhs = self.c.cs_manager.get_var(caller_ctx, call_site.get_result())
-                    for ret in callee.get_return_vars:
-                        ...
+                if call_site.get_target() is not None:
+                    ret_var = self.c.get_return_var(frame)
+                    self.c.add_pfg_edge(ret_var, call_site.get_target(), FlowKind.RETURN)
 
             self.plugin.on_new_call_edge(edge)
 
-    def process_new_scope(self, scope: IRScope):
+    def process_new_scope(self, scope: CallableObj):
         if scope not in self.c.reachable_scopes:
             self.c.reachable_scopes.add(scope)
             self.plugin.on_new_scope(scope)
@@ -152,15 +153,12 @@ class Solver:
     def get_pt_ir(self, scope: IRScope) -> List[PtStmt]:
         return self.c.scope2pt_ir.get(scope, [])
 
-    def add_cs_scope(self, cs_scope: CSScope):
-        if cs_scope not in self.c.call_graph.reachable_scopes:
-            self.c.call_graph.reachable_scopes.add(cs_scope)
-            _, scope = cs_scope
-            self.plugin.on_new_cs_scope(cs_scope)
+    def add_scope(self, scope: CallableObj):
+        if scope not in self.c.call_graph.reachable_scopes:
+            self.c.call_graph.reachable_scopes.add(scope)
+            self.plugin.on_new_cs_scope(scope)
             self.process_new_scope(scope)
-
 
     def add_entry_point(self):
         ...
-
 

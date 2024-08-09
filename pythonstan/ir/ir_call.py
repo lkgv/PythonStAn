@@ -29,7 +29,7 @@ class IRCall(IRAbstractStmt):
             self.call = stmt
             self.target = None
 
-        assert isinstance(self.call.func, ast.Name), ast.dump(self.call.func, indent=4)
+        assert isinstance(self.call.func, ast.Name), ast.dump(self.call, indent=4)
 
         self.func_name = self.call.func.id
         self.args = []

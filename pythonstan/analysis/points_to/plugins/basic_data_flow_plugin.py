@@ -4,7 +4,6 @@ from ..solver_interface import SolverInterface
 from ..context import Context
 from ..elements import *
 from ..pointer_flow_graph import FlowKind
-from ..stmts import *
 from pythonstan.graph.call_graph import CallKind
 from pythonstan.utils.persistent_rb_tree import PersistentMap, PersistentSet
 from pythonstan.ir import *
@@ -18,20 +17,20 @@ ALLOW_UNKNOWN_OBJ = True
 
 # Used in the abstract interpretation phase, store value for each pointer(var, index, ...)
 class Values:
-    objs: Set[CSObj]
+    objs: Set[Obj]
 
-    def __init__(self, objs: Optional[Set[CSObj]]):
+    def __init__(self, objs: Optional[Set[Obj]]):
         if objs is None:
             self.objs = set()
         else:
             self.objs = objs
 
-    def get_objs(self) -> Set[CSObj]:
+    def get_objs(self) -> Set[Obj]:
         return self.objs
 
 
 class State:
-    mem: PersistentMap[str, CSVar]
+    mem: PersistentMap[str, Var]
     val_map: PersistentMap[Pointer, Values]
 
     def __init__(self, c: SolverInterface):
@@ -39,7 +38,7 @@ class State:
         self.val_map = PersistentMap()
         self.c = c
 
-    def items(self) -> Iterable[Tuple[CSVar, CSVar]]:
+    def items(self) -> Iterable[Tuple[str, Var]]:
         return self.mem.items()
 
     def meet(self, rhs: 'State') -> Tuple[bool, 'State']:
@@ -60,10 +59,10 @@ class State:
                 change = True
         return change, result
 
-    def get(self, name: str) -> Optional[CSVar]:
+    def get(self, name: str) -> Optional[Var]:
         return self.mem.get(name)
 
-    def set(self, name: str, var: CSVar):
+    def set(self, name: str, var: Var):
         self.mem[name] = var
 
     def copy(self) -> 'State':
@@ -72,7 +71,7 @@ class State:
         return result
 
     @staticmethod
-    def search_vars(var_name: str, states: Iterable['State']) -> Set[CSVar]:
+    def search_vars(var_name: str, states: Iterable['State']) -> Set[Var]:
         ret = set()
         for state in states:
             var = state.get(var_name)
@@ -85,21 +84,22 @@ class StmtProcessor(IRVisitor):
     cur_state: State
     state_before: Dict[IRStatement, State]
     state_after: Dict[IRStatement, State]
-    ret_var: CSVar
+    ret_var: Var
     context: Context
-    stmt_collector: StmtCollector
+    frame: PtFrame
 
     # do weak update just in special cases
     # do dataflow, add edges in PFG just in static case, eg. y = 3, y = x.
     # staticproperty and class property seen as instance property of class obj.
 
 
-    def __init__(self, c: SolverInterface, scope: CSScope):
+    def __init__(self, c: SolverInterface):
         self.c = c
-        self.scope = scope
         self.state_before = {}
         self.state_after = {}
-        self.stmt_collector = StmtCollector()
+
+    def set_frame(self, frame: PtFrame):
+        self.frame = frame
 
     def visit_stmts(self, stmts: Iterable[IRStatement], init_state: State, context: Context):
         self.cur_state = init_state
@@ -110,146 +110,131 @@ class StmtProcessor(IRVisitor):
             self.visit(stmt)
             self.state_after[stmt] = self.cur_state.copy()
 
-    def retrive_var(self, name: str) -> Optional[CSVar]:
+    def retrive_var(self, name: str) -> Optional[Var]:
         return  self.cur_state.get(name)
 
-    def get_var(self, name: str) -> CSVar:
+    def get_var(self, name: str, writable: bool = False) -> Var:
+        if writable:
         var = self.retrive_var(name)
         if var is None:
-            new_var = self.c.cs_manager.get_var(self.context, Var(name))
+            new_var = self.frame.get_var_(name)
             self.cur_state.set(name, new_var)
             return new_var
         else:
             return var
 
     def visit_IRAssign(self, stmt: IRAssign):
-        lval = self.get_var(stmt.lval.id)
+        lval = self.frame.get_var_write(stmt.lval.id)
 
         # Copy
         if isinstance(stmt.rval, ast.Name):
-            rval = self.get_var(stmt.rval.id)
+            rval = self.frame.get_var_read(stmt.rval.id)
             self.c.add_pfg_edge(rval, lval, FlowKind.LOCAL_ASSIGN)
 
         # Assign Constant
         elif isinstance(stmt.rval, ast.Constant):
             obj = self.c.heap_model.get_constant_obj(stmt.rval.value)
-            heap_ctx = self.c.context_selector.select_heap_context(self.scope, obj)
-            self.c.add_var_points_to_heap_obj(self.context, lval.get_var(), heap_ctx, obj)
+            self.c.add_points_to_obj(lval, obj)
 
         # Assign Tuple
         elif isinstance(stmt.rval, ast.Tuple):
             ...
 
-
-        elif isinstance(stmt.rval, ast.Add):
+        elif isinstance(stmt.rval, ast.BinOp):
             # generate 2 instructions. op = a1.__add__; call(op, a1, a2);
-
             expr = stmt.rval
-            assert isinstance(expr, ast.Add)
-            expr.
-            if isinstance(stmt.)
-
-
-
-    # StoreAttr should just emit the PtIR but resolving the points-to relation.
-    def visit_IRStoreAttr(self, stmt: IRStoreAttr):
-        base = self.get_var(stmt.get_obj().id)
-        field = stmt.get_attr()
-        rval = self.get_var(stmt.get_rval().id)
-        self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, base, rval, field))
-
-    '''
-        for obj in base.get_points_to_set():
-            inst_field = self.c.cs_manager.get_instance_field(obj, field)
-            rval = self.retrive_var(stmt.get_rval().id)
-            if rval is None:
-                if ALLOW_UNKNOWN_OBJ:
-                    unknown_obj = self.c.heap_model.get_unknown_obj()
-                    rval = self.get_var(stmt.get_rval().id)
-                    self.c.add_var_points_to_heap_obj(self.context, rval.get_var(), self.context, unknown_obj)
-                    self.c.add_pfg_edge(rval, inst_field, FlowKind.INSTANCE_STORE)
-                else:
-                    raise ValueError(f"Unresolved variable {stmt.get_rval().id}")
+            assert isinstance(expr.left, ast.Name), "Left operand of BinOp should be Name"
+            assert isinstance(expr.right, ast.Name), "Right operand of BinOp should be Name"
+            operand1 = self.frame.get_var_read(expr.left.id)
+            operand2 = self.frame.get_var_read(expr.right.id)
+            if isinstance(expr.op, ast.Add):
+                op = '__add__'
+            elif isinstance(expr.op, ast.Sub):
+                op = '__sub__'
+            elif isinstance(expr.op, ast.Mult):
+                op = '__mul__'
+            elif isinstance(expr.op, ast.Div):
+                op = '__div__'
             else:
-                self.c.add_pfg_edge(rval, inst_field, FlowKind.INSTANCE_STORE)
+                raise NotImplementedError
+            func = self.frame.get_var_read('..')
+            loadattr = PtLoadAttr(stmt, self.frame, func, operand1, op)
+            invoke = PtInvoke(stmt, self.frame, CallKind.INSTANCE, op, [operand1, operand2])
+            self.stmt_collector.add_load_attr(loadattr)
+            self.stmt_collector.add_invoke(invoke)
 
-            # Generate PtIR
-            self.stmt_collector.add_store_attr(PtStoreAttr(stmt, self.scope, inst_field, rval, field))
-    '''
+    def visit_IRStoreAttr(self, stmt: IRStoreAttr):
+        base = self.frame.get_var_read(stmt.get_obj().id)
+        field = stmt.get_attr()
+        rval = self.frame.get_var_read(stmt.get_rval().id)
+        base.get_stmt_collector().add_store_attr(PtStoreAttr(stmt, self.frame, base, rval, field))
 
     def visit_IRLoadAttr(self, stmt: IRLoadAttr):
-        base = self.get_var(stmt.get_obj().id)
+        base = self.frame.get_var_write(stmt.get_obj().id)
         field = stmt.get_attr()
         lval = self.get_var(stmt.get_lval().id)
-        self.stmt_collector.add_load_attr(PtLoadAttr(stmt, self.scope, lval, base, field))
+        base.get_stmt_collector().add_load_attr(PtLoadAttr(stmt, self.frame, lval, base, field))
 
-
-    def generate_call_instr(self, fn_var: CSVar, args: List[Tuple[str, bool]], keywords: List[Tuple[Optional[str], str]]
-                            ) -> PtInvoke:
-        ...
-
-
-    # TODO fix it
-    # Just emit the call IR
     def visit_IRCall(self, stmt: IRCall):
-        var = self.cur_state.get(stmt.get_func_name())
-        for arg in stmt.get_args():
-            var_arg = self.cur_state.get()
-        ...
-        stmt = PtInvoke()
-        self.stmt_collector.add_invoke(stmt)
-
-
-
-
+        func = self.frame.get_var_read(stmt.get_func_name())
+        args = []
+        for arg_name, is_starred in stmt.get_args():
+            arg = self.frame.get_var_read(arg_name)
+            args.append(arg)
+        target = None
+        if stmt.target is not None:
+            target = self.frame.get_var_write(stmt.target)
+        stmt = PtInvoke(stmt, self.frame, CallKind.FUNCTION, func, args, target)
+        func.get_stmt_collector().add_invoke(stmt)
 
     def visit_IRClass(self, stmt: IRClass):
-        alloc = PtAllocation(stmt, self.scope.get_scope())
+        alloc = PtAllocation(stmt, self.frame, ClassTypeObject)
         cls_name = stmt.get_name()
-        cls_var = self.get_var(cls_name)
+        cls_var = self.frame.get_var_write(cls_name)
         cls_obj = self.c.heap_model.get_cls_obj(alloc)
-        heap_ctx = self.c.context_selector.select_heap_context(self.scope, cls_obj)
-        cls_cs_obj = self.c.cs_manager.get_obj(heap_ctx, cls_obj)
+        self.c.add_points_to_obj(cls_var, cls_obj)
+
+        heap_ctx = self.c.context_selector.select_heap_context(self.frame)
         bases = [self.get_var(base_name) for base_name in stmt.get_bases()]
-        self.c.cs_manager.set_cls_bases(cls_cs_obj, bases)
-        self.c.add_points_to_obj(cls_var, cls_cs_obj)
-        for ...
+        cls_create_invoke = PtInvoke(stmt, self.frame, CallKind.CLASS, cls_var, bases)
+        cls_create_callsite = self.c.cs_manager.get_callsite(heap_ctx, cls_create_invoke)
+        cls_create_frame = self.c.cs_manager.get_frame(cls_create_callsite, ClassTypeObject, heap_ctx)
+
+        # TODO Self.add_call
+        # self.c.work_list.add_edge(CSCallEdge(CallKind.CLASS, cls_create_callsite, ))
+
 
     def visit_IRFunc(self, stmt: IRFunc):
-        alloc = PtAllocation(stmt, self.scope.get_scope())
+        alloc = PtAllocation(stmt, self.frame, FunctionTypeObject)
         fn_name = stmt.get_name()
-        fn_var = self.get_var(fn_name)
+        fn_var = self.frame.get_var_write(fn_name)
         fn_obj = self.c.heap_model.get_func_obj(alloc)
-        heap_ctx = self.c.context_selector.select_heap_context(self.scope, fn_obj)
-        fn_cs_obj = self.c.cs_manager.get_obj(heap_ctx, fn_obj)
-        self.c.add_points_to_obj(fn_var, fn_cs_obj)
-
+        self.c.add_points_to_obj(fn_var, fn_obj)
 
     def visit_IRReturn(self, stmt: IRReturn):
-        if stmt.value is not None
-            val = self.get_var(stmt.value.id)
-            if val is None:
-                none_obj = self.c.heap_model.get_constant_obj(None)
-                self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
-            else:
-                self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
+        ret_var = self.c.get_return_var(self.frame)
+        if stmt.value is not None:
+            val = self.frame.get_var_read(stmt.value.id)
+            self.c.add_pfg_edge(val, ret_var, FlowKind.RETURN)
         else:
-            val = NoneObj()
+            none_obj = self.c.heap_model.get_constant_obj(None)
+            self.c.add_points_to_obj(ret_var, none_obj)
 
     def visit_IRYield(self, stmt: IRYield):
+        ret_var = self.c.get_yield_var(self.frame)
         if stmt.value is not None:
-            val = self.get_var(stmt.value.id)
-            if val is None:
-                none_obj = self.c.heap_model.get_constant_obj(None)
-                self.c.add_var_points_to_heap_obj(self.context, self.ret_var.get_var(), self.context, none_obj)
-            else:
-                self.c.add_pfg_edge(val, self.ret_var, FlowKind.RETURN)
-            val = self.get_var(stmt.get)
+            val = self.frame.get_var_read(stmt.value.id)
+            self.c.add_pfg_edge(val, ret_var, FlowKind.RETURN)
         else:
-            val = NoneObj()
+            none_obj = self.c.heap_model.get_constant_obj(None)
+            self.c.add_points_to_obj(ret_var, none_obj)
 
-class ClsStmtProcessor(IRVisitor):
-    ...
+    def visit_import(self, stmt: IRImport):
+        if stmt.module is not None:
+            module = self.c.get_world().scope_manager.get_module(stmt.module)
+
+            self.c.add_call_edge(...)
+
 
 
 class BasicDataFlowPlugin(Plugin):

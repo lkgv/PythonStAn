@@ -1,7 +1,7 @@
 from typing import Union, Set, Dict, List, Optional, Any, Generic, TypeVar
 from abc import ABC, abstractmethod
 
-from .stmts import *
+from elements import *
 from pythonstan.ir import IRScope, IRCall, IRClass, IRFunc
 from pythonstan.utils.common import Singleton
 
@@ -36,7 +36,7 @@ class NewObj(Obj):
     def __init__(self, alloc_site: PtAllocation):
         self.alloc_site = alloc_site
 
-    def get_type(self) -> str:
+    def get_type(self) -> Type:
         return self.alloc_site.get_type()
 
     def get_allocation(self) -> Optional[PtAllocation]:
@@ -117,8 +117,6 @@ class MockObj(Obj):
 
 
 class HeapModel(ABC):
-    from .elements import CSVar
-
     @abstractmethod
     def get_obj(self, alloc_site: PtAllocation, type_obj: TypeObj) -> Obj:
         ...
@@ -149,7 +147,7 @@ class HeapModel(ABC):
         ...
 
     @abstractmethod
-    def get_cls_obj(self, alloc_site: ClassObj, parents: List[CSVar]) -> ClassObj:
+    def get_cls_obj(self, alloc_site: ClassObj, parents: List[Var]) -> ClassObj:
         ...
 
     @abstractmethod
@@ -158,10 +156,9 @@ class HeapModel(ABC):
 
 
 class AbstractHeapModel(HeapModel):
-    from .stmts import PtAllocation, AbstractPtStmt
     new_objs: Dict[Tuple[PtAllocation, TypeObj], NewObj]
 
-    constant_objs: Dict[Literals, Obj]
+    constant_objs: Dict[Any, Obj]
     # new_objs: Dict[PtAllocation, NewObj]
     cls_objs: Dict[PtAllocation, ClassObj]
     merged_objs: Dict[str, MergedObj]
@@ -238,8 +235,6 @@ class AbstractHeapModel(HeapModel):
 
 
 class AllocationSiteBasedModel(AbstractHeapModel):
-    from .stmts import PtAllocation
-
     def __init__(self, options, obj_groups):
         super().__init__(options)
 

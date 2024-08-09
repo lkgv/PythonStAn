@@ -13,6 +13,7 @@ class FlowKind(Enum):
     STATIC_STORE = 3
     STATIC_LOAD = 4
     RETURN = 5
+    PARAM = 6
 
 
 class PointerFlowEdge:

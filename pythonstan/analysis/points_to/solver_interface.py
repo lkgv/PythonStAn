@@ -6,26 +6,23 @@ from .context import Context
 from .context_selector import ContextSelector
 from pythonstan.world.class_hierarchy import ClassHierarchy
 from pythonstan.graph.call_graph import CallEdge, CallKind
-from .cs_call_graph import CSCallGraph
-from .points_to_set import PointsToSet
+from .cs_call_graph import CSCallGraph, CSCallEdge
 from .pointer_flow_graph import PointerFlowGraph, FlowKind, EdgeTransfer
 from ..analysis import AnalysisConfig
 from pythonstan.ir import IRScope
-from .stmts import StmtCollector, PtStmt, PtInvoke
-from .elements import Var, Pointer, CSCallSite, CSScope, CSObj, Obj
+from .elements import *
 from .work_list import Worklist
 
 
 class SolverInterface:
+    from pythonstan.world.world import World
+
     cs_manager: CSManager
     heap_model: HeapModel
-    hierarchy: ClassHierarchy
     context_selector: ContextSelector
     call_graph: CSCallGraph
     pfg: PointerFlowGraph
     reachable_scopes: Set[IRScope]
-    var2stmtcolle: Dict[Var, StmtCollector]
-    scope2pt_ir: Dict[IRScope, List[PtStmt]]
     work_list: Worklist
 
     def __init__(self, config: AnalysisConfig, heap_model: HeapModel,
@@ -35,13 +32,8 @@ class SolverInterface:
         self.context_selector = context_selector
         self.cs_manager = cs_manager
         self.work_list = Worklist()
-
-        from pythonstan.world.world import World
-        self.hierarchy = World().class_hierarchy
-        self.scope_manager = World().scope_manager
-
-        self.var2stmtcolle = {}
-        self.scope2pt_ir = {}
+        self.hierarchy = self.get_world().class_hierarchy
+        self.scope_manager = self.get_world().scope_manager
 
     def get_pts_of(self, pointer: Pointer) -> PointsToSet:
         pts = pointer.get_points_to_set()
@@ -50,11 +42,64 @@ class SolverInterface:
             pointer.set_points_to_set(pts)
         return pts
 
-    def get_property(self, obj: Obj, ):
-        ...
+    def get_return_var(self, frame: PtFrame) -> Var:
+        return frame.get_var_write('__return_var__')
 
-    def add_call_edge(self, call_edge: CallEdge[CSCallSite, CSScope]):
-        self.work_list.add_edge(call_edge)
+    def get_yield_var(self, frame: PtFrame) -> Var:
+        return frame.get_var_write('__yield_var__')
+
+    def get_world(self) -> World:
+        from pythonstan.world.world import World
+        return World()
+
+    def get_property(self, obj: Obj, property: str, writable: bool = False) -> Optional[InstanceField]:
+        if writable:
+            return self.get_property_writable(obj, property)
+        if isinstance(obj, ClassObj):
+            return self.get_class_property(obj, property)
+        elif isinstance(obj, InstanceObj):
+            return self.get_instance_property(obj, property)
+        else:
+            raise NotImplementedError()
+
+    def new_property(self, obj: Obj, property: str):
+        field = InstanceField(obj, property)
+        obj.set_property(property, field)
+
+    def get_property_writable(self, obj: Obj, property: str) -> InstanceField:
+        field = obj.get_property(property)
+        if field is None:
+            self.new_property(obj, property)
+            field = obj.get_property(property)
+        return field
+
+    def get_class_property(self, obj: ClassObj, property: str) -> Optional[InstanceField]:
+        # TODO a overapproximation: just selected one obj from the PTS of one parent in the parent list.
+        #      It should be either a set or a large amount of propagated objs (considering subclasses and their instances).
+
+        prop = obj.get_property(property)
+        if prop is not None:
+            return prop
+        for parent in obj.get_parents():
+            par_objs = parent.get_points_to_set()
+            for par_obj in par_objs:
+                prop = self.get_class_property(par_obj, property)
+                if prop is not None:
+                    return prop
+        return None
+
+    def get_instance_property(self, obj: InstanceObj, property: str) -> Optional[InstanceField]:
+        prop = obj.get_property(property)
+        if prop is not None:
+            return prop
+        cls_prop = self.get_class_property(obj.get_type(), property)
+        if cls_prop is not None:
+            return cls_prop
+        return None
+
+
+    def add_call_edge(self, call_edge: CSCallEdge, frame: PtFrame):
+        self.work_list.add_edge((call_edge, frame))
 
     def add_pfg_edge(self, src: Pointer, tgt: Pointer, kind: FlowKind,
                      transfer: Optional[EdgeTransfer] = None):
@@ -68,17 +113,8 @@ class SolverInterface:
     def add_points_to_pts(self, pointer: Pointer, pts: PointsToSet):
         self.work_list.add_pts(pointer, pts)
 
-    def add_points_to_obj(self, pointer: Pointer, cs_obj: CSObj):
-        self.add_points_to_pts(pointer, PointsToSet.from_obj(cs_obj))
-
-    def add_var_points_to_cs_obj(self, context: Context, var: Var, cs_obj: CSObj):
-        self.add_points_to_obj(self.cs_manager.get_var(context, var), cs_obj)
-
-    def add_var_points_to_pts(self, context: Context, var: Var, pts: PointsToSet):
-        self.add_points_to_pts(self.cs_manager.get_var(context, var), pts)
-
-    def add_var_points_to_heap_obj(self, context: Context, var: Var, heap_context: Context, obj: Obj):
-        self.add_points_to_obj(self.cs_manager.get_var(context, var), self.cs_manager.get_obj(heap_context, obj))
+    def add_points_to_obj(self, pointer: Pointer, obj: Obj):
+        self.add_points_to_pts(pointer, PointsToSet.from_obj(obj))
 
     def get_call_kind(self, stmt: PtInvoke) -> CallKind:
         return stmt.get_call_kind()

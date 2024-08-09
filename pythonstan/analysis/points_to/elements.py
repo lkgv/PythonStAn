@@ -2,15 +2,15 @@ from typing import Union, Set, Dict, List, Optional, Any, Generic, TypeVar
 from abc import abstractmethod, ABC
 
 from .context import Context, ContextSensitive
-from .stmts import *
-from pythonstan.ir import IRScope, IRCall, IRClass, IRFunc
+from pythonstan.ir import *
 from pythonstan.utils.common import Singleton
+from pythonstan.graph.call_graph import CallKind
 
-
-__all__ = ['Var', 'Pointer', 'ClassField', 'CSScope', 'CSObj', 'CSVar', 'InstanceField', 'ArrayIndex', 'CSCallSite']
-
+from abc import ABC, abstractmethod
+from typing import List, Optional
 
 BUILTIN_CONTEXT = Context()
+
 
 class Pointer(ContextSensitive):
     _pts: Optional['PointsToSet']
@@ -20,6 +20,37 @@ class Pointer(ContextSensitive):
 
     def set_points_to_set(self, pts: 'PointsToSet'):
         self._pts = pts
+
+
+class Var(Pointer):
+    _name: str
+    _stmt_collector: 'StmtCollector'
+    _is_global: bool
+
+    def __init__(self, name: str, ctx: Context, is_global: bool = False):
+        self._name = name
+        self.set_context(ctx)
+        self._is_global = is_global
+        self._stmt_collector = StmtCollector()
+
+    def get_name(self) -> str:
+        return self._name
+
+    def is_global(self) -> bool:
+        return self._is_global
+
+    def get_stmt_collector(self) -> 'StmtCollector':
+        return self._stmt_collector
+
+    def __eq__(self, other):
+        return isinstance(other, Var) and \
+            (self._name, self.get_context(), self._is_global) == (other._name, other.get_context(), other._is_global)
+
+    def __hash__(self):
+        return hash((self._name, self.get_context(), self._is_global))
+
+    def __str__(self):
+        return f"<{'Global' if self._is_global else ''}Var {self._name}>"
 
 
 class Type(ABC):
@@ -59,7 +90,7 @@ class Obj(ABC, ContextSensitive):
         return self._type
 
     @abstractmethod
-    def get_allocation(self) -> Optional[PtAllocation]:
+    def get_allocation(self) -> Optional['PtAllocation']:
         ...
 
     @abstractmethod
@@ -72,11 +103,83 @@ class Obj(ABC, ContextSensitive):
     def __repr__(self):
         return str(self)
 
-    def get_property(self, name: str) -> 'InstanceField':
+    def get_property(self, name: str) -> Optional['InstanceField']:
         return self._properties.get(name, None)
 
     def set_property(self, name: str, field: 'InstanceField'):
         self._properties[name] = field
+
+
+class SymbolTable:
+    _mem: Dict[str, Var]
+
+    def __init__(self):
+        self._mem = {}
+
+    def __contains__(self, item: str) -> bool:
+        return item in self._mem
+
+    def get(self, name: str) -> Var:
+        return self._mem[name]
+
+    def set(self, name: str, var: Var):
+        self._mem[name] = var
+
+
+class PtFrame(ContextSensitive):
+    _locals: SymbolTable
+    _globals: SymbolTable
+    _returns: Set[Var]
+    _yields: Set[Var]
+    _writable_globals: Set[str]
+    _call_site: 'PtInvoke'
+    _code_obj: Obj
+
+    def __init__(self, call_site: 'PtInvoke', code_obj: Obj, ctx: Context):
+        self._locals = SymbolTable()
+        self._globals = SymbolTable()
+        self._writable_globals = set()
+        self._call_site = call_site
+        self._code_obj = code_obj
+        self.set_context(ctx)
+
+    def get_callsite(self) -> 'PtInvoke':
+        return self._call_site
+
+    def gen_var(self, name: str, is_global: bool = False) -> Var:
+        var = Var(name, self.get_context(), is_global)
+        if is_global:
+            self._globals.set(name, var)
+        else:
+            self._locals.set(name, var)
+        return var
+
+    def get_var_write(self, name: str) -> Var:
+        if name in self._locals:
+            return self._locals.get(name)
+        elif name in self._globals and name in self._writable_globals:
+            return self._globals.get(name)
+        else:
+            return self.gen_var(name, False)
+
+    def get_var_read(self, name: str) -> Optional[Var]:
+        if name in self._locals:
+            return self._locals.get(name)
+        elif name in self._globals:
+            return self._globals.get(name)
+        else:
+            return None
+
+    def get_code_obj(self) -> Obj:
+        return self._code_obj
+
+    def get_ir(self) -> IRScope:
+        if isinstance(self._code_obj, ClassObj):
+            return self._code_obj.get_ir()
+        elif isinstance(self._code_obj, FunctionObj):
+            return self._code_obj.get_ir()
+        elif isinstance(self._code_obj, MethodObj):
+            return self._code_obj.get_ir()
 
 
 class TypeObj(Obj, Type, ABC):
@@ -99,7 +202,7 @@ class LiteralTypeObj(TypeObj, Generic[T], ABC):
     def get_value(self) -> T:
         ...
 
-    def get_allocation(self) -> Optional[PtAllocation]:
+    def get_allocation(self) -> Optional['PtAllocation']:
         return None
 
     def __eq__(self, other):
@@ -172,7 +275,7 @@ class ClsTypeObj(TypeObj, Singleton):
     def get_type(self) -> Type:
         return self
 
-    def get_allocation(self) -> Optional[PtAllocation]:
+    def get_allocation(self) -> Optional['PtAllocation']:
         return None
 
     def get_container_scope(self) -> Optional[IRScope]:
@@ -201,7 +304,7 @@ class FuncTypeObj(TypeObj, Singleton):
     def get_type(self) -> Type:
         return self
 
-    def get_allocation(self) -> Optional[PtAllocation]:
+    def get_allocation(self) -> Optional['PtAllocation']:
         return None
 
     def get_container_scope(self) -> Optional[IRScope]:
@@ -224,17 +327,19 @@ FunctionTypeObject = FuncTypeObj()
 
 
 class ClassObj(TypeObj):
-    _alloc_site: PtAllocation
+    _alloc_site: 'PtAllocation'
     _ir: IRClass
     _parents: List['Var']
+    _init_method: Optional['MethodObj']
 
-    def __init__(self, alloc_site: PtAllocation, parents: List['Var'], ctx: Context):
+    def __init__(self, alloc_site: 'PtAllocation', parents: List['Var'], ctx: Context):
         super().__init__()
         ir = alloc_site.get_ir()
         assert isinstance(ir, IRClass), "The ir of the allocation(PtAllocation) of ClassObj should be IRClass!"
         self._alloc_site = alloc_site
         self._ir = ir
         self._parents = parents
+        self._init_method = None
         self.set_context(ctx)
 
     def get_parents(self) -> List['Var']:
@@ -246,11 +351,17 @@ class ClassObj(TypeObj):
     def get_type(self) -> Type:
         return ClassTypeObject
 
-    def get_allocation(self) -> PtAllocation:
+    def get_allocation(self) -> 'PtAllocation':
         return self._alloc_site
 
     def is_callable(self) -> bool:
         return True
+
+    def get_init_method(self) -> Optional['MethodObj']:
+        return self._init_method
+
+    def set_init_method(self, method: 'MethodObj'):
+        self._init_method = method
 
     def __str__(self):
         return f"<class '{self._ir.get_qualname()}'>"
@@ -268,57 +379,115 @@ class ClassObj(TypeObj):
 
 class InstanceObj(Obj):
     _type: ClassObj
-    _alloc_site: PtAllocation
+    _alloc_site: 'PtAllocation'
 
-    def __init__(self, alloc_site: PtAllocation, type_obj: ClassObj):
+    def __init__(self, alloc_site: 'PtAllocation', type_obj: ClassObj):
         super().__init__()
+        self.set_context(alloc_site.get_frame().get_context())
         self._alloc_site = alloc_site
         self._type = type_obj
-        self._scope = alloc_site.get_container_scope()
 
     def get_type(self) -> ClassObj:
         return self._type
 
-    def get_allocation(self) -> PtAllocation:
+    def get_allocation(self) -> 'PtAllocation':
         return self._alloc_site
-
-    def get_container_scope(self) -> IRScope:
-        return self._scope
 
     def __str__(self):
         return f'<InstanceObj :{str(self.get_type())}>'
 
 
-class AbstractFunctionObj(Obj, ABC):
-    _scope: IRScope
-    _ir: IRFunc
-
-    def __init__(self, scope: IRScope, ir: IRFunc):
-        super().__init__()
-        self._scope = scope
-        self._ir = ir
-
-    def get_ir(self) -> IRFunc:
-        return self._ir
-
+class Callable(ABC):
     def is_callable(self) -> bool:
         return True
 
 
-class BuiltinFunctionObj(AbstractFunctionObj):
-    ...
-
-class FunctionObj(AbstractFunctionObj):
-    _vars: List['Var']
-    ...
+class CallableObj(Obj, Callable, ABC):
+    def get_type(self) -> Type:
+        return FunctionTypeObject
 
 
-class AwaitableObj(Obj):
+class BuiltinFunctionObj(CallableObj):
+    def __init__(self):
+        pass
+
+    def get_allocation(self) -> Optional['PtAllocation']:
+        pass
+
+    def __str__(self):
+        pass
+
+
+class FunctionObj(CallableObj):
+    _ir: IRFunc
+    _alloc_site: 'PtAllocation'
+    _params: List['Var']
+    _ret: 'Var'
+
+    def __init__(self, alloc_site: 'PtAllocation', params: List['Var'], ret: 'Var'):
+        self.set_context(alloc_site.get_frame().get_context())
+        ir = alloc_site.get_ir()
+        assert isinstance(ir, IRFunc), "The ir of the allocation(PtAllocation) of FunctionObj should be IRFunc!"
+        self._ir = ir
+        self._params = params
+        self._ret = ret
+
+    def get_ir(self) -> IRFunc:
+        return self._ir
+
+    def get_ret(self) -> 'Var':
+        return self._ret
+
+    def get_params(self) -> List['Var']:
+        return self._params
+
+    def get_allocation(self) -> 'PtAllocation':
+        return self._alloc_site
+
+    def __str__(self):
+        return f"<FunctionObj {self._ir.get_qualname()}>"
+
+
+class MethodObj(CallableObj):
+    _ir: IRFunc
+    _alloc_site: 'PtAllocation'
+    _obj: Obj
+    _params: List['Var']
+    _ret: 'Var'
+
+    def __init__(self, alloc_site: 'PtAllocation', params: List['Var'], ret: 'Var'):
+        self.set_context(alloc_site.get_frame().get_context())
+        ir = alloc_site.get_ir()
+        assert isinstance(ir, IRFunc), "The ir of the allocation(PtAllocation) of FunctionObj should be IRFunc!"
+        self._ir = ir
+        self._params = params
+        self._ret = ret
+
+    def get_ir(self) -> IRFunc:
+        return self._ir
+
+    def get_ret(self) -> 'Var':
+        return self._ret
+
+    def get_params(self) -> List['Var']:
+        return self._params
+
+    def get_obj(self) -> Obj:
+        return self._obj
+
+    def get_allocation(self) -> 'PtAllocation':
+        return self._alloc_site
+
+    def __str__(self):
+        return f"<MethodObj {self._ir.get_qualname()}>"
+
+
+class AwaitableObj(CallableObj):
     _scope: IRScope
     _value: IRCall
-    _alloc: PtAllocation
+    _alloc: 'PtAllocation'
 
-    def __init__(self, scope: IRScope, alloc: PtAllocation, value: IRCall):
+    def __init__(self, scope: IRScope, alloc: 'PtAllocation', value: IRCall):
         self._scope = scope
         self._alloc = alloc
         self._value = value
@@ -326,7 +495,7 @@ class AwaitableObj(Obj):
     def get_type(self) -> str:
         return f"<Awaitable {str(self._value)}>"
 
-    def get_allocation(self) -> PtAllocation:
+    def get_allocation(self) -> 'PtAllocation':
         return self._alloc
 
     def get_container_scope(self) -> Optional[IRScope]:
@@ -334,32 +503,6 @@ class AwaitableObj(Obj):
 
     def get_value(self) -> IRCall:
         return self._value
-
-
-class Var(Pointer):
-    _name: str
-    _is_global: bool
-
-    def __init__(self, name: str, ctx: Context, is_global: bool = False):
-        self._name = name
-        self.set_context(ctx)
-        self._is_global = is_global
-
-    def get_name(self) -> str:
-        return self._name
-
-    def is_global(self) -> bool:
-        return self._is_global
-
-    def __eq__(self, other):
-        return isinstance(other, Var) and \
-            (self._name, self.get_context(), self._is_global) == (other._name, other.get_context(), other._is_global)
-
-    def __hash__(self):
-        return hash((self._name, self.get_context(), self._is_global))
-
-    def __str__(self):
-        return f"<{'Global' if self._is_global else ''}Var {self._name}>"
 
 
 class ClassField(Pointer):
@@ -424,39 +567,6 @@ class ArrayIndex(Pointer):
     _base: Obj
 
 
-class PtCallSite:
-    _callsite: PtInvoke
-    _context: Context
-    _container: CSScope
-
-    # callees: Set[CSScope]
-
-    def __init__(self, callsite: PtInvoke, context: Context, container: CSScope):
-        self._context = context
-        self._callsite = callsite
-        self._container = container
-
-    def get_callsite(self) -> PtInvoke:
-        return self._callsite
-
-    def get_context(self) -> Context:
-        return self._context
-
-    def get_container(self) -> CSScope:
-        return self._container
-
-    def __hash__(self):
-        return hash((self._callsite, self._context, self._container))
-
-    def __eq__(self, other):
-        if not isinstance(other, CSCallSite):
-            return False
-        return (self._callsite == other._callsite and self._context == other._context
-                and self._container == other._container)
-
-
-
-
 class PointsToSet:
     pts: Set[Obj]
 
@@ -511,3 +621,180 @@ class PointsToSet:
 
     def __iter__(self):
         return iter(self.pts)
+
+
+class PtStmt(ABC):
+    @abstractmethod
+    def get_frame(self) -> PtFrame:
+        ...
+
+
+class AbstractPtStmt(PtStmt):
+    _ir: IRStatement
+    _frame: PtFrame
+
+    @abstractmethod
+    def __init__(self, ir: IRStatement, frame: PtFrame):
+        self._ir = ir
+        self._frame = frame
+
+    def get_frame(self) -> PtFrame:
+        return self._frame
+
+    def get_ir(self) -> IRStatement:
+        return self._ir
+
+    def get_context(self) -> Context:
+        return self.get_frame().get_context()
+
+
+class PtAllocation(AbstractPtStmt):
+    _type: Type
+
+    def __init__(self, ir: IRStatement, frame: PtFrame, type_obj: Type):
+        super().__init__(ir, frame)
+        self._type = type_obj
+
+    def get_type(self) -> Type:
+        return self._type
+
+    def __eq__(self, other):
+        return isinstance(other, PtAllocation) and \
+            (self.get_frame(), self.get_ir(), self.get_type()) == (other.get_frame(), other.get_ir(), other.get_type())
+
+    def __hash__(self):
+        return hash((self.get_frame(), self.get_ir(), self.get_type()))
+
+
+class PtInvoke(AbstractPtStmt):
+    _call_kind: CallKind
+    _func: Var
+    _args: List[Var]
+    _target: Optional[Var]
+
+    def __init__(self, ir: IRStatement, frame: PtFrame, call_kind: CallKind,
+                 func: Var, args: List[Var], target: Optional[Var]):
+        super().__init__(ir, frame)
+        self._call_kind = call_kind
+        self._func = func
+        self._args = args
+        self._target = target
+
+    def get_call_kind(self) -> CallKind:
+        return self._call_kind
+
+    def get_func(self) -> Var:
+        return self._func
+
+    def get_args(self) -> List[Var]:
+        return self._args
+
+    def get_target(self) -> Optional[Var]:
+        return self._target
+
+
+class PtLoadSubscr(AbstractPtStmt):
+    def __init__(self, ir: IRStatement, frame: PtFrame):
+        super().__init__(ir, frame)
+
+
+class PtStoreSubscr(AbstractPtStmt):
+    def __init__(self, ir: IRStatement, frame: PtFrame):
+        super().__init__(ir, frame)
+
+
+class PtLoadAttr(AbstractPtStmt):
+    def __init__(self, ir: IRStatement, frame: PtFrame, lval: Var, rval: Var, field: str):
+        super().__init__(ir, frame)
+        self.lval = lval
+        self.rval = rval
+        self.field = field
+
+    def get_lval(self) -> Var:
+        return self.lval
+
+    def get_rval(self) -> Var:
+        return self.rval
+
+    def get_field(self) -> str:
+        return self.field
+
+
+class PtStoreAttr(AbstractPtStmt):
+    def __init__(self, ir: IRStatement, frame: PtFrame, lval: Var, rval: Var, field: str):
+        super().__init__(ir, frame)
+        self.lval = lval
+        self.rval = rval
+        self.field = field
+
+    def get_lval(self) -> Var:
+        return self.lval
+
+    def get_rval(self) -> Var:
+        return self.rval
+
+    def get_field(self) -> str:
+        return self.field
+
+
+class StmtCollector:
+    store_attrs: Optional[List[PtStoreAttr]]
+    load_attrs: Optional[List[PtLoadAttr]]
+    store_subscrs: Optional[List[PtStoreSubscr]]
+    load_subscrs: Optional[List[PtLoadSubscr]]
+    invokes: Optional[List[PtInvoke]]
+
+    def __init__(self):
+        self.store_attrs = None
+        self.load_attrs = None
+        self.store_subscrs = None
+        self.load_subscrs = None
+        self.invokes = None
+
+    def add_load_attr(self, stmt: PtLoadAttr):
+        if self.load_attrs is not None:
+            self.load_attrs.append(stmt)
+        else:
+            self.load_attrs = [stmt]
+
+    def add_store_attr(self, stmt: PtStoreAttr):
+        if self.store_attrs is not None:
+            self.store_attrs.append(stmt)
+        else:
+            self.store_attrs = [stmt]
+
+    def add_invoke(self, stmt: PtInvoke):
+        if self.invokes is not None:
+            self.invokes.append(stmt)
+        else:
+            self.invokes = [stmt]
+
+    def get_store_attrs(self) -> List[PtStoreAttr]:
+        if self.store_attrs is not None:
+            return self.store_attrs
+        else:
+            return []
+
+    def get_load_attrs(self) -> List[PtLoadAttr]:
+        if self.load_attrs is not None:
+            return self.load_attrs
+        else:
+            return []
+
+    def get_store_subscrs(self) -> List[PtStoreSubscr]:
+        if self.store_subscrs is not None:
+            return self.store_subscrs
+        else:
+            return []
+
+    def get_load_subscrs(self) -> List[PtLoadSubscr]:
+        if self.load_subscrs is not None:
+            return self.load_subscrs
+        else:
+            return []
+
+    def get_invokes(self) -> List[PtInvoke]:
+        if self.invokes is not None:
+            return self.invokes
+        else:
+            return []

@@ -85,10 +85,10 @@ class TrieContextHelper(Generic[T]):
             ret = ret.get_child(elem)
         return ret
 
-    def make_last_k(self, context: Context[T], k: int) -> TrieContext[T]:
+    def make_last_k(self, c: Context[T], k: int) -> TrieContext[T]:
+        assert isinstance(c, TrieContext), 'Context must be TrieContext'
         if k == 0:
             return self._root
-        c = context
         if len(c) <= k:
             return c
         elems = [None] * k
@@ -99,6 +99,7 @@ class TrieContextHelper(Generic[T]):
 
     def append(self, parent: Context[T], elem: T, limit: int) -> TrieContext[T]:
         p = parent
+        assert isinstance(p, TrieContext), 'Parent must be TrieContext'
         if len(parent) < limit:
             return p.get_child(elem)
         else:
