@@ -111,7 +111,7 @@ class Obj(ABC, ContextSensitive):
 
 
 class SymbolTable:
-    _mem: Dict[str, Var]
+    _mem: Dict[str, Pointer]
 
     def __init__(self):
         self._mem = {}
@@ -119,18 +119,16 @@ class SymbolTable:
     def __contains__(self, item: str) -> bool:
         return item in self._mem
 
-    def get(self, name: str) -> Var:
+    def get(self, name: str) -> Pointer:
         return self._mem[name]
 
-    def set(self, name: str, var: Var):
-        self._mem[name] = var
+    def set(self, name: str, ptr: Pointer):
+        self._mem[name] = ptr
 
 
 class PtFrame(ContextSensitive):
     _locals: SymbolTable
     _globals: SymbolTable
-    _returns: Set[Var]
-    _yields: Set[Var]
     _writable_globals: Set[str]
     _call_site: 'PtInvoke'
     _code_obj: Obj
@@ -146,15 +144,18 @@ class PtFrame(ContextSensitive):
     def get_callsite(self) -> 'PtInvoke':
         return self._call_site
 
-    def gen_var(self, name: str, is_global: bool = False) -> Var:
-        var = Var(name, self.get_context(), is_global)
+    def gen_var(self, name: str, is_global: bool = False) -> Pointer:
+        if isinstance(self.get_code_obj(), ClassObj):
+            var = InstanceField(self.get_code_obj(), name)
+        else:
+            var = Var(name, self.get_context(), is_global)
         if is_global:
             self._globals.set(name, var)
         else:
             self._locals.set(name, var)
         return var
 
-    def get_var_write(self, name: str) -> Var:
+    def get_var_write(self, name: str) -> Pointer:
         if name in self._locals:
             return self._locals.get(name)
         elif name in self._globals and name in self._writable_globals:
@@ -162,13 +163,16 @@ class PtFrame(ContextSensitive):
         else:
             return self.gen_var(name, False)
 
-    def get_var_read(self, name: str) -> Optional[Var]:
+    def get_var_read(self, name: str) -> Optional[Pointer]:
         if name in self._locals:
             return self._locals.get(name)
         elif name in self._globals:
             return self._globals.get(name)
         else:
             return None
+
+    def get_locals(self) -> SymbolTable:
+        return self._locals
 
     def get_code_obj(self) -> Obj:
         return self._code_obj
@@ -213,6 +217,20 @@ class LiteralTypeObj(TypeObj, Generic[T], ABC):
 
     def __le__(self, rhs) -> bool:
         return isinstance(rhs, self.__class__) or isinstance(rhs, ClsTypeObj)
+
+
+class BoolLiteralTypeObj(LiteralTypeObj[int]):
+    _value: bool
+
+    def __init__(self, value: bool):
+        super().__init__()
+        self._value = value
+
+    def get_value(self) -> bool:
+        return self._value
+
+    def __str__(self):
+        return f"<BoolObj {self.get_value()}>"
 
 
 class IntLiteralTypeObj(LiteralTypeObj[int]):
@@ -396,6 +414,54 @@ class InstanceObj(Obj):
     def __str__(self):
         return f'<InstanceObj :{str(self.get_type())}>'
 
+
+class ModuleObj(TypeObj):
+    _alloc_site: 'PtAllocation'
+    _ir: IRModule
+
+    def __init__(self, alloc_site: 'PtAllocation', ctx: Context):
+        super().__init__()
+        ir = alloc_site.get_ir()
+        assert isinstance(ir, IRClass), "The ir of the allocation(PtAllocation) of ClassObj should be IRClass!"
+        self._alloc_site = alloc_site
+        self._ir = ir
+        self._parents = parents
+        self._init_method = None
+        self.set_context(ctx)
+
+    def get_parents(self) -> List['Var']:
+        return self._parents
+
+    def get_ir(self) -> IRClass:
+        return self._ir
+
+    def get_type(self) -> Type:
+        return ClassTypeObject
+
+    def get_allocation(self) -> 'PtAllocation':
+        return self._alloc_site
+
+    def is_callable(self) -> bool:
+        return True
+
+    def get_init_method(self) -> Optional['MethodObj']:
+        return self._init_method
+
+    def set_init_method(self, method: 'MethodObj'):
+        self._init_method = method
+
+    def __str__(self):
+        return f"<class '{self._ir.get_qualname()}'>"
+
+    def __eq__(self, other):
+        return isinstance(other, ClassObj) and \
+            (self.get_allocation(), self.get_context()) == (other.get_allocation(), other.get_context())
+
+    def __hash__(self):
+        return hash((self.get_allocation(), self.get_context(), self.get_parents()))
+
+    def __le__(self, other) -> bool:
+        raise NotImplementedError
 
 class Callable(ABC):
     def is_callable(self) -> bool:

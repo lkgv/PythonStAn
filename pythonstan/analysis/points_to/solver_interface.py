@@ -97,7 +97,6 @@ class SolverInterface:
             return cls_prop
         return None
 
-
     def add_call_edge(self, call_edge: CSCallEdge, frame: PtFrame):
         self.work_list.add_edge((call_edge, frame))
 

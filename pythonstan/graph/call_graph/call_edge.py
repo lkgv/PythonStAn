@@ -11,9 +11,10 @@ Method = TypeVar('Method')
 class CallKind(Enum):
     INSTANCE = 1
     STATIC = 2
-    CLASS = 3
-    FUNCTION = 4
-    OTHER = 3
+    FUNCTION = 3
+    CLASS = 4
+    MODULE = 5
+    OTHER = 6
 
 
 class CallEdge(Generic[CallSite, Method]):

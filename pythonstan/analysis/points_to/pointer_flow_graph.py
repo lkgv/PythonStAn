@@ -13,6 +13,8 @@ class FlowKind(Enum):
     STATIC_STORE = 3
     STATIC_LOAD = 4
     RETURN = 5
+    SEND = 6
+    YIELD = 7
     PARAM = 6
 
 

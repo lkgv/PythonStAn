@@ -93,35 +93,13 @@ class StmtProcessor(IRVisitor):
     # staticproperty and class property seen as instance property of class obj.
 
 
-    def __init__(self, c: SolverInterface):
+    def __init__(self, c: SolverInterface, recv_obj: Obj, frame: PtFrame):
         self.c = c
-        self.state_before = {}
-        self.state_after = {}
-
-    def set_frame(self, frame: PtFrame):
-        self.frame = frame
 
     def visit_stmts(self, stmts: Iterable[IRStatement], init_state: State, context: Context):
-        self.cur_state = init_state
         self.context = context
-        self.ret_var = self.get_var('return')
         for stmt in stmts:
-            self.state_before[stmt] = self.cur_state.copy()
             self.visit(stmt)
-            self.state_after[stmt] = self.cur_state.copy()
-
-    def retrive_var(self, name: str) -> Optional[Var]:
-        return  self.cur_state.get(name)
-
-    def get_var(self, name: str, writable: bool = False) -> Var:
-        if writable:
-        var = self.retrive_var(name)
-        if var is None:
-            new_var = self.frame.get_var_(name)
-            self.cur_state.set(name, new_var)
-            return new_var
-        else:
-            return var
 
     def visit_IRAssign(self, stmt: IRAssign):
         lval = self.frame.get_var_write(stmt.lval.id)
@@ -196,12 +174,11 @@ class StmtProcessor(IRVisitor):
 
         heap_ctx = self.c.context_selector.select_heap_context(self.frame)
         bases = [self.get_var(base_name) for base_name in stmt.get_bases()]
-        cls_create_invoke = PtInvoke(stmt, self.frame, CallKind.CLASS, cls_var, bases)
-        cls_create_callsite = self.c.cs_manager.get_callsite(heap_ctx, cls_create_invoke)
-        cls_create_frame = self.c.cs_manager.get_frame(cls_create_callsite, ClassTypeObject, heap_ctx)
-
-        # TODO Self.add_call
-        # self.c.work_list.add_edge(CSCallEdge(CallKind.CLASS, cls_create_callsite, ))
+        cls_create_invoke = PtInvoke(stmt, self.frame, CallKind.CLASS, cls_var, bases, None)
+        cls_create_frame = self.c.cs_manager.get_frame(cls_create_invoke, ClassTypeObject, heap_ctx)
+        call_edge = CSCallEdge(CallKind.CLASS, cls_create_invoke, cls_obj)
+        self.c.add_call_edge(call_edge, cls_create_frame)
+        self.c.work_list.add_edge(call_edge)
 
 
     def visit_IRFunc(self, stmt: IRFunc):
@@ -241,14 +218,13 @@ class BasicDataFlowPlugin(Plugin):
     def __init__(self, c: SolverInterface):
         self.c = c
 
-    def on_new_call_edge(self, edge: CSCallEdge):
-        callee_ctx, callee_scope = edge.get_callee()
-        init_state = State(self.c, callee_ctx)
-        for var in callee_scope.get_vars():
-            init_state.mem[var.get_name()] = callee_ctx, var
-        stmts = self.c.scope_manager.get_ir(callee_scope, "ir")
-        stmt_processor = StmtProcessor(self.c, callee_scope)
+    def on_new_call_edge(self, edge: CSCallEdge, frame: PtFrame):
+        callee_obj = edge.get_callee()
+        stmts = self.c.scope_manager.get_ir(callee_obj.get_allocation().get_ir(), "ir")
+        stmt_processor = StmtProcessor(self.c)
+        stmt_processor.set_frame(frame)
         stmt_processor.visit(stmts)
+
 
     def on_new_cs_scope(self, cs_scope: CSScope):
         if isinstance(cs_scope.get_scope(), IRClass):

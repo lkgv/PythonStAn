@@ -116,27 +116,33 @@ class Solver:
 
     def process_call_edge(self, edge: CSCallEdge, frame: PtFrame):
         if self.c.call_graph.add_edge(edge):
+            self.plugin.on_new_call_edge(edge)
+
             callee = edge.get_callee()
             assert isinstance(callee, CallableObj), f'callee is not CallableObj: {callee}'
             self.c.call_graph.set_edge_to_frame(edge, frame)
             self.add_scope(callee)
-            if edge.get_kind() != CallKind.OTHER:
-                caller_ctx = edge.get_callsite().get_context()
-                call_site = edge.get_callsite()
+            call_kind = edge.get_kind()
+            call_site = edge.get_callsite()
+            if call_kind == CallKind.FUNCTION:
+                assert isinstance(callee, FunctionObj), f'callee {callee} should be FunctionObj in FUNCTION call!'
+                for arg, param in zip(call_site.get_args(), callee.get_params()):
+                    self.c.add_pfg_edge(arg, param, FlowKind.PARAM)
+            elif call_kind == CallKind.INSTANCE:
+                assert isinstance(callee, MethodObj), f'callee {callee} should be MethodObj in INSTANCE call!'
+                recv_obj = callee.get_obj()
+                recv_var = callee.get_params()[0]
+                self.c.add_points_to_obj(recv_var, recv_obj)
+                for arg, param in zip(call_site.get_args(), callee.get_params()[1:]):
+                    self.c.add_pfg_edge(arg, param, FlowKind.PARAM)
+            elif call_kind == CallKind.CLASS or call_kind == CallKind.MODULE:
+                pass
+            else:
+                raise NotImplementedError(f'call kind {call_kind} is not implemented!')
+            if call_site.get_target() is not None:
+                ret_var = self.c.get_return_var(frame)
+                self.c.add_pfg_edge(ret_var, call_site.get_target(), FlowKind.RETURN)
 
-                # input args should be more elegent and robust
-                if isinstance(callee, FunctionObj):
-                    for arg, param in zip(call_site.get_args(), callee.get_params()):
-                        self.c.add_pfg_edge(arg, param, FlowKind.PARAM)
-                elif isinstance(callee, MethodObj):
-                    recv_obj = call_site.get_args()[0]
-                    # TODO add method obj
-
-                if call_site.get_target() is not None:
-                    ret_var = self.c.get_return_var(frame)
-                    self.c.add_pfg_edge(ret_var, call_site.get_target(), FlowKind.RETURN)
-
-            self.plugin.on_new_call_edge(edge)
 
     def process_new_scope(self, scope: CallableObj):
         if scope not in self.c.reachable_scopes:
@@ -146,9 +152,6 @@ class Solver:
                 self.plugin.on_new_stmt(stmt, scope)
 
     # logic ends
-
-    def resolve_callee(self, recv_obj: CSObj, stmt: PtInvoke) -> Optional[IRScope]:
-        ...
 
     def get_pt_ir(self, scope: IRScope) -> List[PtStmt]:
         return self.c.scope2pt_ir.get(scope, [])

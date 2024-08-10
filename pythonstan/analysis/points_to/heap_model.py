@@ -209,7 +209,16 @@ class AbstractHeapModel(HeapModel):
 
     def do_get_constant_obj(self, value: Any) -> Obj:
         if value not in self.constant_objs:
-            self.constant_objs[value] = ConstantObj(value)
+            if isinstance(value, int):
+                self.constant_objs[value] = IntLiteralTypeObj(value)
+            elif isinstance(value, float):
+                self.constant_objs[value] = FloatLiteralTypeObj(value)
+            elif isinstance(value, str):
+                self.constant_objs[value] = StrLiteralTypeObj(value)
+            elif isinstance(value, bool):
+                self.constant_objs[value] = BoolLiteralTypeObj(value)
+            elif isinstance(value, type(None)):
+                self.constant_objs[value] = NoneLiteralTypeObj()
         return self.constant_objs[value]
 
     def is_str_obj(self, obj: Obj) -> bool:
