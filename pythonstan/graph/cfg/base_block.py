@@ -1,6 +1,6 @@
 from typing import List, Optional, Set
 
-from pythonstan.ir import IRStatement, Label, Nop
+from pythonstan.ir import IRStatement, Label
 from ..graph import Node
 
 __all__ = ["BaseBlock"]

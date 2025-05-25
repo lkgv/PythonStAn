@@ -1,20 +1,2 @@
-from .ir_class import IRClass
-from .ir_func import IRFunc
-from .ir_import import IRImport
-from .ir_scope import IRScope
-from .ir_module import IRModule
-from .ir_call import IRCall
-from .ir_pass import IRPass
-from .ir_return import IRReturn
-from .ir_yield import IRYield
-from .ir_raise import IRRaise
-from .ir_anno import IRAnno
-from .ir_del import IRDel
-from .ir_assign import IRAssign
-from .ir_load_attr import IRLoadAttr
-from .ir_store_attr import IRStoreAttr
-from .ir_load_subscr import IRLoadSubscr
-from .ir_store_subscr import IRStoreSubscr
-from .ir_statement import IRStatement, IRAbstractStmt
 from .ir_statements import *
-from .ir_visitor import IRVisitor
+

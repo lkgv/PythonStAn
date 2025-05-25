@@ -9,10 +9,6 @@ CONFIG = {
         "/home/yanggw2022/anaconda3/envs/pytorch/lib/python3.9",
         "/home/yanggw2022/anaconda3/envs/pytorch/lib/python3.9/site-packages"
     ],
-    'analysis': []
-}
-
-'''
     "analysis": [
         {
             "name": "liveness",
@@ -26,7 +22,6 @@ CONFIG = {
         },
     ]
 }
-'''
 
 
 def main():
