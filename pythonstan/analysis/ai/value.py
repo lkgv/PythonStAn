@@ -58,6 +58,27 @@ class Object(ABC):
     @staticmethod
     def can_merge(obj1: 'Object', obj2: 'Object') -> bool:
         """Check if two objects can be merged"""
+        # First, check if they're the same general object type
+        if obj1.obj_type != obj2.obj_type:
+            return False
+        
+        # For constant objects, also check const_type
+        if obj1.obj_type == ObjectType.CONSTANT and obj2.obj_type == ObjectType.CONSTANT:
+            if isinstance(obj1, ConstantObject) and isinstance(obj2, ConstantObject):
+                return obj1.const_type == obj2.const_type
+        
+        # For builtin objects, check builtin_type
+        if obj1.obj_type == ObjectType.BUILTIN and obj2.obj_type == ObjectType.BUILTIN:
+            if isinstance(obj1, BuiltinObject) and isinstance(obj2, BuiltinObject):
+                return obj1.builtin_type == obj2.builtin_type
+        
+        # For function, class, and instance objects, check qualname
+        if obj1.obj_type in (ObjectType.FUNCTION, ObjectType.CLASS, ObjectType.INSTANCE) and \
+           obj2.obj_type in (ObjectType.FUNCTION, ObjectType.CLASS, ObjectType.INSTANCE):
+            if hasattr(obj1, 'qualname') and hasattr(obj2, 'qualname'):
+                return obj1.qualname == obj2.qualname
+        
+        # Default to just checking if they're the same general object type
         return obj1.obj_type == obj2.obj_type
 
 
@@ -86,27 +107,34 @@ class Value:
             return self
         if not self.objects:
             return other
-            
-        # Group objects by type for more precise merging
-        result = Value()
-        remaining_objects = set(other.objects)
         
+        # Create a new value to hold the merged result
+        result = Value()
+        
+        # Track which objects from both self and other have been merged together
+        merged_self_objects = set()
+        merged_other_objects = set()
+        
+        # Try to merge objects of the same type
         for obj1 in self.objects:
-            merged = False
-            for obj2 in list(remaining_objects):
+            for obj2 in other.objects:
                 if Object.can_merge(obj1, obj2):
-                    result.add(obj1.merge(obj2))
-                    remaining_objects.remove(obj2)
-                    merged = True
-                    break
-            
-            if not merged:
+                    # Merge compatible objects
+                    merged_obj = obj1.merge(obj2)
+                    result.add(merged_obj)
+                    merged_self_objects.add(obj1)
+                    merged_other_objects.add(obj2)
+        
+        # Add any objects from self that weren't merged
+        for obj1 in self.objects:
+            if obj1 not in merged_self_objects:
                 result.add(obj1)
         
-        # Add any remaining objects from the other value
-        for obj in remaining_objects:
-            result.add(obj)
-            
+        # Add any objects from other that weren't merged
+        for obj2 in other.objects:
+            if obj2 not in merged_other_objects:
+                result.add(obj2)
+        
         return result
     
     def get_objects_of_type(self, obj_type: ObjectType) -> Set[Object]:
@@ -254,11 +282,11 @@ class ContainerProperty:
                  key_types: Optional[Set[ObjectType]] = None,
                  key_values: Optional['Value'] = None,
                  min_size: int = 0,
-                 max_size: Optional[int] = None):
+                 max_size: Optional[int] = 0):
         self.element_types = element_types or set()
-        self.element_values = element_values or Value()
-        self.key_types = key_types or set()  # For dict
-        self.key_values = key_values or Value()  # For dict
+        self.element_values = element_values or create_unknown_value()
+        self.key_types = key_types or set()
+        self.key_values = key_values or create_unknown_value()
         self.min_size = min_size
         self.max_size = max_size
     
@@ -331,7 +359,9 @@ class ConstantObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this constant with another object"""
         if not isinstance(other, ConstantObject) or self.const_type != other.const_type:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            # This allows preserving both types when merged at the Value level
+            return self
         
         result = ConstantObject(self.const_type)
         
@@ -385,7 +415,9 @@ class BuiltinObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this builtin with another object"""
         if not isinstance(other, BuiltinObject) or self.builtin_type != other.builtin_type:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            # This allows preserving both types when merged at the Value level
+            return self
             
         result = BuiltinObject(self.builtin_type)
         result.container_property = self.container_property.merge(other.container_property)
@@ -434,7 +466,8 @@ class FunctionObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this function with another object"""
         if not isinstance(other, FunctionObject) or self.qualname != other.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # Functions with the same qualname are considered the same object
         return self
@@ -467,7 +500,8 @@ class ClassObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this class with another object"""
         if not isinstance(other, ClassObject) or self.qualname != other.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # Classes with the same qualname are considered the same object
         # But we should merge their methods and attributes
@@ -511,11 +545,13 @@ class InstanceObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this instance with another object"""
         if not isinstance(other, InstanceObject):
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # For now, we require instances to be of the same class
         if self.class_obj.qualname != other.class_obj.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         result = InstanceObject(self.class_obj)
         
@@ -548,7 +584,8 @@ class ExternalFunctionObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this external function with another object"""
         if not isinstance(other, ExternalFunctionObject) or self.qualname != other.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # External functions with the same qualname are considered the same object
         return self
@@ -579,7 +616,8 @@ class ExternalClassObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this external class with another object"""
         if not isinstance(other, ExternalClassObject) or self.qualname != other.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # External classes with the same qualname are considered the same object
         # But we should merge their methods and attributes
@@ -623,11 +661,13 @@ class ExternalInstanceObject(Object):
     def merge(self, other: Object) -> Object:
         """Merge this external instance with another object"""
         if not isinstance(other, ExternalInstanceObject):
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         # For now, we require instances to be of the same class
         if self.class_obj.qualname != other.class_obj.qualname:
-            return UnknownObject()
+            # Return self instead of creating an UnknownObject
+            return self
         
         result = ExternalInstanceObject(self.class_obj)
         
@@ -656,7 +696,11 @@ class UnknownObject(Object):
     
     def merge(self, other: Object) -> Object:
         """Merge this unknown object with another object"""
-        # Unknown merged with anything is still unknown
+        if other.obj_type != ObjectType.UNKNOWN:
+            # Preserve non-unknown types when merging
+            return other
+            
+        # Unknown merged with unknown is still unknown
         result = UnknownObject()
         
         # Merge attributes if any
@@ -685,9 +729,14 @@ def create_float_value(value: Optional[float] = None) -> Value:
     return Value({obj})
 
 def create_str_value(value: Optional[str] = None) -> Value:
-    """Create a Value containing a str object"""
+    """Create a Value containing a string constant"""
     obj = ConstantObject(str, value)
-    return Value({obj})
+    if value is not None:
+        # Set string properties
+        obj.string_property = StringProperty(exact_values={value}, min_length=len(value), max_length=len(value))
+    result = Value()
+    result.add(obj)
+    return result
 
 def create_bool_value(value: Optional[bool] = None) -> Value:
     """Create a Value containing a bool object"""

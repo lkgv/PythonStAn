@@ -43,7 +43,7 @@ class Config:
 
     def add_analysis(self, cfg: AnalysisConfig):
         self.analysis[cfg.name] = cfg
-        self.succ_analysis[cfg.name] = []
+        self.succ_analysis[cfg.name] = {*()}
         for prev_name in cfg.prev_analysis:
             if prev_name not in self.succ_analysis:
                 self.succ_analysis[prev_name] = {*()}

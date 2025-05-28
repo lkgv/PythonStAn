@@ -179,7 +179,9 @@ class AbstractInterpretationSolver:
                     # Add edge to label target
                     self.state.control_flow.add_edge(scope_qualname, i, label_idx)
                 
-                # Add edge for not taken branch (already handled by sequential edges)
+                # Add edge for not taken branch
+                if i + 1 < len(statements):
+                    self.state.control_flow.add_edge(scope_qualname, i, i + 1)
     
     def _analyze_scope(self, scope_qualname: str, statements: List[IRStatement]):
         """
@@ -296,6 +298,9 @@ class AbstractInterpretationSolver:
                     None  # No receiver for non-method calls
                 )
                 
+                # Reset the return value before analyzing the function
+                self.interpreter.current_return_value = None
+                
                 # Analyze function if not already analyzed
                 if callee_qualname not in self.analyzed_functions:
                     self._perform_intraprocedural_analysis(callee_qualname)
@@ -309,9 +314,13 @@ class AbstractInterpretationSolver:
                     return_value = create_none_value()
                 
                 # Set return value in caller
-                if call_site.call_stmt.get_target():
+                target = None
+                if hasattr(call_site.call_stmt, 'get_target'):
                     target = call_site.call_stmt.get_target()
-                    
+                elif hasattr(call_site.call_stmt, 'target'):
+                    target = call_site.call_stmt.target
+                
+                if target:
                     # Restore caller context
                     self.state.set_current_context(old_context)
                     
@@ -366,18 +375,34 @@ class AbstractInterpretationSolver:
         self.state.set_current_context(call_site.context)
         
         # Get args from call site
-        for arg_name, is_starred in call_site.call_stmt.get_args():
-            if arg_name.startswith("<Constant:"):
-                # Handle constant arguments (simplified)
-                const_str = arg_name[len("<Constant: "):-1]
-                # A real implementation would parse the constant value
-                args.append(create_unknown_value())
-            else:
-                # Regular variable
-                arg_value = self.state.get_variable(arg_name)
-                if arg_value is None:
-                    arg_value = create_unknown_value()
-                args.append(arg_value)
+        if hasattr(call_site.call_stmt, 'get_args'):
+            arg_pairs = call_site.call_stmt.get_args()
+        else:
+            # If get_args() is not available, try to access args directly
+            arg_pairs = getattr(call_site.call_stmt, 'args', [])
+        
+        for arg_info in arg_pairs:
+            # Handle different formats of arg_info
+            arg_name = None
+            is_starred = False
+            
+            if isinstance(arg_info, tuple):
+                arg_name, is_starred = arg_info
+            elif isinstance(arg_info, str):
+                arg_name = arg_info
+            
+            if arg_name:
+                if arg_name.startswith("<Constant:"):
+                    # Handle constant arguments (simplified)
+                    const_str = arg_name[len("<Constant: "):-1]
+                    # A real implementation would parse the constant value
+                    args.append(create_unknown_value())
+                else:
+                    # Regular variable
+                    arg_value = self.state.get_variable(arg_name)
+                    if arg_value is None:
+                        arg_value = create_unknown_value()
+                    args.append(arg_value)
         
         # Restore old context
         self.state.set_current_context(old_context)

@@ -27,6 +27,22 @@ class AnalysisConfig:
             self.prev_analysis = []
         else:
             self.prev_analysis = prev_analysis
+    
+    def __str__(self):
+        return f'''
+AnalysisConfig(
+    name={self.name},
+    id={self.id},
+    description={self.description},
+    type={self.type},
+    inter_procedure={self.inter_procedure},
+    prev_analysis={self.prev_analysis},
+    options={self.options}
+)
+'''
+    
+    def __repr__(self):
+        return self.__str__()
 
 
 class Analysis(ABC):

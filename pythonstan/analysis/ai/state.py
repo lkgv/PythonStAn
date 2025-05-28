@@ -160,7 +160,7 @@ class MemoryModel:
         scope = self.get_scope(scope_name) if scope_name else self.current_scope
         if not scope:
             return None
-            
+        
         # If context-sensitive, try to get from context-specific storage
         if context and context.context_id:
             ctx_key = (context, scope.get_qualname(), name)
@@ -168,7 +168,8 @@ class MemoryModel:
                 return self.ctx_locals[ctx_key]
         
         # Fall back to normal scope lookup
-        return scope.lookup(name)
+        result = scope.lookup(name)
+        return result
     
     def set_variable(self, name: str, value: Value, context: Optional[Context] = None, scope_name: Optional[str] = None):
         """Set a variable value with context and flow sensitivity"""
@@ -351,6 +352,10 @@ class ControlFlowState:
             return self.cfg[function_qualname][stmt_idx]
         return set()
     
+    def get_edges(self, function_qualname: str) -> List[Tuple[int, int]]:
+        """Get all edges for a function"""
+        return [(from_idx, to_idx) for from_idx, to_set in self.cfg.get(function_qualname, {}).items() for to_idx in to_set]
+    
     def get_predecessors(self, function_qualname: str, stmt_idx: int) -> Set[int]:
         """Get all predecessor statements"""
         if function_qualname in self.reverse_cfg and stmt_idx in self.reverse_cfg[function_qualname]:
@@ -385,27 +390,42 @@ class ControlFlowState:
 
 
 class AbstractState:
-    """Main state class for abstract interpretation"""
+    """State for abstract interpretation, including variables, object attributes, control flow"""
     
     def __init__(self, 
                 context_type: ContextType = ContextType.CALL_SITE,
                 flow_sensitivity: FlowSensitivity = FlowSensitivity.SENSITIVE,
                 context_depth: int = 1):
+        # Context sensitivity settings
         self.context_type = context_type
-        self.flow_sensitivity = flow_sensitivity
         self.context_depth = context_depth
+        self.current_context: Context = Context()
         
-        # Core state components
+        # Flow sensitivity settings
+        self.flow_sensitivity = flow_sensitivity
+        
+        # Memory model for storing variables
         self.memory = MemoryModel()
+        
+        # Create a default global scope for early testing
+        # Using a simple module node as required by IRModule constructor
+        module_node = ast.Module(body=[], type_ignores=[])
+        dummy_module = IRModule("dummy_module", module_node)
+        self.memory.create_global_scope(dummy_module)
+        
+        # Class hierarchy
         self.class_hierarchy = ClassHierarchy()
+        
+        # Call graph
         self.call_graph = CallGraph()
+        
+        # Control flow state
         self.control_flow = ControlFlowState(flow_sensitivity)
         
-        # Context tracking
-        self.current_context: Context = Context.create_insensitive_context()
-        self.call_stack: List[Tuple[str, int, Context]] = []  # List of (function_qualname, return_stmt_idx, context)
+        # Call stack for interprocedural analysis
+        self.call_stack: List[Tuple[str, int, Context]] = []
         
-        # Special values for built-in types
+        # Initialize builtin objects
         self._init_builtins()
     
     def _init_builtins(self):
@@ -458,6 +478,10 @@ class AbstractState:
         # Only pass context if we're using context sensitivity
         ctx = self.current_context if self.context_type != ContextType.INSENSITIVE else None
         self.memory.set_variable(name, value, ctx)
+        
+        # Verify the variable was set
+        check = self.get_variable(name)
+        assert check == value, f"Variable {name} set to {value}, but get_variable() returned {check}"
     
     def merge_variable(self, name: str, value: Value) -> Value:
         """Merge a new value with the existing value of a variable"""
@@ -492,14 +516,24 @@ class AbstractState:
         self.memory.set_current_scope(ir_func.get_qualname())
         
         # Set up parameters
-        # TODO: Handle parameter binding more accurately
-        # For now, just bind positional args
-        param_names = [arg.arg for arg in ir_func.args.args]
+        # Get parameter names from function
+        param_names = []
+        if hasattr(ir_func, 'get_arg_names'):
+            arg_names = ir_func.get_arg_names()
+            if hasattr(arg_names, 'args'):
+                param_names = [arg.arg for arg in arg_names.args]
+        elif hasattr(ir_func, 'args'):
+            if isinstance(ir_func.args, list):
+                param_names = ir_func.args
+            elif hasattr(ir_func.args, 'args'):
+                param_names = [arg.arg for arg in ir_func.args.args]
+        
+        # Bind positional args
         for i, (param_name, arg_value) in enumerate(zip(param_names, args)):
             self.set_variable(param_name, arg_value)
         
         # If this is an instance method, bind 'self'
-        if receiver and ir_func.is_instance_method and param_names:
+        if receiver and hasattr(ir_func, 'is_instance_method') and ir_func.is_instance_method and param_names:
             self.set_variable(param_names[0], receiver)
             
         return context

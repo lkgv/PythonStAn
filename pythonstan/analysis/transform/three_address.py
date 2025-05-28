@@ -24,8 +24,11 @@ class ThreeAddress(Transform):
         self.transformer = ThreeAddressTransformer()
 
     def transform(self, module: IRModule):
-        three_address_form = self.transformer.visit(module.ast)
-        World().scope_manager.set_ir(module, "three address form", three_address_form)
+        tac = module.ast
+        for _ in range(1):
+           tac = self.transformer.visit(tac)
+        #three_address_form = self.transformer.visit(module.ast)
+        World().scope_manager.set_ir(module, "three address form", tac)
 
 
 class ConstCollector:
@@ -78,6 +81,46 @@ class ThreeAddressTransformer(NodeTransformer):
         self.import_stmts = {*()}
 
     def resolve_single_Assign(self, tgt, value, stmt):
+        """
+        Converts a Python assignment statement to three-address code form.
+        
+        This method handles various assignment patterns including:
+        - Simple assignments (x = y)
+        - Tuple/list unpacking (a, b = x, y)
+        - Starred expressions (a, *b, c = some_list)
+        - Complex RHS expressions requiring temporary variables
+        
+        Parameters:
+        ----------
+        tgt : ast.AST
+            The target of the assignment (LHS), which can be a Name, Tuple, List, etc.
+        value : ast.AST
+            The value being assigned (RHS)
+        stmt : ast.AST
+            The original assignment statement (for source location information)
+            
+        Returns:
+        -------
+        list[ast.stmt]
+            A list of AST statements that implement the assignment in three-address form
+            
+        Examples:
+        --------
+        Input:  a = b + c
+        Output: $tmp_1 = b + c
+                a = $tmp_1
+                
+        Input:  a, b = x, y
+        Output: a = x
+                b = y
+                
+        Input:  a, *b, c = some_list
+        Output: $tmp_1 = list(some_list)
+                a = $tmp_1[0]
+                b = $tmp_1[1:-1]
+                c = $tmp_1[-1]
+        """
+
         def has_star(ls):
             return any(elt for elt in ls.elts if isinstance(elt, ast.Starred))
 
@@ -267,6 +310,8 @@ class ThreeAddressTransformer(NodeTransformer):
             name=f_name,
             args=node.args,
             body=[ast.Return(value=node.body)],
+            returns=None,
+            type_comment=None,
             decorator_list=[])
         blk.extend(self.visit_FunctionDef(new_func))
         return blk, f_load
@@ -418,7 +463,9 @@ class ThreeAddressTransformer(NodeTransformer):
                                  defaults=[]
                              ),
                              body=blk,
-                             decorator_list=[])
+                             decorator_list=[],
+                             returns=None,
+                             type_comment=None)
         call_elt = ast.Call(func=fn_name, args=[], keywords=[])
         ast.copy_location(call_elt, node)
         return [fn], call_elt
@@ -449,7 +496,11 @@ class ThreeAddressTransformer(NodeTransformer):
 
     def visit_Await(self, node):
         blk, elt = self.visit(node.value)
-        exp = ast.Await(value=elt)
+        tmp_l, tmp_s = self.tmp_gen()
+        ins = ast.Assign(targets=[tmp_s], value=elt)
+        ast.copy_location(ins, node)
+        blk.append(ins)
+        exp = ast.Await(value=tmp_l)
         ast.copy_location(exp, node)
         return blk, exp
 
@@ -457,13 +508,23 @@ class ThreeAddressTransformer(NodeTransformer):
         blk, elt = [], None
         if node.value is not None:
             blk, elt = self.visit(node.value)
-        exp = ast.Yield(value=elt)
-        ast.copy_location(exp, node)
+            tmp_l, tmp_s = self.tmp_gen()
+            ins = ast.Assign(targets=[tmp_s], value=elt)
+            ast.copy_location(ins, node)
+            blk.append(ins)
+            exp = ast.Yield(value=tmp_l)
+            ast.copy_location(exp, node)
+        else:
+            blk, exp = [], node
         return blk, exp
 
     def visit_YieldFrom(self, node):
         blk, elt = self.visit(node.value)
-        exp = ast.YieldFrom(value=elt)
+        tmp_l, tmp_s = self.tmp_gen()
+        ins = ast.Assign(targets=[tmp_s], value=elt)
+        ast.copy_location(ins, node)
+        blk.append(ins)
+        exp = ast.YieldFrom(value=tmp_l)
         ast.copy_location(exp, node)
         return blk, exp
 
@@ -816,14 +877,20 @@ class ThreeAddressTransformer(NodeTransformer):
         for item in node.items:
             ctx_blk, ctx_e = self.split_expr(item.context_expr)
             tmp_l, tmp_s = self.tmp_gen()
-            with_blk = self.resolve_single_Assign(
-                item.optional_vars, tmp_l, item)
-            items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+            if item.optional_vars is not None:
+                with_blk = self.resolve_single_Assign(
+                    item.optional_vars, tmp_l, item)
+                items.append((ctx_blk, ctx_e, tmp_s, with_blk))
+            else:
+                items.append((ctx_blk, ctx_e, tmp_s, None))
         blk = self.visit_stmt_list(node.body)
 
         for idx in range(len(items) - 1, -1, -1):
             ctx_blk, ctx_e, tmp_s, with_blk = items[idx]
-            with_blk.extend(blk)
+            if with_blk is not None:
+                with_blk.extend(blk)
+            else:
+                with_blk = blk
             with_stmt = ast.AsyncWith(
                 items=[ast.withitem(
                     context_expr=ctx_e, optional_vars=tmp_s)],
@@ -831,6 +898,7 @@ class ThreeAddressTransformer(NodeTransformer):
             ast.copy_location(with_stmt, node)
             blk = ctx_blk
             blk.append(with_stmt)
+        return blk
 
     def visit_Raise(self, node):
         blk = []
@@ -848,9 +916,21 @@ class ThreeAddressTransformer(NodeTransformer):
     def visit_Try(self, node):
         handlers = []
         body_stmts = self.visit_stmt_list(node.body)
+        stmts = []
         for old_handler in node.handlers:
+            if old_handler.type is not None:
+                t_blk, t_elt = self.visit(old_handler.type)
+                if not isinstance(t_elt, ast.Name):
+                    tmp_l, tmp_s = self.tmp_gen()
+                    ins = ast.Assign(targets=[tmp_s], value=t_elt)
+                    ast.copy_location(ins, old_handler.type)
+                    t_blk.append(ins)
+                    t_elt = tmp_l
+                stmts.extend(t_blk)
+            else:
+                t_elt = None
             handler = ast.ExceptHandler(
-                type=old_handler.type,
+                type=t_elt,
                 name=old_handler.name,
                 body=self.visit_stmt_list(old_handler.body))
             ast.copy_location(handler, old_handler)
@@ -861,7 +941,9 @@ class ThreeAddressTransformer(NodeTransformer):
             orelse=self.visit_stmt_list(node.orelse),
             finalbody=self.visit_stmt_list(node.finalbody))
         ast.copy_location(ins, node)
-        return ins
+        stmt = ast.Try(body=stmts + [ins], handlers=[], orelse=[], finalbody=[])
+        ast.copy_location(stmt, node)
+        return stmt
 
     def visit_Assert(self, node):
         blk = []

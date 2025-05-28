@@ -4,7 +4,6 @@ from queue import Queue
 from pythonstan.analysis import Analysis, AnalysisDriver, AnalysisConfig
 from pythonstan.analysis.transform import TransformDriver
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
-from pythonstan.analysis.mini_cg import MiniCGAnalysisDriver
 from pythonstan.ir import IRModule
 
 DEFAULT_ANALYSIS = [
@@ -16,12 +15,13 @@ DEFAULT_ANALYSIS = [
     AnalysisConfig(
         name="ir",
         id="IR",
+        prev_analysis=["three address"],
         options={"type": "transform"}
     ),
     AnalysisConfig(
         name="block cfg",
         id="BlockCFG",
-        prev_analysis=["three address"],
+        prev_analysis=["ir"],
         options={"type": "transform"}
     ),
     AnalysisConfig(
@@ -76,8 +76,6 @@ class AnalysisManager:
             analyzer = TransformDriver(config)
         elif config.type == "dataflow analysis":
             analyzer = DataflowAnalysisDriver(config)
-        elif config.type == 'inter-procedure':
-            analyzer = MiniCGAnalysisDriver(config)
         else:
             raise NotImplementedError
         return analyzer
@@ -92,7 +90,6 @@ class AnalysisManager:
         prev_results = {}
         for anal_name in self.prev_analyzers[analyzer.config.name]:
             prev_results[anal_name] = self.results[anal_name]
-        # print(analyzer.config.id, analyzer.config.name)
         analyzer.analyze(module, prev_results)
         self.results[analyzer.config.name] = analyzer.results
 

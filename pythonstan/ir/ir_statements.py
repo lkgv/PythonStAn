@@ -28,6 +28,7 @@ __all__ = [
     'IRAnno',
     'AbstractIRAssign',
     'IRAssign',
+    'IRCopy',
     'IRStoreAttr',
     'IRLoadAttr',
     'IRStoreSubscr',
@@ -275,11 +276,8 @@ class IRYield(IRAbstractStmt):
         assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
         self.target = stmt.targets[0] if isinstance(stmt, ast.Assign) else None
         yield_value = stmt.value.value
-        if yield_value is None:
-            self.value = None
-        else:
-            assert isinstance(yield_value, ast.Name)
-            self.value = yield_value
+        assert isinstance(yield_value, ast.Name) or yield_value is None
+        self.value = yield_value
         self._is_yield_from = isinstance(self.value, ast.YieldFrom)
         ast.fix_missing_locations(self.stmt)
         self.load_collector = VarCollector("load")
@@ -706,8 +704,23 @@ class AbstractIRAssign(IRAbstractStmt):
             self.lval = renamer.visit(self.lval)
 
 
-# lval = rval
+# lval = ...
 class IRAssign(AbstractIRAssign):
+    lval: ast.Name
+    stmt: Statement
+    store_collector: VarCollector
+    load_collector: VarCollector
+
+    def __init__(self, stmt: ast.Assign):
+        assert isinstance(stmt.targets[0], ast.Name)
+        self.set_stmt(stmt)
+
+    def get_lval(self) -> ast.Name:
+        return self.lval
+
+
+# lval = rval
+class IRCopy(AbstractIRAssign):
     lval: ast.Name
     rval: ast.Name
     stmt: Statement
@@ -782,7 +795,7 @@ class IRStoreSubscr(AbstractIRAssign):
     lval: ast.Subscript
     rval: ast.Name
     obj: ast.Name
-    subslice: ast.Slice
+    subslice: Union[ast.Slice, ast.Name]
 
     def __init__(self, stmt: ast.Assign):
         super().__init__(stmt)
@@ -790,7 +803,7 @@ class IRStoreSubscr(AbstractIRAssign):
         target = stmt.targets[0]
         assert isinstance(target, ast.Subscript)
         assert isinstance(target.value, ast.Name)
-        assert isinstance(target.slice, ast.Slice)
+        assert isinstance(target.slice, ast.Slice) or isinstance(target.slice, ast.Name)
         assert isinstance(stmt.value, ast.Name)
         self.obj = target.value
         self.subslice = target.slice
@@ -801,11 +814,11 @@ class IRStoreSubscr(AbstractIRAssign):
     def get_obj(self) -> ast.Name:
         return self.obj
 
-    def get_slice(self) -> ast.Slice:
+    def get_slice(self) -> Union[ast.Slice, ast.Name]:
         return self.subslice
 
     def has_slice(self) -> bool:
-        return isinstance(self.subslice, ast.Slice)
+        return isinstance(self.subslice, ast.Slice) or isinstance(self.subslice, ast.Name)
 
 
 # lval = rval< obj[slice] >
@@ -813,7 +826,7 @@ class IRLoadSubscr(AbstractIRAssign):
     lval: ast.Name
     rval: ast.Subscript
     obj: ast.Name
-    subslice: ast.Slice
+    subslice: Union[ast.Slice, ast.Name]
 
     def __init__(self, stmt: ast.Assign):
         super().__init__(stmt)
@@ -822,7 +835,7 @@ class IRLoadSubscr(AbstractIRAssign):
         value = stmt.value
         assert isinstance(value, ast.Subscript)
         assert isinstance(value.value, ast.Name)
-        assert isinstance(value.slice, ast.Slice)        
+        assert isinstance(value.slice, ast.Slice) or isinstance(value.slice, ast.Name)
         self.obj = value.value
         self.slice = value.slice
     
@@ -836,7 +849,7 @@ class IRLoadSubscr(AbstractIRAssign):
         return self.slice
 
     def has_slice(self) -> bool:
-        return isinstance(self.slice, ast.Slice)
+        return isinstance(self.slice, ast.Slice) or isinstance(self.slice, ast.Name)
 
 
 # lval = Phi( items )
@@ -1031,7 +1044,7 @@ class IRFunc(IRScope, IRStatement):
 
 class IRClass(IRScope, IRStatement):
     name: str
-    bases: List[str]
+    bases: List[ast.expr]
     keywords: List[ast.keyword]
     decorator_list: List[ast.expr]
     ast: ast.ClassDef
@@ -1042,8 +1055,8 @@ class IRClass(IRScope, IRStatement):
         super().__init__(qualname)
         self.name = cls.name
         bases = cls.bases
-        assert all(isinstance(i, ast.Name) for i in bases), "Base of the class should be ast.Name"
-        self.bases = [base.id for base in cls.bases]
+        # assert all(isinstance(i, ast.Name) for i in bases), "Base of the class should be ast.Name"
+        self.bases = cls.bases
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
         self.ast_repr = cls
@@ -1075,7 +1088,7 @@ class IRClass(IRScope, IRStatement):
 
     def __repr__(self) -> str:
         decrs = ', '.join([ast.unparse(decr) for decr in self.decorator_list])
-        bases = ', '.join(self.bases)
+        bases = ', '.join([ast.unparse(base) for base in self.bases])
         kws = ', '.join([ast.unparse(kw) for kw in self.keywords])
         if len(decrs) > 0:
             cls_repr = f'class [{decrs}] {self.name}'

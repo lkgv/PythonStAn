@@ -51,7 +51,7 @@ class ScopeManager:
     subscopes: Dict[IRScope, List[IRScope]]
     father: Dict[IRScope, IRScope]
     names2scope: Dict[str, IRScope]
-    scope_ir: Dict[Tuple[IRScope, str], Any]
+    scope_ir: Dict[Tuple[str, str], Any]
 
     def build(self):
         self.scopes = {*()}
@@ -68,10 +68,10 @@ class ScopeManager:
         self.module_graph = graph
 
     def set_ir(self, scope: IRScope, fmt: str, ir: Any):
-        self.scope_ir[(scope, fmt)] = ir
+        self.scope_ir[(scope.qualname, fmt)] = ir
 
     def get_ir(self, scope: IRScope, fmt: str) -> Any:
-        return self.scope_ir.get((scope, fmt), None)
+        return self.scope_ir.get((scope.qualname, fmt), None)
 
     def check_analysis_done(self, scope: IRScope, analysis_name: str) -> bool:
         return (scope, analysis_name) in self.scope_ir

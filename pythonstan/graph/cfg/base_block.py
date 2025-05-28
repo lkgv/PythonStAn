@@ -11,9 +11,12 @@ class BaseBlock(Node):
     only_pass: bool
     stmts: List[IRStatement]
 
-    def __init__(self, idx: int, stmts: List[IRStatement]):
+    def __init__(self, idx: int, stmts: Optional[List[IRStatement]] = None):
         self.idx = idx
-        self.stmts = stmts
+        if stmts is None:
+            self.stmts = []
+        else:
+            self.stmts = stmts
 
     def get_stmts(self):
         return self.stmts

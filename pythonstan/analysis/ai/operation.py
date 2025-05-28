@@ -43,7 +43,7 @@ class AbstractInterpreter(IRVisitor):
             self.state.control_flow.set_current_stmt(stmt_idx)
         
         # Dispatch to specific visitor method based on statement type
-        return super().visit(ir)
+        return IRVisitor.visit(self, ir)
     
     def visit_default(self, ir: IRStatement):
         """Default visitor method for statements without specific implementation"""
@@ -61,18 +61,45 @@ class AbstractInterpreter(IRVisitor):
         Perform abstract interpretation for variable assignment: lval = rval
         """
         # Get rvalue
-        rval_name = ir.get_rval().id
-        rval = self.state.get_variable(rval_name)
+        rval = None
+        rval_name = None
+        
+        # Try to get rval using get_rval() method
+        if hasattr(ir, 'get_rval'):
+            rval_obj = ir.get_rval()
+            if hasattr(rval_obj, 'id'):
+                rval_name = rval_obj.id
+        # Try to get rval directly from attribute
+        elif hasattr(ir, 'rval'):
+            rval_obj = ir.rval
+            if hasattr(rval_obj, 'id'):
+                rval_name = rval_obj.id
+        
+        # Get the value of rval
+        if rval_name:
+            rval = self.state.get_variable(rval_name)
         
         if rval is None:
-            # Variable not found, use unknown value
+            # Variable not found or not a simple name, use unknown value
             rval = create_unknown_value()
         
         # Get lvalue
-        lval_name = ir.get_lval().id
+        lval_name = None
         
-        # Set variable
-        self.state.set_variable(lval_name, rval)
+        # Try to get lval using get_lval() method
+        if hasattr(ir, 'get_lval'):
+            lval_obj = ir.get_lval()
+            if hasattr(lval_obj, 'id'):
+                lval_name = lval_obj.id
+        # Try to get lval directly from attribute
+        elif hasattr(ir, 'lval'):
+            lval_obj = ir.lval
+            if hasattr(lval_obj, 'id'):
+                lval_name = lval_obj.id
+        
+        if lval_name:
+            # Set variable
+            self.state.set_variable(lval_name, rval)
         
         # Continue with normal control flow
         return self.visit_default(ir)
@@ -254,7 +281,27 @@ class AbstractInterpreter(IRVisitor):
         # Determine result value based on function type
         result = create_unknown_value()
         
-        if func_value and func_value.objects:
+        if func_name == 'len' and len(args) == 1:
+            result = self._handle_len_function(args[0])
+        elif func_name == 'isinstance' and len(args) == 2:
+            result = create_bool_value()  # Could be True or False
+        elif func_name == 'int' and len(args) >= 1:
+            result = self._handle_int_function(args[0])
+        elif func_name == 'str' and len(args) >= 1:
+            result = create_str_value()
+        elif func_name == 'list' and len(args) <= 1:
+            result = self._handle_list_function(args[0] if args else None)
+        elif func_name == 'dict' and len(args) <= 1:
+            result = create_dict_value()
+        elif func_name == 'set' and len(args) <= 1:
+            result = create_set_value()
+        elif func_name == 'tuple' and len(args) <= 1:
+            result = create_tuple_value()
+        elif func_name == 'bool' and len(args) >= 1:
+            result = create_bool_value()
+        elif func_name == 'sum' and len(args) >= 1:
+            result = create_int_value() # Could be int or float depending on input
+        elif func_value and func_value.objects:
             # We have information about the function
             for obj in func_value.objects:
                 if isinstance(obj, FunctionObject):
@@ -268,41 +315,6 @@ class AbstractInterpreter(IRVisitor):
                             self.current_stmt_idx,
                             self.state.current_context
                         )
-                    
-                    # In a real interprocedural analysis, we would:
-                    # 1. Push the current context onto the call stack
-                    # 2. Create a new context for the callee
-                    # 3. Enter the callee function
-                    # 4. Analyze the callee function
-                    # 5. Get the return value
-                    # 6. Return to the caller
-                    
-                    # For now, just use unknown value as result
-                    # The solver will handle interprocedural analysis
-                
-                # Handle some well-known built-in functions with special logic
-                elif isinstance(obj, BuiltinObject) or obj.obj_type == ObjectType.EXTERNAL_FUNCTION:
-                    # Special handling for some known functions
-                    if func_name == 'len' and len(args) == 1:
-                        result = self._handle_len_function(args[0])
-                    elif func_name == 'isinstance' and len(args) == 2:
-                        result = create_bool_value()  # Could be True or False
-                    elif func_name == 'int' and len(args) >= 1:
-                        result = self._handle_int_function(args[0])
-                    elif func_name == 'str' and len(args) >= 1:
-                        result = create_str_value()
-                    elif func_name == 'list' and len(args) <= 1:
-                        result = self._handle_list_function(args[0] if args else None)
-                    elif func_name == 'dict' and len(args) <= 1:
-                        result = create_dict_value()
-                    elif func_name == 'set' and len(args) <= 1:
-                        result = create_set_value()
-                    elif func_name == 'tuple' and len(args) <= 1:
-                        result = create_tuple_value()
-                    elif func_name == 'bool' and len(args) >= 1:
-                        result = create_bool_value()
-                    elif func_name == 'sum' and len(args) >= 1:
-                        result = create_int_value() # Could be int or float depending on input
         
         # Set target if there is one
         target = ir.get_target()
@@ -328,8 +340,8 @@ class AbstractInterpreter(IRVisitor):
                 
                 if max_len is not None and container_prop.max_size is not None:
                     max_len = max(max_len, container_prop.max_size)
-                elif container_prop.max_size is None:
-                    max_len = None
+                elif container_prop.max_size is not None:
+                    max_len = container_prop.max_size
             elif isinstance(obj, ConstantObject) and obj.const_type == str:
                 # Handle string length
                 string_prop = obj.string_property
@@ -337,8 +349,8 @@ class AbstractInterpreter(IRVisitor):
                 
                 if max_len is not None and string_prop.max_length is not None:
                     max_len = max(max_len, string_prop.max_length)
-                elif string_prop.max_length is None:
-                    max_len = None
+                elif string_prop.max_length is not None:
+                    max_len = string_prop.max_length
         
         # Update numeric property
         result_obj.numeric_property.lower_bound = min_len
@@ -413,13 +425,38 @@ class AbstractInterpreter(IRVisitor):
         Perform abstract interpretation for return statement: return [value]
         """
         # Get return value if any
-        value = ir.get_value()
+        value = None
+        if hasattr(ir, 'get_value'):
+            value = ir.get_value()
+        elif hasattr(ir, 'value'):
+            value = ir.value
+            
         if value:
-            value_name = value.id
-            value_obj = self.state.get_variable(value_name)
-            if value_obj:
-                self.current_return_value = value_obj
+            # If value is a Name, get the variable value
+            if isinstance(value, ast.Name):
+                value_name = value.id
+                value_obj = self.state.get_variable(value_name)
+                if value_obj:
+                    self.current_return_value = value_obj
+                else:
+                    self.current_return_value = create_unknown_value()
+            # If value is a constant, create a constant value
+            elif isinstance(value, ast.Constant):
+                const_val = value.value
+                if isinstance(const_val, int):
+                    self.current_return_value = create_int_value(const_val)
+                elif isinstance(const_val, float):
+                    self.current_return_value = create_float_value(const_val)
+                elif isinstance(const_val, str):
+                    self.current_return_value = create_str_value(const_val)
+                elif isinstance(const_val, bool):
+                    self.current_return_value = create_bool_value(const_val)
+                elif const_val is None:
+                    self.current_return_value = create_none_value()
+                else:
+                    self.current_return_value = create_unknown_value()
             else:
+                # For other expressions, use unknown value
                 self.current_return_value = create_unknown_value()
         else:
             # Return None

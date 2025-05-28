@@ -43,13 +43,12 @@ class Pipeline:
             ns: Namespace
             mod: IRModule
             visited_ns.add(ns)
-            print(ns.to_str())
             # Preprocess module
             # TODO to be completed
             self.analysis_manager.analysis("three address", mod)
             self.analysis_manager.analysis("ir", mod)
             self.analysis_manager.analysis("block cfg", mod)
-            # self.analysis_manager.analysis("cfg", mod)
+            self.analysis_manager.analysis("cfg", mod)
             # self.analysis_manager.analysis("ssa", mod)
             # imports = self.analysis_manager.get_results("imports")[mod]
             imports = World().scope_manager.get_ir(mod, "imports")

@@ -26,7 +26,7 @@ class BlockCFG(Transform):
             cur_scope, cur_ir = q.get()
             transformer = BlockCFGBuilder(cur_scope)
             transformer.build_graph(cur_ir)
-            World().scope_manager.set_ir(module, STAGE_NAME, transformer.cfg)
+            World().scope_manager.set_ir(cur_scope, STAGE_NAME, transformer.cfg)
             for subscope in World().scope_manager.get_subscopes(cur_scope):
                 if World().scope_manager.get_ir(subscope, STAGE_NAME) is None:
                     subscope_ir = World().scope_manager.get_ir(subscope, "ir")

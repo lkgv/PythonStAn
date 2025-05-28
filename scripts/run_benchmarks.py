@@ -57,6 +57,30 @@ AVAILABLE_ANALYSES = [
     }
 ]
 
+# List of available analyses
+AVAILABLE_ANALYSES = [
+    {
+        "name": "liveness",
+        "id": "LivenessAnalysis",
+        "description": "liveness analysis",
+        "prev_analysis": ["cfg"],
+        "options": {
+            "type": "dataflow analysis",
+            "ir": "cfg"
+        }
+    },
+    {
+        "name": "reaching_definition",
+        "id": "ReachingDefinitionAnalysis",
+        "description": "reaching definition analysis",
+        "prev_analysis": ["cfg"],
+        "options": {
+            "type": "dataflow analysis",
+            "solver": "WorklistSolver"
+        }
+    },
+]
+
 def get_library_paths():
     """Get Python library paths for the current environment."""
     import site
@@ -116,6 +140,7 @@ def run_benchmark(benchmark_file, analyses=None, output_dir=None):
         print(f'<Scope: {scope.get_qualname()}>')
         print('\n'.join([str(x) for x in pipeline.get_world().scope_manager.get_ir(scope, 'ir')]))
         print()
+        ...
     
     # Save results to output directory if specified
     if output_dir:
@@ -163,6 +188,7 @@ def run_all_benchmarks(analyses=None, output_dir=None):
             else:
                 failure_count += 1
         except Exception as e:
+            raise e
             print(f"Error running benchmark {benchmark_file}: {e}")
             failure_count += 1
     

@@ -18,6 +18,7 @@ class CFG(Transform):
         self.transformer = CFGTransformer()
 
     def transform(self, module: IRModule):
+        print(f"Generate CFG for {module.qualname}")
         block_cfg = World().scope_manager.get_ir(module, "block cfg")
         self.transformer.trans(module, block_cfg)
         self.results = None
@@ -45,6 +46,8 @@ class CFGTransformer:
         for subscope in World().scope_manager.get_subscopes(scope):
             sub_transformer = CFGTransformer()
             sub_block_cfg = World().scope_manager.get_ir(subscope, "block cfg")
+            # print(f"Subscope: {subscope.qualname} {sub_block_cfg}")
+            # print(World().scope_manager.scope_ir.keys())
             sub_transformer.trans(subscope, sub_block_cfg)
 
     def new_blk(self, statement: Optional[IRStatement] = None):
