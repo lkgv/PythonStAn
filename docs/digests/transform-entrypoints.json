@@ -1,0 +1,16 @@
+{
+  "ir": [
+    {"symbol": "IR", "path": "pythonstan/analysis/transform/ir.py", "signature": "class IR(Transform)", "confidence": 0.9}
+  ],
+  "tac": [
+    {"symbol": "ThreeAddress", "path": "pythonstan/analysis/transform/three_address.py", "signature": "class ThreeAddress(Transform)", "confidence": 0.9}
+  ],
+  "cfg": [
+    {"symbol": "BlockCFG", "path": "pythonstan/analysis/transform/block_cfg.py", "signature": "class BlockCFG(Transform)", "confidence": 0.9},
+    {"symbol": "CFG", "path": "pythonstan/analysis/transform/cfg.py", "signature": "class CFG(Transform)", "confidence": 0.8}
+  ],
+  "icfg": [
+    {"symbol": "ICFG", "path": "pythonstan/graph/icfg/icfg.py", "signature": "class ICFG", "confidence": 0.7}
+  ],
+  "notes": "Transform classes follow naming convention matching stage names. Pipeline uses these transforms in sequence: three address -> ir -> block cfg -> cfg. ICFG is a graph structure rather than a transform. All transforms inherit from Transform base class."
+}

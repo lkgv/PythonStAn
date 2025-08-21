@@ -4,6 +4,7 @@ from queue import Queue
 from pythonstan.analysis import Analysis, AnalysisDriver, AnalysisConfig
 from pythonstan.analysis.transform import TransformDriver
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
+from pythonstan.analysis.pointer import PointerAnalysisDriver
 from pythonstan.ir import IRModule
 
 DEFAULT_ANALYSIS = [
@@ -30,12 +31,6 @@ DEFAULT_ANALYSIS = [
         prev_analysis=["block cfg"],
         options={"type": "transform"}
     ),
-    AnalysisConfig(
-        name="ssa",
-        id="SSA",
-        prev_analysis=["cfg"],
-        options={"type": "transform"}
-    )
 ]
 
 
@@ -76,8 +71,10 @@ class AnalysisManager:
             analyzer = TransformDriver(config)
         elif config.type == "dataflow analysis":
             analyzer = DataflowAnalysisDriver(config)
+        elif config.type == "pointer analysis":
+            analyzer = PointerAnalysisDriver(config)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Unknown analysis type: {config.type}")
         return analyzer
 
     def analysis(self, analyzer_name: str, module: IRModule):

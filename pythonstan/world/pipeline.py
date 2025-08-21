@@ -1,4 +1,3 @@
-from pythonstan.graph.cfg.builder import CFGBuilder
 from pythonstan.ir import IRModule
 from pythonstan.analysis import AnalysisConfig, AnalysisDriver
 from .namespace import Namespace
@@ -108,10 +107,13 @@ class Pipeline:
                     self.analyse_inter_procedure(analyzer)
                 else:
                     self.analyse_intra_procedure(analyzer)
-            if analyzer.config.type == 'transform':
+            elif analyzer.config.type == 'transform':
                 self.do_transform(analyzer)
-            if analyzer.config.type == 'inter-procedure':
+            elif analyzer.config.type == 'inter-procedure':
                 self.do_inter_procedure(analyzer)
+            elif analyzer.config.type == 'pointer analysis':
+                # Pointer analysis is typically inter-procedural
+                self.analyse_inter_procedure(analyzer)
 
     def run(self):
         analyzer_generator = self.analysis_manager.generator()

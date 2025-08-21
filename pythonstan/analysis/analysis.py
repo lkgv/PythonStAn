@@ -8,7 +8,7 @@ class AnalysisConfig:
     name: str
     id: str
     description: str
-    type: Literal['dataflow analysis', 'transform']
+    type: Literal['dataflow analysis', 'transform', 'pointer analysis']
     inter_procedure: bool
     prev_analysis: List[str]  # previous analysis name
     options: Dict[str, Any]
