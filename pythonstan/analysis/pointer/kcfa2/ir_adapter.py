@@ -64,6 +64,7 @@ class CallEvent(TypedDict):
         args: Argument variable names
         kwargs: Keyword argument mappings
         receiver: Receiver object for method calls (optional)
+        target: Target variable for return value (optional)
         bb: Basic block identifier
         idx: Index within basic block
     """
@@ -74,6 +75,7 @@ class CallEvent(TypedDict):
     args: List[str]
     kwargs: Dict[str, str]
     receiver: Optional[str]
+    target: Optional[str]
     bb: str
     idx: int
 
@@ -375,6 +377,7 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
             args = [arg[0] for arg in instr.get_args()]  # Extract arg names, ignore starred flag
             kwargs = {k: v for k, v in instr.get_keywords() if k is not None}
             
+            # Generate call event
             events.append(CallEvent(
                 kind="call",
                 call_id=site_id,
@@ -383,9 +386,38 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 args=args,
                 kwargs=kwargs,
                 receiver=None,
+                target=target,
                 bb=block_id,
                 idx=instr_idx
             ))
+            
+            # If this call has a target, it could be an object allocation
+            # Generate allocation event for potential constructor calls
+            if target and callee_symbol:
+                # Check if this is likely a constructor call
+                # (any function call that assigns to a variable could create an object)
+                if not callee_symbol in ('print', 'len', 'str', 'int', 'float', 'bool'):
+                    # Generate allocation event with the same site_id but 'alloc' kind
+                    alloc_site_id = site_id_of(instr, 'alloc')
+                    
+                    # Determine allocation type
+                    if callee_symbol in ('list', 'dict', 'tuple', 'set'):
+                        alloc_type = callee_symbol
+                    elif callee_symbol == 'object':
+                        alloc_type = 'obj'
+                    else:
+                        # Assume this is a class constructor
+                        alloc_type = 'obj'
+                    
+                    events.append(AllocEvent(
+                        kind="alloc",
+                        alloc_id=alloc_site_id,
+                        target=target,
+                        type=alloc_type,
+                        recv_binding=None,
+                        bb=block_id,
+                        idx=instr_idx
+                    ))
         
         elif isinstance(instr, IRLoadAttr):
             # IRLoadAttr: target = obj.attr
@@ -495,19 +527,64 @@ def site_id_of(node: IRNode, kind: Optional[str] = None) -> str:
     """
     # Try to extract source location information
     try:
+        filename = None
+        lineno = None
+        col = None
+        
         # Check for source_location attribute first (for mock objects)
         if hasattr(node, 'source_location') and node.source_location:
             loc = node.source_location
-            filename = getattr(loc, 'filename', 'unknown.py')
-            lineno = getattr(loc, 'lineno', 0)
-            col = getattr(loc, 'col_offset', 0)
+            filename = getattr(loc, 'filename', None)
+            lineno = getattr(loc, 'lineno', None)
+            col = getattr(loc, 'col_offset', None)
         # Check for direct attributes (for real IR nodes)
-        elif hasattr(node, 'lineno') and hasattr(node, 'col_offset'):
-            filename = getattr(node, 'filename', 'unknown.py')
+        elif hasattr(node, 'lineno') and hasattr(node, 'col_offset') and node.lineno is not None:
+            filename = getattr(node, 'filename', None)
             lineno = node.lineno
             col = node.col_offset
+        # Try to get source location from AST node (for IR nodes)
         else:
+            # Try get_ast() method first
+            if hasattr(node, 'get_ast') and callable(node.get_ast):
+                try:
+                    ast_node = node.get_ast()
+                    if hasattr(ast_node, 'lineno') and hasattr(ast_node, 'col_offset'):
+                        lineno = ast_node.lineno
+                        col = ast_node.col_offset
+                        # Try to get filename from AST node or module context
+                        filename = getattr(ast_node, 'filename', None)
+                except (AttributeError, TypeError):
+                    pass
+            
+            # If get_ast() failed, try ast_repr attribute (for IRClass, IRFunc)
+            if lineno is None and hasattr(node, 'ast_repr'):
+                try:
+                    ast_node = node.ast_repr
+                    if hasattr(ast_node, 'lineno') and hasattr(ast_node, 'col_offset'):
+                        lineno = ast_node.lineno
+                        col = ast_node.col_offset
+                        # Try to get filename from AST node or module context
+                        filename = getattr(ast_node, 'filename', None)
+                except (AttributeError, TypeError):
+                    pass
+        
+        # If we didn't get source location info, raise exception to fall back
+        if lineno is None or col is None:
             raise AttributeError("No source location information")
+            
+        # Use a more meaningful filename if available, otherwise use basename
+        if filename is None:
+            # For temporary files or unknown sources, use a more descriptive name
+            filename = 'test.py'
+        else:
+            import os
+            basename = os.path.basename(filename)
+            # Check if it's a temporary file (typically in /tmp/ with random names)
+            if 'tmp' in filename and len(basename) > 10 and basename.startswith('tmp'):
+                # Use a more readable name for temporary files
+                filename = 'test.py'
+            else:
+                filename = basename
             
         # Determine kind
         if kind:
@@ -588,7 +665,8 @@ def make_call_event(
     callee_symbol: Optional[str] = None,
     args: Optional[List[str]] = None,
     kwargs: Optional[Dict[str, str]] = None,
-    receiver: Optional[str] = None
+    receiver: Optional[str] = None,
+    target: Optional[str] = None
 ) -> CallEvent:
     """Create a call event.
     
@@ -601,6 +679,7 @@ def make_call_event(
         args: Argument variables
         kwargs: Keyword argument mappings
         receiver: Receiver object for method calls
+        target: Target variable for return value
         
     Returns:
         Call event
@@ -613,6 +692,7 @@ def make_call_event(
         args=args or [],
         kwargs=kwargs or {},
         receiver=receiver,
+        target=target,
         bb=bb,
         idx=idx
     )

@@ -106,19 +106,19 @@ class KCFA2PointerAnalysis:
         while iteration < max_iterations:
             changed = False
             
-            # Process constraint worklist
-            while not self._constraint_worklist.empty():
-                constraint = self._constraint_worklist.pop()
-                if self._process_constraint(constraint):
-                    changed = True
-                self._statistics["constraints_processed"] += 1
-                    
-            # Process call worklist
+            # Process call worklist first (includes parameter passing)
             while not self._call_worklist.empty():
                 call = self._call_worklist.pop()
                 if self._process_call(call):
                     changed = True
                 self._statistics["calls_processed"] += 1
+                    
+            # Process constraint worklist after calls (variables should be available)
+            while not self._constraint_worklist.empty():
+                constraint = self._constraint_worklist.pop()
+                if self._process_constraint(constraint):
+                    changed = True
+                self._statistics["constraints_processed"] += 1
                     
             iteration += 1
             
@@ -307,13 +307,33 @@ class KCFA2PointerAnalysis:
         
         if constraint.constraint_type == "copy":
             # Copy constraint: target = source
+            # Try to find source in the specified context first, then search all contexts
             source_pts = self._get_var_pts(ctx, constraint.source)
+            
+            # If source not found in the specified context, search all contexts
+            if not source_pts.objects:
+                for search_ctx in self._contexts:
+                    source_pts_search = self._get_var_pts(search_ctx, constraint.source)
+                    if source_pts_search.objects:
+                        source_pts = source_pts_search
+                        break
+            
             if self._set_var_pts(ctx, constraint.target, source_pts):
                 changed = True
                     
         elif constraint.constraint_type == "load":
             # Load constraint: target = source.field
+            # Try to find source in the specified context first, then search all contexts
             source_pts = self._get_var_pts(ctx, constraint.source)
+            
+            # If source not found in the specified context, search all contexts
+            if not source_pts.objects:
+                for search_ctx in self._contexts:
+                    source_pts_search = self._get_var_pts(search_ctx, constraint.source)
+                    if source_pts_search.objects:
+                        source_pts = source_pts_search
+                        break
+            
             target_pts = PointsToSet()
             
             # Get field key
@@ -336,8 +356,24 @@ class KCFA2PointerAnalysis:
                     
         elif constraint.constraint_type == "store":
             # Store constraint: target.field = source
+            # Try to find variables in the specified context first, then search all contexts
             target_pts = self._get_var_pts(ctx, constraint.target)
             source_pts = self._get_var_pts(ctx, constraint.source)
+            
+            # If target or source not found in the specified context, search all contexts
+            if not target_pts.objects:
+                for search_ctx in self._contexts:
+                    target_pts_search = self._get_var_pts(search_ctx, constraint.target)
+                    if target_pts_search.objects:
+                        target_pts = target_pts_search
+                        break
+            
+            if not source_pts.objects:
+                for search_ctx in self._contexts:
+                    source_pts_search = self._get_var_pts(search_ctx, constraint.source)
+                    if source_pts_search.objects:
+                        source_pts = source_pts_search
+                        break
             
             # Get field key
             if constraint.field == "unknown":
@@ -505,6 +541,13 @@ class KCFA2PointerAnalysis:
                     # Handle parameter passing
                     self._handle_parameter_passing(caller_ctx, callee_ctx, call, callee_func)
                     
+                    # Add function events to the callee context
+                    events = list(iter_function_events(callee_func))
+                    for event in events:
+                        # Skip allocation events (already processed in empty context)
+                        if event["kind"] != "alloc":
+                            self._add_event_to_worklist(event, callee_ctx)
+                    
                     # Handle return value
                     self._handle_return_value(caller_ctx, callee_ctx, call, callee_func)
                     
@@ -534,6 +577,13 @@ class KCFA2PointerAnalysis:
                         
                         # Handle parameter passing
                         self._handle_parameter_passing(caller_ctx, callee_ctx, call, callee_func)
+                        
+                        # Add function events to the callee context
+                        events = list(iter_function_events(callee_func))
+                        for event in events:
+                            # Skip allocation events (already processed in empty context)
+                            if event["kind"] != "alloc":
+                                self._add_event_to_worklist(event, callee_ctx)
                         
                         # Handle return value
                         self._handle_return_value(caller_ctx, callee_ctx, call, callee_func)
@@ -568,6 +618,13 @@ class KCFA2PointerAnalysis:
                                 
                                 # Handle parameter passing
                                 self._handle_parameter_passing(caller_ctx, callee_ctx, call, callee_func)
+                                
+                                # Add function events to the callee context
+                                events = list(iter_function_events(callee_func))
+                                for event in events:
+                                    # Skip allocation events (already processed in empty context)
+                                    if event["kind"] != "alloc":
+                                        self._add_event_to_worklist(event, callee_ctx)
                                 
                                 # Handle return value
                                 self._handle_return_value(caller_ctx, callee_ctx, call, callee_func)

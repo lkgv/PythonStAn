@@ -146,13 +146,13 @@ class ConstraintWorklist(Worklist[ConstraintItem]):
         """
         super().__init__(mode)
     
-    def add_copy_constraint(self, source: str, target: str, context: str, site_id: Optional[str] = None) -> None:
+    def add_copy_constraint(self, source: str, target: str, context: str = "", site_id: Optional[str] = None) -> None:
         """Add a copy constraint: target = source.
         
         Args:
             source: Source variable
             target: Target variable
-            context: Calling context
+            context: Calling context (optional, defaults to empty string)
             site_id: Site ID for debugging
         """
         constraint = ConstraintItem(
@@ -164,14 +164,14 @@ class ConstraintWorklist(Worklist[ConstraintItem]):
         )
         self.push(constraint)
     
-    def add_load_constraint(self, source: str, field: str, target: str, context: str, site_id: Optional[str] = None) -> None:
+    def add_load_constraint(self, source: str, field: str, target: str, context: str = "", site_id: Optional[str] = None) -> None:
         """Add a load constraint: target = source.field.
         
         Args:
             source: Source object
             field: Field name/key
             target: Target variable
-            context: Calling context
+            context: Calling context (optional, defaults to empty string)
             site_id: Site ID for debugging
         """
         constraint = ConstraintItem(
@@ -184,14 +184,14 @@ class ConstraintWorklist(Worklist[ConstraintItem]):
         )
         self.push(constraint)
     
-    def add_store_constraint(self, target: str, field: str, source: str, context: str, site_id: Optional[str] = None) -> None:
+    def add_store_constraint(self, target: str, field: str, source: str, context: str = "", site_id: Optional[str] = None) -> None:
         """Add a store constraint: target.field = source.
         
         Args:
             target: Target object
             field: Field name/key
             source: Source variable
-            context: Calling context
+            context: Calling context (optional, defaults to empty string)
             site_id: Site ID for debugging
         """
         constraint = ConstraintItem(

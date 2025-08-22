@@ -591,6 +591,7 @@ class ThreeAddressTransformer(NodeTransformer):
         ins = ast.Assign(
             targets=[tmp_s],
             value=ast.Call(func=func_elt, args=args, keywords=keywords))
+        ast.copy_location(ins, node)
         blk.append(ins)
         return blk, tmp_l
 
