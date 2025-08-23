@@ -110,6 +110,10 @@ class Scope:
     def get_qualname(self) -> str:
         """Get the qualified name of this scope"""
         return self.qualname
+    
+    def get_all_variable_names(self) -> Set[str]:
+        """Get all variable names in this scope (local only)"""
+        return set(self.locals.keys())
 
 
 class MemoryModel:
@@ -199,6 +203,19 @@ class MemoryModel:
             
         self.set_variable(name, merged_value, context, scope_name)
         return merged_value
+    
+    def is_local_variable(self, name: str, scope_name: str) -> bool:
+        """Check if a variable is local to the given scope"""
+        if not scope_name:
+            return False
+        
+        scope = self.get_scope(scope_name)
+        if not scope:
+            return False
+        
+        # A variable is considered local if it exists in the current scope
+        # (as opposed to being inherited from parent scopes)
+        return scope.has_local(name)
 
 
 class ClassHierarchy:
@@ -208,6 +225,7 @@ class ClassHierarchy:
         self.classes: Dict[str, ClassObject] = {}  # qualname -> ClassObject
         self.subclasses: DefaultDict[str, Set[str]] = defaultdict(set)  # parent_qualname -> {child_qualname}
         self.superclasses: DefaultDict[str, Set[str]] = defaultdict(set)  # child_qualname -> {parent_qualname}
+        self.methods: DefaultDict[str, Dict[str, Any]] = defaultdict(dict)  # class_name -> {method_name -> method_value}
     
     def register_class(self, class_obj: ClassObject):
         """Register a class in the hierarchy"""
@@ -255,6 +273,48 @@ class ClassHierarchy:
                 to_process.extend(self.get_superclasses(super_qualname))
                 
         return result
+    
+    def add_class(self, class_name: str, ir_class):
+        """Add a class to the hierarchy (for compatibility with tests)"""
+        # Create a simple ClassObject from IRClass for testing
+        # In a real implementation, this would be more sophisticated
+        from pythonstan.analysis.ai.value import ClassObject
+        class_obj = ClassObject(ir_class)
+        self.register_class(class_obj)
+    
+    def add_inheritance(self, subclass_name: str, base_class_name: str):
+        """Add inheritance relationship between classes (for compatibility with tests)"""
+        # This is a simplified implementation for testing
+        if subclass_name not in self.superclasses:
+            self.superclasses[subclass_name] = set()
+        if base_class_name not in self.subclasses:
+            self.subclasses[base_class_name] = set()
+        
+        self.superclasses[subclass_name].add(base_class_name)
+        self.subclasses[base_class_name].add(subclass_name)
+    
+    def add_method(self, class_name: str, method_name: str, method_value):
+        """Add a method to a class"""
+        self.methods[class_name][method_name] = method_value
+    
+    def is_subclass(self, subclass_name: str, base_class_name: str) -> bool:
+        """Check if subclass_name is a subclass of base_class_name"""
+        return base_class_name in self.superclasses.get(subclass_name, set())
+    
+    def get_method(self, class_name: str, method_name: str):
+        """Get a method from a class, searching up the inheritance hierarchy"""
+        # First check if the class has the method directly
+        if class_name in self.methods and method_name in self.methods[class_name]:
+            return self.methods[class_name][method_name]
+        
+        # If not found, search in superclasses
+        for super_class in self.superclasses.get(class_name, set()):
+            method = self.get_method(super_class, method_name)
+            if method is not None:
+                return method
+        
+        # Method not found in this class or any superclasses
+        return None
 
 
 @dataclass
@@ -278,6 +338,9 @@ class CallGraph:
         
         # Context-sensitive call edges
         self.ctx_edges: DefaultDict[Tuple[Context, str], Set[Tuple[Context, str]]] = defaultdict(set)
+        
+        # Reference to CallSite class for external access
+        self.CallSite = CallSite
     
     def add_call_edge(self, caller_qualname: str, callee_qualname: str, 
                     call_stmt: IRCall, stmt_index: int,
@@ -291,6 +354,18 @@ class CallGraph:
         # Add context-sensitive edge if contexts are provided
         if caller_context and callee_context:
             self.ctx_edges[(caller_context, caller_qualname)].add((callee_context, callee_qualname))
+    
+    def add_call(self, caller_qualname: str, callee_qualname: str, call_site: CallSite):
+        """Add a call relationship using an existing CallSite object"""
+        # Store the call site
+        self.callers[callee_qualname].append(call_site)
+        self.callees[caller_qualname].add(callee_qualname)
+        
+        # Add context-sensitive edge if context is available
+        if call_site.context:
+            # Create a context for the callee (simplified for now)
+            callee_context = call_site.context  # Use same context for simplicity
+            self.ctx_edges[(call_site.context, caller_qualname)].add((callee_context, callee_qualname))
     
     def get_callers(self, callee_qualname: str) -> List[CallSite]:
         """Get all call sites that can reach a function"""
@@ -322,7 +397,12 @@ class ControlFlowState:
         
         # Flow-sensitive state
         self.visited_stmts: Set[Tuple[str, int]] = set()  # (function_qualname, stmt_idx)
+        self.visit_count: Dict[Tuple[str, int], int] = {}  # (function_qualname, stmt_idx) -> count
         self.worklist: List[Tuple[str, int]] = []  # (function_qualname, stmt_idx)
+        self.max_visits_per_stmt = 5  # Limit to prevent infinite loops
+        
+        # State snapshots for merge points
+        self.state_snapshots: Dict[Tuple[str, int], List[Dict[str, 'Value']]] = {}  # (func, stmt) -> [variable_states]
     
     def add_edge(self, function_qualname: str, from_idx: int, to_idx: int):
         """Add a control flow edge"""
@@ -378,15 +458,31 @@ class ControlFlowState:
     
     def add_to_worklist(self, function_qualname: str, stmt_idx: int):
         """Add a statement to the worklist for flow-sensitive analysis"""
-        if (function_qualname, stmt_idx) not in self.visited_stmts:
-            self.worklist.append((function_qualname, stmt_idx))
-            self.visited_stmts.add((function_qualname, stmt_idx))
+        key = (function_qualname, stmt_idx)
+        
+        # Check visit count to prevent infinite loops
+        current_count = self.visit_count.get(key, 0)
+        if current_count < self.max_visits_per_stmt:
+            self.worklist.append(key)
+            # Don't mark as visited here - we'll count visits during processing
     
     def get_next_from_worklist(self) -> Optional[Tuple[str, int]]:
         """Get the next statement from the worklist"""
         if self.worklist:
             return self.worklist.pop(0)
         return None
+    
+    def save_state_snapshot(self, function_qualname: str, stmt_idx: int, variable_state: Dict[str, 'Value']):
+        """Save a snapshot of variable state at a program point"""
+        key = (function_qualname, stmt_idx)
+        if key not in self.state_snapshots:
+            self.state_snapshots[key] = []
+        self.state_snapshots[key].append(variable_state.copy())
+    
+    def get_state_snapshots(self, function_qualname: str, stmt_idx: int) -> List[Dict[str, 'Value']]:
+        """Get all state snapshots for a program point"""
+        key = (function_qualname, stmt_idx)
+        return self.state_snapshots.get(key, [])
 
 
 class AbstractState:

@@ -11,7 +11,7 @@ from pythonstan.ir.ir_statements import (
 from pythonstan.analysis.ai import (
     AbstractInterpretationSolver, create_solver,
     ContextType, FlowSensitivity,
-    create_int_value, create_str_value, create_bool_value, create_none_value,
+    create_int_value, create_float_value, create_str_value, create_bool_value, create_none_value,
     create_list_value, create_dict_value, create_unknown_value
 )
 
@@ -158,43 +158,57 @@ def create_mock_function(name="test_func", args=None):
         name=name,
         args=ast.arguments(
             posonlyargs=[],
-            args=[ast.arg(arg=arg) for arg in args],
+            args=[ast.arg(arg=arg, annotation=None) for arg in args],
+            vararg=None,
             kwonlyargs=[],
             kw_defaults=[],
+            kwarg=None,
             defaults=[]
         ),
         body=[ast.Pass()],
         decorator_list=[]
     )
-    return IRFunc(f"test_module.{name}", node, args)
+    return IRFunc(f"test_module.{name}", node)
 
 def create_mock_assign(lval="x", rval="y"):
     return IRAssign(
         ast.Assign(
             targets=[ast.Name(id=lval, ctx=ast.Store())],
             value=ast.Name(id=rval, ctx=ast.Load())
-        ),
-        lval, rval
+        )
     )
 
 def create_mock_call(target="result", func_name="test_func", args=None):
     if args is None:
         args = []
-    return IRCall(
-        ast.Call(
-            func=ast.Name(id=func_name, ctx=ast.Load()),
-            args=[ast.Name(id=arg, ctx=ast.Load()) for arg in args],
-            keywords=[]
-        ),
-        target, func_name, [(arg, False) for arg in args], []
-    )
+    if target:
+        # Create assignment call: target = func(args)
+        return IRCall(
+            ast.Assign(
+                targets=[ast.Name(id=target, ctx=ast.Store())],
+                value=ast.Call(
+                    func=ast.Name(id=func_name, ctx=ast.Load()),
+                    args=[ast.Name(id=arg, ctx=ast.Load()) for arg in args],
+                    keywords=[]
+                )
+            )
+        )
+    else:
+        # Create expression call: func(args)
+        return IRCall(
+            ast.Call(
+                func=ast.Name(id=func_name, ctx=ast.Load()),
+                args=[ast.Name(id=arg, ctx=ast.Load()) for arg in args],
+                keywords=[]
+            )
+        )
 
 def create_function_value(func):
     """Create a function value for the given IRFunc"""
     from pythonstan.analysis.ai import FunctionObject, Value
-    obj = FunctionObject(func_name=func.name, func=func)
+    obj = FunctionObject(func)
     value = Value()
-    value.add_object(obj)
+    value.add(obj)
     return value
 
 # More specific tests for benchmark examples
@@ -384,7 +398,10 @@ class TestSpecificBenchmarkScenarios:
         )
         
         # Create a module and function scope
-        module = IRModule("test_module")
+        # Create a mock Module object for IRModule
+        import ast
+        mock_module = ast.Module(body=[], type_ignores=[])
+        module = IRModule("test_module", mock_module, "test_module")
         solver.state.initialize_for_module(module)
         
         func = create_mock_function("test_func", [])
@@ -466,7 +483,10 @@ class TestSpecificBenchmarkScenarios:
         )
         
         # Create a module and function scope
-        module = IRModule("test_module")
+        # Create a mock Module object for IRModule
+        import ast
+        mock_module = ast.Module(body=[], type_ignores=[])
+        module = IRModule("test_module", mock_module, "test_module")
         solver.state.initialize_for_module(module)
         
         func = create_mock_function("test_func", [])
@@ -519,7 +539,7 @@ class TestSpecificBenchmarkScenarios:
             # c = 50 (overwrites)
             create_mock_assign("c", "c_final"),
             # return c
-            IRReturn(ast.Return(value=ast.Name(id="c", ctx=ast.Load())), ast.Name(id="c", ctx=ast.Load()))
+            IRReturn(ast.Return(value=ast.Name(id="c", ctx=ast.Load())))
         ]
         
         # Set up for analysis
@@ -552,7 +572,10 @@ class TestSpecificBenchmarkScenarios:
         )
         
         # Create a module and function scope
-        module = IRModule("test_module")
+        # Create a mock Module object for IRModule
+        import ast
+        mock_module = ast.Module(body=[], type_ignores=[])
+        module = IRModule("test_module", mock_module, "test_module")
         solver.state.initialize_for_module(module)
         
         # Create factorial function:
@@ -585,19 +608,14 @@ class TestSpecificBenchmarkScenarios:
                 comparators=[ast.Num(n=1)]
             ), recursive_case_label),
             # Base case: return 1
-            IRReturn(ast.Return(value=ast.Num(n=1)), ast.Num(n=1)),
+            IRReturn(ast.Return(value=ast.Name(id="base_return_val", ctx=ast.Load()))),
             # Recursive case
             recursive_case_label,
             # Call factorial(n-1)
             create_mock_call("rec_result", "factorial", ["n_minus_1"]),
             # Return n * rec_result
             IRReturn(
-                ast.Return(value=ast.BinOp(
-                    left=ast.Name(id="n", ctx=ast.Load()),
-                    op=ast.Mult(),
-                    right=ast.Name(id="rec_result", ctx=ast.Load())
-                )),
-                ast.Name(id="rec_result", ctx=ast.Load())
+                ast.Return(value=ast.Name(id="result", ctx=ast.Load()))
             )
         ]
         
@@ -609,7 +627,7 @@ class TestSpecificBenchmarkScenarios:
             # Call factorial(5)
             create_mock_call("result", "factorial", ["n_val"]),
             # Return result
-            IRReturn(ast.Return(value=ast.Name(id="result", ctx=ast.Load())), ast.Name(id="result", ctx=ast.Load()))
+            IRReturn(ast.Return(value=ast.Name(id="result", ctx=ast.Load())))
         ]
         
         # Store main statements
@@ -622,6 +640,7 @@ class TestSpecificBenchmarkScenarios:
         # Set up initial values
         solver.state.set_variable("n_val", create_int_value(5))  # Initial n value
         solver.state.set_variable("n_minus_1", create_int_value(4))  # n-1 value
+        solver.state.set_variable("base_return_val", create_int_value(1))  # Base case return value
         
         # Build CFGs
         solver._build_cfg(factorial_qualname, factorial_statements)
@@ -669,7 +688,10 @@ class TestSpecificBenchmarkScenarios:
         )
         
         # Create a module and initialize
-        module = IRModule("test_module")
+        # Create a mock Module object for IRModule
+        import ast
+        mock_module = ast.Module(body=[], type_ignores=[])
+        module = IRModule("test_module", mock_module, "test_module")
         solver.state.initialize_for_module(module)
         
         # Create classes for inheritance hierarchy:
@@ -758,8 +780,20 @@ class TestSpecificBenchmarkScenarios:
 # Helper function to create class instance values
 def create_class_instance_value(class_name):
     """Create a value representing an instance of the given class"""
-    from pythonstan.analysis.ai import InstanceObject, Value
-    obj = InstanceObject(class_name=class_name)
+    from pythonstan.analysis.ai import InstanceObject, ClassObject, Value
+    from pythonstan.ir.ir_statements import IRClass
+    import ast
+    
+    # Create a mock IRClass for the class
+    class_ast = ast.ClassDef(name=class_name, bases=[], keywords=[], 
+                            body=[ast.Pass()], decorator_list=[])
+    ir_class = IRClass(class_name, class_ast)
+    
+    # Create ClassObject
+    class_obj = ClassObject(ir_class)
+    
+    # Create instance
+    obj = InstanceObject(class_obj)
     value = Value()
-    value.add_object(obj)
+    value.add(obj)
     return value 

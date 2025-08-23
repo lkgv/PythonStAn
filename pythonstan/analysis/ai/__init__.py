@@ -22,6 +22,11 @@ from pythonstan.analysis.ai.state import (
 
 from pythonstan.analysis.ai.operation import AbstractInterpreter
 from pythonstan.analysis.ai.solver import AbstractInterpretationSolver, create_solver
+from pythonstan.analysis.ai.pointer_adapter import (
+    PointerResults, FunctionSymbol, CallSite, AbstractObject, FieldKey,
+    AttrFieldKey, ElemFieldKey, ValueFieldKey, UnknownFieldKey,
+    MockPointerResults, MockFunctionSymbol, MockCallSite, MockAbstractObject
+)
 
 __all__ = [
     'Value',
@@ -41,5 +46,8 @@ __all__ = [
     'Scope', 'MemoryModel', 'ClassHierarchy', 'CallGraph', 'ControlFlowState',
     'create_abstract_state',
     'AbstractInterpreter',
-    'AbstractInterpretationSolver', 'create_solver'
+    'AbstractInterpretationSolver', 'create_solver',
+    'PointerResults', 'FunctionSymbol', 'CallSite', 'AbstractObject', 'FieldKey',
+    'AttrFieldKey', 'ElemFieldKey', 'ValueFieldKey', 'UnknownFieldKey',
+    'MockPointerResults', 'MockFunctionSymbol', 'MockCallSite', 'MockAbstractObject'
 ]
