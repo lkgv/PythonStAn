@@ -300,6 +300,12 @@ class PersistentMap(Generic[K, V]):
     def items(self) -> List[Tuple[K, V]]:
         return self.tree.to_list(self.root)
 
+    def keys(self) -> List[K]:
+        return [k for k, v in self.tree.to_list(self.root)]
+
+    def values(self) -> List[V]:
+        return [v for k, v in self.tree.to_list(self.root)]
+
     def __contains__(self, item: K) -> bool:
         if self.get(item) is None:
             return False

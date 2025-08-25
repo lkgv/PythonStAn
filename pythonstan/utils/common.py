@@ -1,5 +1,5 @@
 import sys
-from typing import Dict, Collection, Any, List
+from typing import *
 
 
 class Singleton(object):
@@ -37,3 +37,27 @@ def srcfile_to_name(srcfile: str) -> str:
 
 def builtin_module_names():
     return sys.builtin_module_names
+
+
+T = TypeVar('T')
+
+
+def deoptional(v: Optional[T], default: T) -> T:
+    if v is None:
+        return default
+    else:
+        return v
+
+
+def set_deoptional(v: Optional[Set[T]]) -> Set[T]:
+    return deoptional(v, {*()})
+
+
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+def multimap_add(m: Dict[K, Set[V]], k: K, v: V):
+    if k not in m:
+        m[k] = {*()}
+    m[k].add(v)

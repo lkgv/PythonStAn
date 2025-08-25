@@ -13,7 +13,10 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRStatement]]):
     def __init__(self, scope, cfg, config):
         self.is_forward = True
         self.inter_procedure = False
-        self.defs = self.compute_defs(scope)
+
+        from pythonstan.world import World
+        cfg = World().scope_manager.get_ir(scope, "cfg")
+        self.defs = self.compute_defs(scope, cfg)
         super().__init__(scope, cfg, config)
     
     def new_boundary_fact(self) -> Set[IRStatement]:
@@ -28,9 +31,9 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRStatement]]):
     def need_transfer_edge(self, edge):
         super().need_transfer_edge(edge)
     
-    def compute_defs(self, scope: IRScope):
+    def compute_defs(self, scope: IRScope, cfg):
         defs = {}
-        for cur_stmt in scope.cfg.stmts:
+        for cur_stmt in cfg.stmts:
             for var_id in cur_stmt.get_stores():
                 if var_id in defs:
                     defs[var_id].add(cur_stmt)

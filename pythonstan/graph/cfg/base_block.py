@@ -5,20 +5,18 @@ from ..graph import Node
 
 __all__ = ["BaseBlock"]
 
-S1 = 182239
-S2 = 120721
-S3 = 219943
 
 class BaseBlock(Node):
     idx: int
+    only_pass: bool
     stmts: List[IRStatement]
 
-    def __init__(self, idx=-1, stmts=None):
+    def __init__(self, idx: int, stmts: Optional[List[IRStatement]] = None):
         self.idx = idx
         if stmts is None:
             self.stmts = []
         else:
-            self.stmts = [x for x in stmts]
+            self.stmts = stmts
 
     def get_stmts(self):
         return self.stmts
@@ -64,6 +62,11 @@ class BaseBlock(Node):
         stmts_str = '\\n'.join([str(s) for s in self.stmts])
         return '\\n'.join([head, stmts_str])
 
+    def __repr__(self):
+        head = self.get_name()
+        stmts_str = '\\n'.join([str(s) for s in self.stmts])
+        return '\\n'.join([head, stmts_str])
+
     def gen_label(self) -> Label:
         if self.n_stmt() > 0 and isinstance(self.stmts[0], Label):
             return self.stmts[0]
@@ -72,5 +75,9 @@ class BaseBlock(Node):
             self.add_front(label)
             return label
 
-    def __hash__(self):
-        return ((self.idx * S2) + S1) % S3
+    def __lt__(self, other: 'BaseBlock') -> bool:
+        if self.n_stmt() == 0:
+            return True
+        if other.n_stmt() == 0:
+            return False
+        return self.stmts[0] < other.stmts[0]

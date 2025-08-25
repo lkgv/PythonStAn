@@ -1,3 +1,16 @@
 __pycache__/
 .idea/
 __pypackages__/
+.python-version
+.venv/
+.python-version
+.pytest_cache/
+.ruff_cache/
+.vscode/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.bak
+*.pyc

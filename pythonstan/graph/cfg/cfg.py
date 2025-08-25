@@ -27,10 +27,6 @@ class ControlFlowGraph(Graph):
         self.in_edges = {}
         self.out_edges = {}
         self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(0)
-        if entry_blk is not None:
-            self.entry_blk = entry_blk
-        else:
-            self.entry_blk = BaseBlock(idx=0)
         self.exit_blks = {*()}
         self.super_exit_blk = None
         self.var_collector = VarCollector()
@@ -200,3 +196,5 @@ class ControlFlowGraph(Graph):
         self.label2blk[label] = block
         self.blk2label[block] = label
 
+    def get_stmts(self) -> Set[IRStatement]:
+        return self.stmts

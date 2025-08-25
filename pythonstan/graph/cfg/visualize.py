@@ -2,7 +2,7 @@ import graphviz
 from graphviz import Digraph
 from typing import Dict
 
-from .scope import *
+from pythonstan.ir import IRScope, IRModule, IRClass, IRFunc
 from .cfg import ControlFlowGraph
 
 

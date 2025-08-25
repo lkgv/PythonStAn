@@ -1,10 +1,9 @@
 import ast
+import os
 from typing import Set, List, Dict, Tuple, Any, Optional
 
 from .namespace import Namespace
 from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule
-from pythonstan.ir.ir_func import IRFunc
-from pythonstan.ir.ir_class import IRClass
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 
 
@@ -52,7 +51,7 @@ class ScopeManager:
     subscopes: Dict[IRScope, List[IRScope]]
     father: Dict[IRScope, IRScope]
     names2scope: Dict[str, IRScope]
-    scope_ir: Dict[Tuple[IRScope, str], Any]
+    scope_ir: Dict[Tuple[str, str], Any]
 
     def build(self):
         self.scopes = {*()}
@@ -69,16 +68,17 @@ class ScopeManager:
         self.module_graph = graph
 
     def set_ir(self, scope: IRScope, fmt: str, ir: Any):
-        self.scope_ir[(scope, fmt)] = ir
+        self.scope_ir[(scope.qualname, fmt)] = ir
 
     def get_ir(self, scope: IRScope, fmt: str) -> Any:
-        return self.scope_ir.get((scope, fmt), None)
+        return self.scope_ir.get((scope.qualname, fmt), None)
 
     def check_analysis_done(self, scope: IRScope, analysis_name: str) -> bool:
         return (scope, analysis_name) in self.scope_ir
 
     def add_func(self, scope: IRScope, func: IRFunc):
         self.names2scope[func.get_qualname()] = func
+        self.scopes.add(func)
         self.father[func] = scope
         self.subscope_idx[(scope, func.name)] = func
         if scope in self.subscopes:
@@ -88,6 +88,7 @@ class ScopeManager:
 
     def add_class(self, scope: IRScope, cls: IRClass):
         self.names2scope[cls.get_qualname()] = cls
+        self.scopes.add(cls)
         self.father[cls] = scope
         self.subscope_idx[(scope, cls.name)] = cls
         if scope in self.subscopes:
@@ -95,7 +96,9 @@ class ScopeManager:
         else:
             self.subscopes[scope] = [cls]
 
-    def add_module(self, ns: Namespace, filename: str) -> IRModule:
+    def add_module(self, ns: Namespace, filename: str) -> Optional[IRModule]:
+        if not os.path.isfile(filename):
+            return None
         with open(filename, 'r') as f:
             m_ast = ast.parse(f.read())
         mod = IRModule(ns.to_str(), m_ast, ns.get_name(), filename)
@@ -111,3 +114,6 @@ class ScopeManager:
 
     def get_subscopes(self, scope: IRScope) -> List[IRScope]:
         return self.subscopes.get(scope, [])
+
+    def get_scopes(self) -> Set[IRScope]:
+        return self.scopes

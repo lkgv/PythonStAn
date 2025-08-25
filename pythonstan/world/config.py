@@ -43,7 +43,7 @@ class Config:
 
     def add_analysis(self, cfg: AnalysisConfig):
         self.analysis[cfg.name] = cfg
-        self.succ_analysis[cfg.name] = []
+        self.succ_analysis[cfg.name] = {*()}
         for prev_name in cfg.prev_analysis:
             if prev_name not in self.succ_analysis:
                 self.succ_analysis[prev_name] = {*()}
@@ -54,5 +54,4 @@ class Config:
 
     def get_analysis_list(self):
         analysis_id_list = topo_sort(self.succ_analysis)
-        print(self.analysis)
         return [self.analysis[anal_id] for anal_id in analysis_id_list if anal_id in self.analysis]

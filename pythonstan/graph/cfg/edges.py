@@ -1,14 +1,17 @@
 import ast
 from abc import ABC, abstractmethod
+from typing import Set
 
+from pythonstan.ir import IRScope
 from ..graph import Edge, Node
 from .base_block import BaseBlock
 
-__all__ = ["CFGEdge", "NormalEdge", "IfEdge", "CallEdge",
+__all__ = ["CFGEdge", "NormalEdge", "IfEdge",
            "WhileEdge", "WhileElseEdge",
            "WithEdge", "WithEndEdge",
            "ExceptionEdge", "ExceptionEndEdge",
-           "FinallyEdge", "FinallyEndEdge"]
+           "FinallyEdge", "FinallyEndEdge",
+           "CallEdge", "ReturnEdge", "CallToReturnEdge"]
 
 
 class CFGEdge(Edge):
@@ -44,24 +47,49 @@ class NormalEdge(CFGEdge):
 
 
 class IfEdge(CFGEdge):
-    test: ast.expr
+    test: str
     value: bool
 
-    def __init__(self, src, tgt, test, value):
+    def __init__(self, src, tgt, test_expr, value):
+        assert isinstance(test_expr, ast.Name), "The test variable of IfEdge should be ast.Name!"
         super().__init__(src, tgt)
-        self.test = test
+        self.test = test_expr.id
         self.value = value
 
     def get_name(self) -> str:
-        return f"if_{ast.unparse(self.test)}_is_{self.value}"
+        return f"if_{self.test}_is_{self.value}"
 
 
 class CallEdge(CFGEdge):
+    scope: IRScope
+
+    def __init__(self, src, tgt, scope: IRScope):
+        super().__init__(src, tgt)
+        self.scope = scope
+
+    def get_callee(self) -> IRScope:
+        return self.scope
+
+
+class ReturnEdge(CFGEdge):
+    call_site: BaseBlock
+    ret_vars: Set[ast.Expr]
+
+    def __init__(self, src, tgt, call_site: BaseBlock, ret_vars: Set[ast.Expr]):
+        super().__init__(src, tgt)
+        self.call_site = call_site
+        self.ret_vars = ret_vars
+
+    def get_ret_vars(self) -> Set[ast.Expr]:
+        return self.ret_vars
+
+    def get_call_site(self) -> BaseBlock:
+        return self.call_site
+
+
+class CallToReturnEdge(CFGEdge):
     def __init__(self, src, tgt):
         super().__init__(src, tgt)
-
-    def get_name(self) -> str:
-        return 'call'
 
 
 class WhileEdge(CFGEdge):

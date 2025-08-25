@@ -2,12 +2,12 @@ import copy
 from typing import Dict, Any
 from abc import abstractmethod
 
-from pythonstan.ir.ir_module import IRModule
-from ..analysis import Analysis, AnalysisConfig, AnalysisDriver
+from pythonstan.ir import IRScope
+from ..analysis import Analysis, AnalysisConfig
 
 
 class Transform(Analysis):
-    module: IRModule
+    module: IRScope
     inputs: Dict[str, Any]
     results: Any
 
@@ -19,6 +19,9 @@ class Transform(Analysis):
     def set_input(self, key, value):
         self.inputs[key] = value
 
+    def get_input(self, key):
+        return self.inputs[key]
+
     @abstractmethod
-    def transform(self, module: IRModule):
+    def transform(self, module: IRScope):
         ...
