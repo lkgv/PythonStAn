@@ -258,6 +258,30 @@ class KCFA2PointerAnalysis:
                 context=str(ctx),
                 site_id=f"copy_{event['source']}_to_{event['target']}"
             )
+        elif event["kind"] == "await":
+            # Handle await expression: target = await awaited_expr
+            self._handle_await_event(event, ctx)
+        elif event["kind"] == "task_create":
+            # Handle task creation: target = create_task(coro)
+            self._handle_task_create_event(event, ctx)
+        elif event["kind"] == "queue_alloc":
+            # Handle queue allocation: target = Queue()
+            self._handle_queue_alloc_event(event, ctx)
+        elif event["kind"] == "queue_op":
+            # Handle queue operations: queue.put(value) or value = queue.get()
+            self._handle_queue_op_event(event, ctx)
+        elif event["kind"] == "sync_alloc":
+            # Handle sync primitive allocation: target = Lock()
+            self._handle_sync_alloc_event(event, ctx)
+        elif event["kind"] == "sync_op":
+            # Handle sync operations: lock.acquire() or lock.release()
+            self._handle_sync_op_event(event, ctx)
+        elif event["kind"] == "loop_cb_schedule":
+            # Handle event loop callback scheduling: loop.call_soon(callback)
+            self._handle_loop_callback_event(event, ctx)
+        elif event["kind"] == "stream":
+            # Handle stream operations: reader, writer = open_connection()
+            self._handle_stream_event(event, ctx)
         
     def _handle_allocation(self, event: Event, ctx: Context) -> None:
         """Handle object allocation events."""
@@ -392,6 +416,194 @@ class KCFA2PointerAnalysis:
         
         return changed
     
+    # Async event handlers
+    
+    def _handle_await_event(self, event: Event, ctx: Context) -> None:
+        """Handle await expression events."""
+        # For await expressions, we treat it as a copy: target = awaited_expr
+        # The awaited expression should resolve to a coroutine/task/future object
+        awaited_expr = event.get("awaited_expr", "")
+        target = event.get("target", "")
+        
+        if target and awaited_expr:
+            # Add copy constraint for the await operation
+            self._constraint_worklist.add_copy_constraint(
+                source=awaited_expr,
+                target=target,
+                context=str(ctx),
+                site_id=event.get("await_id", "unknown_await")
+            )
+    
+    def _handle_task_create_event(self, event: Event, ctx: Context) -> None:
+        """Handle task creation events."""
+        # Task creation creates a new Task object that wraps a coroutine
+        target = event.get("target", "")
+        coro_arg = event.get("coro_arg", "")
+        
+        if target:
+            # Create task object allocation
+            task_id = event.get("task_id", "unknown_task")
+            task_obj = self._create_object(task_id, ctx)
+            task_pts = PointsToSet(frozenset([task_obj]))
+            self._set_var_pts(ctx, target, task_pts)
+            
+            # Link task to the coroutine argument
+            if coro_arg:
+                coro_pts = self._get_var_pts(ctx, coro_arg)
+                coro_field = attr_key("_coro")
+                self._set_field_pts(task_obj, coro_field, coro_pts)
+    
+    def _handle_queue_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue allocation events."""
+        target = event.get("target", "")
+        queue_kind = event.get("queue_kind", "Queue")
+        
+        if target:
+            # Create queue object
+            queue_id = event.get("queue_id", "unknown_queue")
+            queue_obj = self._create_object(queue_id, ctx)
+            queue_pts = PointsToSet(frozenset([queue_obj]))
+            self._set_var_pts(ctx, target, queue_pts)
+            
+            # Initialize empty element field
+            elem_field = elem_key()
+            empty_pts = PointsToSet()
+            self._set_field_pts(queue_obj, elem_field, empty_pts)
+    
+    def _handle_queue_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue operation events."""
+        op_type = event.get("op_type", "")
+        queue_var = event.get("queue_var", "")
+        
+        if op_type in ("put", "put_nowait"):
+            # queue.put(value) - store value in queue's elem field
+            value_var = event.get("value_var", "")
+            if queue_var and value_var:
+                self._constraint_worklist.add_store_constraint(
+                    target=queue_var,
+                    field="elem",
+                    source=value_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_put")
+                )
+        elif op_type in ("get", "get_nowait"):
+            # target = queue.get() - load from queue's elem field
+            target_var = event.get("target_var", "")
+            if queue_var and target_var:
+                self._constraint_worklist.add_load_constraint(
+                    source=queue_var,
+                    field="elem",
+                    target=target_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_get")
+                )
+    
+    def _handle_sync_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization primitive allocation events."""
+        target = event.get("target", "")
+        sync_kind = event.get("sync_kind", "Lock")
+        
+        if target:
+            # Create sync object
+            sync_id = event.get("sync_id", "unknown_sync")
+            sync_obj = self._create_object(sync_id, ctx)
+            sync_pts = PointsToSet(frozenset([sync_obj]))
+            self._set_var_pts(ctx, target, sync_pts)
+    
+    def _handle_sync_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization operation events."""
+        # For sync operations, we don't need to track dataflow to heap
+        # These operations mainly change internal state of sync primitives
+        # We conservatively assume any arguments may escape
+        op_type = event.get("op_type", "")
+        sync_var = event.get("sync_var", "")
+        
+        # Mark sync object as potentially accessed but no specific dataflow
+        # This is handled conservatively by the sync primitive summaries
+    
+    def _handle_loop_callback_event(self, event: Event, ctx: Context) -> None:
+        """Handle event loop callback scheduling events."""
+        # Callback scheduling creates a handle object and may call the callback
+        target = event.get("target", "")
+        callback_expr = event.get("callback_expr", "")
+        
+        if target:
+            # Create callback handle object
+            cb_id = event.get("cb_id", "unknown_callback")
+            handle_obj = self._create_object(cb_id, ctx)
+            handle_pts = PointsToSet(frozenset([handle_obj]))
+            self._set_var_pts(ctx, target, handle_pts)
+            
+            # Link handle to callback
+            if callback_expr:
+                callback_pts = self._get_var_pts(ctx, callback_expr)
+                callback_field = attr_key("_callback")
+                self._set_field_pts(handle_obj, callback_field, callback_pts)
+    
+    def _handle_stream_event(self, event: Event, ctx: Context) -> None:
+        """Handle stream operation events."""
+        # Stream operations typically return reader/writer objects
+        api = event.get("api", "")
+        
+        if api in ("open_connection", "start_server"):
+            reader_var = event.get("reader_var", "")
+            writer_var = event.get("writer_var", "")
+            
+            stream_id = event.get("stream_id", "unknown_stream")
+            
+            if reader_var:
+                # Create reader object
+                reader_obj = self._create_object(f"{stream_id}_reader", ctx)
+                reader_pts = PointsToSet(frozenset([reader_obj]))
+                self._set_var_pts(ctx, reader_var, reader_pts)
+            
+            if writer_var:
+                # Create writer object
+                writer_obj = self._create_object(f"{stream_id}_writer", ctx)
+                writer_pts = PointsToSet(frozenset([writer_obj]))
+                self._set_var_pts(ctx, writer_var, writer_pts)
+    
+    # Helper method to add query API for AsyncFactsHelper
+    
+    def get_points_to_for_var(self, var: str, context: Optional[Context] = None) -> PointsToSet:
+        """Get points-to set for a variable in the given context.
+        
+        This method provides a query API for AsyncFactsHelper to resolve
+        variables to abstract objects for target resolution.
+        """
+        if context is None:
+            context = Context()  # Use empty context as default
+        
+        return self._get_var_pts(context, var)
+    
+    def get_call_targets_for_expr(self, callee_expr: str, context: Optional[Context] = None) -> List[str]:
+        """Get possible call targets for a callee expression.
+        
+        This method resolves function calls to possible target function names
+        for AsyncFactsHelper target resolution.
+        """
+        if context is None:
+            context = Context()
+        
+        # Try to get points-to set for the expression
+        callee_pts = self._get_var_pts(context, callee_expr)
+        
+        targets = []
+        for obj in callee_pts.objects:
+            # Extract function name from allocation ID
+            if "func" in obj.alloc_id:
+                # Parse allocation ID to extract function name
+                # Format is typically: "file:line:col:func:name"
+                parts = obj.alloc_id.split(":")
+                if len(parts) >= 5 and parts[3] == "func":
+                    func_name = parts[4]
+                    targets.append(func_name)
+                else:
+                    # Fallback - use the allocation ID as is
+                    targets.append(obj.alloc_id)
+        
+        return targets
+    
     def _handle_parameter_passing(self, caller_ctx: Context, callee_ctx: Context, call, callee_func) -> bool:
         """Handle parameter passing from caller to callee."""
         changed = False
@@ -478,6 +690,194 @@ class KCFA2PointerAnalysis:
         
         return changed
     
+    # Async event handlers
+    
+    def _handle_await_event(self, event: Event, ctx: Context) -> None:
+        """Handle await expression events."""
+        # For await expressions, we treat it as a copy: target = awaited_expr
+        # The awaited expression should resolve to a coroutine/task/future object
+        awaited_expr = event.get("awaited_expr", "")
+        target = event.get("target", "")
+        
+        if target and awaited_expr:
+            # Add copy constraint for the await operation
+            self._constraint_worklist.add_copy_constraint(
+                source=awaited_expr,
+                target=target,
+                context=str(ctx),
+                site_id=event.get("await_id", "unknown_await")
+            )
+    
+    def _handle_task_create_event(self, event: Event, ctx: Context) -> None:
+        """Handle task creation events."""
+        # Task creation creates a new Task object that wraps a coroutine
+        target = event.get("target", "")
+        coro_arg = event.get("coro_arg", "")
+        
+        if target:
+            # Create task object allocation
+            task_id = event.get("task_id", "unknown_task")
+            task_obj = self._create_object(task_id, ctx)
+            task_pts = PointsToSet(frozenset([task_obj]))
+            self._set_var_pts(ctx, target, task_pts)
+            
+            # Link task to the coroutine argument
+            if coro_arg:
+                coro_pts = self._get_var_pts(ctx, coro_arg)
+                coro_field = attr_key("_coro")
+                self._set_field_pts(task_obj, coro_field, coro_pts)
+    
+    def _handle_queue_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue allocation events."""
+        target = event.get("target", "")
+        queue_kind = event.get("queue_kind", "Queue")
+        
+        if target:
+            # Create queue object
+            queue_id = event.get("queue_id", "unknown_queue")
+            queue_obj = self._create_object(queue_id, ctx)
+            queue_pts = PointsToSet(frozenset([queue_obj]))
+            self._set_var_pts(ctx, target, queue_pts)
+            
+            # Initialize empty element field
+            elem_field = elem_key()
+            empty_pts = PointsToSet()
+            self._set_field_pts(queue_obj, elem_field, empty_pts)
+    
+    def _handle_queue_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue operation events."""
+        op_type = event.get("op_type", "")
+        queue_var = event.get("queue_var", "")
+        
+        if op_type in ("put", "put_nowait"):
+            # queue.put(value) - store value in queue's elem field
+            value_var = event.get("value_var", "")
+            if queue_var and value_var:
+                self._constraint_worklist.add_store_constraint(
+                    target=queue_var,
+                    field="elem",
+                    source=value_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_put")
+                )
+        elif op_type in ("get", "get_nowait"):
+            # target = queue.get() - load from queue's elem field
+            target_var = event.get("target_var", "")
+            if queue_var and target_var:
+                self._constraint_worklist.add_load_constraint(
+                    source=queue_var,
+                    field="elem",
+                    target=target_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_get")
+                )
+    
+    def _handle_sync_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization primitive allocation events."""
+        target = event.get("target", "")
+        sync_kind = event.get("sync_kind", "Lock")
+        
+        if target:
+            # Create sync object
+            sync_id = event.get("sync_id", "unknown_sync")
+            sync_obj = self._create_object(sync_id, ctx)
+            sync_pts = PointsToSet(frozenset([sync_obj]))
+            self._set_var_pts(ctx, target, sync_pts)
+    
+    def _handle_sync_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization operation events."""
+        # For sync operations, we don't need to track dataflow to heap
+        # These operations mainly change internal state of sync primitives
+        # We conservatively assume any arguments may escape
+        op_type = event.get("op_type", "")
+        sync_var = event.get("sync_var", "")
+        
+        # Mark sync object as potentially accessed but no specific dataflow
+        # This is handled conservatively by the sync primitive summaries
+    
+    def _handle_loop_callback_event(self, event: Event, ctx: Context) -> None:
+        """Handle event loop callback scheduling events."""
+        # Callback scheduling creates a handle object and may call the callback
+        target = event.get("target", "")
+        callback_expr = event.get("callback_expr", "")
+        
+        if target:
+            # Create callback handle object
+            cb_id = event.get("cb_id", "unknown_callback")
+            handle_obj = self._create_object(cb_id, ctx)
+            handle_pts = PointsToSet(frozenset([handle_obj]))
+            self._set_var_pts(ctx, target, handle_pts)
+            
+            # Link handle to callback
+            if callback_expr:
+                callback_pts = self._get_var_pts(ctx, callback_expr)
+                callback_field = attr_key("_callback")
+                self._set_field_pts(handle_obj, callback_field, callback_pts)
+    
+    def _handle_stream_event(self, event: Event, ctx: Context) -> None:
+        """Handle stream operation events."""
+        # Stream operations typically return reader/writer objects
+        api = event.get("api", "")
+        
+        if api in ("open_connection", "start_server"):
+            reader_var = event.get("reader_var", "")
+            writer_var = event.get("writer_var", "")
+            
+            stream_id = event.get("stream_id", "unknown_stream")
+            
+            if reader_var:
+                # Create reader object
+                reader_obj = self._create_object(f"{stream_id}_reader", ctx)
+                reader_pts = PointsToSet(frozenset([reader_obj]))
+                self._set_var_pts(ctx, reader_var, reader_pts)
+            
+            if writer_var:
+                # Create writer object
+                writer_obj = self._create_object(f"{stream_id}_writer", ctx)
+                writer_pts = PointsToSet(frozenset([writer_obj]))
+                self._set_var_pts(ctx, writer_var, writer_pts)
+    
+    # Helper method to add query API for AsyncFactsHelper
+    
+    def get_points_to_for_var(self, var: str, context: Optional[Context] = None) -> PointsToSet:
+        """Get points-to set for a variable in the given context.
+        
+        This method provides a query API for AsyncFactsHelper to resolve
+        variables to abstract objects for target resolution.
+        """
+        if context is None:
+            context = Context()  # Use empty context as default
+        
+        return self._get_var_pts(context, var)
+    
+    def get_call_targets_for_expr(self, callee_expr: str, context: Optional[Context] = None) -> List[str]:
+        """Get possible call targets for a callee expression.
+        
+        This method resolves function calls to possible target function names
+        for AsyncFactsHelper target resolution.
+        """
+        if context is None:
+            context = Context()
+        
+        # Try to get points-to set for the expression
+        callee_pts = self._get_var_pts(context, callee_expr)
+        
+        targets = []
+        for obj in callee_pts.objects:
+            # Extract function name from allocation ID
+            if "func" in obj.alloc_id:
+                # Parse allocation ID to extract function name
+                # Format is typically: "file:line:col:func:name"
+                parts = obj.alloc_id.split(":")
+                if len(parts) >= 5 and parts[3] == "func":
+                    func_name = parts[4]
+                    targets.append(func_name)
+                else:
+                    # Fallback - use the allocation ID as is
+                    targets.append(obj.alloc_id)
+        
+        return targets
+    
     def _handle_return_value(self, caller_ctx: Context, callee_ctx: Context, call, callee_func) -> bool:
         """Handle return value from callee to caller."""
         changed = False
@@ -491,6 +891,194 @@ class KCFA2PointerAnalysis:
                     changed = True
         
         return changed
+    
+    # Async event handlers
+    
+    def _handle_await_event(self, event: Event, ctx: Context) -> None:
+        """Handle await expression events."""
+        # For await expressions, we treat it as a copy: target = awaited_expr
+        # The awaited expression should resolve to a coroutine/task/future object
+        awaited_expr = event.get("awaited_expr", "")
+        target = event.get("target", "")
+        
+        if target and awaited_expr:
+            # Add copy constraint for the await operation
+            self._constraint_worklist.add_copy_constraint(
+                source=awaited_expr,
+                target=target,
+                context=str(ctx),
+                site_id=event.get("await_id", "unknown_await")
+            )
+    
+    def _handle_task_create_event(self, event: Event, ctx: Context) -> None:
+        """Handle task creation events."""
+        # Task creation creates a new Task object that wraps a coroutine
+        target = event.get("target", "")
+        coro_arg = event.get("coro_arg", "")
+        
+        if target:
+            # Create task object allocation
+            task_id = event.get("task_id", "unknown_task")
+            task_obj = self._create_object(task_id, ctx)
+            task_pts = PointsToSet(frozenset([task_obj]))
+            self._set_var_pts(ctx, target, task_pts)
+            
+            # Link task to the coroutine argument
+            if coro_arg:
+                coro_pts = self._get_var_pts(ctx, coro_arg)
+                coro_field = attr_key("_coro")
+                self._set_field_pts(task_obj, coro_field, coro_pts)
+    
+    def _handle_queue_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue allocation events."""
+        target = event.get("target", "")
+        queue_kind = event.get("queue_kind", "Queue")
+        
+        if target:
+            # Create queue object
+            queue_id = event.get("queue_id", "unknown_queue")
+            queue_obj = self._create_object(queue_id, ctx)
+            queue_pts = PointsToSet(frozenset([queue_obj]))
+            self._set_var_pts(ctx, target, queue_pts)
+            
+            # Initialize empty element field
+            elem_field = elem_key()
+            empty_pts = PointsToSet()
+            self._set_field_pts(queue_obj, elem_field, empty_pts)
+    
+    def _handle_queue_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue operation events."""
+        op_type = event.get("op_type", "")
+        queue_var = event.get("queue_var", "")
+        
+        if op_type in ("put", "put_nowait"):
+            # queue.put(value) - store value in queue's elem field
+            value_var = event.get("value_var", "")
+            if queue_var and value_var:
+                self._constraint_worklist.add_store_constraint(
+                    target=queue_var,
+                    field="elem",
+                    source=value_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_put")
+                )
+        elif op_type in ("get", "get_nowait"):
+            # target = queue.get() - load from queue's elem field
+            target_var = event.get("target_var", "")
+            if queue_var and target_var:
+                self._constraint_worklist.add_load_constraint(
+                    source=queue_var,
+                    field="elem",
+                    target=target_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_get")
+                )
+    
+    def _handle_sync_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization primitive allocation events."""
+        target = event.get("target", "")
+        sync_kind = event.get("sync_kind", "Lock")
+        
+        if target:
+            # Create sync object
+            sync_id = event.get("sync_id", "unknown_sync")
+            sync_obj = self._create_object(sync_id, ctx)
+            sync_pts = PointsToSet(frozenset([sync_obj]))
+            self._set_var_pts(ctx, target, sync_pts)
+    
+    def _handle_sync_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization operation events."""
+        # For sync operations, we don't need to track dataflow to heap
+        # These operations mainly change internal state of sync primitives
+        # We conservatively assume any arguments may escape
+        op_type = event.get("op_type", "")
+        sync_var = event.get("sync_var", "")
+        
+        # Mark sync object as potentially accessed but no specific dataflow
+        # This is handled conservatively by the sync primitive summaries
+    
+    def _handle_loop_callback_event(self, event: Event, ctx: Context) -> None:
+        """Handle event loop callback scheduling events."""
+        # Callback scheduling creates a handle object and may call the callback
+        target = event.get("target", "")
+        callback_expr = event.get("callback_expr", "")
+        
+        if target:
+            # Create callback handle object
+            cb_id = event.get("cb_id", "unknown_callback")
+            handle_obj = self._create_object(cb_id, ctx)
+            handle_pts = PointsToSet(frozenset([handle_obj]))
+            self._set_var_pts(ctx, target, handle_pts)
+            
+            # Link handle to callback
+            if callback_expr:
+                callback_pts = self._get_var_pts(ctx, callback_expr)
+                callback_field = attr_key("_callback")
+                self._set_field_pts(handle_obj, callback_field, callback_pts)
+    
+    def _handle_stream_event(self, event: Event, ctx: Context) -> None:
+        """Handle stream operation events."""
+        # Stream operations typically return reader/writer objects
+        api = event.get("api", "")
+        
+        if api in ("open_connection", "start_server"):
+            reader_var = event.get("reader_var", "")
+            writer_var = event.get("writer_var", "")
+            
+            stream_id = event.get("stream_id", "unknown_stream")
+            
+            if reader_var:
+                # Create reader object
+                reader_obj = self._create_object(f"{stream_id}_reader", ctx)
+                reader_pts = PointsToSet(frozenset([reader_obj]))
+                self._set_var_pts(ctx, reader_var, reader_pts)
+            
+            if writer_var:
+                # Create writer object
+                writer_obj = self._create_object(f"{stream_id}_writer", ctx)
+                writer_pts = PointsToSet(frozenset([writer_obj]))
+                self._set_var_pts(ctx, writer_var, writer_pts)
+    
+    # Helper method to add query API for AsyncFactsHelper
+    
+    def get_points_to_for_var(self, var: str, context: Optional[Context] = None) -> PointsToSet:
+        """Get points-to set for a variable in the given context.
+        
+        This method provides a query API for AsyncFactsHelper to resolve
+        variables to abstract objects for target resolution.
+        """
+        if context is None:
+            context = Context()  # Use empty context as default
+        
+        return self._get_var_pts(context, var)
+    
+    def get_call_targets_for_expr(self, callee_expr: str, context: Optional[Context] = None) -> List[str]:
+        """Get possible call targets for a callee expression.
+        
+        This method resolves function calls to possible target function names
+        for AsyncFactsHelper target resolution.
+        """
+        if context is None:
+            context = Context()
+        
+        # Try to get points-to set for the expression
+        callee_pts = self._get_var_pts(context, callee_expr)
+        
+        targets = []
+        for obj in callee_pts.objects:
+            # Extract function name from allocation ID
+            if "func" in obj.alloc_id:
+                # Parse allocation ID to extract function name
+                # Format is typically: "file:line:col:func:name"
+                parts = obj.alloc_id.split(":")
+                if len(parts) >= 5 and parts[3] == "func":
+                    func_name = parts[4]
+                    targets.append(func_name)
+                else:
+                    # Fallback - use the allocation ID as is
+                    targets.append(obj.alloc_id)
+        
+        return targets
     
     def _process_call(self, call) -> bool:
         """Process a function call from the worklist."""
@@ -633,3 +1221,191 @@ class KCFA2PointerAnalysis:
                                 changed = True
         
         return changed
+    
+    # Async event handlers
+    
+    def _handle_await_event(self, event: Event, ctx: Context) -> None:
+        """Handle await expression events."""
+        # For await expressions, we treat it as a copy: target = awaited_expr
+        # The awaited expression should resolve to a coroutine/task/future object
+        awaited_expr = event.get("awaited_expr", "")
+        target = event.get("target", "")
+        
+        if target and awaited_expr:
+            # Add copy constraint for the await operation
+            self._constraint_worklist.add_copy_constraint(
+                source=awaited_expr,
+                target=target,
+                context=str(ctx),
+                site_id=event.get("await_id", "unknown_await")
+            )
+    
+    def _handle_task_create_event(self, event: Event, ctx: Context) -> None:
+        """Handle task creation events."""
+        # Task creation creates a new Task object that wraps a coroutine
+        target = event.get("target", "")
+        coro_arg = event.get("coro_arg", "")
+        
+        if target:
+            # Create task object allocation
+            task_id = event.get("task_id", "unknown_task")
+            task_obj = self._create_object(task_id, ctx)
+            task_pts = PointsToSet(frozenset([task_obj]))
+            self._set_var_pts(ctx, target, task_pts)
+            
+            # Link task to the coroutine argument
+            if coro_arg:
+                coro_pts = self._get_var_pts(ctx, coro_arg)
+                coro_field = attr_key("_coro")
+                self._set_field_pts(task_obj, coro_field, coro_pts)
+    
+    def _handle_queue_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue allocation events."""
+        target = event.get("target", "")
+        queue_kind = event.get("queue_kind", "Queue")
+        
+        if target:
+            # Create queue object
+            queue_id = event.get("queue_id", "unknown_queue")
+            queue_obj = self._create_object(queue_id, ctx)
+            queue_pts = PointsToSet(frozenset([queue_obj]))
+            self._set_var_pts(ctx, target, queue_pts)
+            
+            # Initialize empty element field
+            elem_field = elem_key()
+            empty_pts = PointsToSet()
+            self._set_field_pts(queue_obj, elem_field, empty_pts)
+    
+    def _handle_queue_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle queue operation events."""
+        op_type = event.get("op_type", "")
+        queue_var = event.get("queue_var", "")
+        
+        if op_type in ("put", "put_nowait"):
+            # queue.put(value) - store value in queue's elem field
+            value_var = event.get("value_var", "")
+            if queue_var and value_var:
+                self._constraint_worklist.add_store_constraint(
+                    target=queue_var,
+                    field="elem",
+                    source=value_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_put")
+                )
+        elif op_type in ("get", "get_nowait"):
+            # target = queue.get() - load from queue's elem field
+            target_var = event.get("target_var", "")
+            if queue_var and target_var:
+                self._constraint_worklist.add_load_constraint(
+                    source=queue_var,
+                    field="elem",
+                    target=target_var,
+                    context=str(ctx),
+                    site_id=event.get("op_id", "unknown_queue_get")
+                )
+    
+    def _handle_sync_alloc_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization primitive allocation events."""
+        target = event.get("target", "")
+        sync_kind = event.get("sync_kind", "Lock")
+        
+        if target:
+            # Create sync object
+            sync_id = event.get("sync_id", "unknown_sync")
+            sync_obj = self._create_object(sync_id, ctx)
+            sync_pts = PointsToSet(frozenset([sync_obj]))
+            self._set_var_pts(ctx, target, sync_pts)
+    
+    def _handle_sync_op_event(self, event: Event, ctx: Context) -> None:
+        """Handle synchronization operation events."""
+        # For sync operations, we don't need to track dataflow to heap
+        # These operations mainly change internal state of sync primitives
+        # We conservatively assume any arguments may escape
+        op_type = event.get("op_type", "")
+        sync_var = event.get("sync_var", "")
+        
+        # Mark sync object as potentially accessed but no specific dataflow
+        # This is handled conservatively by the sync primitive summaries
+    
+    def _handle_loop_callback_event(self, event: Event, ctx: Context) -> None:
+        """Handle event loop callback scheduling events."""
+        # Callback scheduling creates a handle object and may call the callback
+        target = event.get("target", "")
+        callback_expr = event.get("callback_expr", "")
+        
+        if target:
+            # Create callback handle object
+            cb_id = event.get("cb_id", "unknown_callback")
+            handle_obj = self._create_object(cb_id, ctx)
+            handle_pts = PointsToSet(frozenset([handle_obj]))
+            self._set_var_pts(ctx, target, handle_pts)
+            
+            # Link handle to callback
+            if callback_expr:
+                callback_pts = self._get_var_pts(ctx, callback_expr)
+                callback_field = attr_key("_callback")
+                self._set_field_pts(handle_obj, callback_field, callback_pts)
+    
+    def _handle_stream_event(self, event: Event, ctx: Context) -> None:
+        """Handle stream operation events."""
+        # Stream operations typically return reader/writer objects
+        api = event.get("api", "")
+        
+        if api in ("open_connection", "start_server"):
+            reader_var = event.get("reader_var", "")
+            writer_var = event.get("writer_var", "")
+            
+            stream_id = event.get("stream_id", "unknown_stream")
+            
+            if reader_var:
+                # Create reader object
+                reader_obj = self._create_object(f"{stream_id}_reader", ctx)
+                reader_pts = PointsToSet(frozenset([reader_obj]))
+                self._set_var_pts(ctx, reader_var, reader_pts)
+            
+            if writer_var:
+                # Create writer object
+                writer_obj = self._create_object(f"{stream_id}_writer", ctx)
+                writer_pts = PointsToSet(frozenset([writer_obj]))
+                self._set_var_pts(ctx, writer_var, writer_pts)
+    
+    # Helper method to add query API for AsyncFactsHelper
+    
+    def get_points_to_for_var(self, var: str, context: Optional[Context] = None) -> PointsToSet:
+        """Get points-to set for a variable in the given context.
+        
+        This method provides a query API for AsyncFactsHelper to resolve
+        variables to abstract objects for target resolution.
+        """
+        if context is None:
+            context = Context()  # Use empty context as default
+        
+        return self._get_var_pts(context, var)
+    
+    def get_call_targets_for_expr(self, callee_expr: str, context: Optional[Context] = None) -> List[str]:
+        """Get possible call targets for a callee expression.
+        
+        This method resolves function calls to possible target function names
+        for AsyncFactsHelper target resolution.
+        """
+        if context is None:
+            context = Context()
+        
+        # Try to get points-to set for the expression
+        callee_pts = self._get_var_pts(context, callee_expr)
+        
+        targets = []
+        for obj in callee_pts.objects:
+            # Extract function name from allocation ID
+            if "func" in obj.alloc_id:
+                # Parse allocation ID to extract function name
+                # Format is typically: "file:line:col:func:name"
+                parts = obj.alloc_id.split(":")
+                if len(parts) >= 5 and parts[3] == "func":
+                    func_name = parts[4]
+                    targets.append(func_name)
+                else:
+                    # Fallback - use the allocation ID as is
+                    targets.append(obj.alloc_id)
+        
+        return targets

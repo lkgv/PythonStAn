@@ -37,6 +37,23 @@ from .errors import (
     AnalysisTimeout,
     SoundnessWarning
 )
+from .async_facts import AsyncFactsHelper
+from .async_types import (
+    AsyncFact,
+    CoroutineDefFact,
+    AwaitEdgeFact,
+    TaskCreateFact,
+    TaskStateFact,
+    FutureFact,
+    QueueAllocFact,
+    QueuePutFact,
+    QueueGetFact,
+    SyncAllocFact,
+    SyncOpFact,
+    LoopCallbackScheduleFact,
+    CallbackEdgeFact,
+    StreamFact
+)
 
 __version__ = "0.1.0"
 
@@ -54,6 +71,25 @@ __all__ = [
     "PointsToSet",
     "CallSite",
     "Context",
+    
+    # Async facts helper
+    "AsyncFactsHelper",
+    
+    # Async fact types
+    "AsyncFact",
+    "CoroutineDefFact",
+    "AwaitEdgeFact", 
+    "TaskCreateFact",
+    "TaskStateFact",
+    "FutureFact",
+    "QueueAllocFact",
+    "QueuePutFact",
+    "QueueGetFact",
+    "SyncAllocFact",
+    "SyncOpFact",
+    "LoopCallbackScheduleFact",
+    "CallbackEdgeFact",
+    "StreamFact",
     
     # Exceptions
     "KCFAError",

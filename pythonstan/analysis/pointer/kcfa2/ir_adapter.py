@@ -21,6 +21,15 @@ __all__ = [
     "CallEvent",
     "ReturnEvent",
     "ExceptionEvent",
+    "CoroutineDefEvent",
+    "AwaitEvent",
+    "TaskCreateEvent",
+    "QueueAllocEvent",
+    "QueueOpEvent",
+    "SyncAllocEvent",
+    "SyncOpEvent",
+    "LoopCallbackScheduleEvent",
+    "StreamEvent",
     "iter_function_events",
     "site_id_of"
 ]
@@ -182,10 +191,216 @@ class ExceptionEvent(TypedDict):
     idx: int
 
 
+class CoroutineDefEvent(TypedDict):
+    """Coroutine function definition event.
+    
+    Generated from: IRFunc with is_async=True
+    
+    Fields:
+        kind: "coroutine_def"
+        func_sym: Function symbol name
+        def_site: Definition site ID
+        is_async: Always True for coroutines
+        is_async_gen: True if function contains yield (async generator)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "coroutine_def"
+    func_sym: str
+    def_site: str
+    is_async: bool
+    is_async_gen: bool
+    bb: str
+    idx: int
+
+
+class AwaitEvent(TypedDict):
+    """Await expression event.
+    
+    Generated from: IRAwait
+    
+    Fields:
+        kind: "await"
+        await_id: Await site ID
+        awaiter_fn: Function containing the await expression
+        awaited_expr: Expression being awaited
+        target_var: Variable receiving the await result (optional)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "await"
+    await_id: str
+    awaiter_fn: str
+    awaited_expr: str
+    target_var: Optional[str]
+    bb: str
+    idx: int
+
+
+class TaskCreateEvent(TypedDict):
+    """Task creation event.
+    
+    Generated from: asyncio.create_task() calls
+    
+    Fields:
+        kind: "task_create"
+        task_id: Task creation site ID
+        creator_fn: Function containing the task creation
+        coro_arg: Coroutine argument expression
+        target_var: Variable receiving the task object (optional)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "task_create"
+    task_id: str
+    creator_fn: str
+    coro_arg: str
+    target_var: Optional[str]
+    bb: str
+    idx: int
+
+
+class QueueAllocEvent(TypedDict):
+    """Queue allocation event.
+    
+    Generated from: asyncio.Queue/LifoQueue/PriorityQueue constructor calls
+    
+    Fields:
+        kind: "queue_alloc"
+        queue_id: Queue allocation site ID
+        queue_kind: Type of queue (Queue, LifoQueue, PriorityQueue)
+        target_var: Variable receiving the queue object
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "queue_alloc"
+    queue_id: str
+    queue_kind: str
+    target_var: str
+    bb: str
+    idx: int
+
+
+class QueueOpEvent(TypedDict):
+    """Queue operation event.
+    
+    Generated from: queue.put/get/put_nowait/get_nowait/task_done/join calls
+    
+    Fields:
+        kind: "queue_op"
+        op_id: Operation site ID
+        op_type: Operation type (put, get, put_nowait, get_nowait, task_done, join)
+        queue_var: Variable referring to the queue
+        value_var: Variable for put operations (optional)
+        target_var: Variable for get operations (optional)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "queue_op"
+    op_id: str
+    op_type: str
+    queue_var: str
+    value_var: Optional[str]
+    target_var: Optional[str]
+    bb: str
+    idx: int
+
+
+class SyncAllocEvent(TypedDict):
+    """Synchronization primitive allocation event.
+    
+    Generated from: asyncio.Lock/Semaphore/Event/Condition constructor calls
+    
+    Fields:
+        kind: "sync_alloc"
+        sync_id: Sync object allocation site ID
+        sync_kind: Type of sync primitive (Lock, Semaphore, BoundedSemaphore, Event, Condition)
+        target_var: Variable receiving the sync object
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "sync_alloc"
+    sync_id: str
+    sync_kind: str
+    target_var: str
+    bb: str
+    idx: int
+
+
+class SyncOpEvent(TypedDict):
+    """Synchronization operation event.
+    
+    Generated from: acquire/release/set/clear/wait/notify operations on sync primitives
+    
+    Fields:
+        kind: "sync_op"
+        op_id: Operation site ID
+        op_type: Operation type (acquire, release, set, clear, wait, notify, notify_all)
+        sync_var: Variable referring to the sync object
+        target_var: Variable receiving the result (optional)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "sync_op"
+    op_id: str
+    op_type: str
+    sync_var: str
+    target_var: Optional[str]
+    bb: str
+    idx: int
+
+
+class LoopCallbackScheduleEvent(TypedDict):
+    """Event loop callback scheduling event.
+    
+    Generated from: loop.call_soon/call_later calls
+    
+    Fields:
+        kind: "loop_cb_schedule"
+        cb_id: Callback scheduling site ID
+        api: Loop API used (call_soon, call_later)
+        callback_expr: Callback function expression
+        loop_var: Variable referring to the event loop
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "loop_cb_schedule"
+    cb_id: str
+    api: str
+    callback_expr: str
+    loop_var: str
+    bb: str
+    idx: int
+
+
+class StreamEvent(TypedDict):
+    """Async stream operation event.
+    
+    Generated from: asyncio.open_connection/start_server calls
+    
+    Fields:
+        kind: "stream"
+        stream_id: Stream operation site ID
+        api: Stream API used (open_connection, start_server)
+        target_var: Variable receiving the stream objects (optional)
+        bb: Basic block identifier
+        idx: Index within basic block
+    """
+    kind: str  # "stream"
+    stream_id: str
+    api: str
+    target_var: Optional[str]
+    bb: str
+    idx: int
+
+
 # Union type for all events
 Event = Union[
     AllocEvent, CallEvent, AttrLoadEvent, AttrStoreEvent, 
-    ElemLoadEvent, ElemStoreEvent, ReturnEvent, ExceptionEvent
+    ElemLoadEvent, ElemStoreEvent, ReturnEvent, ExceptionEvent,
+    CoroutineDefEvent, AwaitEvent, TaskCreateEvent, QueueAllocEvent,
+    QueueOpEvent, SyncAllocEvent, SyncOpEvent, LoopCallbackScheduleEvent,
+    StreamEvent
 ]
 
 
@@ -288,7 +503,7 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
         from pythonstan.ir.ir_statements import (
             IRAssign, IRCall, IRLoadAttr, IRStoreAttr, 
             IRLoadSubscr, IRStoreSubscr, IRReturn, IRRaise,
-            IRCatchException, IRFunc, IRClass, IRCopy
+            IRCatchException, IRFunc, IRClass, IRCopy, IRAwait, IRYield
         )
         import ast
     except ImportError:
@@ -391,6 +606,10 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 idx=instr_idx
             ))
             
+            # Check for async API calls and generate corresponding events
+            async_events = _extract_async_events_from_call(instr, site_id, target, callee_symbol, args, block_id, instr_idx)
+            events.extend(async_events)
+            
             # If this call has a target, it could be an object allocation
             # Generate allocation event for potential constructor calls
             if target and callee_symbol:
@@ -471,6 +690,30 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 value=value
             ))
         
+        elif isinstance(instr, IRAwait):
+            # IRAwait: [target =] await expr
+            site_id = site_id_of(instr, 'await')
+            target = None
+            if instr.get_target():
+                target = instr.get_target().id
+            
+            awaited_expr = "unknown"
+            if hasattr(instr.get_value(), 'id'):
+                awaited_expr = instr.get_value().id
+            elif hasattr(instr.get_value(), 'attr'):
+                # Handle attribute access like obj.method()
+                awaited_expr = ast.unparse(instr.get_value())
+            
+            events.append(AwaitEvent(
+                kind="await",
+                await_id=site_id,
+                awaiter_fn="unknown",  # Will be set by higher-level processing
+                awaited_expr=awaited_expr,
+                target_var=target,
+                bb=block_id,
+                idx=instr_idx
+            ))
+        
         elif isinstance(instr, IRReturn):
             # IRReturn: return value
             value = None
@@ -500,10 +743,205 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 idx=instr_idx
             ))
             
+            # If this is an async function, also generate coroutine definition event
+            if isinstance(instr, IRFunc) and instr.is_async:
+                # Check if it's an async generator by looking for yield
+                is_async_gen = _has_yield_in_function(instr)
+                
+                events.append(CoroutineDefEvent(
+                    kind="coroutine_def",
+                    func_sym=name,
+                    def_site=site_id,
+                    is_async=True,
+                    is_async_gen=is_async_gen,
+                    bb=block_id,
+                    idx=instr_idx
+                ))
+            
     except (AttributeError, TypeError) as e:
         # For unsupported or malformed nodes, skip silently
         # Could log warning in verbose mode
         pass
+    
+    return events
+
+
+def _has_yield_in_function(ir_func: Any) -> bool:
+    """Check if an IRFunc contains yield statements (making it an async generator)."""
+    try:
+        from pythonstan.ir.ir_statements import IRYield
+        
+        # Check the function body for yield statements
+        if hasattr(ir_func, 'body'):
+            for stmt in ir_func.body:
+                if isinstance(stmt, IRYield):
+                    return True
+        elif hasattr(ir_func, 'stmts'):
+            for stmt in ir_func.stmts:
+                if isinstance(stmt, IRYield):
+                    return True
+    except (ImportError, AttributeError):
+        pass
+    
+    return False
+
+
+def _extract_async_events_from_call(ir_call: Any, call_site_id: str, target: Optional[str], 
+                                   callee_symbol: Optional[str], args: List[str],
+                                   block_id: str, instr_idx: int) -> List[Event]:
+    """Extract async-specific events from function calls."""
+    events = []
+    
+    if not callee_symbol:
+        return events
+    
+    # Check for asyncio.create_task calls
+    if callee_symbol == 'create_task' or 'create_task' in callee_symbol:
+        task_site_id = site_id_of(ir_call, 'create_task')
+        coro_arg = args[0] if args else "unknown"
+        
+        events.append(TaskCreateEvent(
+            kind="task_create",
+            task_id=task_site_id,
+            creator_fn="unknown",  # Will be set by higher-level processing
+            coro_arg=coro_arg,
+            target_var=target,
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for asyncio.Queue constructor calls
+    elif callee_symbol in ('Queue', 'LifoQueue', 'PriorityQueue') or any(queue_type in callee_symbol for queue_type in ['Queue', 'LifoQueue', 'PriorityQueue']):
+        queue_site_id = site_id_of(ir_call, 'queue')
+        
+        # Determine queue kind
+        if 'LifoQueue' in callee_symbol:
+            queue_kind = 'LifoQueue'
+        elif 'PriorityQueue' in callee_symbol:
+            queue_kind = 'PriorityQueue'
+        else:
+            queue_kind = 'Queue'
+        
+        events.append(QueueAllocEvent(
+            kind="queue_alloc",
+            queue_id=queue_site_id,
+            queue_kind=queue_kind,
+            target_var=target or "unknown",
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for queue operations
+    elif callee_symbol in ('put', 'get', 'put_nowait', 'get_nowait', 'task_done', 'join'):
+        op_site_id = site_id_of(ir_call, 'queue_op')
+        
+        # For method calls, we need the receiver object
+        queue_var = "unknown"
+        if hasattr(ir_call, 'get_obj'):
+            obj = ir_call.get_obj()
+            if hasattr(obj, 'id'):
+                queue_var = obj.id
+        
+        value_var = None
+        target_var = None
+        
+        if callee_symbol in ('put', 'put_nowait'):
+            value_var = args[0] if args else None
+        elif callee_symbol in ('get', 'get_nowait'):
+            target_var = target
+        
+        events.append(QueueOpEvent(
+            kind="queue_op",
+            op_id=op_site_id,
+            op_type=callee_symbol,
+            queue_var=queue_var,
+            value_var=value_var,
+            target_var=target_var,
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for sync primitive constructor calls
+    elif callee_symbol in ('Lock', 'Semaphore', 'BoundedSemaphore', 'Event', 'Condition') or any(sync_type in callee_symbol for sync_type in ['Lock', 'Semaphore', 'Event', 'Condition']):
+        sync_site_id = site_id_of(ir_call, 'sync')
+        
+        # Determine sync kind
+        if 'BoundedSemaphore' in callee_symbol:
+            sync_kind = 'BoundedSemaphore'
+        elif 'Semaphore' in callee_symbol:
+            sync_kind = 'Semaphore'
+        elif 'Event' in callee_symbol:
+            sync_kind = 'Event'
+        elif 'Condition' in callee_symbol:
+            sync_kind = 'Condition'
+        else:
+            sync_kind = 'Lock'
+        
+        events.append(SyncAllocEvent(
+            kind="sync_alloc",
+            sync_id=sync_site_id,
+            sync_kind=sync_kind,
+            target_var=target or "unknown",
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for sync operations
+    elif callee_symbol in ('acquire', 'release', 'set', 'clear', 'wait', 'notify', 'notify_all'):
+        op_site_id = site_id_of(ir_call, 'sync_op')
+        
+        # For method calls, we need the receiver object
+        sync_var = "unknown"
+        if hasattr(ir_call, 'get_obj'):
+            obj = ir_call.get_obj()
+            if hasattr(obj, 'id'):
+                sync_var = obj.id
+        
+        events.append(SyncOpEvent(
+            kind="sync_op",
+            op_id=op_site_id,
+            op_type=callee_symbol,
+            sync_var=sync_var,
+            target_var=target,
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for event loop callback scheduling
+    elif callee_symbol in ('call_soon', 'call_later'):
+        cb_site_id = site_id_of(ir_call, 'loop_cb')
+        
+        # For method calls, we need the receiver object (event loop)
+        loop_var = "unknown"
+        if hasattr(ir_call, 'get_obj'):
+            obj = ir_call.get_obj()
+            if hasattr(obj, 'id'):
+                loop_var = obj.id
+        
+        callback_expr = args[0] if args else "unknown"
+        
+        events.append(LoopCallbackScheduleEvent(
+            kind="loop_cb_schedule",
+            cb_id=cb_site_id,
+            api=callee_symbol,
+            callback_expr=callback_expr,
+            loop_var=loop_var,
+            bb=block_id,
+            idx=instr_idx
+        ))
+    
+    # Check for stream operations
+    elif callee_symbol in ('open_connection', 'start_server'):
+        stream_site_id = site_id_of(ir_call, 'stream')
+        
+        events.append(StreamEvent(
+            kind="stream",
+            stream_id=stream_site_id,
+            api=callee_symbol,
+            target_var=target,
+            bb=block_id,
+            idx=instr_idx
+        ))
     
     return events
 
@@ -596,6 +1034,10 @@ def site_id_of(node: IRNode, kind: Optional[str] = None) -> str:
                 site_kind = 'alloc'
             elif 'Call' in node_type:
                 site_kind = 'call'
+            elif 'Await' in node_type:
+                site_kind = 'await'
+            elif 'Yield' in node_type:
+                site_kind = 'yield'
             else:
                 site_kind = 'op'
                 

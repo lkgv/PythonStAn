@@ -276,9 +276,14 @@ class IRYield(IRAbstractStmt):
         assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
         self.target = stmt.targets[0] if isinstance(stmt, ast.Assign) else None
         yield_value = stmt.value.value
-        assert isinstance(yield_value, ast.Name) or yield_value is None
+        # Allow more flexible yield value types to support complex expressions like yield await expr() or yield func()
+        # Only reject if it's not a supported AST node type
+        if yield_value is not None:
+            assert isinstance(yield_value, (ast.Name, ast.Call, ast.Await, ast.Attribute, ast.Constant, ast.BinOp, ast.Compare, ast.BoolOp)), \
+                f"Unsupported yield value type: {type(yield_value).__name__}"
         self.value = yield_value
-        self._is_yield_from = isinstance(self.value, ast.YieldFrom)
+        # Fix: check stmt.value (the yield/yield from node) instead of self.value (the yielded expression)
+        self._is_yield_from = isinstance(stmt.value, ast.YieldFrom)
         ast.fix_missing_locations(self.stmt)
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.stmt)
