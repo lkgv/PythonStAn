@@ -42,7 +42,9 @@ class KCFAConfig:
         containers: Optional[Dict[str, Literal["elem", "value"]]] = None,
         timeouts: Optional[float] = None,
         max_heap_widening: Optional[int] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        build_class_hierarchy: bool = True,
+        use_mro: bool = True
     ):
         """Initialize k-CFA configuration.
         
@@ -54,6 +56,8 @@ class KCFAConfig:
             timeouts: Analysis timeout in seconds
             max_heap_widening: Heap size limit before widening
             verbose: Enable verbose logging
+            build_class_hierarchy: Build and populate class hierarchy during analysis
+            use_mro: Use Method Resolution Order (C3 linearization) for attribute resolution
         """
         self.k = k
         self.obj_depth = obj_depth
@@ -67,6 +71,8 @@ class KCFAConfig:
         self.timeouts = timeouts
         self.max_heap_widening = max_heap_widening
         self.verbose = verbose
+        self.build_class_hierarchy = build_class_hierarchy
+        self.use_mro = use_mro
         
     def __repr__(self) -> str:
         return (f"KCFAConfig(k={self.k}, obj_depth={self.obj_depth}, "
