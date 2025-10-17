@@ -262,8 +262,32 @@ def iter_function_events(fn_ir_or_tac: Union[IRFunction, Any]) -> Iterable[Event
     
     events = []
     
+    # Check if function has attached CFG from scope_manager
+    if hasattr(fn_ir_or_tac, '_cfg') and fn_ir_or_tac._cfg is not None:
+        cfg = fn_ir_or_tac._cfg
+        # CFG has a 'blks' attribute (set of BaseBlocks)
+        if hasattr(cfg, 'blks'):
+            # Convert set to list for indexing
+            blocks = sorted(list(cfg.blks), key=lambda b: id(b))
+            debug = False  # Set to True for verbose event extraction debugging
+            if debug:
+                print(f"[DEBUG] Processing CFG with {len(blocks)} blocks")
+            for block_idx, block in enumerate(blocks):
+                block_id = f"bb{block_idx}"
+                # Each block has a 'stmts' list
+                if hasattr(block, 'stmts'):
+                    if debug:
+                        print(f"[DEBUG] Block {block_id} has {len(block.stmts)} statements")
+                    for instr_idx, instr in enumerate(block.stmts):
+                        if debug:
+                            # Show ALL instruction types
+                            print(f"[DEBUG]   Stmt {instr_idx}: {type(instr).__name__}: {str(instr)[:80]}")
+                        new_events = _process_ir_instruction(instr, block_id, instr_idx)
+                        if debug and new_events:
+                            print(f"[DEBUG]     -> {len(new_events)} events: {[evt.get('kind') for evt in new_events]}")
+                        events.extend(new_events)
     # Handle different function representations
-    if hasattr(fn_ir_or_tac, 'get_blocks'):
+    elif hasattr(fn_ir_or_tac, 'get_blocks'):
         # Function with block structure
         try:
             blocks = fn_ir_or_tac.get_blocks()
