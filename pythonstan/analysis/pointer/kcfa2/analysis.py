@@ -8,12 +8,14 @@ from typing import Any, Dict, List, Optional, Set, Union, Tuple
 from .config import KCFAConfig
 from .context import Context, ContextManager, CallSite, ContextSelector
 from .model import AbstractLocation, AbstractObject, PointsToSet, Env, Store, Heap, FieldKey
-from .worklist import Worklist, ConstraintWorklist, CallWorklist
+from .worklist import CallItem, Worklist, ConstraintWorklist, CallWorklist
 from .errors import AnalysisTimeout, ConfigurationError
 from .heap_model import make_object, attr_key, elem_key, value_key, unknown_attr_key
 from .callgraph_adapter import CallGraphAdapter
 from .ir_adapter import Event, iter_function_events, site_id_of
 from .summaries import BuiltinSummaryManager
+from .mro import ClassHierarchyManager
+from .name_resolution import NameResolver
 
 __all__ = ["KCFA2PointerAnalysis"]
 
@@ -48,6 +50,15 @@ class KCFA2PointerAnalysis:
         
         # Builtin summaries
         self._builtin_summaries = BuiltinSummaryManager(self.config)
+        
+        # Class hierarchy and MRO (if enabled)
+        if self.config.build_class_hierarchy:
+            self._class_hierarchy = ClassHierarchyManager()
+        else:
+            self._class_hierarchy = None
+        
+        # Name resolution for temporary variables
+        self._name_resolver = NameResolver()
         
         # Analysis state
         self._analysis_complete = False
@@ -145,14 +156,28 @@ class KCFA2PointerAnalysis:
         for (ctx, var), pts in self._env.items():
             key = f"{var}@{ctx}"
             points_to[key] = [str(obj) for obj in pts.objects]
+        
+        # Get resolved names for temporary variables
+        resolved_names = self._name_resolver.get_all_resolved()
+        
+        # Add resolved names as annotations to points_to results
+        points_to_annotated = {}
+        for key, objs in points_to.items():
+            points_to_annotated[key] = {
+                "objects": objs,
+                "resolved_name": resolved_names.get(key)
+            }
             
         return {
             "points_to": points_to,
+            "points_to_annotated": points_to_annotated,
+            "resolved_names": resolved_names,
             "call_graph": self._call_graph.get_statistics(),
             "contexts": {str(ctx): len(ctx) for ctx in self._contexts},
             "statistics": self._statistics.copy(),
             "heap_size": len(self._heap),
-            "env_size": len(self._env)
+            "env_size": len(self._env),
+            "class_hierarchy_size": len(self._class_hierarchy._bases) if self._class_hierarchy else 0
         }
     
     # Helper methods for environment and heap access
@@ -193,6 +218,71 @@ class KCFA2PointerAnalysis:
         obj = make_object(alloc_id, ctx, recv_ctx, depth=self.config.obj_depth)
         self._statistics["objects_created"] += 1
         return obj
+    
+    def _resolve_attribute_with_mro(self, obj: AbstractObject, field: FieldKey, ctx: Context) -> PointsToSet:
+        """Resolve attribute following MRO chain if enabled.
+        
+        Args:
+            obj: Object to load attribute from
+            field: Field key for the attribute
+            ctx: Current context
+            
+        Returns:
+            Points-to set for the attribute
+        """
+        if not self.config.use_mro or not self._class_hierarchy:
+            # MRO disabled - use direct field access
+            return self._get_field_pts(obj, field)
+        
+        # Check if this is a class object (has MRO)
+        # Class objects are identified by allocation type 'class' in their ID
+        if ':class' not in obj.alloc_id:
+            # Not a class object - use direct field access
+            return self._get_field_pts(obj, field)
+        
+        # Get class ID from object
+        class_id = obj.alloc_id
+        
+        # Check if class is in hierarchy
+        if not self._class_hierarchy.has_class(class_id):
+            # Class not in hierarchy - fall back to direct access
+            return self._get_field_pts(obj, field)
+        
+        try:
+            # Compute MRO for this class
+            mro = self._class_hierarchy.get_mro(class_id)
+            
+            # Search for attribute through MRO chain
+            result = PointsToSet()
+            for ancestor_id in mro:
+                # Find the class object for this ancestor
+                # We need to look it up in our environment/heap
+                # For now, check if we have a direct match
+                if ancestor_id == class_id:
+                    # Same class - check directly
+                    field_pts = self._get_field_pts(obj, field)
+                    if field_pts.objects:
+                        # Found attribute - return immediately (first match wins)
+                        return field_pts
+                else:
+                    # Different class in MRO - need to find its object
+                    # Search for class object with matching allocation ID
+                    for (ctx_key, var), pts in self._env.items():
+                        for cls_obj in pts.objects:
+                            if cls_obj.alloc_id == ancestor_id:
+                                field_pts = self._get_field_pts(cls_obj, field)
+                                if field_pts.objects:
+                                    # Found attribute in ancestor - return immediately
+                                    return field_pts
+            
+            # No attribute found in MRO chain - return empty
+            return result
+            
+        except Exception as e:
+            # MRO computation failed - fall back to direct access
+            if self.config.verbose:
+                print(f"Warning: MRO resolution failed for {class_id}: {e}")
+            return self._get_field_pts(obj, field)
     
     # Event processing methods
     
@@ -260,7 +350,22 @@ class KCFA2PointerAnalysis:
             )
         
     def _handle_allocation(self, event: Event, ctx: Context) -> None:
-        """Handle object allocation events."""
+        """Handle object allocation events.
+        
+        Creates an abstract object for the allocation site and initializes
+        its fields based on the allocation type.
+        
+        Allocation types:
+        - const: Constant values (numbers, strings, booleans, None)
+        - list/tuple/set: Container literals with element field
+        - dict: Dictionary literals with value field
+        - obj: Generic object allocations (class instances)
+        - func: Function definitions with closure capture
+        - class: Class definitions
+        - exc: Exception objects
+        - method: Bound method objects
+        - genframe: Generator frame objects
+        """
         alloc_id = event["alloc_id"]
         target = event["target"]
         alloc_type = event["type"]
@@ -272,9 +377,24 @@ class KCFA2PointerAnalysis:
         pts = PointsToSet(frozenset([obj]))
         self._set_var_pts(ctx, target, pts)
         
+        # Track allocation for name resolution
+        self._name_resolver.record_allocation(
+            target=target,
+            alloc_site=alloc_id,
+            alloc_type=alloc_type,
+            context_str=str(ctx)
+        )
+        
         # Initialize object fields based on type
-        if alloc_type in ("list", "tuple", "set"):
-            # Initialize element field
+        if alloc_type == "const":
+            # Constants are immutable singleton-like objects
+            # No field initialization needed - they represent values, not mutable objects
+            # Their identity is captured by the allocation site
+            pass
+        
+        elif alloc_type in ("list", "tuple", "set"):
+            # Initialize element field for containers
+            # All elements are tracked through a single abstract "elem" field
             elem_field = elem_key()
             if "elements" in event:
                 # Initialize with provided elements
@@ -282,8 +402,14 @@ class KCFA2PointerAnalysis:
                 for elem_var in event["elements"]:
                     elem_pts = elem_pts.join(self._get_var_pts(ctx, elem_var))
                 self._set_field_pts(obj, elem_field, elem_pts)
+            else:
+                # Empty container - initialize with empty points-to set
+                # This establishes the field in the heap model
+                self._set_field_pts(obj, elem_field, PointsToSet())
+        
         elif alloc_type == "dict":
-            # Initialize value field  
+            # Initialize value field for dictionaries
+            # All values are tracked through a single abstract "value" field (key-insensitive)
             value_field = value_key()
             if "values" in event:
                 # Initialize with provided values
@@ -291,6 +417,169 @@ class KCFA2PointerAnalysis:
                 for value_var in event["values"]:
                     value_pts = value_pts.join(self._get_var_pts(ctx, value_var))
                 self._set_field_pts(obj, value_field, value_pts)
+            else:
+                # Empty dict - initialize with empty points-to set
+                self._set_field_pts(obj, value_field, PointsToSet())
+        
+        elif alloc_type == "obj":
+            # Generic object allocation (class instance)
+            # Initialize __dict__ field to track instance attributes
+            # This allows attribute stores/loads to propagate points-to information
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
+            
+            # Additional instance attributes will be added through attr_store events
+            # when the constructor (__init__) runs or when attributes are set
+        
+        elif alloc_type == "func":
+            # Function object allocation (function definition)
+            # Functions are first-class objects that can have attributes
+            
+            # Initialize __dict__ for function attributes (e.g., func.custom_attr = value)
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
+            
+            # Initialize __closure__ field for closure variables
+            # Actual closure bindings would be populated by the IR adapter
+            # if closure information is available in the event
+            closure_field = attr_key("__closure__")
+            if "closure_vars" in event and event["closure_vars"]:
+                # Capture closure variables
+                closure_pts = PointsToSet()
+                for closure_var in event["closure_vars"]:
+                    closure_pts = closure_pts.join(self._get_var_pts(ctx, closure_var))
+                self._set_field_pts(obj, closure_field, closure_pts)
+            else:
+                # No closure or empty closure
+                self._set_field_pts(obj, closure_field, PointsToSet())
+            
+            # __name__, __code__, __globals__ are typically constant metadata
+            # and don't need points-to tracking
+        
+        elif alloc_type == "class":
+            # Class object allocation (class definition)
+            # Classes are objects that can have class attributes and methods
+            
+            # Initialize __dict__ for class attributes and methods
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
+            
+            # Initialize __bases__ field for inheritance tracking
+            # If base class information is available, populate it
+            bases_field = attr_key("__bases__")
+            base_ids = []
+            if "bases" in event and event["bases"]:
+                bases_pts = PointsToSet()
+                for base_var in event["bases"]:
+                    # Track base class names for hierarchy
+                    base_ids.append(base_var)
+                    bases_pts = bases_pts.join(self._get_var_pts(ctx, base_var))
+                self._set_field_pts(obj, bases_field, bases_pts)
+            else:
+                # No explicit bases (defaults to object)
+                self._set_field_pts(obj, bases_field, PointsToSet())
+            
+            # Build class hierarchy (if enabled)
+            if self.config.build_class_hierarchy and self._class_hierarchy:
+                # Register this class in the hierarchy
+                # Use allocation ID as unique class identifier
+                class_id = alloc_id
+                
+                # Resolve base class names to allocation IDs via points-to analysis
+                resolved_base_ids = []
+                for base_name in base_ids:
+                    # Try to resolve base_name to its allocation site
+                    base_pts = self._get_var_pts(ctx, base_name)
+                    if base_pts.objects:
+                        # Use the allocation ID of the base class object
+                        for base_obj in base_pts.objects:
+                            resolved_base_ids.append(base_obj.alloc_id)
+                    else:
+                        # Base not yet resolved - use the name as placeholder
+                        # This will be resolved in later iterations
+                        resolved_base_ids.append(base_name)
+                
+                # Add to hierarchy
+                self._class_hierarchy.add_class(class_id, resolved_base_ids if resolved_base_ids else None)
+                
+                if self.config.verbose:
+                    print(f"Added class {class_id} with bases {resolved_base_ids}")
+            
+            # __name__, __module__ are constant metadata
+        
+        elif alloc_type == "exc":
+            # Exception object allocation
+            # Exceptions are objects with special fields for error information
+            
+            # Initialize __dict__ for exception attributes
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
+            
+            # Initialize args field for exception arguments
+            # Exception(*args) -> args tuple
+            args_field = attr_key("args")
+            if "args" in event and event["args"]:
+                args_pts = PointsToSet()
+                for arg_var in event["args"]:
+                    args_pts = args_pts.join(self._get_var_pts(ctx, arg_var))
+                self._set_field_pts(obj, args_field, args_pts)
+            else:
+                self._set_field_pts(obj, args_field, PointsToSet())
+            
+            # __traceback__, __cause__, __context__ could be tracked but are often
+            # runtime-specific and less relevant for static pointer analysis
+        
+        elif alloc_type == "method":
+            # Bound method object - created when accessing a method on an instance
+            # bound_method = instance.method_name
+            # bound_method has two key attributes: __self__ (receiver) and __func__ (function)
+            
+            # Initialize __self__ field to point to the receiver object
+            self_field = attr_key("__self__")
+            if "recv_binding" in event and event["recv_binding"]:
+                recv_pts = self._get_var_pts(ctx, event["recv_binding"])
+                if recv_pts.objects:
+                    self._set_field_pts(obj, self_field, recv_pts)
+            else:
+                # Method without receiver binding - shouldn't happen in normal code
+                self._set_field_pts(obj, self_field, PointsToSet())
+            
+            # Initialize __func__ field to point to the underlying function
+            func_field = attr_key("__func__")
+            if "func_binding" in event and event["func_binding"]:
+                func_pts = self._get_var_pts(ctx, event["func_binding"])
+                if func_pts.objects:
+                    self._set_field_pts(obj, func_field, func_pts)
+            else:
+                # Function binding may not always be available at allocation time
+                self._set_field_pts(obj, func_field, PointsToSet())
+        
+        elif alloc_type == "genframe":
+            # Generator frame object - created when a generator function is called
+            # Generators maintain internal state and yield values
+            
+            # Initialize __dict__ for generator attributes (if any)
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
+            
+            # Track yielded values through a special field
+            # This abstracts all yield expressions in the generator
+            yield_field = attr_key("__yield_value__")
+            if "yield_binding" in event and event["yield_binding"]:
+                yield_pts = self._get_var_pts(ctx, event["yield_binding"])
+                self._set_field_pts(obj, yield_field, yield_pts)
+            else:
+                self._set_field_pts(obj, yield_field, PointsToSet())
+            
+            # gi_code, gi_frame, gi_running are runtime-specific and not tracked
+        
+        else:
+            # Unknown allocation type - log warning and treat as generic object
+            if self.config.verbose:
+                print(f"Warning: Unknown allocation type '{alloc_type}' for {alloc_id}")
+            # Fallback: initialize as generic object with __dict__
+            dict_field = attr_key("__dict__")
+            self._set_field_pts(obj, dict_field, PointsToSet())
     
     def _process_constraint(self, constraint) -> bool:
         """Process a constraint from the worklist."""
@@ -320,6 +609,13 @@ class KCFA2PointerAnalysis:
             
             if self._set_var_pts(ctx, constraint.target, source_pts):
                 changed = True
+                
+            # Track assignment for name resolution
+            self._name_resolver.record_assignment(
+                target=constraint.target,
+                source=constraint.source,
+                context_str=str(ctx)
+            )
                     
         elif constraint.constraint_type == "load":
             # Load constraint: target = source.field
@@ -336,20 +632,34 @@ class KCFA2PointerAnalysis:
             
             target_pts = PointsToSet()
             
-            # Get field key
+            # Hybrid __dict__ model for attribute access
             if constraint.field == "unknown":
-                field = unknown_attr_key()
-            elif constraint.field == "elem":
-                field = elem_key()
-            elif constraint.field == "value":
-                field = value_key()
+                # Dynamic/unknown attribute access - go through __dict__ indirection
+                # This handles: getattr(obj, dynamic_name), obj.__dict__[key], etc.
+                dict_field = attr_key("__dict__")
+                for obj in source_pts.objects:
+                    # Get the __dict__ object(s) for this object
+                    dict_pts = self._get_field_pts(obj, dict_field)
+                    # Load all values from the dictionary object(s)
+                    for dict_obj in dict_pts.objects:
+                        value_field = value_key()
+                        value_pts = self._get_field_pts(dict_obj, value_field)
+                        target_pts = target_pts.join(value_pts)
             else:
-                field = attr_key(constraint.field)
-            
-            # Load from all objects in source
-            for obj in source_pts.objects:
-                field_pts = self._get_field_pts(obj, field)
-                target_pts = target_pts.join(field_pts)
+                # Known attribute name - direct field access for precision
+                # This handles: obj.attr_name where attr_name is statically known
+                if constraint.field == "elem":
+                    field = elem_key()
+                elif constraint.field == "value":
+                    field = value_key()
+                else:
+                    field = attr_key(constraint.field)
+                
+                # Load from all objects in source
+                for obj in source_pts.objects:
+                    # Use MRO-based resolution for class objects if enabled
+                    field_pts = self._resolve_attribute_with_mro(obj, field, ctx)
+                    target_pts = target_pts.join(field_pts)
             
             if self._set_var_pts(ctx, constraint.target, target_pts):
                 changed = True
@@ -375,20 +685,33 @@ class KCFA2PointerAnalysis:
                         source_pts = source_pts_search
                         break
             
-            # Get field key
+            # Hybrid __dict__ model for attribute access
             if constraint.field == "unknown":
-                field = unknown_attr_key()
-            elif constraint.field == "elem":
-                field = elem_key()
-            elif constraint.field == "value":
-                field = value_key()
+                # Dynamic/unknown attribute store - go through __dict__ indirection
+                # This handles: setattr(obj, dynamic_name, value), obj.__dict__[key] = value, etc.
+                dict_field = attr_key("__dict__")
+                for obj in target_pts.objects:
+                    # Get the __dict__ object(s) for this object
+                    dict_pts = self._get_field_pts(obj, dict_field)
+                    # Store to all values in the dictionary object(s)
+                    for dict_obj in dict_pts.objects:
+                        value_field = value_key()
+                        if self._set_field_pts(dict_obj, value_field, source_pts):
+                            changed = True
             else:
-                field = attr_key(constraint.field)
-            
-            # Store to all objects in target
-            for obj in target_pts.objects:
-                if self._set_field_pts(obj, field, source_pts):
-                    changed = True
+                # Known attribute name - direct field access for precision
+                # This handles: obj.attr_name = value where attr_name is statically known
+                if constraint.field == "elem":
+                    field = elem_key()
+                elif constraint.field == "value":
+                    field = value_key()
+                else:
+                    field = attr_key(constraint.field)
+                
+                # Store to all objects in target
+                for obj in target_pts.objects:
+                    if self._set_field_pts(obj, field, source_pts):
+                        changed = True
         
         return changed
     
@@ -492,7 +815,7 @@ class KCFA2PointerAnalysis:
         
         return changed
     
-    def _process_call(self, call) -> bool:
+    def _process_call(self, call: CallItem) -> bool:
         """Process a function call from the worklist."""
         changed = False
         

@@ -28,7 +28,7 @@ __all__ = [
 
 # Event type definitions using TypedDict for structured event data
 
-class AllocEvent(TypedDict):
+class AllocEvent(TypedDict, total=False):
     """Object allocation event.
     
     Generated from: IRAssign with object/container constructors, IRFunc, IRClass
@@ -41,14 +41,31 @@ class AllocEvent(TypedDict):
         recv_binding: Receiver binding for method allocations (optional)
         bb: Basic block identifier
         idx: Index within basic block
+        
+    Optional fields:
+        elements: List of element variable names for containers (list/tuple/set)
+        values: List of value variable names for dicts
+        bases: List of base class names for classes
+        closure_vars: List of closure variable names for functions
+        func_binding: Function variable name for method objects
+        yield_binding: Yield value variable name for generators
     """
+    # Required fields
     kind: str  # "alloc"
     alloc_id: str
     target: str
     type: str  # obj, list, tuple, dict, set, func, class, exc, method, genframe
-    recv_binding: Optional[str]
     bb: str
     idx: int
+    
+    # Optional fields
+    recv_binding: Optional[str]
+    elements: Optional[List[str]]
+    values: Optional[List[str]]
+    bases: Optional[List[str]]
+    closure_vars: Optional[List[str]]
+    func_binding: Optional[str]
+    yield_binding: Optional[str]
 
 
 class CallEvent(TypedDict):
@@ -280,6 +297,77 @@ def iter_function_events(fn_ir_or_tac: Union[IRFunction, Any]) -> Iterable[Event
     return iter(events)
 
 
+def _is_constructor_call(func_name: str) -> bool:
+    """Determine if a function call is likely a constructor.
+    
+    A constructor is a function that creates and returns a new object.
+    This includes:
+    - Built-in constructors: list, dict, tuple, set, object, etc.
+    - Type conversion functions: str, int, float, bool, etc. (create new immutable objects)
+    - Capitalized names (class convention): Dog, MyClass, etc.
+    - Iterator/sequence constructors: range, enumerate, zip, map, filter
+    
+    Non-constructors include:
+    - Inspection/query functions: len, isinstance, hasattr, callable, etc.
+    - I/O functions: print
+    - Pure computation: abs, max, min, sum, round, pow, divmod
+    - Mutation functions: setattr, delattr (modify existing objects)
+    
+    Args:
+        func_name: Name of the function being called
+        
+    Returns:
+        True if likely a constructor, False otherwise
+    """
+    # Known non-constructors (pure functions that don't allocate)
+    # These either inspect objects, perform I/O, or compute values without creating new objects
+    NON_CONSTRUCTORS = {
+        # I/O and inspection
+        'print', 'len', 'isinstance', 'issubclass', 'hasattr', 'getattr',
+        'callable', 'id', 'hash', 'type',
+        # Mutation (modify existing objects, don't create new ones)
+        'setattr', 'delattr',
+        # Pure computation and utilities
+        'abs', 'all', 'any', 'max', 'min', 'sum', 'round', 'pow', 'divmod',
+        # Navigation
+        'next', 'iter'  # iter sometimes returns input, next accesses existing iterator
+    }
+    
+    # Known constructors - these ALL create new objects
+    KNOWN_CONSTRUCTORS = {
+        # Container types
+        'list', 'dict', 'tuple', 'set', 'frozenset',
+        # Basic types (immutable, but still allocate objects)
+        'str', 'int', 'float', 'bool', 'complex',
+        # Binary types
+        'bytearray', 'bytes', 'memoryview',
+        # Special types
+        'object', 'type',
+        # Iterator/sequence factories (these create new iterator objects)
+        'range', 'enumerate', 'zip', 'map', 'filter', 'reversed',
+        # String/formatting constructors
+        'ascii', 'bin', 'chr', 'hex', 'oct', 'ord', 'repr', 'format',
+        # Exception types (common ones)
+        'Exception', 'BaseException', 'ValueError', 'TypeError', 'AttributeError',
+        'KeyError', 'IndexError', 'RuntimeError', 'NotImplementedError'
+    }
+    
+    if func_name in NON_CONSTRUCTORS:
+        return False
+    
+    if func_name in KNOWN_CONSTRUCTORS:
+        return True
+    
+    # Heuristic: Capitalized names are likely classes (constructors)
+    # This catches user-defined classes following PEP 8 naming conventions
+    if func_name and func_name[0].isupper():
+        return True
+    
+    # Default: assume lowercase names are non-constructors
+    # This is conservative - we prefer missing some allocations over creating spurious ones
+    return False
+
+
 def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[Event]:
     """Process a single IR instruction and generate relevant events."""
     events = []
@@ -296,32 +384,63 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
     
     try:
         if isinstance(instr, IRAssign):
-            # IRAssign: lval = rval (check if rval is an allocation)
+            # IRAssign: lval = rval (check if rval is an allocation or call)
             rval = instr.get_rval()
             lval = instr.get_lval()
             
             alloc_type = None
+            is_call = False
+            func_name = None
             target = lval.id if hasattr(lval, 'id') else str(lval)
             
-            # Check if rval is an allocation
+            # Check if rval is a call or allocation
             if isinstance(rval, ast.Call):
+                is_call = True
                 if hasattr(rval.func, 'id'):
                     func_name = rval.func.id
                     if func_name in ('list', 'dict', 'tuple', 'set'):
                         alloc_type = func_name
                     elif func_name == 'object':
                         alloc_type = 'obj'
-                    else:
-                        # Regular function call - could be class instantiation
+                    elif _is_constructor_call(func_name):
+                        # This is a constructor call - will allocate an object
                         alloc_type = 'obj'
+                    # else: non-constructor call, no allocation
+                        
             elif isinstance(rval, ast.List):
                 alloc_type = 'list'
+                # Extract list elements
+                elements = []
+                if hasattr(rval, 'elts'):
+                    for elt in rval.elts:
+                        if hasattr(elt, 'id'):
+                            elements.append(elt.id)
+                        # For constants or complex expressions, skip (not tracked as pointers)
             elif isinstance(rval, ast.Dict):
                 alloc_type = 'dict'
+                # Extract dict values (keys are abstracted away)
+                values = []
+                if hasattr(rval, 'values'):
+                    for val in rval.values:
+                        if hasattr(val, 'id'):
+                            values.append(val.id)
+                        # For constants or complex expressions, skip
             elif isinstance(rval, ast.Tuple):
                 alloc_type = 'tuple'
+                # Extract tuple elements
+                elements = []
+                if hasattr(rval, 'elts'):
+                    for elt in rval.elts:
+                        if hasattr(elt, 'id'):
+                            elements.append(elt.id)
             elif isinstance(rval, ast.Set):
                 alloc_type = 'set'
+                # Extract set elements
+                elements = []
+                if hasattr(rval, 'elts'):
+                    for elt in rval.elts:
+                        if hasattr(elt, 'id'):
+                            elements.append(elt.id)
             elif isinstance(rval, ast.ListComp):
                 alloc_type = 'list'
             elif isinstance(rval, ast.DictComp):
@@ -332,20 +451,62 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 # Constants need to be allocated as objects
                 alloc_type = 'const'
             
+            # Generate allocation event if needed
             if alloc_type:
-                # Generate allocation event
                 site_id = site_id_of(instr, 'alloc')
-                events.append(AllocEvent(
-                    kind="alloc",
-                    alloc_id=site_id,
+                
+                # Build event with required fields
+                event_data = {
+                    "kind": "alloc",
+                    "alloc_id": site_id,
+                    "target": target,
+                    "type": alloc_type,
+                    "bb": block_id,
+                    "idx": instr_idx
+                }
+                
+                # Add optional fields if available
+                if alloc_type in ('list', 'tuple', 'set') and 'elements' in locals() and elements:
+                    event_data["elements"] = elements
+                elif alloc_type == 'dict' and 'values' in locals() and values:
+                    event_data["values"] = values
+                
+                events.append(AllocEvent(**event_data))
+            
+            # Generate call event if this is a function call
+            if is_call and func_name:
+                # Extract arguments from ast.Call
+                args = []
+                if hasattr(rval, 'args'):
+                    for arg in rval.args:
+                        if hasattr(arg, 'id'):
+                            args.append(arg.id)
+                        else:
+                            # For complex expressions, use a placeholder
+                            args.append(str(arg)[:20])  # Truncate for safety
+                
+                kwargs = {}
+                if hasattr(rval, 'keywords'):
+                    for kw in rval.keywords:
+                        if kw.arg and hasattr(kw.value, 'id'):
+                            kwargs[kw.arg] = kw.value.id
+                
+                # Generate call event
+                call_site_id = site_id_of(instr, 'call')
+                events.append(CallEvent(
+                    kind="call",
+                    call_id=call_site_id,
+                    callee_expr=None,
+                    callee_symbol=func_name,
+                    args=args,
+                    kwargs=kwargs,
+                    receiver=None,
                     target=target,
-                    type=alloc_type,
-                    recv_binding=None,
                     bb=block_id,
                     idx=instr_idx
                 ))
-            else:
-                # Regular assignment - generate copy constraint
+            elif not alloc_type:
+                # Regular assignment without allocation or call - generate copy constraint
                 source = rval.id if hasattr(rval, 'id') else None
                 if source:
                     events.append({
@@ -391,13 +552,11 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                 idx=instr_idx
             ))
             
-            # If this call has a target, it could be an object allocation
-            # Generate allocation event for potential constructor calls
+            # If this call has a target and is a constructor, generate allocation event
             if target and callee_symbol:
-                # Check if this is likely a constructor call
-                # (any function call that assigns to a variable could create an object)
-                if not callee_symbol in ('print', 'len', 'str', 'int', 'float', 'bool'):
-                    # Generate allocation event with the same site_id but 'alloc' kind
+                # Use constructor detection to determine if this allocates
+                if _is_constructor_call(callee_symbol):
+                    # Generate allocation event for constructor calls
                     alloc_site_id = site_id_of(instr, 'alloc')
                     
                     # Determine allocation type
@@ -406,7 +565,7 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
                     elif callee_symbol == 'object':
                         alloc_type = 'obj'
                     else:
-                        # Assume this is a class constructor
+                        # Generic constructor - creates object
                         alloc_type = 'obj'
                     
                     events.append(AllocEvent(
@@ -490,15 +649,46 @@ def _process_ir_instruction(instr: Any, block_id: str, instr_idx: int) -> List[E
             site_id = site_id_of(instr, 'func' if isinstance(instr, IRFunc) else 'class')
             name = instr.name if hasattr(instr, 'name') else 'unknown'
             
-            events.append(AllocEvent(
-                kind="alloc",
-                alloc_id=site_id,
-                target=name,
-                type='func' if isinstance(instr, IRFunc) else 'class',
-                recv_binding=None,
-                bb=block_id,
-                idx=instr_idx
-            ))
+            # Build event with required fields
+            event_data = {
+                "kind": "alloc",
+                "alloc_id": site_id,
+                "target": name,
+                "type": 'func' if isinstance(instr, IRFunc) else 'class',
+                "bb": block_id,
+                "idx": instr_idx
+            }
+            
+            # Extract optional fields
+            if isinstance(instr, IRClass):
+                # Extract base classes from IRClass.bases
+                if hasattr(instr, 'bases') and instr.bases:
+                    bases = []
+                    for base_expr in instr.bases:
+                        if isinstance(base_expr, ast.Name):
+                            bases.append(base_expr.id)
+                        elif isinstance(base_expr, ast.Attribute):
+                            # Handle qualified names like "module.ClassName"
+                            try:
+                                bases.append(ast.unparse(base_expr))
+                            except AttributeError:
+                                # ast.unparse not available in older Python
+                                # Fall back to simple name extraction
+                                if hasattr(base_expr, 'attr'):
+                                    bases.append(base_expr.attr)
+                    if bases:
+                        event_data["bases"] = bases
+                        
+            elif isinstance(instr, IRFunc):
+                # Extract closure variables from IRFunc.cell_vars
+                # cell_vars contains variables captured from enclosing scopes
+                if hasattr(instr, 'cell_vars') and instr.cell_vars:
+                    event_data["closure_vars"] = list(instr.cell_vars)
+                # Also check for freevars (variables this function captures)
+                elif hasattr(instr, 'freevars') and instr.freevars:
+                    event_data["closure_vars"] = list(instr.freevars)
+            
+            events.append(AllocEvent(**event_data))
             
     except (AttributeError, TypeError) as e:
         # For unsupported or malformed nodes, skip silently
