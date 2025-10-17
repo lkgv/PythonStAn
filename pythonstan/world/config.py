@@ -14,17 +14,20 @@ class Config:
     library_paths: List[str]
     analysis: Dict[str, AnalysisConfig]
     succ_analysis: Dict[str, Set[str]]
+    lazy_ir_construction: bool
 
-    def __init__(self, filename, project_path):
+    def __init__(self, filename, project_path, lazy_ir_construction: bool = False):
         self.filename = filename
         self.project_path = project_path
         self.library_paths = []
         self.succ_analysis = {}
         self.analysis = {}
+        self.lazy_ir_construction = lazy_ir_construction
 
     @classmethod
     def from_dict(cls, info: Dict):
-        conf = cls(info['filename'], info['project_path'])
+        lazy_ir = info.get('lazy_ir_construction', False)
+        conf = cls(info['filename'], info['project_path'], lazy_ir_construction=lazy_ir)
         for anal_info in info['analysis']:
             inter_procedure = anal_info.get('inter_procedure', False)
             anal_cfg = AnalysisConfig(
