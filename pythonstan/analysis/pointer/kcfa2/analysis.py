@@ -6,7 +6,8 @@ entry point for running k-CFA pointer analysis with 2-object sensitivity.
 
 from typing import Any, Dict, List, Optional, Set, Union, Tuple
 from .config import KCFAConfig
-from .context import Context, ContextManager, CallSite, ContextSelector
+from .context import CallSite, AbstractContext
+from .context_selector import ContextSelector, parse_policy
 from .model import AbstractLocation, AbstractObject, PointsToSet, Env, Store, Heap, FieldKey
 from .worklist import CallItem, Worklist, ConstraintWorklist, CallWorklist
 from .errors import AnalysisTimeout, ConfigurationError
@@ -34,7 +35,7 @@ class KCFA2PointerAnalysis:
         
         # Analysis state
         self._functions: Dict[str, Any] = {}
-        self._env: Dict[Tuple[Context, str], PointsToSet] = {}  # (ctx, var) -> pts
+        self._env: Dict[Tuple[AbstractContext, str], PointsToSet] = {}  # (ctx, var) -> pts
         self._heap: Dict[Tuple[AbstractObject, FieldKey], PointsToSet] = {}  # (obj, field) -> pts
         
         # Worklists
@@ -42,8 +43,9 @@ class KCFA2PointerAnalysis:
         self._call_worklist = CallWorklist()
         
         # Context management
-        self._context_selector = ContextSelector(k=self.config.k)
-        self._contexts: Set[Context] = set()
+        policy = parse_policy(self.config.context_policy)
+        self._context_selector = ContextSelector(policy=policy, k=self.config.k)
+        self._contexts: Set[AbstractContext] = set()
         
         # Call graph
         self._call_graph = CallGraphAdapter(self.config)
@@ -89,11 +91,82 @@ class KCFA2PointerAnalysis:
                 
         if self.config.verbose:
             print(f"Planned analysis for {len(self._functions)} functions")
+    
+    def plan_module(self, ir_module: Any) -> None:
+        """Plan module-level analysis (extract class definitions, etc.)."""
+        from .ir_adapter import iter_module_events
+        
+        # Store module for later processing
+        if not hasattr(self, '_modules'):
+            self._modules = []
+        self._modules.append(ir_module)
+        
+        if self.config.verbose:
+            print(f"Planned module-level analysis")
+    
+    def plan_classes(self, classes: List[Any]) -> None:
+        """Plan class definitions for analysis."""
+        # Store classes for later processing
+        if not hasattr(self, '_classes'):
+            self._classes = []
+        self._classes.extend(classes)
+        
+        if self.config.verbose:
+            print(f"Planned {len(classes)} classes for analysis")
             
     def initialize(self) -> None:
         """Initialize analysis state and worklists."""
-        empty_context = Context()
+        from .ir_adapter import iter_module_events, site_id_of, AllocEvent
+        import ast
+        
+        empty_context = self._context_selector.empty_context()
         self._contexts.add(empty_context)
+        
+        # Process class definitions first
+        if hasattr(self, '_classes'):
+            for cls in self._classes:
+                # Create allocation event for class
+                site_id = site_id_of(cls, 'class')
+                name = cls.name if hasattr(cls, 'name') else 'unknown'
+                
+                event_data = {
+                    "kind": "alloc",
+                    "alloc_id": site_id,
+                    "target": name,
+                    "type": "class",
+                    "bb": "module",
+                    "idx": 0
+                }
+                
+                # Extract base classes
+                if hasattr(cls, 'bases') and cls.bases:
+                    bases = []
+                    for base_expr in cls.bases:
+                        if isinstance(base_expr, ast.Name):
+                            bases.append(base_expr.id)
+                        elif isinstance(base_expr, ast.Attribute):
+                            try:
+                                bases.append(ast.unparse(base_expr))
+                            except AttributeError:
+                                if hasattr(base_expr, 'attr'):
+                                    bases.append(base_expr.attr)
+                    if bases:
+                        event_data["bases"] = bases
+                
+                class_event = AllocEvent(**event_data)
+                self._add_event_to_worklist(class_event, empty_context)
+            
+            if self.config.verbose:
+                print(f"Added {len(self._classes)} class allocation events")
+        
+        # Process module-level events (class definitions, etc.)
+        if hasattr(self, '_modules'):
+            for module in self._modules:
+                module_events = list(iter_module_events(module))
+                for event in module_events:
+                    self._add_event_to_worklist(event, empty_context)
+                if self.config.verbose and module_events:
+                    print(f"Added {len(module_events)} module-level events")
         
         # Initialize entry points
         for func_name, func in self._functions.items():
@@ -182,11 +255,11 @@ class KCFA2PointerAnalysis:
     
     # Helper methods for environment and heap access
     
-    def _get_var_pts(self, ctx: Context, var: str) -> PointsToSet:
+    def _get_var_pts(self, ctx: AbstractContext, var: str) -> PointsToSet:
         """Get points-to set for a variable in context."""
         return self._env.get((ctx, var), PointsToSet())
     
-    def _set_var_pts(self, ctx: Context, var: str, pts: PointsToSet) -> bool:
+    def _set_var_pts(self, ctx: AbstractContext, var: str, pts: PointsToSet) -> bool:
         """Set points-to set for a variable in context. Returns True if changed."""
         key = (ctx, var)
         old_pts = self._env.get(key, PointsToSet())
@@ -212,14 +285,14 @@ class KCFA2PointerAnalysis:
             return True
         return False
     
-    def _create_object(self, alloc_id: str, ctx: Context, recv_objs: Optional[List[AbstractObject]] = None) -> AbstractObject:
+    def _create_object(self, alloc_id: str, ctx: AbstractContext, recv_objs: Optional[List[AbstractObject]] = None) -> AbstractObject:
         """Create a new abstract object."""
         recv_ctx = tuple(recv_objs) if recv_objs else None
         obj = make_object(alloc_id, ctx, recv_ctx, depth=self.config.obj_depth)
         self._statistics["objects_created"] += 1
         return obj
     
-    def _resolve_attribute_with_mro(self, obj: AbstractObject, field: FieldKey, ctx: Context) -> PointsToSet:
+    def _resolve_attribute_with_mro(self, obj: AbstractObject, field: FieldKey, ctx: AbstractContext) -> PointsToSet:
         """Resolve attribute following MRO chain if enabled.
         
         Args:
@@ -286,7 +359,7 @@ class KCFA2PointerAnalysis:
     
     # Event processing methods
     
-    def _add_event_to_worklist(self, event: Event, ctx: Context) -> None:
+    def _add_event_to_worklist(self, event: Event, ctx: AbstractContext) -> None:
         """Add an event to the appropriate worklist."""
         if event["kind"] == "alloc":
             # Handle allocation immediately
@@ -349,7 +422,7 @@ class KCFA2PointerAnalysis:
                 site_id=f"copy_{event['source']}_to_{event['target']}"
             )
         
-    def _handle_allocation(self, event: Event, ctx: Context) -> None:
+    def _handle_allocation(self, event: Event, ctx: AbstractContext) -> None:
         """Handle object allocation events.
         
         Creates an abstract object for the allocation site and initializes
@@ -715,7 +788,7 @@ class KCFA2PointerAnalysis:
         
         return changed
     
-    def _handle_parameter_passing(self, caller_ctx: Context, callee_ctx: Context, call, callee_func) -> bool:
+    def _handle_parameter_passing(self, caller_ctx: AbstractContext, callee_ctx: AbstractContext, call, callee_func) -> bool:
         """Handle parameter passing from caller to callee."""
         changed = False
         
@@ -801,7 +874,7 @@ class KCFA2PointerAnalysis:
         
         return changed
     
-    def _handle_return_value(self, caller_ctx: Context, callee_ctx: Context, call, callee_func) -> bool:
+    def _handle_return_value(self, caller_ctx: AbstractContext, callee_ctx: AbstractContext, call, callee_func) -> bool:
         """Handle return value from callee to caller."""
         changed = False
         
@@ -815,13 +888,105 @@ class KCFA2PointerAnalysis:
         
         return changed
     
+    def _get_receiver_alloc_site(self, call: CallItem, caller_ctx: AbstractContext) -> Optional[str]:
+        """Get allocation site of receiver object for method calls.
+        
+        Args:
+            call: Call item being processed
+            caller_ctx: Context of the caller
+            
+        Returns:
+            Allocation site ID of receiver, or None if not a method call
+        """
+        # Check if this is a method call (has receiver attribute)
+        if not hasattr(call, 'receiver') or not call.receiver:
+            # For indirect calls through variables, check first argument
+            if call.call_type == "indirect" and call.args:
+                receiver_var = call.args[0]
+                receiver_pts = self._get_var_pts(caller_ctx, receiver_var)
+                if receiver_pts.objects:
+                    # Use first object's allocation site
+                    return receiver_pts.objects[0].alloc_id
+            return None
+        
+        # Look up receiver in points-to set
+        receiver_pts = self._get_var_pts(caller_ctx, call.receiver)
+        if receiver_pts.objects:
+            # Use first object's allocation site (could be improved with flow analysis)
+            return receiver_pts.objects[0].alloc_id
+        
+        return None
+    
+    def _get_receiver_type(self, call: CallItem, caller_ctx: AbstractContext) -> Optional[str]:
+        """Get type of receiver object for method calls.
+        
+        Args:
+            call: Call item being processed
+            caller_ctx: Context of the caller
+            
+        Returns:
+            Type name of receiver, or None if not available
+        """
+        # Check if this is a method call
+        if not hasattr(call, 'receiver') or not call.receiver:
+            # For indirect calls, check first argument
+            if call.call_type == "indirect" and call.args:
+                receiver_var = call.args[0]
+                receiver_pts = self._get_var_pts(caller_ctx, receiver_var)
+                if receiver_pts.objects:
+                    obj = receiver_pts.objects[0]
+                    return self._extract_type_from_object(obj)
+            return None
+        
+        receiver_pts = self._get_var_pts(caller_ctx, call.receiver)
+        if receiver_pts.objects:
+            obj = receiver_pts.objects[0]
+            return self._extract_type_from_object(obj)
+        
+        return None
+    
+    def _extract_type_from_object(self, obj: AbstractObject) -> Optional[str]:
+        """Extract type name from an abstract object.
+        
+        Args:
+            obj: Abstract object
+            
+        Returns:
+            Type name, or None if not available
+        """
+        # Check if object has explicit type metadata
+        if hasattr(obj, 'alloc_type') and obj.alloc_type:
+            return obj.alloc_type
+        
+        # Parse from allocation ID (format: file:line:col:type or similar)
+        alloc_id = obj.alloc_id
+        parts = alloc_id.split(':')
+        
+        # Try to extract type from various formats
+        if len(parts) >= 4:
+            # Format: file:line:col:type
+            return parts[-1]
+        elif 'class:' in alloc_id:
+            # Format: class:ClassName
+            return alloc_id.split('class:')[-1].split(':')[0]
+        elif '/' in alloc_id:
+            # Format: path/ClassName or similar
+            return alloc_id.split('/')[-1].split(':')[0]
+        
+        # Try to extract from allocation ID if it contains a class name
+        for part in parts:
+            if part and part[0].isupper():  # Class names typically start with uppercase
+                return part
+        
+        return None
+    
     def _process_call(self, call: CallItem) -> bool:
         """Process a function call from the worklist."""
         changed = False
         
         # Parse context from string representation
         # For now, use simplified context handling
-        caller_ctx = Context()  # TODO: Parse from call.caller_ctx
+        caller_ctx = self._context_selector.empty_context()  # Use empty context for module-level
         
         if call.call_type == "direct":
             # Direct call - resolve callee directly
@@ -856,7 +1021,19 @@ class KCFA2PointerAnalysis:
                 if resolved_callee:
                     callee_func = self._functions[resolved_callee]
                     call_site = CallSite(call.call_id, resolved_callee)
-                    callee_ctx = self._context_selector.push(caller_ctx, call_site)
+                    
+                    # Get receiver information for context selection
+                    receiver_alloc = self._get_receiver_alloc_site(call, caller_ctx)
+                    receiver_type = self._get_receiver_type(call, caller_ctx)
+                    
+                    # Select callee context based on policy
+                    callee_ctx = self._context_selector.select_call_context(
+                        caller_ctx=caller_ctx,
+                        call_site=call_site,
+                        callee=resolved_callee,
+                        receiver_alloc=receiver_alloc,
+                        receiver_type=receiver_type
+                    )
                     
                     # Add call graph edge
                     self._call_graph.add_edge(caller_ctx, call_site, callee_ctx, resolved_callee)
@@ -893,7 +1070,19 @@ class KCFA2PointerAnalysis:
                     if callee_fn in self._functions:
                         callee_func = self._functions[callee_fn]
                         call_site = CallSite(call.call_id, callee_fn)
-                        callee_ctx = self._context_selector.push(caller_ctx, call_site)
+                        
+                        # Get receiver information for context selection
+                        receiver_alloc = self._get_receiver_alloc_site(call, caller_ctx)
+                        receiver_type = self._get_receiver_type(call, caller_ctx)
+                        
+                        # Select callee context based on policy
+                        callee_ctx = self._context_selector.select_call_context(
+                            caller_ctx=caller_ctx,
+                            call_site=call_site,
+                            callee=callee_fn,
+                            receiver_alloc=receiver_alloc,
+                            receiver_type=receiver_type
+                        )
                         
                         # Add call graph edge
                         self._call_graph.add_edge(caller_ctx, call_site, callee_ctx, callee_fn)
@@ -934,7 +1123,19 @@ class KCFA2PointerAnalysis:
                             if callee_fn in self._functions:
                                 callee_func = self._functions[callee_fn]
                                 call_site = CallSite(call.call_id, callee_fn)
-                                callee_ctx = self._context_selector.push(caller_ctx, call_site)
+                                
+                                # Get receiver information for context selection
+                                receiver_alloc = self._get_receiver_alloc_site(call, caller_ctx)
+                                receiver_type = self._get_receiver_type(call, caller_ctx)
+                                
+                                # Select callee context based on policy
+                                callee_ctx = self._context_selector.select_call_context(
+                                    caller_ctx=caller_ctx,
+                                    call_site=call_site,
+                                    callee=callee_fn,
+                                    receiver_alloc=receiver_alloc,
+                                    receiver_type=receiver_type
+                                )
                                 
                                 # Add call graph edge
                                 self._call_graph.add_edge(caller_ctx, call_site, callee_ctx, callee_fn)

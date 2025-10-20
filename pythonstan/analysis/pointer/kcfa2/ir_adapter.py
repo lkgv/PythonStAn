@@ -22,6 +22,7 @@ __all__ = [
     "ReturnEvent",
     "ExceptionEvent",
     "iter_function_events",
+    "iter_module_events",
     "site_id_of"
 ]
 
@@ -317,6 +318,103 @@ def iter_function_events(fn_ir_or_tac: Union[IRFunction, Any]) -> Iterable[Event
                 events.extend(_process_ir_instruction(instr, "bb0", instr_idx))
         except (AttributeError, TypeError):
             pass
+    
+    return iter(events)
+
+
+def iter_module_events(ir_module: Any) -> Iterable[Event]:
+    """Extract pointer-relevant events from module-level code.
+    
+    This function extracts events from module-level definitions including:
+    - Class definitions (IRClass)
+    - Function definitions (IRFunc) 
+    - Module-level variable assignments
+    
+    Args:
+        ir_module: Module IR representation
+        
+    Yields:
+        Events representing module-level operations (primarily class allocations)
+        
+    Notes:
+        This complements iter_function_events by capturing module-level
+        definitions that occur outside of function scopes.
+    """
+    try:
+        from pythonstan.ir.ir_statements import IRClass, IRFunc
+    except ImportError:
+        return iter([])
+    
+    events = []
+    
+    # Extract classes and functions from module's subscopes
+    if hasattr(ir_module, 'classes'):
+        # If module has explicit classes attribute
+        for cls in ir_module.classes:
+            site_id = site_id_of(cls, 'class')
+            name = cls.name if hasattr(cls, 'name') else 'unknown'
+            
+            event_data = {
+                "kind": "alloc",
+                "alloc_id": site_id,
+                "target": name,
+                "type": "class",
+                "bb": "module",
+                "idx": 0
+            }
+            
+            # Extract base classes
+            if hasattr(cls, 'bases') and cls.bases:
+                import ast
+                bases = []
+                for base_expr in cls.bases:
+                    if isinstance(base_expr, ast.Name):
+                        bases.append(base_expr.id)
+                    elif isinstance(base_expr, ast.Attribute):
+                        try:
+                            bases.append(ast.unparse(base_expr))
+                        except AttributeError:
+                            if hasattr(base_expr, 'attr'):
+                                bases.append(base_expr.attr)
+                if bases:
+                    event_data["bases"] = bases
+            
+            events.append(AllocEvent(**event_data))
+    
+    # Alternatively, look for IRClass instances in module body
+    if hasattr(ir_module, 'body') or hasattr(ir_module, 'stmts'):
+        body = getattr(ir_module, 'body', None) or getattr(ir_module, 'stmts', [])
+        for stmt in body:
+            if isinstance(stmt, IRClass):
+                site_id = site_id_of(stmt, 'class')
+                name = stmt.name if hasattr(stmt, 'name') else 'unknown'
+                
+                event_data = {
+                    "kind": "alloc",
+                    "alloc_id": site_id,
+                    "target": name,
+                    "type": "class",
+                    "bb": "module",
+                    "idx": 0
+                }
+                
+                # Extract base classes
+                if hasattr(stmt, 'bases') and stmt.bases:
+                    import ast
+                    bases = []
+                    for base_expr in stmt.bases:
+                        if isinstance(base_expr, ast.Name):
+                            bases.append(base_expr.id)
+                        elif isinstance(base_expr, ast.Attribute):
+                            try:
+                                bases.append(ast.unparse(base_expr))
+                            except AttributeError:
+                                if hasattr(base_expr, 'attr'):
+                                    bases.append(base_expr.attr)
+                    if bases:
+                        event_data["bases"] = bases
+                
+                events.append(AllocEvent(**event_data))
     
     return iter(events)
 

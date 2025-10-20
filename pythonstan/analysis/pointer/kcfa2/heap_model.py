@@ -12,7 +12,7 @@ The heap model handles:
 
 from typing import Optional, Tuple, List
 from .model import AbstractObject, FieldKey
-from .context import Context
+from .context import AbstractContext
 
 __all__ = [
     "make_object",
@@ -26,7 +26,7 @@ __all__ = [
 
 def make_object(
     alloc_id: str, 
-    alloc_ctx: Context,
+    alloc_ctx: AbstractContext,
     recv_obj_ctx: Optional[Tuple[AbstractObject, ...]] = None,
     depth: int = 2
 ) -> AbstractObject:
