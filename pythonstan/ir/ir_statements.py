@@ -1018,7 +1018,7 @@ class IRFunc(IRScope, IRStatement):
         if self.is_async:
             return f'<async function {self.name}>'
         else:
-            return f'<function {self.name}'
+            return f'<function {self.name}>'
 
     def get_arg_names(self) -> ast.arguments:
         return self.args
