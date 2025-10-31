@@ -10,6 +10,7 @@ from .constraints import *
 from .context import AbstractContext
 from .config import Config
 from .variable import Variable, Scope, VariableFactory, VariableKind
+from .heap_model import elem, value, attr
 from .module_finder import ModuleFinder
 from pythonstan.ir.ir_statements import (
     IRCopy, IRAssign, IRLoadAttr, IRStoreAttr,
@@ -17,7 +18,6 @@ from pythonstan.ir.ir_statements import (
     IRFunc, IRClass
 )
 from .object import AllocSite, AllocKind
-from .heap_model import attr
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class IRTranslator:
         self._import_depth = 0  # Track import depth for recursion limit
         
         from pythonstan.world import World
-        self.scope_namager = World().scope_manager
+        self.scope_manager = World().scope_manager
         self.namespace_manager = World().namespace_manager
     
     def translate_function(self, func: IRFunc, context: 'AbstractContext') -> List['Constraint']:        
@@ -44,7 +44,7 @@ class IRTranslator:
         func_name = getattr(func, 'name', '<unknown>')
         self._current_scope = Scope(name=func_name, kind="function")
         self._current_context = context
-        stmts = self.scope_namager.get_ir(func, 'ir')
+        stmts = self.scope_manager.get_ir(func, 'ir')
         if stmts is not None:
             for stmt in stmts:
                 if isinstance(stmt, IRCopy):
@@ -69,11 +69,17 @@ class IRTranslator:
                     constraints.extend(self._translate_class_def(stmt))
         return constraints
     
-    def translate_module(self, module) -> List['Constraint']:
+    def translate_module(self, module, context: Optional['AbstractContext'] = None) -> List['Constraint']:
         constraints = []
         
         module_name = getattr(module, 'name', '__main__')
         self._current_scope = Scope(name=module_name, kind="module")
+        
+        # Set context (or use empty context if not provided)
+        if context is None:
+            from .context import CallStringContext
+            context = CallStringContext(call_sites=(), k=0)
+        self._current_context = context
 
         try:
             subscopes = self.scope_manager.get_subscopes(module)
@@ -116,7 +122,7 @@ class IRTranslator:
         return [CopyConstraint(source=source_var, target=target_var)]
     
     def _translate_assign(self, stmt) -> List['Constraint']:
-        """Translate IRAssign: may allocate objects"""        
+        """Translate IRAssign: may allocate objects"""
         constraints = []
         lval = stmt.get_lval()
         rval = stmt.get_rval()
@@ -149,7 +155,8 @@ class IRTranslator:
                             field=value(),
                             source=val_var
                         ))
-            
+                        
+        # TODO Tuple should set index as field (eg. t = (a, b) is t._1 = a, t._2 = b)
         elif isinstance(rval, ast.Tuple):
             alloc_site = AllocSite.from_ir_node(stmt, AllocKind.TUPLE)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
@@ -210,6 +217,7 @@ class IRTranslator:
     
     def _translate_call(self, stmt) -> List['Constraint']:
         """Translate IRCall: target = callee(args...)"""
+        # TODO all conditions of arguments should be translated to constraints
         from .constraints import CallConstraint
         
         lval = stmt.get_lval()
@@ -242,10 +250,7 @@ class IRTranslator:
         
         return []
     
-    def _translate_load_subscr(self, stmt) -> List['Constraint']:
-        from .constraints import LoadConstraint, CallConstraint
-        from .heap_model import elem, value, attr
-        
+    def _translate_load_subscr(self, stmt) -> List['Constraint']:        
         lval = stmt.get_lval()
         container_name = stmt.get_container()
         

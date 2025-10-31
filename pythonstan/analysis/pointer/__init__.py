@@ -4,13 +4,15 @@ This module provides k-CFA pointer analysis capabilities integrated
 with the PythonStAn analysis framework.
 """
 
-from .analyzer import PointerAnalysis, PointerAnalysisDriver
-from .kcfa2.analysis import KCFA2PointerAnalysis
-from .kcfa2.config import KCFAConfig
+# Import from refactored k-CFA implementation
+from .kcfa import PointerAnalysis, Config, AnalysisResult
+
+# Create alias for backwards compatibility
+PointerAnalysisDriver = PointerAnalysis
 
 __all__ = [
     "PointerAnalysis",
     "PointerAnalysisDriver",
-    "KCFA2PointerAnalysis", 
-    "KCFAConfig"
+    "Config",
+    "AnalysisResult"
 ]

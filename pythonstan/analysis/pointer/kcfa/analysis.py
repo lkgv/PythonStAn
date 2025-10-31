@@ -77,24 +77,42 @@ class PointerAnalysis:
         module_finder = ModuleFinder(self.config)
         translator = IRTranslator(self.config, module_finder=module_finder)
         
-        # 5. Translate module to constraints
-        # For now, we'll focus on functions within the module
+        # 5. Translate ALL scopes to constraints (not just entry module)
+        logger.info("Translating all scopes to constraints...")
         constraints = []
         
-        # Extract functions from module (this is module-dependent)
-        functions = []
-        if hasattr(module, 'get_functions'):
-            functions = module.get_functions()
-        elif hasattr(module, 'functions'):
-            functions = module.functions
+        # Get all scopes from World's scope manager
+        from pythonstan.world import World
+        world = World()
+        all_scopes = world.scope_manager.get_scopes()
         
-        # Translate each function
-        for func in functions:
-            if entry_points is None or (hasattr(func, 'name') and func.name in entry_points):
-                logger.debug(f"Translating function: {getattr(func, 'name', '<unknown>')}")
-                func_constraints = translator.translate_function(func, empty_context)
-                constraints.extend(func_constraints)
-                logger.debug(f"  Generated {len(func_constraints)} constraints")
+        logger.info(f"Found {len(all_scopes)} scopes to analyze")
+        
+        # Translate each scope
+        from pythonstan.ir.ir_statements import IRFunc, IRClass, IRModule
+        
+        for scope in all_scopes:
+            try:
+                scope_name = scope.get_qualname()
+                
+                if isinstance(scope, IRFunc):
+                    logger.debug(f"Translating function: {scope_name}")
+                    func_constraints = translator.translate_function(scope, empty_context)
+                    constraints.extend(func_constraints)
+                    
+                elif isinstance(scope, IRModule):
+                    logger.debug(f"Translating module: {scope_name}")
+                    module_constraints = translator.translate_module(scope, empty_context)
+                    constraints.extend(module_constraints)
+                    
+                elif isinstance(scope, IRClass):
+                    logger.debug(f"Translating class: {scope_name}")
+                    # Classes are handled as part of their containing module/function
+                    pass
+                    
+            except Exception as e:
+                logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
+                continue
         
         logger.info(f"Total constraints generated: {len(constraints)}")
         
@@ -106,12 +124,8 @@ class PointerAnalysis:
         from .builtin_api_handler import BuiltinSummaryManager
         builtin_manager = BuiltinSummaryManager(self.config)
         
-        # 8. Build function registry
+        # 8. Build function registry (empty for now, will be populated by solver)
         function_registry = {}
-        for func in functions:
-            func_name = getattr(func, 'name', None)
-            if func_name:
-                function_registry[func_name] = func
         
         # 9. Create solver with full dependencies
         solver = PointerSolver(

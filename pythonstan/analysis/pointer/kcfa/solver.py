@@ -127,7 +127,6 @@ class PointerSolver:
     
     def _apply_load(self, c: 'LoadConstraint') -> bool:
         """Apply load constraint: target = base.field."""
-        
         changed = False
         base_pts = self.state.get_points_to(c.base)
         
