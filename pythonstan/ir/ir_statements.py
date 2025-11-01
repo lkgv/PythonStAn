@@ -1054,7 +1054,6 @@ class IRClass(IRScope, IRStatement):
     def __init__(self, qualname: str, cls: ClassDef, cell_vars=None):
         super().__init__(qualname)
         self.name = cls.name
-        bases = cls.bases
         # assert all(isinstance(i, ast.Name) for i in bases), "Base of the class should be ast.Name"
         self.bases = cls.bases
         self.keywords = cls.keywords

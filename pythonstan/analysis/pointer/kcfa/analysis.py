@@ -111,6 +111,7 @@ class PointerAnalysis:
                     pass
                     
             except Exception as e:
+                raise e
                 logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
                 continue
         

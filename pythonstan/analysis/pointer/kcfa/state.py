@@ -5,15 +5,15 @@ the environment (variable points-to sets) and heap (object field points-to sets)
 """
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, Tuple, TYPE_CHECKING
+from typing import Dict, FrozenSet, Tuple, Set, Optional, TYPE_CHECKING
 from collections import defaultdict
 
-if TYPE_CHECKING:
-    from .object import AbstractObject
-    from .variable import Variable
-    from .heap_model import Field
-    from .constraints import ConstraintManager
-    from pythonstan.graph.call_graph import AbstractCallGraph
+# if TYPE_CHECKING:
+from .object import AbstractObject
+from .variable import Variable, FieldAccess, VariableFactory
+from .heap_model import Field
+from .constraints import ConstraintManager
+from pythonstan.graph.call_graph import AbstractCallGraph
 
 __all__ = ["PointsToSet", "PointerAnalysisState"]
 
@@ -83,12 +83,54 @@ class PointsToSet:
         """Check if object is in set."""
         return obj in self.objects
     
+    def __sub__(self, other: 'PointsToSet') -> 'PointsToSet':
+        """Subtract another points-to set."""
+        return PointsToSet(self.objects - other.objects)
+    
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.is_empty():
             return "{}"
         objs = ", ".join(str(o) for o in sorted(self.objects, key=str))
         return f"{{{objs}}}"
+
+
+class PointerFlowGraph:
+    """Represents pointer flow graph in context-sensitive pointer analysis.
+    """
+    succs: Dict[Variable, Set[Variable]]
+    preds: Dict[Variable, Set[Variable]]
+    nodes: Set[Variable]
+    
+    def __init__(self):
+        self.succs = {}
+        self.preds = {}
+        self.nodes = {*()}
+    
+    def add_edge(self, src: Variable, tgt: Variable):
+        if src not in self.succs:
+            self.succs[src] = {*()}
+        if tgt not in self.preds:
+            self.preds[tgt] = {*()}
+        self.succs[src].add(tgt)
+        self.preds[tgt].add(src)
+        self.nodes.add(src)
+        self.nodes.add(tgt)
+
+    def get_succs(self, var: Variable) -> Set[Variable]:
+        return self.succs.get(var, {*()})
+    
+    def get_preds(self, var: Variable) -> Set[Variable]:
+        return self.preds.get(var, {*()})
+    
+    def get_nodes(self) -> Set[Variable]:
+        return self.nodes
+    
+    def get_edges(self) -> Set[Tuple[Variable, Variable]]:
+        return {(src, tgt) for src in self.nodes for tgt in self.succs[src]}
+    
+    def get_reverse_edges(self) -> Set[Tuple[Variable, Variable]]:
+        return {(tgt, src) for src in self.nodes for tgt in self.preds[src]}    
 
 
 class PointerAnalysisState:
@@ -100,14 +142,13 @@ class PointerAnalysisState:
     
     def __init__(self):
         """Initialize empty analysis state."""
-        from .constraints import ConstraintManager
-        from pythonstan.graph.call_graph import AbstractCallGraph
-        
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap: Dict[Tuple['AbstractObject', 'Field'], PointsToSet] = {}
         self._call_graph: 'AbstractCallGraph' = AbstractCallGraph()
         self._constraints: 'ConstraintManager' = ConstraintManager()
         self._call_edges = []  # List of CallEdge objects tracked during analysis
+        self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
+        self._field_accesses: Dict[Tuple['AbstractObject', 'Field'], FieldAccess] = {}
     
     def get_points_to(self, var: 'Variable') -> PointsToSet:
         """Get points-to set for variable.
@@ -140,8 +181,8 @@ class PointerAnalysisState:
             return True
         return False
     
-    def get_field(self, obj: 'AbstractObject', field: 'Field') -> PointsToSet:
-        """Get points-to set for object field.
+    def get_field(self, obj: 'AbstractObject', field: 'Field') -> Optional['FieldAccess']:
+        """Get field access for object field.
         
         Args:
             obj: Object to query
@@ -150,34 +191,27 @@ class PointerAnalysisState:
         Returns:
             Points-to set for field (empty if not found)
         """
-        return self._heap.get((obj, field), PointsToSet.empty())
+        # TODO here is just a trivial mock and did not consider the complex features such as inheritance and MRO.
+        return self._field_accesses.get((obj, field), None)
     
     def set_field(
         self,
         obj: 'AbstractObject',
         field: 'Field',
-        pts: PointsToSet
-    ) -> bool:
-        """Set points-to set for object field.
+        field_access: 'FieldAccess'
+    ) -> None:
+        """Set field access for object field.
         
         Performs union with existing points-to set.
         
         Args:
             obj: Object to update
             field: Field to update
-            pts: Points-to set to add
         
         Returns:
-            True if points-to set changed
+            Field access for object field
         """
-        key = (obj, field)
-        old_pts = self._heap.get(key, PointsToSet.empty())
-        new_pts = old_pts.union(pts)
-        
-        if new_pts != old_pts:
-            self._heap[key] = new_pts
-            return True
-        return False
+        self._field_accesses[(obj, field)] = field_access
     
     @property
     def constraints(self) -> 'ConstraintManager':
@@ -192,6 +226,15 @@ class PointerAnalysisState:
         if self._constraints is None:
             raise RuntimeError("Constraints not initialized")
         return self._constraints
+    
+    @property
+    def pointer_flow_graph(self) -> 'PointerFlowGraph':
+        """Get pointer flow graph.
+        
+        Returns:
+            Pointer flow graph
+        """
+        return self._pointer_flow_graph
     
     @property
     def call_graph(self) -> 'AbstractCallGraph':

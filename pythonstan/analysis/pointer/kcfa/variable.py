@@ -6,12 +6,16 @@ Variables are context-sensitive and scoped.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Optional
+
+from pythonstan.ir.ir_statements import IRScope
 
 if TYPE_CHECKING:
     from .context import AbstractContext
+    from .object import AbstractObject
+    from .heap_model import Field
 
-__all__ = ["VariableKind", "Scope", "Variable"]
+__all__ = ["VariableKind", "Scope", "Variable", "FieldAccess"]
 
 
 class VariableKind(Enum):
@@ -34,6 +38,8 @@ class Scope:
     """
     
     name: str
+    stmt: IRScope
+    context: 'AbstractContext'
     kind: Literal["function", "method", "module", "class"]
     
     def __str__(self) -> str:
@@ -61,6 +67,7 @@ class Variable:
     
     def __str__(self) -> str:
         """String representation: scope::name@context"""
+        assert self.name is not None, "Variable name is required"
         return f"{self.scope.name}::{self.name}@{self.context}"
     
     @property
@@ -72,6 +79,22 @@ class Variable:
     def is_global(self) -> bool:
         """Check if this is a global variable."""
         return self.kind == VariableKind.GLOBAL
+
+
+@dataclass(frozen=True)
+class FieldAccess:
+    """Field access for variables.
+    
+    Attributes:
+        variable: Variable being accessed
+        field: Field being accessed
+    """
+
+    obj: 'AbstractObject'
+    field: 'Field'
+    
+    def __str__(self) -> str:
+        return f"{self.obj}{self.field}"
 
 
 class VariableFactory:
@@ -107,4 +130,19 @@ class VariableFactory:
             Created variable
         """
         return Variable(name=name, scope=scope, context=context, kind=kind)
-
+    
+    def make_field_access(
+        self,
+        obj: 'AbstractObject',
+        field: 'Field'
+    ) -> FieldAccess:
+        """Create field access for variable.
+        
+        Args:
+            obj: Object being accessed
+            field: Field being accessed
+        
+        Returns:
+            Created field access
+        """
+        field = FieldAccess(obj=obj, field=field)
