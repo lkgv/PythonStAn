@@ -55,6 +55,7 @@ class ScopeManager:
     father: Dict[IRScope, IRScope]
     names2scope: Dict[str, IRScope]
     scope_ir: Dict[Tuple[str, str], Any]
+    file2mod: Dict[str, IRModule]
 
     def build(self):
         self.scopes = {*()}
@@ -63,7 +64,8 @@ class ScopeManager:
         self.father = {}
         self.names2scope = {}
         self.scope_ir = {}
-
+        self.file2mod = {}
+        
     def get_module_graph(self) -> ModuleGraph:
         return self.module_graph
 
@@ -100,6 +102,8 @@ class ScopeManager:
             self.subscopes[scope] = [cls]
 
     def add_module(self, ns: Namespace, filename: str) -> Optional[IRModule]:
+        if filename in self.file2mod or ns.to_str() in self.names2scope:
+            return self.file2mod[filename]        
         if not os.path.isfile(filename):
             return None
         with open(filename, 'r') as f:
@@ -107,6 +111,7 @@ class ScopeManager:
         mod = IRModule(ns.to_str(), m_ast, ns.get_name(), filename)
         self.scopes.add(mod)
         self.names2scope[mod.get_qualname()] = mod
+        self.file2mod[filename] = mod
         return mod
 
     def get_module(self, names: str) -> IRScope:

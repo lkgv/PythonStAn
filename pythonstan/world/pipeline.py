@@ -30,10 +30,10 @@ class Pipeline:
         return World()
 
     def build_scope_graph(self, entry_path: str):
-        entry_ns = Namespace.build(["__main__"])
+        entry_ns = World().namespace_manager.set_entry_module(entry_path, self.config.project_path)
         entry_mod = World().scope_manager.add_module(entry_ns, entry_path)
         World().entry_module = entry_mod
-        q: List[Tuple[Namespace, IRModule]] = [(entry_ns, entry_mod)]
+        q: List[Tuple[Namespace, IRModule, int]] = [(entry_ns, entry_mod, 0)]
         g = ModuleGraph()
         g.add_node(entry_mod)
         visited_ns = set()
@@ -41,7 +41,7 @@ class Pipeline:
         # Lazy IR construction: only process entry module, skip imports
         if self.config.lazy_ir_construction:
             # Only process the entry module
-            ns, mod = q.pop()
+            ns, mod, _ = q.pop()
             visited_ns.add(ns)
             # Run transformations only on entry module
             self.analysis_manager.analysis("three address", mod)
@@ -58,13 +58,16 @@ class Pipeline:
                     if new_mod is not None and mod_ns not in visited_ns:
                         g.add_edge(mod, new_mod)
                         World().import_manager.set_import(mod, stmt, new_mod)
+                        
         else:
             # Original behavior: process all imports transitively
             while len(q) > 0:
-                ns, mod = q.pop()
-                ns: Namespace
-                mod: IRModule
-                visited_ns.add(ns)
+                ns, mod, level = q.pop()
+                
+                if mod.get_qualname() in visited_ns:
+                    continue                
+                visited_ns.add(mod.get_qualname())
+                
                 # Preprocess module
                 # TODO to be completed
                 self.analysis_manager.analysis("three address", mod)
@@ -72,19 +75,24 @@ class Pipeline:
                 self.analysis_manager.analysis("block cfg", mod)
                 self.analysis_manager.analysis("cfg", mod)
                 # self.analysis_manager.analysis("ssa", mod)
-                # imports = self.analysis_manager.get_results("imports")[mod]
                 imports = World().scope_manager.get_ir(mod, "imports")
+    
+                print(f"Imports of {mod.get_qualname()}: {imports}")
 
                 for stmt in imports:
                     get_import = World().namespace_manager.get_import(ns, stmt)
                     if get_import is not None:
                         mod_ns, mod_path = get_import
+
                         new_mod = World().scope_manager.add_module(mod_ns, mod_path)
-                        if new_mod is None or mod_ns in visited_ns:
+                        if new_mod is None:
                             continue
+                        
                         g.add_edge(mod, new_mod)
-                        q.append((mod_ns, new_mod))
+                        if self.config.import_level < 0 or level < self.config.import_level:
+                            q.append((mod_ns, new_mod, level + 1))                 
                         World().import_manager.set_import(mod, stmt, new_mod)
+                        
         World().scope_manager.set_module_graph(g)
 
     def analyse_intra_procedure(self, analyzer):

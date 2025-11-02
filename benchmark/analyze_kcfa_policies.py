@@ -70,6 +70,7 @@ PROJECT_CONFIGS = {
     "werkzeug": {
         "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src/werkzeug/__init__.py",
         "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src",
+        "import_level": 2,
         "library_paths": [
             "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10/site-packages",
             "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10",
