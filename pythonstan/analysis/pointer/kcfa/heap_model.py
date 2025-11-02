@@ -18,6 +18,7 @@ class FieldKind(Enum):
     ELEMENT = "elem"
     VALUE = "value"
     UNKNOWN = "unknown"
+    POSITION = "position"
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ class Field:
     
     kind: FieldKind
     name: Optional[str] = None
+    index: Optional[int] = None
     
     def __post_init__(self):
         """Validate field constraints."""
@@ -44,12 +46,32 @@ class Field:
             raise ValueError("ATTRIBUTE field must have name")
         if self.kind != FieldKind.ATTRIBUTE and self.name is not None:
             raise ValueError(f"{self.kind.value} field should not have name")
+        if self.kind == FieldKind.POSITION and self.index is None:
+            raise ValueError("POSITION field must have index")
+        if self.kind != FieldKind.POSITION and self.index is not None:
+            raise ValueError(f"{self.kind.value} field should not have index")
     
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.kind == FieldKind.ATTRIBUTE:
             return f".{self.name}"
+        if self.kind == FieldKind.ATTRIBUTE:
+            return f".({self.index})"
         return f".{self.kind.value}"
+
+
+def position(index: int) -> Field:
+    """Create position field key for containers.
+    
+    Used for list, set, and tuple elements where we abstract over all indices.
+    
+    Args:
+        index: Index of the element
+    
+    Returns:
+        Field for container element access
+    """
+    return Field(FieldKind.POSITION, str(index))
 
 
 def attr(name: str) -> Field:

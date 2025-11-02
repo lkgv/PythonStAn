@@ -18,7 +18,6 @@ class CFG(Transform):
         self.transformer = CFGTransformer()
 
     def transform(self, module: IRModule):
-        print(f"Generate CFG for {module.qualname}")
         block_cfg = World().scope_manager.get_ir(module, "block cfg")
         self.transformer.trans(module, block_cfg)
         self.results = None

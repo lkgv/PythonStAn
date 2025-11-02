@@ -10,14 +10,14 @@ from .constraints import *
 from .context import AbstractContext
 from .config import Config
 from .variable import Variable, Scope, VariableFactory, VariableKind
+from .heap_model import elem, value, attr
 from .module_finder import ModuleFinder
 from pythonstan.ir.ir_statements import (
-    IRCopy, IRAssign, IRLoadAttr, IRStoreAttr,
+    IRCopy, IRAssign, IRImport, IRLoadAttr, IRModule, IRStoreAttr,
     IRCall, IRReturn, IRLoadSubscr, IRStoreSubscr,
     IRFunc, IRClass
 )
 from .object import AllocSite, AllocKind
-from .heap_model import attr
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class IRTranslator:
         self._import_depth = 0  # Track import depth for recursion limit
         
         from pythonstan.world import World
-        self.scope_namager = World().scope_manager
+        self.scope_manager = World().scope_manager
         self.namespace_manager = World().namespace_manager
     
     def translate_function(self, func: IRFunc, context: 'AbstractContext') -> List['Constraint']:        
@@ -44,7 +44,7 @@ class IRTranslator:
         func_name = getattr(func, 'name', '<unknown>')
         self._current_scope = Scope(name=func_name, kind="function")
         self._current_context = context
-        stmts = self.scope_namager.get_ir(func, 'ir')
+        stmts = self.scope_manager.get_ir(func, 'ir')
         if stmts is not None:
             for stmt in stmts:
                 if isinstance(stmt, IRCopy):
@@ -69,11 +69,17 @@ class IRTranslator:
                     constraints.extend(self._translate_class_def(stmt))
         return constraints
     
-    def translate_module(self, module) -> List['Constraint']:
+    def translate_module(self, module: IRModule, context: Optional['AbstractContext'] = None) -> List['Constraint']:
         constraints = []
         
         module_name = getattr(module, 'name', '__main__')
-        self._current_scope = Scope(name=module_name, kind="module")
+        self._current_scope = Scope(name=module_name, stmt=module, context=context, kind="module")
+        
+        # Set context (or use empty context if not provided)
+        if context is None:
+            from .context import CallStringContext
+            context = CallStringContext(call_sites=(), k=0)
+        self._current_context = context
 
         try:
             subscopes = self.scope_manager.get_subscopes(module)
@@ -86,7 +92,11 @@ class IRTranslator:
         except Exception as e:
             logger.debug(f"Could not get subscopes from World: {e}")
         
-        if hasattr(module, 'ast') and hasattr(module.ast, 'body'):
+        for stmt in self.scope_manager.get_ir(module, 'ir'):
+            if isinstance(stmt, IRImport):
+                constraints.extend(self._translate_import(stmt))
+        
+        if False and hasattr(module, 'ast') and hasattr(module.ast, 'body'):
             for stmt in module.ast.body:
                 if isinstance(stmt, (ast.Import, ast.ImportFrom)):
                     constraints.extend(self._translate_import(stmt))
@@ -116,7 +126,7 @@ class IRTranslator:
         return [CopyConstraint(source=source_var, target=target_var)]
     
     def _translate_assign(self, stmt) -> List['Constraint']:
-        """Translate IRAssign: may allocate objects"""        
+        """Translate IRAssign: may allocate objects"""
         constraints = []
         lval = stmt.get_lval()
         rval = stmt.get_rval()
@@ -149,7 +159,8 @@ class IRTranslator:
                             field=value(),
                             source=val_var
                         ))
-            
+                        
+        # TODO Tuple should set index as field (eg. t = (a, b) is t._1 = a, t._2 = b)
         elif isinstance(rval, ast.Tuple):
             alloc_site = AllocSite.from_ir_node(stmt, AllocKind.TUPLE)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
@@ -208,12 +219,13 @@ class IRTranslator:
         
         return [StoreConstraint(base=base_var, field=field, source=source_var)]
     
-    def _translate_call(self, stmt) -> List['Constraint']:
+    def _translate_call(self, stmt: IRCall) -> List['Constraint']:
         """Translate IRCall: target = callee(args...)"""
+        # TODO all conditions of arguments should be translated to constraints
         from .constraints import CallConstraint
         
-        lval = stmt.get_lval()
-        callee_expr = stmt.get_callee()
+        lval = stmt.get_target()
+        callee_expr = stmt.get_func_name()
         args = stmt.get_args()
         
         callee_var = self._make_variable(callee_expr)
@@ -229,7 +241,7 @@ class IRTranslator:
             call_site=call_site_id
         )]
     
-    def _translate_return(self, stmt) -> List['Constraint']:
+    def _translate_return(self, stmt: IRReturn) -> List['Constraint']:
         """Translate IRReturn: return value"""
         from .constraints import CopyConstraint
         
@@ -242,10 +254,7 @@ class IRTranslator:
         
         return []
     
-    def _translate_load_subscr(self, stmt) -> List['Constraint']:
-        from .constraints import LoadConstraint, CallConstraint
-        from .heap_model import elem, value, attr
-        
+    def _translate_load_subscr(self, stmt) -> List['Constraint']:        
         lval = stmt.get_lval()
         container_name = stmt.get_container()
         
@@ -425,24 +434,24 @@ class IRTranslator:
         
         return func_var, constraints
     
-    def _translate_class_def(self, stmt) -> Tuple[Variable, List['Constraint']]:
+    def _translate_class_def(self, stmt: IRClass) -> Tuple[Variable, List['Constraint']]:
         """Translate class definition: allocate class object and bind methods."""
         
         """NOTE: HERE IS A BIG BUG, SHOUD NOT RESOLVE AST"""
        
         constraints = []
+        logger.info(stmt)
         
         class_alloc = AllocSite.from_ir_node(stmt, AllocKind.CLASS, stmt.name)
         class_var = self._make_variable(stmt.name)
         constraints.append(AllocConstraint(target=class_var, alloc_site=class_alloc))
         
-        for subscope in self.scope_namager.get_subscopes(stmt):
+        for subscope in self.scope_manager.get_subscopes(stmt):
             # NOTICE: staticmethod and classmethod are not supported yet
             if isinstance(subscope, IRFunc):
                 fn_var, fn_constraints = self._translate_function_def(subscope)
                 constraints.extend(fn_constraints)
                 Field = attr(self._make_variable(f"{stmt.name}.{subscope.name}"))
-
                 constraints.append(StoreConstraint(
                     base=class_var,
                     field=Field,
@@ -459,18 +468,21 @@ class IRTranslator:
                 ))
             else:
                 logger.debug(f"Unknown subscope type: {type(subscope)}")
-                        
-        if hasattr(stmt, 'bases') and stmt.bases:
-            for base_name in stmt.get_bases():
-                base_var = self._make_variable(base_name)
-                constraints.append(StoreConstraint(
-                    base=class_var,
-                    field=attr("__bases__"),
-                    source=base_var
-                ))        
+        
+        
+        # TODO [CRITICAL] the method of treating inheritances is totally wrong, we should use the class hierarchy manager to handle this.
+        for base_name in stmt.get_bases():                
+            base_var = self._make_variable(base_name)
+            constraints.append(StoreConstraint(
+                base=class_var,
+                field=attr("__bases__"),
+                source=base_var
+            ))
         return class_var, constraints
     
-    def _translate_import(self, stmt) -> List['Constraint']:
+    
+    # TODO [CRITICAL] we should change the logic of import: load in import_manager -> seek the import in scope_manager if exists, else Unknown.
+    def _translate_import(self, stmt: IRImport) -> List['Constraint']:
         """Translate import statement with transitive analysis. """
         from .constraints import AllocConstraint, LoadConstraint
         from .object import AllocSite, AllocKind
@@ -478,6 +490,11 @@ class IRTranslator:
         import ast
         
         constraints = []
+        
+        
+        # TODO some bugs get here, the stmt should be IRImport, so leave the mitigation here
+        stmt = stmt.get_ast()
+        
         
         if not hasattr(self, '_import_depth'):
             self._import_depth = 0

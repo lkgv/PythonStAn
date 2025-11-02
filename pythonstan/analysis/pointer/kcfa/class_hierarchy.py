@@ -207,8 +207,6 @@ def compute_c3_mro(
     Raises:
         MROError: If inheritance graph is inconsistent
     """
-    from .object import AllocKind, AbstractObject, AllocSite
-    
     # Get direct bases
     bases = hierarchy.get_bases(class_obj)
     
@@ -262,7 +260,7 @@ def _c3_merge(sequences: List[List['AbstractObject']]) -> List['AbstractObject']
     while True:
         # Remove empty sequences
         seqs = [seq for seq in seqs if seq]
-        if not seqs:
+        if len(seqs) != 0:
             return result
         
         # Find a candidate: head that doesn't appear in any tail

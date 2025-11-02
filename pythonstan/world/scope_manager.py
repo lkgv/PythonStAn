@@ -1,6 +1,6 @@
 import ast
 import os
-from typing import Set, List, Dict, Tuple, Any, Optional
+from typing import Set, List, Dict, Tuple, Any, Optional, FrozenSet
 
 from .namespace import Namespace
 from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule
@@ -42,6 +42,9 @@ class ModuleGraph:
 
     def get_entries(self):
         return [u for u in self.nodes if len(self.preds[u]) == 0]
+
+    def get_modules(self) -> FrozenSet[IRModule]:
+        return frozenset(self.nodes)
 
 
 class ScopeManager:

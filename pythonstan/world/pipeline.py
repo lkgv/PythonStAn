@@ -6,7 +6,7 @@ from .config import Config
 from .scope_manager import ModuleGraph
 from .analysis_manager import AnalysisManager
 
-from typing import List, Tuple
+from typing import List, Tuple, Generator
 from queue import Queue
 
 class Pipeline:
@@ -119,11 +119,7 @@ class Pipeline:
                 if not succ in visited:
                     q.put(succ)
 
-    def do_inter_procedure(self, analyzer):
-        entry = World().get_entry_module()
-        self.analysis_manager.do_analysis(analyzer, entry)
-
-    def do_analysis(self, analyzer_generator):
+    def do_analysis(self, analyzer_generator: Generator[AnalysisDriver, None, None]):
         for analyzer in analyzer_generator:
             if analyzer.config.type == "dataflow analysis":
                 if analyzer.config.inter_procedure:
@@ -133,7 +129,7 @@ class Pipeline:
             elif analyzer.config.type == 'transform':
                 self.do_transform(analyzer)
             elif analyzer.config.type == 'inter-procedure':
-                self.do_inter_procedure(analyzer)
+                self.analyse_inter_procedure(analyzer)
             elif analyzer.config.type == 'pointer analysis':
                 # Pointer analysis is typically inter-procedural
                 self.analyse_inter_procedure(analyzer)

@@ -221,9 +221,13 @@ class ConstraintManager:
         self._constraints.add(constraint)
         
         # Index by variables
-        for var in constraint.variables():
-            self._by_variable[var].add(constraint)
-        
+        if isinstance(constraint, LoadConstraint):
+            self._by_variable[constraint.base].add(constraint)
+        elif isinstance(constraint, StoreConstraint):
+            self._by_variable[constraint.base].add(constraint)
+        elif isinstance(constraint, CallConstraint):
+            self._by_variable[constraint.callee].add(constraint)
+            
         # Index by type
         self._by_type[type(constraint)].add(constraint)
         
