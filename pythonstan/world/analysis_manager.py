@@ -1,11 +1,13 @@
-from typing import Dict, List, Any, Tuple, Literal
+from typing import Dict, List, Any, Tuple, Literal, Generator
 from queue import Queue
 
-from pythonstan.analysis import Analysis, AnalysisDriver, AnalysisConfig
+from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.ir import IRModule
+
+# Analysis drivers
 from pythonstan.analysis.transform import TransformDriver
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.analysis.pointer import PointerAnalysisDriver
-from pythonstan.ir import IRModule
 
 DEFAULT_ANALYSIS = [
     AnalysisConfig(
@@ -90,7 +92,7 @@ class AnalysisManager:
         analyzer.analyze(module, prev_results)
         self.results[analyzer.config.name] = analyzer.results
 
-    def generator(self):
+    def generator(self) -> Generator[AnalysisDriver, None, None]:
         visited = {*()}
         queue = Queue()
         for name, analyzer in self.analyzers.items():
@@ -100,8 +102,10 @@ class AnalysisManager:
             cur_name = queue.get()
             visited.add(cur_name)
             cur_analyzer = self.analyzers[cur_name]
+            
             if cur_analyzer.config not in DEFAULT_ANALYSIS:
                 yield cur_analyzer
+                
             for succ in self.next_analyzers[cur_name]:
                 if succ not in visited:
                     queue.put(succ)

@@ -159,7 +159,7 @@ class NamespaceManager:
                     return root_path, sub_ns, new_modules
         raise ValueError(f"Cannot find root module in <{names[0]}>")
 
-    def names_from_import(self, ir: IRImport):
+    def names_from_import(self, ir: IRImport) -> List[str]:
         ...
 
     def find_ns_in_path(self, paths: List[str], ns: Namespace) -> Optional[str]:
@@ -180,14 +180,14 @@ class NamespaceManager:
                 return None
         return mod_path
 
-    def resolve_import(self, name) -> Optional[Tuple[Namespace, str]]:
+    def resolve_import(self, name: str) -> Optional[Tuple[Namespace, str]]:
         ns = Namespace.from_str(name)
         path = self.find_ns_in_path(self.paths, ns)
         if path is not None:
             return ns, path
         return None
 
-    def resolve_importfrom(self, module, name) -> Optional[Tuple[Namespace, str]]:
+    def resolve_importfrom(self, module: str, name: str) -> Optional[Tuple[Namespace, str]]:
         mod_ns = Namespace.from_str(module)
         succ_mod_ns = mod_ns.next_ns([name])
         succ_mod_path = self.find_ns_in_path(self.paths, succ_mod_ns)
@@ -200,7 +200,7 @@ class NamespaceManager:
             return mod_ns, mod_path
         return None
 
-    def resolve_rel_importfrom(self, cur_ns, module, name, level) -> Optional[Tuple[Namespace, str]]:
+    def resolve_rel_importfrom(self, cur_ns: Namespace, module: str, name: str, level: int) -> Optional[Tuple[Namespace, str]]:
         rel_ns = cur_ns.relative_ns(module.split('.'), level)
         root_path = get_root(self.ns2path[cur_ns], cur_ns.names)
         if os.path.isfile(rel_ns.to_filepath(root_path)):

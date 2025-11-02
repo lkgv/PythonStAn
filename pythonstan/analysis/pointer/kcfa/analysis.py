@@ -4,7 +4,9 @@ This module provides the main entry point for running pointer analysis.
 """
 
 import logging
-from typing import Optional, List, Any, TYPE_CHECKING
+from typing import Optional, List, Any, TYPE_CHECKING, Dict
+from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.ir import IRScope
 
 if TYPE_CHECKING:
     from .config import Config
@@ -12,144 +14,98 @@ if TYPE_CHECKING:
 
 __all__ = ["PointerAnalysis", "AnalysisResult"]
 
+logger = logging.getLogger(__name__)
 
-class PointerAnalysis:
+
+class PointerAnalysis(AnalysisDriver):
     """Main entry point for k-CFA pointer analysis.
-    
-    Orchestrates all components: IR translation, constraint generation,
-    solving, and result querying.
-    
-    Example:
-        >>> config = Config(context_policy="2-cfa")
-        >>> analysis = PointerAnalysis(config)
-        >>> result = analysis.analyze(ir_module)
-        >>> pts = result.query().points_to(var)
     """
     
-    def __init__(self, config: Optional['Config'] = None):
+    def __init__(self, analysis_config: AnalysisConfig):
         """Initialize pointer analysis.
         
         Args:
             config: Analysis configuration. If None, uses default.
         """
-        from .config import Config
-        
-        self.config = config or Config()
-        self._result: Optional['AnalysisResult'] = None
-        self._setup_logging()
-    
-    def analyze(
-        self,
-        module: Any,
-        entry_points: Optional[List[str]] = None
-    ) -> 'AnalysisResult':
-        """Run pointer analysis on module.
-        
-        Args:
-            module: IR module to analyze
-            entry_points: List of entry point function names.
-                         If None, analyzes all module-level code.
-        
-        Returns:
-            AnalysisResult containing points-to information and call graph
-        """
-        import logging
+        from .config import Config        
         from .state import PointerAnalysisState
         from .solver import PointerSolver
         from .ir_translator import IRTranslator
         from .context_selector import ContextSelector, parse_policy
+        from .class_hierarchy import ClassHierarchyManager
+        from .builtin_api_handler import BuiltinSummaryManager
         
-        logger = logging.getLogger(__name__)
-        logger.info("Starting pointer analysis")
-        
-        # 1. Create analysis state
-        state = PointerAnalysisState()
-        
-        # 2. Create context selector
-        policy = parse_policy(self.config.context_policy)
-        context_selector = ContextSelector(policy=policy)
-        
-        # 3. Get empty context for module-level analysis
-        empty_context = context_selector.empty_context()
-        
-        # 4. Create module finder and IR translator
-        from .module_finder import ModuleFinder
-        module_finder = ModuleFinder(self.config)
-        translator = IRTranslator(self.config, module_finder=module_finder)
-        
-        # 5. Translate ALL scopes to constraints (not just entry module)
-        logger.info("Translating all scopes to constraints...")
-        constraints = []
-        
-        # Get all scopes from World's scope manager
         from pythonstan.world import World
-        world = World()
-        all_scopes = world.scope_manager.get_scopes()
+        self.config = analysis_config
+        if not hasattr(self.config, 'options'):
+            print(f"Analysis config {self.config} has no options")
+        self.kcfa_config = Config.from_dict(self.config.options)        
+        self._setup_logging()
+        self._result: Optional['AnalysisResult'] = None
+        self.world = World()
+        self.state = PointerAnalysisState()
+        policy = parse_policy(self.kcfa_config.context_policy)
+        self.context_selector = ContextSelector(policy=policy)
+        self.translator = IRTranslator(self.kcfa_config, module_finder=None)
+        self.class_hierarchy = ClassHierarchyManager()
+        self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
+        self.function_registry = {}
         
-        logger.info(f"Found {len(all_scopes)} scopes to analyze")
+        self.solver = PointerSolver(
+            state=self.state,
+            config=self.kcfa_config,
+            ir_translator=self.translator,
+            context_selector=self.context_selector,
+            function_registry=self.function_registry,
+            class_hierarchy=self.class_hierarchy,
+            builtin_manager=self.builtin_manager
+        )
+
+    def analyze(
+        self,
+        entry_scope: IRScope,
+        prev_results: Dict[str, Any]
+    ) -> 'AnalysisResult':
+        """Run pointer analysis on module.
         
-        # Translate each scope
-        from pythonstan.ir.ir_statements import IRFunc, IRClass, IRModule
+        Args:
+            entry_scope: Scope to analyze
+            prev_results: Results of previous analyses
         
-        for scope in all_scopes:
+        Returns:
+            AnalysisResult containing points-to information and call graph
+        """        
+        logger.info("Starting pointer analysis")
+
+        # Get empty context for module-level analysis
+        empty_context = self.context_selector.empty_context()
+                
+        # Translate ALL scopes to constraints (not just entry module)
+        logger.info("Translating all scopes to constraints...")
+        
+        constraints = []
+        for scope in self.world.scope_manager.get_module_graph().get_modules():
             try:
                 scope_name = scope.get_qualname()
-                
-                if isinstance(scope, IRFunc):
-                    logger.debug(f"Translating function: {scope_name}")
-                    func_constraints = translator.translate_function(scope, empty_context)
-                    constraints.extend(func_constraints)
-                    
-                elif isinstance(scope, IRModule):
-                    logger.debug(f"Translating module: {scope_name}")
-                    module_constraints = translator.translate_module(scope, empty_context)
-                    constraints.extend(module_constraints)
-                    
-                elif isinstance(scope, IRClass):
-                    logger.debug(f"Translating class: {scope_name}")
-                    # Classes are handled as part of their containing module/function
-                    pass
-                    
+                logger.debug(f"Translating module: {scope_name}")                    
+                constraints.extend(self.translator.translate_module(scope, empty_context))
             except Exception as e:
-                raise e
                 logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
                 continue
         
         logger.info(f"Total constraints generated: {len(constraints)}")
         
-        # 6. Create class hierarchy manager
-        from .class_hierarchy import ClassHierarchyManager
-        class_hierarchy = ClassHierarchyManager()
-        
-        # 7. Create builtin summary manager
-        from .builtin_api_handler import BuiltinSummaryManager
-        builtin_manager = BuiltinSummaryManager(self.config)
-        
-        # 8. Build function registry (empty for now, will be populated by solver)
-        function_registry = {}
-        
-        # 9. Create solver with full dependencies
-        solver = PointerSolver(
-            state=state,
-            config=self.config,
-            ir_translator=translator,
-            context_selector=context_selector,
-            function_registry=function_registry,
-            class_hierarchy=class_hierarchy,
-            builtin_manager=builtin_manager
-        )
-        
-        # 10. Add all constraints to solver
+        # Add all constraints to solver
         for constraint in constraints:
-            solver.add_constraint(constraint)
+            self.solver.add_constraint(constraint)
         
-        # 11. Solve to fixpoint
-        solver.solve_to_fixpoint()
+        # Solve to fixpoint
+        self.solver.solve_to_fixpoint()
         
-        # 12. Create and return result
-        solver_query = solver.query()
+        # Create and return result
+        solver_query = self.solver.query()
         result = AnalysisResult(solver_query)
-        self._result = result
+        self.results = result
         
         logger.info("Analysis complete")
         return result
@@ -163,15 +119,15 @@ class PointerAnalysis:
         Raises:
             RuntimeError: If analyze() hasn't been called yet
         """
-        if self._result is None:
+        if self.results is None:
             raise RuntimeError("Must call analyze() before query()")
         
-        return self._result.query()
+        return self.results.query()
     
     def _setup_logging(self):
         """Setup logging configuration."""
         logging.basicConfig(
-            level=getattr(logging, self.config.log_level),
+            level=getattr(logging, self.kcfa_config.log_level),
             format='%(levelname)s: %(message)s'
         )
 
@@ -205,4 +161,3 @@ class AnalysisResult:
             Dictionary with analysis statistics
         """
         return self._query.get_statistics()
-
