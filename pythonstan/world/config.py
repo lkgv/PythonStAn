@@ -16,8 +16,12 @@ class Config:
     succ_analysis: Dict[str, Set[str]]
     lazy_ir_construction: bool
     import_level: int
+    time_count: bool
 
-    def __init__(self, filename, project_path, lazy_ir_construction: bool = False, import_level: int = -1):
+    def __init__(self, filename, project_path,
+                 lazy_ir_construction: bool = False,
+                 import_level: int = -1,
+                 time_count: bool = False):
         self.filename = filename
         self.project_path = project_path
         self.library_paths = []
@@ -25,6 +29,7 @@ class Config:
         self.analysis = {}
         self.lazy_ir_construction = lazy_ir_construction
         self.import_level = import_level
+        self.time_count = time_count
         
     @classmethod
     def from_dict(cls, info: Dict):
@@ -39,6 +44,7 @@ class Config:
         for library_path in info['library_paths']:
             conf.add_library_path(library_path)
         conf.import_level = info.get('import_level', -1)
+        conf.time_count = info.get('time_count', False)
         return conf
 
     @classmethod

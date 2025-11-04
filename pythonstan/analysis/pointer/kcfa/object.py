@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .variable import Scope
     from .context import AbstractContext
 
 __all__ = ["AllocKind", "AllocSite", "AbstractObject"]
@@ -50,7 +51,8 @@ class AllocSite:
     line: int
     col: int
     kind: AllocKind
-    name: Optional[str] = None
+    scope: Optional['Scope']
+    name: Optional[str]
     
     def __str__(self) -> str:
         """String representation for debugging and display."""
@@ -60,7 +62,7 @@ class AllocSite:
         return f"{loc}:{self.kind.value}"
     
     @staticmethod
-    def from_ir_node(node, kind: AllocKind, name: Optional[str] = None) -> 'AllocSite':
+    def from_ir_node(node, kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None) -> 'AllocSite':
         """Create allocation site from IR node.
         Extract source location from IR node.
         IR nodes typically have file, line, col attributes.
@@ -83,7 +85,7 @@ class AllocSite:
         if col == 0 and hasattr(node, 'col_offset'):
             col = node.col_offset
             
-        return AllocSite(file=file, line=line, col=col, kind=kind, name=name)
+        return AllocSite(file=file, line=line, col=col, kind=kind, scope=scope, name=name)
 
 
 @dataclass(frozen=True)

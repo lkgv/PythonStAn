@@ -8,6 +8,8 @@ from typing import Dict, Set, List
 from collections import defaultdict, deque
 import logging
 
+from pythonstan.ir.ir_statements import IRModule
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["ModuleDependencyGraph"]
@@ -21,8 +23,8 @@ class ModuleDependencyGraph:
     """
     
     def __init__(self):
-        self._edges: Dict[str, Set[str]] = defaultdict(set)
-        self._reverse: Dict[str, Set[str]] = defaultdict(set)
+        self._edges: Dict[IRModule, Set[IRModule]] = defaultdict(set)
+        self._reverse: Dict[IRModule, Set[str]] = defaultdict(set)
     
     def add_import(self, importer: str, importee: str) -> None:
         self._edges[importer].add(importee)

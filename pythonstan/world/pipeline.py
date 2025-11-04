@@ -8,6 +8,9 @@ from .analysis_manager import AnalysisManager
 
 from typing import List, Tuple, Generator
 from queue import Queue
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Pipeline:
     config: Config
@@ -24,6 +27,8 @@ class Pipeline:
         World().build(self.config)
         self.analysis_manager = AnalysisManager()
         self.analysis_manager.build(self.config.get_analysis_list())
+        self.analysis_manager.set_time_count(self.config.time_count)
+        print("Time count: ", self.config.time_count)
         self.build_scope_graph(self.config.filename)
 
     def get_world(self):
@@ -56,7 +61,7 @@ class Pipeline:
                     mod_ns, mod_path = get_import
                     new_mod = World().scope_manager.add_module(mod_ns, mod_path)
                     if new_mod is not None and mod_ns not in visited_ns:
-                        g.add_edge(mod, new_mod)
+                        g.add_edge(mod, stmt, new_mod)
                         World().import_manager.set_import(mod, stmt, new_mod)
                         
         else:
@@ -76,8 +81,6 @@ class Pipeline:
                 self.analysis_manager.analysis("cfg", mod)
                 # self.analysis_manager.analysis("ssa", mod)
                 imports = World().scope_manager.get_ir(mod, "imports")
-    
-                print(f"Imports of {mod.get_qualname()}: {imports}")
 
                 for stmt in imports:
                     get_import = World().namespace_manager.get_import(ns, stmt)
@@ -88,7 +91,7 @@ class Pipeline:
                         if new_mod is None:
                             continue
                         
-                        g.add_edge(mod, new_mod)
+                        g.add_edge(mod, stmt, new_mod)
                         if self.config.import_level < 0 or level < self.config.import_level:
                             q.append((mod_ns, new_mod, level + 1))                 
                         World().import_manager.set_import(mod, stmt, new_mod)

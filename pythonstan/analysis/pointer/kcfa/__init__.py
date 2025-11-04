@@ -43,14 +43,12 @@ from .constraints import (
 )
 from .class_hierarchy import ClassHierarchyManager, MROError
 from .builtin_api_handler import BuiltinSummary
-from .module_finder import ModuleFinder
 
 __all__ = [
     # Main entry points
     "PointerAnalysis",
     "AnalysisResult",
     "Config",
-    "ModuleFinder",
     
     # Context types
     "CallSite",

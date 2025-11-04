@@ -1,4 +1,5 @@
 from typing import Dict, Set, Optional, TypeVar, Generic
+from abc import ABC, abstractmethod
 
 from .call_edge import CallEdge
 
@@ -9,7 +10,7 @@ CallSite = TypeVar("CallSite")
 Method = TypeVar('Method')
 
 
-class AbstractCallGraph(Generic[CallSite, Method]):
+class AbstractCallGraph(Generic[CallSite, Method], ABC):
     callsite_to_edges: Dict[CallSite, Set[CallEdge[CallSite, Method]]]
     callee_to_edges: Dict[Method, Set[CallEdge[CallSite, Method]]]
     callsite_to_container: Dict[CallSite, Method]
@@ -18,6 +19,7 @@ class AbstractCallGraph(Generic[CallSite, Method]):
     reachable_scopes: Set[Method]
     edges: Set[CallEdge[CallSite, Method]]
 
+    @abstractmethod
     def __init__(self):
         self.callsite_to_edges = {}
         self.callee_to_edges = {}
@@ -26,6 +28,14 @@ class AbstractCallGraph(Generic[CallSite, Method]):
         self.entry_scopes = {*()}
         self.reachable_scopes = {*()}
         self.edges = {*()}
+    
+    def add_edge(self, edge: CallEdge[CallSite, Method]):
+        self.callsite_to_edges[edge.get_callsite()].add(edge)
+        self.callee_to_edges[edge.get_callee()].add(edge)
+        self.callsite_to_container[edge.get_callsite()] = edge.get_callee()
+        self.callsites_in[edge.get_callee()].add(edge.get_callsite())
+        self.reachable_scopes.add(edge.get_callee)
+        self.edges.add(edge)
 
     def get_callers_of(self, callee: Method) -> Set[CallSite]:
         return {e.get_callsite() for e in self.callee_to_edges.get(callee, {*()})}

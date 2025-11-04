@@ -5,17 +5,23 @@ the environment (variable points-to sets) and heap (object field points-to sets)
 """
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, Tuple, Set, Optional, TYPE_CHECKING
+from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, TYPE_CHECKING
 from collections import defaultdict
 
 # if TYPE_CHECKING:
 from .object import AbstractObject
 from .variable import Variable, FieldAccess, VariableFactory
+from .context import CallSite
 from .heap_model import Field
 from .constraints import ConstraintManager
 from pythonstan.graph.call_graph import AbstractCallGraph
 
 __all__ = ["PointsToSet", "PointerAnalysisState"]
+
+
+class PointerCallGraph(AbstractCallGraph[CallSite, Variable]):
+    def __init__(self):
+        super().__init__()
 
 
 @dataclass(frozen=True)
@@ -51,6 +57,11 @@ class PointsToSet:
             Points-to set containing only obj
         """
         return PointsToSet(frozenset([obj]))
+    
+    @staticmethod
+    def from_objects(objs: Iterable['AbstractObject']) -> 'PointsToSet':
+        """Create points-to set from a set of objects."""
+        return PointsToSet(frozenset(objs))
     
     def union(self, other: 'PointsToSet') -> 'PointsToSet':
         """Union with another points-to set.
@@ -144,7 +155,7 @@ class PointerAnalysisState:
         """Initialize empty analysis state."""
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap: Dict[Tuple['AbstractObject', 'Field'], PointsToSet] = {}
-        self._call_graph: 'AbstractCallGraph' = AbstractCallGraph()
+        self._call_graph: 'AbstractCallGraph' = PointerCallGraph()
         self._constraints: 'ConstraintManager' = ConstraintManager()
         self._call_edges = []  # List of CallEdge objects tracked during analysis
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
@@ -268,6 +279,7 @@ class PointerAnalysisState:
         return {
             "num_variables": len(self._env),
             "num_objects": len(objects),
-            "num_heap_locations": len(self._heap)
+            "num_heap_locations": len(self._heap),
+            "num_call_edges": len(self._call_edges)
         }
 

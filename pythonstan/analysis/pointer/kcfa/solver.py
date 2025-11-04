@@ -81,12 +81,10 @@ class PointerSolver:
             # Log progress periodically
             if self._iteration % 1000 == 0:
                 logger.debug(f"Iteration {self._iteration}, worklist size {len(self._worklist)}")
-            
+                        
             var, pts = self._worklist.pop()
-            
-            logger.info(f"Processing variable {var} with points-to set {pts}")
-
             diff = pts - self.state.get_points_to(var)
+
             if not diff.is_empty():
                 self.state.set_points_to(var, diff)
                 for target in self.state.pointer_flow_graph.get_succs(var):
@@ -94,7 +92,7 @@ class PointerSolver:
                     
                 constraints_to_process = list(self.state.constraints.get_by_variable(var))
                 for constraint in constraints_to_process:
-                    logger.info(f"Processing constraint {constraint}")
+                    logger.debug(f"Processing var {var} for Constraint: {constraint}")
                     self._apply_constraint(constraint, diff)
         
         if self._iteration >= max_iter:
@@ -106,19 +104,23 @@ class PointerSolver:
     def process_static_constraints(self):
         for constraint in self.state.constraints.get_by_type(CopyConstraint):
             self._apply_copy(constraint)
-        for constraint in self.state.constraints.get_by_type(AllocConstraint):
-            self._apply_alloc(constraint)
         for constraint in self.state.constraints.get_by_type(ReturnConstraint):
             self._apply_return(constraint)
-    
+        for constraint in self.state.constraints.get_by_type(AllocConstraint):
+            self._apply_alloc(constraint)
+            
     def _apply_constraint(self, constraint: 'Constraint', diff: 'PointsToSet') -> bool:
+        # Here shoud add supports for Imports
+        
         if isinstance(constraint, LoadConstraint):
             return self._apply_load(constraint, diff)
         elif isinstance(constraint, StoreConstraint):
             return self._apply_store(constraint, diff)
         elif isinstance(constraint, CallConstraint):
             return self._apply_call(constraint, diff)
-        elif isinstance(constraint, (CopyConstraint, AllocConstraint, ReturnConstraint)):
+        elif isinstance(constraint, AllocConstraint):
+            return self._apply_alloc(constraint, diff)
+        elif isinstance(constraint, (CopyConstraint, ReturnConstraint)):
             # These constraints are static, so we don't need to apply them
             return False
         else:
@@ -129,11 +131,38 @@ class PointerSolver:
         """Apply copy constraint: target = source."""
         self.state.pointer_flow_graph.add_edge(c.source, c.target)    
         
-    def _apply_alloc(self, c: 'AllocConstraint'):
+    def _apply_alloc(self, c: 'AllocConstraint', type_pts: Optional['PointsToSet'] = None):
         """Apply allocation constraint: target = new Object."""
-        obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
-        pts = PointsToSet.singleton(obj)
-        self._worklist.add((c.target, pts))    
+        objs = []
+        if type_pts is None:
+            objs.append(AbstractObject(alloc_site=c.alloc_site, context=c.target.context))
+        else:
+            for type_obj in type_pts:
+                if type_obj.kind == AllocKind.OBJECT:
+                    # complex object init logic
+                    obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
+                    objs.append(obj)
+                    
+                elif type_obj.kind == AllocKind.MODULE:
+                    # complex module translation logic
+                    obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
+                    objs.append(obj)
+                
+                elif type_obj.kind == AllocKind.FUNCTION:
+                    # complex function translation logic, for processing cell vars
+                    obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
+                    objs.append(obj)
+                
+                elif type_obj.kind == AllocKind.CLASS:
+                    # complex class translation logic, for processing base classes
+                    obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
+                    objs.append(obj)
+                else:
+                    obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
+                    objs.append(obj)
+
+        pts = PointsToSet.from_objects(objs)
+        self._worklist.add((c.target, pts))
         
     def _apply_return(self, c: 'ReturnConstraint'):
         """Apply return constraint: caller_target = callee_return."""
@@ -205,7 +234,8 @@ class PointerSolver:
             
             return False
         '''
-        
+        logger.debug(f"Applying call constraint: {c.call_site} -> {pts}")
+         
         changed = False
         for callee_obj in pts:
             if callee_obj.kind == AllocKind.FUNCTION:
@@ -234,6 +264,7 @@ class PointerSolver:
                         line=0,
                         col=0,
                         kind=AllocKind.UNKNOWN,
+                        scope=c.target.scope,
                         name=f"unknown_noncallable_{c.call_site}"
                     )
                     unknown_obj = AbstractObject(unknown_alloc, c.target.context)
@@ -250,6 +281,7 @@ class PointerSolver:
             4. Connects return value to caller
             5. Adds call edge to call graph
         """
+        logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.name}")
         
         if not self.ir_translator or not self.context_selector: 
             self._unknown_tracker.record(
@@ -293,6 +325,7 @@ class PointerSolver:
                     line=0,
                     col=0,
                     kind=AllocKind.UNKNOWN,
+                    scope=call.target.scope,
                     name=f"unknown_func_{func_name or 'unnamed'}"
                 )
                 unknown_obj = AbstractObject(unknown_alloc, call.target.context)
@@ -315,8 +348,6 @@ class PointerSolver:
         
         self.ir_translator._current_scope = callee_scope
         self.ir_translator._current_context = call_context
-        
-        
         
         # TODO dynamic translating functions cost a lot.
         try:
@@ -393,15 +424,11 @@ class PointerSolver:
             )
             self.state.pointer_flow_graph.add_edge(return_var, call.target)
         
-        if hasattr(self.state, '_call_edges'):
-            from pythonstan.graph.call_graph import CallEdge, CallKind
-            edge = CallEdge(
-                kind=CallKind.FUNCTION,
-                callsite=call.call_site,
-                callee=func_name
-            )
-            self.state._call_edges.append(edge)
-        
+        from pythonstan.graph.call_graph import CallEdge, CallKind
+        edge = CallEdge(kind=CallKind.FUNCTION, callsite=call.call_site, callee=func_name)
+        self.state.call_graph.add_edge(edge)
+        logger.debug(f"Adding call edge: {edge}")
+
         return changed
     
     def _handle_class_instantiation(self, call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
@@ -414,6 +441,7 @@ class PointerSolver:
             line=class_obj.alloc_site.line,
             col=class_obj.alloc_site.col,
             kind=AllocKind.OBJECT,
+            scope=class_obj.alloc_site.scope,
             name=class_obj.alloc_site.name
         )
         

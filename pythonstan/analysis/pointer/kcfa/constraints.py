@@ -66,7 +66,7 @@ class CopyConstraint(Constraint):
         return {self.source, self.target}
     
     def __str__(self) -> str:
-        return f"{self.target} = {self.source}"
+        return f"CopyConstraint: {self.target} = {self.source}"
 
 
 @dataclass(frozen=True)
@@ -90,7 +90,7 @@ class LoadConstraint(Constraint):
         return {self.base, self.target}
     
     def __str__(self) -> str:
-        return f"{self.target} = {self.base}{self.field}"
+        return f"LoadConstraint: {self.target} = {self.base}{self.field}"
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ class StoreConstraint(Constraint):
         return {self.base, self.source}
     
     def __str__(self) -> str:
-        return f"{self.base}{self.field} = {self.source}"
+        return f"StoreConstraint: {self.base}{self.field} = {self.source}"
 
 
 @dataclass(frozen=True)
@@ -136,7 +136,7 @@ class AllocConstraint(Constraint):
         return {self.target}
     
     def __str__(self) -> str:
-        return f"{self.target} = new {self.alloc_site}"
+        return f"AllocConstraint: {self.target} = new {self.alloc_site}"
 
 
 @dataclass(frozen=True)
@@ -169,7 +169,7 @@ class CallConstraint(Constraint):
         args_str = ", ".join(str(a) for a in self.args)
         if self.target:
             return f"{self.target} = {self.callee}({args_str})"
-        return f"{self.callee}({args_str})"
+        return f"CallConstraint: {self.callee}({args_str})"
 
 
 @dataclass(frozen=True)
@@ -191,7 +191,7 @@ class ReturnConstraint(Constraint):
         return {self.callee_return, self.caller_target}
     
     def __str__(self) -> str:
-        return f"{self.caller_target} = return({self.callee_return})"
+        return f"ReturnConstraint: {self.caller_target} = return({self.callee_return})"
 
 
 class ConstraintManager:
@@ -217,7 +217,7 @@ class ConstraintManager:
         """
         if constraint in self._constraints:
             return False
-        
+   
         self._constraints.add(constraint)
         
         # Index by variables
@@ -227,6 +227,8 @@ class ConstraintManager:
             self._by_variable[constraint.base].add(constraint)
         elif isinstance(constraint, CallConstraint):
             self._by_variable[constraint.callee].add(constraint)
+        elif isinstance(constraint, AllocConstraint):
+            self._by_variable[constraint.target].add(constraint)
             
         # Index by type
         self._by_type[type(constraint)].add(constraint)

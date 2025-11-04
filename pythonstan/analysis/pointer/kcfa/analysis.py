@@ -33,9 +33,9 @@ class PointerAnalysis(AnalysisDriver):
         from .ir_translator import IRTranslator
         from .context_selector import ContextSelector, parse_policy
         from .class_hierarchy import ClassHierarchyManager
-        from .builtin_api_handler import BuiltinSummaryManager
-        
+        from .builtin_api_handler import BuiltinSummaryManager        
         from pythonstan.world import World
+        
         self.config = analysis_config
         if not hasattr(self.config, 'options'):
             print(f"Analysis config {self.config} has no options")
@@ -46,7 +46,7 @@ class PointerAnalysis(AnalysisDriver):
         self.state = PointerAnalysisState()
         policy = parse_policy(self.kcfa_config.context_policy)
         self.context_selector = ContextSelector(policy=policy)
-        self.translator = IRTranslator(self.kcfa_config, module_finder=None)
+        self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
         self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
         self.function_registry = {}
@@ -84,14 +84,17 @@ class PointerAnalysis(AnalysisDriver):
         logger.info("Translating all scopes to constraints...")
         
         constraints = []
-        for scope in self.world.scope_manager.get_module_graph().get_modules():
-            try:
-                scope_name = scope.get_qualname()
-                logger.debug(f"Translating module: {scope_name}")                    
-                constraints.extend(self.translator.translate_module(scope, empty_context))
-            except Exception as e:
-                logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
-                continue
+        
+        scope = self.world.get_entry_module()        
+        try:
+            scope_name = scope.get_qualname()
+            logger.debug(f"Translating module: {scope_name}")                    
+            c, _ = self.translator.translate_module(scope, empty_context)
+            constraints.extend(c)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
         
         logger.info(f"Total constraints generated: {len(constraints)}")
         

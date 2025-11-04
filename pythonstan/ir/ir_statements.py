@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Set, Union, List, Optional, Tuple
 import ast
 from ast import stmt as Statement
-from ast import Module, ClassDef
+from ast import Module, ClassDef, Name
 
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
@@ -319,7 +319,7 @@ class IRReturn(IRAbstractStmt):
         ast.fix_missing_locations(stmt)
         if stmt.value is not None:
             assert isinstance(stmt.value, ast.Name), "Return value of IR should be ast.Name or None!"
-            self.value = stmt.value
+            self.value = stmt.value.id
         else:
             self.value = None
         self.stmt = stmt
@@ -520,8 +520,8 @@ class IRCall(IRAbstractStmt):
     call: ast.Call
     target: Optional[str]
     func_name: str
-    args: List[Tuple[str, bool]]
-    keywords: List[Tuple[Optional[str], str]]
+    args: List[Tuple[str, bool]]  # (arg_name, is_starred)
+    keywords: List[Tuple[Optional[str], str]]  # (keyword_name, keyword_value)
     load_collector: VarCollector
 
     def __init__(self, stmt):
@@ -1082,7 +1082,7 @@ class IRClass(IRScope, IRStatement):
     def get_dels(self) -> Set[str]:
         return {*()}
 
-    def get_bases(self) -> List[str]:
+    def get_bases(self) -> List[Name]:
         return self.bases
 
     def __repr__(self) -> str:

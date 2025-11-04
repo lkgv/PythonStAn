@@ -133,4 +133,3 @@ def unknown() -> Field:
         Field(kind=FieldKind.UNKNOWN, name=None)
     """
     return Field(FieldKind.UNKNOWN)
-

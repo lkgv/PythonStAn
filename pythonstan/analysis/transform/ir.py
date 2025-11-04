@@ -22,7 +22,7 @@ class IR(Transform):
     def transform(self, module: IRModule):
         global imports
         three_address_form = World().scope_manager.get_ir(module, "three address form")
-        imports = []
+        imports.clear()
         self.transformer = IRTransformer(module)
         self.transformer.process_stmts(three_address_form.body)
         ir = self.transformer.stmts
@@ -143,6 +143,7 @@ class IRTransformer(NodeVisitor):
 
     def visit_ImportFrom(self, node: ImportFrom):
         stmt = IRImport(node)
+        imports.append(stmt)
         self.stmts.append(stmt)
 
     def visit_While(self, node: While):
