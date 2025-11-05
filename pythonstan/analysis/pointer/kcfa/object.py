@@ -9,10 +9,11 @@ from enum import Enum
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from pythonstan.ir.ir_statements import IRStatement
     from .variable import Scope
     from .context import AbstractContext
 
-__all__ = ["AllocKind", "AllocSite", "AbstractObject"]
+__all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject"]
 
 
 class AllocKind(Enum):
@@ -29,6 +30,7 @@ class AllocKind(Enum):
     BOUND_METHOD = "method"
     BUILTIN = "builtin"
     CELL = "cell"
+    CONSTANT = "constant"
     UNKNOWN = "unknown"
 
 
@@ -53,6 +55,7 @@ class AllocSite:
     kind: AllocKind
     scope: Optional['Scope']
     name: Optional[str]
+    stmt: Optional['IRStatement']
     
     def __str__(self) -> str:
         """String representation for debugging and display."""
@@ -62,7 +65,7 @@ class AllocSite:
         return f"{loc}:{self.kind.value}"
     
     @staticmethod
-    def from_ir_node(node, kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None) -> 'AllocSite':
+    def from_ir_node(node, kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None, stmt: Optional['IRStatement'] = None) -> 'AllocSite':
         """Create allocation site from IR node.
         Extract source location from IR node.
         IR nodes typically have file, line, col attributes.
@@ -85,7 +88,7 @@ class AllocSite:
         if col == 0 and hasattr(node, 'col_offset'):
             col = node.col_offset
             
-        return AllocSite(file=file, line=line, col=col, kind=kind, scope=scope, name=name)
+        return AllocSite(file=file, line=line, col=col, kind=kind, scope=scope, name=name, stmt=stmt)
 
 
 @dataclass(frozen=True)
@@ -123,4 +126,18 @@ class AbstractObject:
             AllocKind.BOUND_METHOD,
             AllocKind.BUILTIN
         )
+
+
+class FunctionObject(AbstractObject):
+    """Function object with context sensitivity."""
+    ir: 'IRFunc'
+    
+    def __init__(self, alloc_site: AllocSite, context: 'AbstractContext', ir: 'IRFunc'):
+        super().__init__(alloc_site, context)
+        self.ir = ir
+        
+    def get_ir(self) -> 'IRFunc':
+        return self.alloc_site.scope.get_ir()
+
+# TODO make other types of objects
 

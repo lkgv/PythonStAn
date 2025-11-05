@@ -24,12 +24,18 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
         self.callsite_to_edges = {}
         self.callee_to_edges = {}
         self.callsite_to_container = {}
-        self.callsites_to = {}
+        self.callsites_in = {}
         self.entry_scopes = {*()}
         self.reachable_scopes = {*()}
         self.edges = {*()}
     
     def add_edge(self, edge: CallEdge[CallSite, Method]):
+        if edge.get_callsite() not in self.callsite_to_edges:
+            self.callsite_to_edges[edge.get_callsite()] = {*()}
+        if edge.get_callee() not in self.callee_to_edges:
+            self.callee_to_edges[edge.get_callee()] = {*()}
+        if edge.get_callee() not in self.callsites_in:
+            self.callsites_in[edge.get_callee()] = {*()}
         self.callsite_to_edges[edge.get_callsite()].add(edge)
         self.callee_to_edges[edge.get_callee()].add(edge)
         self.callsite_to_container[edge.get_callsite()] = edge.get_callee()
@@ -62,10 +68,10 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
         return self.callee_to_edges.get(callee, {*()})
 
     def get_edges(self) -> Set[CallEdge[CallSite, Method]]:
-        return {e for e in self.callsite_to_edges.values()}
-
+        return self.edges
+    
     def get_number_of_edges(self) -> int:
-        return sum([len(es) for es in self.callsite_to_edges.values()])
-
+        return len(self.edges)
+    
     def get_nodes(self) -> Set[Method]:
         return self.reachable_scopes

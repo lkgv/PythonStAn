@@ -214,7 +214,7 @@ class IRTranslator:
                         ))
         
         elif isinstance(rval, ast.Constant):
-            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.OBJECT, name=f"constant_{rval.value}")
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.CONSTANT, name=f"constant_{rval.value}")
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
         
         return constraints
@@ -365,7 +365,7 @@ class IRTranslator:
         """Translate function definition: allocate function object."""
         constraints = []
         
-        func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION, self._current_scope, stmt.name)
+        func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION, self._current_scope, stmt.name, stmt=stmt)
         func_var = self._make_variable(stmt.name)
         constraints.append(AllocConstraint(target=func_var, alloc_site=func_alloc))
         
@@ -381,8 +381,9 @@ class IRTranslator:
                         file=self._current_scope.name,
                         line=0,
                         col=0,
-                        kind=AllocKind.CELL,
-                        name=f"cell_{freevar_name}"
+                        kind=AllocKind.CELL,                        
+                        name=f"cell_{freevar_name}",
+                        stmt=None
                     )
                     cell_var = self._make_variable(f"$cell_{freevar_name}")
                     constraints.append(AllocConstraint(target=cell_var, alloc_site=cell_alloc))
@@ -458,13 +459,13 @@ class IRTranslator:
         
         """NOTE: HERE IS A BIG BUG, SHOUD NOT RESOLVE AST"""
         """ declare the thole class and generate some constraints to bind some methods to the class """
-       
         constraints = []
-        logger.info(stmt)
         
         class_alloc = AllocSite.from_ir_node(stmt, AllocKind.CLASS, stmt.name)
         class_var = self._make_variable(stmt.name)
         constraints.append(AllocConstraint(target=class_var, alloc_site=class_alloc))
+        
+        # We need to get all fields in the bases and store them to the class object
         
         for subscope in self.scope_manager.get_subscopes(stmt):
             # NOTICE: staticmethod and classmethod are not supported yet
@@ -517,7 +518,8 @@ class IRTranslator:
                 col=stmt.get_ast().col_offset,
                 kind=AllocKind.UNKNOWN,
                 scope = self._current_scope,
-                name=f"unknown_import_[{stmt}]"
+                name=f"unknown_import_[{stmt}]",
+                stmt=module_ir
             )
         else:            
             try:
@@ -548,7 +550,8 @@ class IRTranslator:
                 col=stmt.get_ast().col_offset,
                 kind=AllocKind.MODULE,
                 scope=self._current_scope,
-                name=module_ir.get_qualname()
+                name=module_ir.get_qualname(),
+                stmt=module_ir
             )
 
         # allocate the module variable

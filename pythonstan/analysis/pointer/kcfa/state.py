@@ -138,10 +138,10 @@ class PointerFlowGraph:
         return self.nodes
     
     def get_edges(self) -> Set[Tuple[Variable, Variable]]:
-        return {(src, tgt) for src in self.nodes for tgt in self.succs[src]}
+        return {(src, tgt) for src in self.nodes for tgt in self.succs.get(src, {*()})}
     
     def get_reverse_edges(self) -> Set[Tuple[Variable, Variable]]:
-        return {(tgt, src) for src in self.nodes for tgt in self.preds[src]}    
+        return {(tgt, src) for src in self.nodes for tgt in self.preds.get(src, {*()})}    
 
 
 class PointerAnalysisState:
@@ -280,6 +280,6 @@ class PointerAnalysisState:
             "num_variables": len(self._env),
             "num_objects": len(objects),
             "num_heap_locations": len(self._heap),
-            "num_call_edges": len(self._call_edges)
+            "num_call_edges": self._call_graph.get_number_of_edges()
         }
 

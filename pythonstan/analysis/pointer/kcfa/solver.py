@@ -7,6 +7,8 @@ constraint-based propagation.
 import logging
 from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple
 
+from pythonstan.ir.ir_statements import IRFunc
+
 from .state import PointerAnalysisState, PointsToSet
 from .constraints import (Constraint, CopyConstraint, LoadConstraint, StoreConstraint,
                           AllocConstraint, CallConstraint, ReturnConstraint)
@@ -87,16 +89,19 @@ class PointerSolver:
 
             if not diff.is_empty():
                 self.state.set_points_to(var, diff)
-                for target in self.state.pointer_flow_graph.get_succs(var):
-                    self._worklist.add((target, diff))
                     
                 constraints_to_process = list(self.state.constraints.get_by_variable(var))
                 for constraint in constraints_to_process:
-                    logger.debug(f"Processing var {var} for Constraint: {constraint}")
                     self._apply_constraint(constraint, diff)
+                    
+                for target in self.state.pointer_flow_graph.get_succs(var):
+                    self._worklist.add((target, diff))
         
         if self._iteration >= max_iter:
             logger.warning(f"Reached max iterations {max_iter}")
+        
+        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()}")
+        logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")
         
         self._stats["iterations"] = self._iteration
         logger.info(f"Converged after {self._iteration} iterations")
@@ -265,7 +270,8 @@ class PointerSolver:
                         col=0,
                         kind=AllocKind.UNKNOWN,
                         scope=c.target.scope,
-                        name=f"unknown_noncallable_{c.call_site}"
+                        name=f"unknown_noncallable_{c.call_site}",
+                        stmt=None
                     )
                     unknown_obj = AbstractObject(unknown_alloc, c.target.context)
                     self.state.set_points_to(c.target, PointsToSet.singleton(unknown_obj))
@@ -303,9 +309,11 @@ class PointerSolver:
                 self.state.set_points_to(call.target, PointsToSet.singleton(unknown_obj))
                 return True
             return False
-        
+        logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.name}")
+
         func_name = func_obj.alloc_site.name
-        if not func_name or func_name not in self.function_registry:
+        func_ir: IRFunc = func_obj.alloc_site.stmt        
+        if False: # and not func_name or func_name not in self.function_registry:
             from .unknown_tracker import UnknownKind
             from .object import AllocSite, AllocKind, AbstractObject
             from .state import PointsToSet
@@ -340,8 +348,10 @@ class PointerSolver:
             None  # No receiver for regular functions
         )
         
-        func_ir = self.function_registry[func_name]
+        logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.name}")
         
+        # func_ir = self.function_registry[func_name]
+
         callee_scope = Scope(name=func_name, stmt=func_ir, context=call_context, kind="function")
         old_scope = self.ir_translator._current_scope
         old_context = self.ir_translator._current_context
@@ -442,7 +452,8 @@ class PointerSolver:
             col=class_obj.alloc_site.col,
             kind=AllocKind.OBJECT,
             scope=class_obj.alloc_site.scope,
-            name=class_obj.alloc_site.name
+            name=class_obj.alloc_site.name,
+            stmt=None
         )
         
         if self.context_selector:
