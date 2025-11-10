@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .object import AbstractObject
     from .heap_model import Field
 
-__all__ = ["VariableKind", "Scope", "Variable", "FieldAccess"]
+__all__ = ["VariableKind", "Variable", "FieldAccess"]
 
 
 class VariableKind(Enum):
@@ -24,26 +24,9 @@ class VariableKind(Enum):
     LOCAL = "local"
     PARAMETER = "parameter"
     GLOBAL = "global"
+    NONLOCAL = "nonlocal"
+    CELL = "cell"
     TEMPORARY = "temporary"
-    CONSTANT = "constant"
-
-
-@dataclass(frozen=True)
-class Scope:
-    """Function or module scope for variables.
-    
-    Attributes:
-        name: Qualified scope name (e.g., "module.Class.method")
-        kind: Type of scope
-    """
-    
-    name: str
-    stmt: IRScope
-    context: 'AbstractContext'
-    kind: Literal["function", "method", "module", "class"]
-    
-    def __str__(self) -> str:
-        return self.name
 
 
 @dataclass(frozen=True)
@@ -61,14 +44,12 @@ class Variable:
     """
     
     name: str
-    scope: Scope
-    context: 'AbstractContext'
     kind: VariableKind = VariableKind.LOCAL
     
     def __str__(self) -> str:
-        """String representation: scope::name@context"""
+        """String representation: name@kind"""
         assert self.name is not None, "Variable name is required"
-        return f"{self.scope.name}::{self.name}@{self.context}"
+        return f"[{self.kind.value}]{self.name}"
     
     @property
     def is_temporary(self) -> bool:
@@ -79,6 +60,19 @@ class Variable:
     def is_global(self) -> bool:
         """Check if this is a global variable."""
         return self.kind == VariableKind.GLOBAL
+    
+    @property
+    def is_local(self) -> bool:
+        """Check if this is a local variable."""
+        return self.kind == VariableKind.LOCAL
+    
+    @property
+    def is_cell(self) -> bool:
+        return self.kind == VariableKind.CELL
+    
+    @property
+    def is_nonlocal(self) -> bool:
+        return self.kind == VariableKind.NONLOCAL
 
 
 @dataclass(frozen=True)
@@ -125,8 +119,6 @@ class VariableFactory:
     def make_variable(
         self,
         name: str,
-        scope: Scope,
-        context: 'AbstractContext',
         kind: VariableKind = VariableKind.LOCAL
     ) -> Variable:
         """Create variable with given attributes.
@@ -140,7 +132,7 @@ class VariableFactory:
         Returns:
             Created variable
         """
-        return Variable(name=name, scope=scope, context=context, kind=kind)
+        return Variable(name=name, kind=kind)
     
     def make_field_access(
         self,

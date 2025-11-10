@@ -6,12 +6,13 @@ Objects are context-sensitive and identified by their allocation site and contex
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+import ast
+from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pythonstan.ir.ir_statements import IRStatement
-    from .variable import Scope
-    from .context import AbstractContext
+    from pythonstan.ir.ir_statements import *
+    from .context import AbstractContext, Scope, Ctx
+    from .variable import Variable
 
 __all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject"]
 
@@ -65,7 +66,13 @@ class AllocSite:
         return f"{loc}:{self.kind.value}"
     
     @staticmethod
-    def from_ir_node(node, kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None, stmt: Optional['IRStatement'] = None) -> 'AllocSite':
+    def get_location(stmt: ast.AST) -> Tuple[int, int]:
+        line = getattr(stmt, 'line', 0)
+        col = getattr(stmt, 'col_offset', 0)
+        return line, col
+    
+    @staticmethod
+    def from_ir_node(stmt: Optional['IRStatement'], kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None) -> 'AllocSite':
         """Create allocation site from IR node.
         Extract source location from IR node.
         IR nodes typically have file, line, col attributes.
@@ -78,17 +85,19 @@ class AllocSite:
         Returns:
             AllocSite extracted from node
         """
-        file = getattr(node, 'file', '<unknown>')
-        line = getattr(node, 'line', 0)
-        col = getattr(node, 'col', 0)
-        
-        # Some IR nodes use 'lineno' and 'col_offset' (ast-style)
-        if line == 0 and hasattr(node, 'lineno'):
-            line = node.lineno
-        if col == 0 and hasattr(node, 'col_offset'):
-            col = node.col_offset
+        if scope is not None:
+            mod_name = scope.name
+        else:
+            mod_name = "<unknown>"
+        if stmt is not None:
+            ast_repr = stmt.get_ast()
+            line = getattr(ast_repr, 'line', 0)
+            col = getattr(ast_repr, 'col_offset', 0)
+        else:
+            line = 0
+            col = 0
             
-        return AllocSite(file=file, line=line, col=col, kind=kind, scope=scope, name=name, stmt=stmt)
+        return AllocSite(file=mod_name, line=line, col=col, kind=kind, scope=scope, name=name, stmt=stmt)
 
 
 @dataclass(frozen=True)
@@ -128,16 +137,63 @@ class AbstractObject:
         )
 
 
+@dataclass(frozen=True)
 class FunctionObject(AbstractObject):
     """Function object with context sensitivity."""
-    ir: 'IRFunc'
     
-    def __init__(self, alloc_site: AllocSite, context: 'AbstractContext', ir: 'IRFunc'):
-        super().__init__(alloc_site, context)
-        self.ir = ir
-        
-    def get_ir(self) -> 'IRFunc':
-        return self.alloc_site.scope.get_ir()
+    container_scope: 'Scope'
+    ir: 'IRFunc'
+    cell_vars: 'Dict[Ctx[Variable]]'
+    global_vars: 'Dict[Ctx[Variable]]'
+    nonlocal_vars: 'Dict[Ctx[Variable]]'
 
-# TODO make other types of objects
+    def __hash__(self):
+        return hash(self.container_scope) * 17 + hash(self.ir)
 
+
+@dataclass(frozen=True)
+class MethodObject(FunctionObject):
+    pass
+
+
+
+# TODO Add some types of objects
+
+class ClassObject(AbstractObject):
+    ir: 'IRClass'
+
+
+class ModuleObject(AbstractObject):
+    ir: 'IRModule'
+    
+    
+class ConstObject(AbstractObject):
+    value: Union[str, int, float, bool]
+
+class BuiltinObject(AbstractObject):
+    ...
+
+class CellObject(AbstractObject):
+    ...
+    
+class InstanceObject(AbstractObject):
+    ...
+
+class ListObject(AbstractObject):
+    ...
+
+class TupleObject(AbstractObject):
+    ...
+
+class DictObject(AbstractObject):
+    ...
+
+class SetObject(AbstractObject):
+    ...
+    
+class MethodObject(AbstractObject):
+    ...
+
+
+class ObjectFactory():
+    ...

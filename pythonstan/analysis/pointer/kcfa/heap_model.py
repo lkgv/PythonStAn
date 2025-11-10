@@ -6,7 +6,14 @@ for attribute access, container elements, and dictionary values.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Set
+
+from yaml import NodeEvent
+
+if TYPE_CHECKING:
+    from .object import AbstractObject
+    from .variable import Variable
+    from .context import AbstractContext, Ctx
 
 __all__ = ["FieldKind", "Field", "attr", "elem", "value", "unknown"]
 
@@ -71,6 +78,7 @@ def position(index: int) -> Field:
     Returns:
         Field for container element access
     """
+    assert index is not None, "index must be provided"
     return Field(FieldKind.POSITION, str(index))
 
 
@@ -87,10 +95,10 @@ def attr(name: str) -> Field:
         >>> attr("foo")
         Field(kind=FieldKind.ATTRIBUTE, name="foo")
     """
-    return Field(FieldKind.ATTRIBUTE, name)
+    return Field(FieldKind.ATTRIBUTE, name, None)
 
 
-def elem() -> Field:
+def elem(index: Optional[int] = None) -> Field:
     """Create element field key for containers.
     
     Used for list, set, and tuple elements where we abstract over all indices.
@@ -102,7 +110,7 @@ def elem() -> Field:
         >>> elem()
         Field(kind=FieldKind.ELEMENT, name=None)
     """
-    return Field(FieldKind.ELEMENT)
+    return Field(FieldKind.ELEMENT, None, index)
 
 
 def value() -> Field:
@@ -117,7 +125,7 @@ def value() -> Field:
         >>> value()
         Field(kind=FieldKind.VALUE, name=None)
     """
-    return Field(FieldKind.VALUE)
+    return Field(FieldKind.VALUE, None, None)
 
 
 def unknown() -> Field:
@@ -132,4 +140,4 @@ def unknown() -> Field:
         >>> unknown()
         Field(kind=FieldKind.UNKNOWN, name=None)
     """
-    return Field(FieldKind.UNKNOWN)
+    return Field(FieldKind.UNKNOWN, None, None)

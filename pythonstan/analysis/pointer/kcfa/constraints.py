@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .variable import Variable
     from .heap_model import Field
     from .object import AllocSite
+    from .variable import Scope
 
 __all__ = [
     "Constraint",
@@ -202,11 +203,11 @@ class ConstraintManager:
     
     def __init__(self):
         """Initialize empty constraint manager."""
-        self._constraints: Set[Constraint] = set()
+        self._constraints: Set[Tuple['Scope', Constraint]] = set()
         self._by_variable: Dict['Variable', Set[Constraint]] = defaultdict(set)
         self._by_type: Dict[Type[Constraint], Set[Constraint]] = defaultdict(set)
     
-    def add(self, constraint: Constraint) -> bool:
+    def add(self, scope, var, constraint: Constraint) -> bool:
         """Add constraint to manager.
         
         Args:
@@ -215,14 +216,20 @@ class ConstraintManager:
         Returns:
             True if constraint was new (not duplicate)
         """
+        
+        # TODO add the support of contexted_vars
+        
         if constraint in self._constraints:
             return False
    
-        self._constraints.add(constraint)
+        self._constraints.add((scope, constraint))
+        self._by_variable[var].add(constraint)
+        self._by_type[type(constraint)].add((scope, constraint))
         
+        '''
         # Index by variables
         if isinstance(constraint, LoadConstraint):
-            self._by_variable[constraint.base].add(constraint)
+            self._by_variable[var].add(constraint)
         elif isinstance(constraint, StoreConstraint):
             self._by_variable[constraint.base].add(constraint)
         elif isinstance(constraint, CallConstraint):
@@ -232,6 +239,7 @@ class ConstraintManager:
             
         # Index by type
         self._by_type[type(constraint)].add(constraint)
+        '''
         
         return True
     

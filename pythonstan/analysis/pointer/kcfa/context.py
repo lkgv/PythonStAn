@@ -6,14 +6,20 @@ policies including call-string, object, type, receiver, and hybrid contexts.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any, TypeVar, Generic, Union, TYPE_CHECKING
+from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING
+
+from pythonstan.analysis.ai import ClassObject
+from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
+from pythonstan.ir.ir_statements import IRScope, IRModule
 
 if TYPE_CHECKING:
-    from .object import AbstractObject
-    from .object import AllocSite
+    from .object import AbstractObject, AllocSite
+    
 
 __all__ = [
     "CallSite",
+    "Ctx",
+    "Scope",
     "AbstractContext",
     "CallStringContext",
     "ObjectContext",
@@ -137,7 +143,7 @@ class ObjectContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     def to_string(self) -> str:
         if not self.alloc_sites:
             return "<>"
-        shortened = [s.split(':')[-1] if ':' in s else s for s in self.alloc_sites]
+        shortened = [str(s) for s in self.alloc_sites]
         return "<" + ",".join(shortened) + ">"
     
     def is_empty(self) -> bool:
@@ -241,7 +247,7 @@ class ParamContext(AbstractContext[Tuple['AbstractObject', ...]]):
         depth: Maximum depth for receiver context
     """
 
-    params: Tuple[Tuple['AbstractObject', ...], ...] = ()
+    params: Tuple[Union[CallSite, Tuple['AbstractObject', ...]], ...] = ()
     depth: int = 2
     
     def to_string(self) -> str:
@@ -252,7 +258,7 @@ class ParamContext(AbstractContext[Tuple['AbstractObject', ...]]):
     def is_empty(self) -> bool:
         return len(self.params) == 0
     
-    def append(self, params: Tuple['AbstractObject', ...]) -> 'ParamContext':
+    def append(self, params: Union[CallSite, Tuple['AbstractObject', ...]]) -> 'ParamContext':
         """Create new context by appending parameters."""
         if self.depth == 0:
             return self
@@ -326,3 +332,94 @@ class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']
                 self.alloc_sites == other.alloc_sites and
                 self.call_k == other.call_k and 
                 self.obj_depth == other.obj_depth)
+
+
+T = TypeVar('T')
+@dataclass(frozen=True)
+class Ctx(Generic[T]):
+    """Content with context.
+    
+    Attributes:
+        context: AbstractContext[Any]
+        content: T
+    """
+    context: 'AbstractContext[Any]'
+    scope: 'Scope'
+    content: T    
+
+    def __hash__(self) -> int:
+        return hash((self.content, self.context))
+    
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Ctx):
+            return False
+        return self.content == other.content and self.context == other.context
+
+
+@dataclass(frozen=True)
+class Scope:
+    """Function or module scope for variables.
+    
+    Attributes:
+        name: Qualified scope name (e.g., "module.Class.method")
+        kind: Type of scope
+        parent: Last level scope
+        module: Top level scope
+    """
+    
+    stmt: IRScope
+    obj: Union['FunctionObject', 'ClassObject', 'ModuleObject']
+    context: 'AbstractContext'
+    _parent: Optional['Scope']
+    _module: Optional['Scope']
+    
+    def __post_init__(self):
+        if not isinstance(self.stmt, IRScope):
+            raise ValueError(f"Scope must be an IRScope, {self.stmt} got")
+        if not isinstance(self.stmt, IRModule) and self._parent is None:
+            raise ValueError("Parent is required for non-module scopes")
+        if self._module is not None and not isinstance(self._module.stmt, IRModule):
+            raise ValueError(f"Module shoud be IRModule, but got {type(self._module.stmt)}!")
+    
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def new(cls, obj: 'AbstractObject', module: 'Scope', context: 'AbstractContext', stmt: IRScope, parent: Optional['Scope'] = None) -> 'Scope':
+        if isinstance(stmt, IRModule) and parent is not None:
+            parent = None
+        return cls(stmt, obj, context, parent, module)
+
+    @property
+    def name(self) -> str:
+        return self.stmt.get_qualname()
+    
+    @property
+    def module(self) -> 'Scope':
+        if self._module:
+            return self._module
+        else:
+            return self
+    
+    @property
+    def parent(self) -> 'Scope':
+        if self._parent is None:
+            return self.module
+
+    @property
+    def kind(self) -> Literal["function", "instance_method", "class_method", "static_method", "module", "class"]:
+        from pythonstan.ir.ir_statements import IRFunc, IRClass, IRModule
+        
+        if isinstance(self.stmt, IRFunc):
+            if self.stmt.is_instance_method:
+                return "instance_method"
+            elif self.stmt.is_class_method:
+                return "class_method"
+            elif self.stmt.is_static_method:
+                return "static_method"
+            else:
+                return "function"
+        elif isinstance(self.stmt, IRClass):
+            return "class"
+        elif isinstance(self.stmt, IRModule):
+            return "module"

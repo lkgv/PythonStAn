@@ -22,11 +22,12 @@ from .context import (
     ObjectContext,
     TypeContext,
     ReceiverContext,
-    HybridContext
+    HybridContext,
+    Scope
 )
 from .context_selector import ContextPolicy, ContextSelector, parse_policy
 from .object import AllocKind, AllocSite, AbstractObject
-from .variable import VariableKind, Scope, Variable
+from .variable import VariableKind, Variable
 from .heap_model import FieldKind, Field, attr, elem, value, unknown
 from .state import PointsToSet, PointerAnalysisState
 from .solver import PointerSolver

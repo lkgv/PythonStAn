@@ -6,6 +6,7 @@ This module provides the main entry point for running pointer analysis.
 import logging
 from typing import Optional, List, Any, TYPE_CHECKING, Dict
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
 from pythonstan.ir import IRScope
 
 if TYPE_CHECKING:
@@ -79,28 +80,41 @@ class PointerAnalysis(AnalysisDriver):
 
         # Get empty context for module-level analysis
         empty_context = self.context_selector.empty_context()
-                
+        
+        from .object import ModuleObject
+        from .context import Scope
+
         # Translate ALL scopes to constraints (not just entry module)
         logger.info("Translating all scopes to constraints...")
         
         constraints = []
         
-        scope = self.world.get_entry_module()        
+        scope = self.world.get_entry_module()
+        
+        # Make scope with context
+        alloc_site = AllocSite(scope.filename, line=0, col=0,
+                               kind=AllocKind.MODULE,
+                               scope=None,
+                               name=scope.get_qualname(),
+                               stmt=None)
+        module_obj = ModuleObject(alloc_site, empty_context)
+        ctx_scope = Scope(scope, module_obj, empty_context, None, None)
+        
+        # Generate constraints
         try:
             scope_name = scope.get_qualname()
             logger.debug(f"Translating module: {scope_name}")                    
-            c, _ = self.translator.translate_module(scope, empty_context)
+            c = self.translator.translate_module(scope)
             constraints.extend(c)
         except Exception as e:
             import traceback
             print(traceback.format_exc())
-            logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
-        
+            logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")        
         logger.info(f"Total constraints generated: {len(constraints)}")
         
         # Add all constraints to solver
         for constraint in constraints:
-            self.solver.add_constraint(constraint)
+            self.solver.add_constraint(ctx_scope, empty_context, constraint)
         
         # Solve to fixpoint
         self.solver.solve_to_fixpoint()
