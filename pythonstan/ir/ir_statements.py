@@ -896,19 +896,43 @@ class IRPhi(AbstractIRAssign):
 
 class IRScope(ABC):
     qualname: str
+    global_vars: Set[str]
+    nonlocal_vars: Set[str]
+    cell_vars: Set[str]
 
     @abstractmethod
     def __init__(self, qualname: str):
         self.qualname = qualname
+        self.global_vars = set()
+        self.nonlocal_vars = set()
+        self.cell_vars = set()
 
     def get_qualname(self) -> str:
         return self.qualname
+    
+    def add_global_var(self, var: str):
+        self.global_vars.add(var)
+    
+    def add_nonlocal_var(self, var: str):
+        self.nonlocal_vars.add(var)
+    
+    def add_cell_var(self, var: str):
+        self.cell_vars.add(var)
+    
+    def get_global_vars(self) -> Set[str]:
+        return self.global_vars
+    
+    def get_nonlocal_vars(self) -> Set[str]:
+        return self.nonlocal_vars
+    
+    def get_cell_vars(self) -> Set[str]:
+        return self.cell_vars
 
 
 class IRModule(IRScope, IRStatement):
     name: str
     filename: str
-    ast: Module
+    stmt: Module
 
     def __init__(self, qualname: str, module: Module, name="", filename=None):
         super().__init__(qualname)
@@ -917,7 +941,7 @@ class IRModule(IRScope, IRStatement):
             self.filename = "None"
         else:
             self.filename = filename
-        self.ast = module
+        self.stmt = module
 
     def get_name(self) -> str:
         return f'<module \'{self.name}\' from \'{self.filename}\'>'
@@ -926,7 +950,7 @@ class IRModule(IRScope, IRStatement):
         return self.filename
 
     def get_ast(self) -> Module:
-        return self.ast
+        return self.stmt
 
     def get_stores(self) -> Set[str]:
         return {*()}
@@ -968,6 +992,8 @@ class IRFunc(IRScope, IRStatement):
     is_instance_method: bool
 
     cell_vars: Set[str]
+    nonlocal_vars: Set[str]
+    global_vars: Set[str]
 
     def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None, is_method: bool = False):
         super().__init__(qualname)
@@ -991,9 +1017,7 @@ class IRFunc(IRScope, IRStatement):
         self.type_comment = fn.type_comment
         self.stmt = fn
         self.is_async = isinstance(fn, ast.AsyncFunctionDef)
-        if cell_vars is None:
-            self.cell_vars = {*()}
-        else:
+        if cell_vars:
             self.cell_vars = cell_vars
 
     def get_ast(self) -> ast.stmt:
@@ -1047,7 +1071,7 @@ class IRClass(IRScope, IRStatement):
     bases: List[ast.expr]
     keywords: List[ast.keyword]
     decorator_list: List[ast.expr]
-    ast: ast.ClassDef
+    stmt: ast.ClassDef
 
     cell_vars: Set[str]
 
@@ -1058,7 +1082,7 @@ class IRClass(IRScope, IRStatement):
         self.bases = cls.bases
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
-        self.ast_repr = cls
+        self.stmt = cls
         if cell_vars is None:
             self.cell_vars = {*()}
         else:
@@ -1071,7 +1095,7 @@ class IRClass(IRScope, IRStatement):
         self.cell_vars.add(cell_var)
 
     def get_ast(self) -> ClassDef:
-        return self.ast
+        return self.stmt
 
     def get_stores(self) -> Set[str]:
         return {*()}

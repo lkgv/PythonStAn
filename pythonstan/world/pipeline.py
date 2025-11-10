@@ -95,7 +95,8 @@ class Pipeline:
                         if self.config.import_level < 0 or level < self.config.import_level:
                             q.append((mod_ns, new_mod, level + 1))                 
                         World().import_manager.set_import(mod, stmt, new_mod)
-                        
+
+        self.analysis_manager.analysis("closure", mod)
         World().scope_manager.set_module_graph(g)
 
     def analyse_intra_procedure(self, analyzer):

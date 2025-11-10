@@ -9,6 +9,7 @@ from pythonstan.ir import IRModule
 from pythonstan.analysis.transform import TransformDriver
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.analysis.pointer import PointerAnalysisDriver
+from pythonstan.analysis.closure import ClosureAnalysis
 
 DEFAULT_ANALYSIS = [
     AnalysisConfig(
@@ -34,6 +35,12 @@ DEFAULT_ANALYSIS = [
         prev_analysis=["block cfg"],
         options={"type": "transform"}
     ),
+    AnalysisConfig(
+        name="closure",
+        id="Closure",
+        prev_analysis=["cfg"],
+        options={"type": "closure analysis"}
+    )
 ]
 
 
@@ -80,6 +87,8 @@ class AnalysisManager:
             analyzer = DataflowAnalysisDriver(config)
         elif config.type == "pointer analysis":
             analyzer = PointerAnalysisDriver(config)
+        elif config.type == "closure analysis":
+            analyzer = ClosureAnalysis(config)
         else:
             raise NotImplementedError(f"Unknown analysis type: {config.type}")
         return analyzer
@@ -107,7 +116,7 @@ class AnalysisManager:
     def generator(self) -> Generator[AnalysisDriver, None, None]:
         visited = {*()}
         queue = Queue()
-        for name, analyzer in self.analyzers.items():
+        for name, _ in self.analyzers.items():
             if len(self.prev_analyzers[name]) == 0:
                 queue.put(name)
         while not queue.empty():

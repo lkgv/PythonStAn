@@ -2,6 +2,7 @@ from typing import Set
 
 from pythonstan.graph.cfg import BaseBlock, ControlFlowGraph
 from . import DataflowAnalysis
+from pythonstan.ir import IRScope
 
 
 class LivenessAnalysis(DataflowAnalysis[Set[str]]):
@@ -25,6 +26,8 @@ class LivenessAnalysis(DataflowAnalysis[Set[str]]):
     def transfer_node(self, node: BaseBlock, fact: Set[str]) -> Set[str]:
         fact_out = fact.copy()
         for stmt in node.stmts[::-1]:
-            fact_out.difference_update(stmt.get_stores())
+            fact_out.difference_update(stmt.get_stores())            
             fact_out.update(stmt.get_nostores())
+            if isinstance(stmt, IRScope):
+                fact_out.update(stmt.get_cell_vars() | stmt.get_nonlocal_vars())
         return fact_out

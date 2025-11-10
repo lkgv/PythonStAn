@@ -24,7 +24,7 @@ class ThreeAddress(Transform):
         self.transformer = ThreeAddressTransformer()
 
     def transform(self, module: IRModule):
-        tac = module.ast
+        tac = module.stmt
         for _ in range(1):
            tac = self.transformer.visit(tac)
         #three_address_form = self.transformer.visit(module.ast)

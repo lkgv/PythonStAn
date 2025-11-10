@@ -42,9 +42,6 @@ class LabelGenerator:
         self.next_idx += 1
         return label
 
-# TODO create var Class
-# TODO add global/local attribute
-
 
 class IRTransformer(NodeVisitor):
     imports: List[IRImport]
@@ -145,6 +142,14 @@ class IRTransformer(NodeVisitor):
         stmt = IRImport(node)
         imports.append(stmt)
         self.stmts.append(stmt)
+    
+    def visit_Global(self, node: Global):
+        for name in node.names:
+            self.scope.add_global_var(name)
+    
+    def visit_Nonlocal(self, node: Nonlocal):
+        for name in node.names:
+            self.scope.add_nonlocal_var(name)
 
     def visit_While(self, node: While):
         self.breaks_stack.append([])
