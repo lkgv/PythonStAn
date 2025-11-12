@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING
 
-from pythonstan.analysis.ai import ClassObject
 from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
 from pythonstan.ir.ir_statements import IRScope, IRModule
 
@@ -151,6 +150,8 @@ class ObjectContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     
     def append(self, item: Union['CallSite', 'AbstractObject']) -> 'ObjectContext':
         """Create new context by appending allocation site."""
+        if isinstance(item, AbstractContext):
+            item = item.alloc_site
         if self.depth == 0:
             return self
         new_sites = (self.alloc_sites + (item,))[-self.depth:]
@@ -348,12 +349,14 @@ class Ctx(Generic[T]):
     content: T    
 
     def __hash__(self) -> int:
-        return hash((self.content, self.context))
+        return hash((self.content, self.scope, self.context))
     
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Ctx):
             return False
-        return self.content == other.content and self.context == other.context
+        return (self.content == other.content and
+                # self.context == other.context and
+                self.scope == other.scope)
 
 
 @dataclass(frozen=True)
@@ -404,7 +407,12 @@ class Scope:
     @property
     def parent(self) -> 'Scope':
         if self._parent is None:
-            return self.module
+            if self._module is None:
+                return self
+            else:
+                return self._module
+        else:
+            return self._parent
 
     @property
     def kind(self) -> Literal["function", "instance_method", "class_method", "static_method", "module", "class"]:

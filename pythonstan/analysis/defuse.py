@@ -1,7 +1,7 @@
 from ast import stmt
-from typing import Set
+from typing import Set, Iterator
 
-from pythonstan.graph.cfg import IRScope
+from pythonstan.ir import IRScope, IRStatement
 from .analysis import AnalysisConfig, AnalysisDriver
 from .dataflow.driver import DataflowAnalysisDriver
 
@@ -18,12 +18,18 @@ class DefUseAnalysis(AnalysisDriver):
         rd_config = AnalysisConfig(name="reaching-definition",
                                    id="ReachingDefinitionAnalysis")
         self.rd_analysis = DataflowAnalysisDriver[Set[stmt]](rd_config)
+
+        from pythonstan.world import World
+        self.world = World()
+
         super().__init__(config)
     
     def analyze(self, scope: IRScope):
         rd_result = self.rd_analysis.analyze(scope)
         stores, loads = {}, {}
-        for cur_stmt in scope.cfg.stmts:
+        ir: Iterator[IRStatement] = self.world.scope_manager.get_ir(scope, "ir")
+
+        for cur_stmt in ir:
             reaching_defs = rd_result['in'][cur_stmt]
             for load_id in cur_stmt.get_nostores():
                 for reaching_def in reaching_defs:

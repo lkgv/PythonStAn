@@ -10,10 +10,10 @@ from typing import Set, Dict, Type, Tuple, Optional, TYPE_CHECKING
 from collections import defaultdict
 
 if TYPE_CHECKING:
+    from pythonstan.ir import IRCall
     from .variable import Variable
     from .heap_model import Field
-    from .object import AllocSite
-    from .variable import Scope
+    from .object import AllocSite, Scope
 
 __all__ = [
     "Constraint",

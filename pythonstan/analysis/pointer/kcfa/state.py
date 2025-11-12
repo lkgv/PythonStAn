@@ -9,7 +9,7 @@ from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, TYPE_CH
 from collections import defaultdict
 
 from pythonstan.ir.ir_statements import IRModule
-from .object import FunctionObject, ModuleObject, ClassObject
+from .object import FunctionObject, ModuleObject, ClassObject, MethodObject, InstanceObject
 from .variable import VariableFactory, VariableKind
 from pythonstan.graph.call_graph import AbstractCallGraph
 from .context import CallSite, Ctx, AbstractContext, Scope
@@ -24,9 +24,22 @@ if TYPE_CHECKING:
 __all__ = ["PointsToSet", "PointerAnalysisState"]
 
 
-class PointerCallGraph(AbstractCallGraph[CallSite, 'Variable']):
+class PointerCallGraph(AbstractCallGraph[CallSite, str]):
+
     def __init__(self):
         super().__init__()
+        self.plain_edges = set()
+    
+    def add_edge(self, edge):
+        super().add_edge(edge)
+        self.plain_edges.add((edge.callee, edge.callsite))
+    
+    def has_edge(self, edge):
+        return (edge.callee, edge.callsite) in self.plain_edges
+    
+    def num_plain_edges(self):
+        return len(self.plain_edges)
+    
 
 
 @dataclass(frozen=True)
@@ -41,6 +54,8 @@ class PointsToSet:
     """
     
     objects: FrozenSet['AbstractObject']
+    classmethods: FrozenSet['MethodObject']  # for the convenience of processing inheritance of class methods
+    instancemethods: FrozenSet['MethodObject']  # # for the convenience of processing propagation of instance methods
     
     @staticmethod
     def empty() -> 'PointsToSet':
@@ -49,7 +64,7 @@ class PointsToSet:
         Returns:
             Empty points-to set
         """
-        return PointsToSet(frozenset())
+        return PointsToSet(frozenset(), frozenset(), frozenset())
     
     @staticmethod
     def singleton(obj: 'AbstractObject') -> 'PointsToSet':
@@ -61,12 +76,35 @@ class PointsToSet:
         Returns:
             Points-to set containing only obj
         """
-        return PointsToSet(frozenset([obj]))
+        if isinstance(obj, MethodObject):
+            if obj.alloc_site.stmt.is_class_method:
+                return PointsToSet(frozenset(), frozenset([obj]), frozenset())
+            else:
+                return PointsToSet(frozenset(), frozenset(), frozenset([obj]))
+        return PointsToSet(frozenset([obj]), frozenset(), frozenset())
     
     @staticmethod
     def from_objects(objs: Iterable['AbstractObject']) -> 'PointsToSet':
         """Create points-to set from a set of objects."""
-        return PointsToSet(frozenset(objs))
+        # return PointsToSet(frozenset(objs))
+        os, cms, ims = [], [], []
+        for obj in objs:
+            if isinstance(obj, MethodObject):
+                if obj.alloc_site.stmt.is_class_method:
+                    cms.append(obj)
+                else:
+                    ims.append(obj)
+            else:
+                os.append(obj)
+        return PointsToSet(frozenset(os), frozenset(cms), frozenset(ims))
+
+    def inherit_to(self, new_cls: ClassObject) -> 'PointsToSet':
+        cms = [cm.inherit_into(new_cls) for cm in self.classmethods]
+        return PointsToSet(self.objects, frozenset(cms), self.instancemethods)
+    
+    def deliver_into(self, new_inst: InstanceObject) -> 'PointsToSet':
+        ims = [im.deliver_into(new_inst) for im in self.instancemethods]
+        return PointsToSet(self.objects, self.classmethods, frozenset(ims))
     
     def union(self, other: 'PointsToSet') -> 'PointsToSet':
         """Union with another points-to set.
@@ -77,7 +115,22 @@ class PointsToSet:
         Returns:
             New points-to set with objects from both sets
         """
-        return PointsToSet(self.objects | other.objects)
+        return PointsToSet(self.objects | other.objects, 
+                           self.classmethods | other.classmethods,
+                           self.instancemethods | other.instancemethods)
+    
+    def intersection(self, other: 'PointsToSet') -> 'PointsToSet':
+        """Intersection with another points-to set.
+        
+        Args:
+            other: Another points-to set
+        
+        Returns:
+            New points-to set with objects from both sets
+        """
+        return PointsToSet(self.objects & other.objects, 
+                           self.classmethods & other.classmethods,
+                           self.instancemethods & other.instancemethods)
     
     def is_empty(self) -> bool:
         """Check if set is empty.
@@ -85,29 +138,29 @@ class PointsToSet:
         Returns:
             True if set contains no objects
         """
-        return len(self.objects) == 0
+        return len(self.objects) == 0 and len(self.classmethods) == 0 and len(self.instancemethods) == 0
     
     def __len__(self) -> int:
         """Get number of objects in set."""
-        return len(self.objects)
+        return len(self.objects) + len(self.classmethods) + len(self.instancemethods)
     
     def __iter__(self):
         """Iterate over objects in set."""
-        return iter(self.objects)
+        return iter(self.objects | self.classmethods | self.instancemethods)
     
     def __contains__(self, obj: 'AbstractObject') -> bool:
         """Check if object is in set."""
-        return obj in self.objects
+        return obj in self.objects or obj in self.classmethods or obj in self.instancemethods
     
     def __sub__(self, other: 'PointsToSet') -> 'PointsToSet':
         """Subtract another points-to set."""
-        return PointsToSet(self.objects - other.objects)
+        return PointsToSet(self.objects - other.objects, self.classmethods - other.classmethods, self.instancemethods - other.instancemethods)
     
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.is_empty():
             return "{}"
-        objs = ", ".join(str(o) for o in sorted(self.objects, key=str))
+        objs = ", ".join(str(o) for o in sorted(self.objects | self.instancemethods | self.classmethods, key=str))
         return f"{{{objs}}}"
     
     
@@ -120,16 +173,24 @@ class HeapModel:
     heap: Dict[Tuple['Scope', 'AbstractContext'], Dict[Tuple[str, VariableKind], 'Ctx[Variable]']]
     prev_scope: Dict['Scope', 'Scope']
     objects: Dict[Tuple['Scope', 'AbstractContext', 'AllocSite'], 'AbstractObject']
+    cell_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
+    global_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
+    nonlocal_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
     
     def __init__(self):
         self.heap = {}
         self.field_accesses = {}
         self.objects = {}
+        self.cell_vars = {}
+        self.global_vars = {}
+        self.nonlocal_vars = {}
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> 'Ctx[Variable]':
-        if self.heap.get((scope, context)) is None:
-            self.heap[(scope, context)] = {}
-        registers = self.heap[(scope, context)]
+        ctx_key = (scope, )  # (scope, context)
+        registers = self.heap.get(ctx_key, None)
+        if registers is None:
+            registers = {}
+            self.heap[ctx_key] = registers
         if var.name not in registers:
             registers[(var.name, var.kind)] = Ctx(scope.context, scope, var)  # TODO whether use context or scope.context?
         return registers[(var.name, var.kind)]
@@ -138,17 +199,28 @@ class HeapModel:
         ...
 
     def get_all_variables(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Variable]']:
-        return self.heap.get((scope, context), {}).values()
+        ctx_key = (scope, )
+        return self.heap.get(ctx_key, {}).values()
     
     def get_all_fields(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Field]']:
         ...
     
     def set_obj(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocSite', o: "AbstractObject"):
-        self.objects[(scope, context, c)] = o
+        # print(f"New object: {o}")
+        self.objects[(scope, c.stmt, c.kind)] = o
     
     def get_obj(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocSite') -> Optional['AbstractObject']:
-        return self.objects.get((scope, context, c), None)
-
+        return self.objects.get((scope, c.stmt, c.kind), None)
+    
+    def get_cell_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self.cell_vars.get(obj, {})
+    
+    def get_global_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self.global_vars.get(obj, {})
+    
+    def get_nonlocal_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self.nonlocal_vars.get(obj, {})
+    
 
 class PointerFlowGraph:
     """Represents pointer flow graph in context-sensitive pointer analysis.
@@ -207,9 +279,17 @@ class PointerAnalysisState:
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
         self._field_accesses: Dict[Tuple['AbstractObject', 'Field'], FieldAccess] = {}
         self._variable_factory: VariableFactory = VariableFactory()
+        self._internal_scope = {}
+        self.obj_scope = {}
 
         from pythonstan.world import World
         self._scope_manager = World().scope_manager
+    
+    def set_internal_scope(self, obj, scope):
+        self._internal_scope[obj] = scope
+    
+    def get_internal_scope(self, obj) -> Scope:
+        return self._internal_scope.get(obj, None)
     
     def get_points_to(self, var: 'Variable') -> PointsToSet:
         """Get points-to set for variable.
@@ -241,9 +321,9 @@ class PointerAnalysisState:
             self._env[var] = new_pts
             return True
         return False
-    
-    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> Optional['FieldAccess']:
-        """Get field access for object field.
+
+    def has_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> Optional['FieldAccess']:
+        """Check if the field access exists in the object.
         
         Args:
             obj: Object to query
@@ -253,14 +333,49 @@ class PointerAnalysisState:
             Points-to set for field (empty if not found)
         """
         # TODO here is just a trivial mock and did not consider the complex features such as inheritance and MRO.
+
         field_access = self._field_accesses.get((obj, field), None)
+        return field_access
+    
+    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'FieldAccess':
+        """Get field access for object field.
+        
+        Args:
+            obj: Object to query
+            field: Field to query
+        
+        Returns:
+            Points-to set for field (empty if not found)
+        """
+
+        field_access = self._field_accesses.get((obj, field), None)
+        exists = True
         if field_access is None:
-            from .variable import FieldAccess
             field_access = self._variable_factory.make_field_access(obj, field)
             self.set_field(scope, context, obj, field, field_access)
+            exists = False
         assert field_access is None
-        obj = Ctx(obj.context, scope, field_access)
-        return obj
+        
+        cfield = Ctx(obj.context, scope, field_access)
+
+        if not exists:
+            if isinstance(obj, ModuleObject):
+                internal_scope = self.get_internal_scope(obj)
+                var = self._variable_factory.make_variable(field.name, VariableKind.GLOBAL)
+                cvar = self.get_variable(internal_scope, internal_scope.context, var)
+                self.pointer_flow_graph.add_edge(cvar, cfield)
+            
+            elif isinstance(obj, InstanceObject):
+                cls_obj = obj.class_obj
+                cls_scope = self.get_internal_scope(cls_obj)
+                cls_field = self.get_field(cls_scope, cls_scope.context, cls_obj, field)
+                self.pointer_flow_graph.add_edge(cls_field, cfield)
+            
+            elif isinstance(obj, ClassObject):
+                # TODO add inheritance
+                ...
+
+        return cfield
 
     
     def set_field(
@@ -330,25 +445,43 @@ class PointerAnalysisState:
         if isinstance(container_obj, ModuleObject):
             cvar = self._get_variable_direct(scope, context, var.name, VariableKind.GLOBAL)
         elif isinstance(container_obj, FunctionObject):
-            if var.is_cell and var.name in container_obj.cell_vars:
-                cvar = container_obj.cell_vars[var.name]
+            if var.is_cell and (tmp := self.get_cell_var(container_obj, var.name)):
+                cvar = tmp
                 target_var = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
                 self.pointer_flow_graph.add_edge(cvar, target_var)
-            elif var.is_nonlocal and var.name in container_obj.nonlocal_vars:
-                cvar = container_obj.nonlocal_vars[var.name]
+            elif var.is_nonlocal and (tmp := self.get_nonlocal_var(container_obj, var.name)):
+                cvar = tmp
                 # in a multi-level clocure, nonlocal appears as a writable cell var in the parent scope
-            elif var.is_nonlocal and var.name in container_obj.cell_vars:
-                cvar = container_obj.cell_vars[var.name]
-            elif var.is_global and var.name in container_obj.global_vars:
-                cvar = container_obj.global_vars[var.name]
+            elif var.is_nonlocal and (tmp := self.get_cell_var(container_obj, var.name)):
+                cvar = tmp
+            elif var.is_global and (tmp := self.get_cell_var(container_obj, var.name)):
+                cvar = tmp
             else:
                 cvar = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
         # TODO add logic for class
         # elif isinstance(container_obj, ClassObject):
         else:
             # TODO add option between global_var and local_var to make over-approximate memory
-            cvar = self._get_variable_direct(scope.module, context, var.name, VariableKind.GLOBAL)
+            cvar = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
         return cvar
+        
+    def get_cell_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
+        return self._heap.get_cell_vars(obj).get(name, None)
+    
+    def get_nonlocal_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
+        return self._heap.get_nonlocal_vars(obj).get(name, None)
+    
+    def get_global_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
+        return self._heap.get_global_vars(obj).get(name, None)
+    
+    def set_cell_vars(self, obj: FunctionObject, vars):
+        self._heap.cell_vars[obj] = vars
+    
+    def set_nonlocal_vars(self, obj: FunctionObject, vars):
+        self._heap.nonlocal_vars[obj] = vars
+
+    def set_global_vars(self, obj: FunctionObject, vars):
+        self._heap.global_vars[obj] = vars
         
     def _get_variable_direct(self, scope: 'Scope', context: 'AbstractContext', var_name: str, var_kind: VariableKind) -> 'Ctx[Variable]':
         var = self._variable_factory.make_variable(var_name, var_kind)

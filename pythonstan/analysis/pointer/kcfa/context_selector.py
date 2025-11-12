@@ -15,7 +15,7 @@ from .context import (
     ParamContext,
     CallSite,
 )
-from .object import AbstractObject
+from .object import AbstractObject, InstanceObject
 
 __all__ = ["ContextPolicy", "ContextSelector", "parse_policy"]
 
@@ -143,7 +143,10 @@ class ContextSelector:
             if not isinstance(caller_ctx, TypeContext):
                 caller_ctx = TypeContext((), self._get_depth())
             if callee_obj:
-                return caller_ctx.append(callee_obj.get_type())  # TODO Add field type for Object
+                if isinstance(callee_obj, InstanceObject):
+                    return caller_ctx.append(callee_obj.class_obj)
+                else:
+                    return caller_ctx.append(callee_obj)
             else:
                 return caller_ctx.append(call_site)
         
@@ -158,10 +161,11 @@ class ContextSelector:
         elif self.policy in (ContextPolicy.PARAM_1, ContextPolicy.PARAM_2, ContextPolicy.PARAM_3):
             if not isinstance(caller_ctx, ParamContext):
                 caller_ctx = ParamContext((), self._get_depth())
-            if params:
+            if params and len(params) > 0:
                 return caller_ctx.append(params)
             else:
-                return caller_ctx.append(())
+                # return caller_ctx.append(call_site)
+                return caller_ctx
 
         elif self.policy in (ContextPolicy.HYBRID_CALL1_OBJ1, 
                             ContextPolicy.HYBRID_CALL2_OBJ1,

@@ -26,7 +26,9 @@ class AllocKind(Enum):
     DICT = "dict"
     SET = "set"
     FUNCTION = "func"
+    METHOD = "method"
     CLASS = "class"
+    INSTANCE = "instance"
     MODULE = "module"
     BOUND_METHOD = "method"
     BUILTIN = "builtin"
@@ -49,55 +51,37 @@ class AllocSite:
         kind: Type of allocation
         name: Optional name for named allocations (functions, classes)
     """
-    
-    file: str
-    line: int
-    col: int
+
+    stmt: 'IRStatement'
     kind: AllocKind
-    scope: Optional['Scope']
-    name: Optional[str]
-    stmt: Optional['IRStatement']
     
     def __str__(self) -> str:
         """String representation for debugging and display."""
-        loc = f"{self.file}:{self.line}:{self.col}"
-        if self.name:
-            return f"{loc}:{self.kind.value}:{self.name}"
-        return f"{loc}:{self.kind.value}"
+        return f"{self.stmt}@{self.kind}"
+    
+    @property
+    def line(self) -> str:        
+        return self.stmt.get_ast().getattr('line', 0)
+    
+    @property
+    def col(self) -> str:
+        return self.stmt.get_ast().getattr("col_offset", 0)
     
     @staticmethod
-    def get_location(stmt: ast.AST) -> Tuple[int, int]:
-        line = getattr(stmt, 'line', 0)
-        col = getattr(stmt, 'col_offset', 0)
-        return line, col
-    
-    @staticmethod
-    def from_ir_node(stmt: Optional['IRStatement'], kind: AllocKind, scope: Optional['Scope'] = None, name: Optional[str] = None) -> 'AllocSite':
+    def from_ir_node(stmt: 'IRStatement', kind: AllocKind) -> 'AllocSite':
         """Create allocation site from IR node.
         Extract source location from IR node.
         IR nodes typically have file, line, col attributes.
         
         Args:
-            node: IR node with source location
+            stmt: IR node
             kind: Allocation kind
-            name: Optional name
         
         Returns:
             AllocSite extracted from node
         """
-        if scope is not None:
-            mod_name = scope.name
-        else:
-            mod_name = "<unknown>"
-        if stmt is not None:
-            ast_repr = stmt.get_ast()
-            line = getattr(ast_repr, 'line', 0)
-            col = getattr(ast_repr, 'col_offset', 0)
-        else:
-            line = 0
-            col = 0
-            
-        return AllocSite(file=mod_name, line=line, col=col, kind=kind, scope=scope, name=name, stmt=stmt)
+
+        return AllocSite(stmt, kind)
 
 
 @dataclass(frozen=True)
@@ -110,12 +94,13 @@ class AbstractObject:
     calling contexts.
     
     Attributes:
-        alloc_site: Allocation site (static identity)
+        scope: container scope
         context: Analysis context (dynamic identity)
+        alloc_site: Allocation site (static identity)
     """
     
-    alloc_site: AllocSite
     context: 'AbstractContext'
+    alloc_site: AllocSite
     
     def __str__(self) -> str:
         """String representation showing site and context."""
@@ -143,44 +128,51 @@ class FunctionObject(AbstractObject):
     
     container_scope: 'Scope'
     ir: 'IRFunc'
-    cell_vars: 'Dict[Ctx[Variable]]'
-    global_vars: 'Dict[Ctx[Variable]]'
-    nonlocal_vars: 'Dict[Ctx[Variable]]'
-
-    def __hash__(self):
-        return hash(self.container_scope) * 17 + hash(self.ir)
 
 
 @dataclass(frozen=True)
 class MethodObject(FunctionObject):
-    pass
+    class_obj: 'ClassObject'
+    instance_obj: Optional['InstanceObject']
 
-
+    def deliver_into(self, inst: 'InstanceObject') -> 'MethodObject':
+        return MethodObject(self.context, self.alloc_site, inst.class_obj, inst)
+    
+    def inherit_into(self, cls_obj: 'ClassObject') -> 'MethodObject':
+        return MethodObject(self.context, self.alloc_site, cls_obj, None)
+    
 
 # TODO Add some types of objects
 
+@dataclass(frozen=True)
 class ClassObject(AbstractObject):
+
+    container_scope: 'Scope'
     ir: 'IRClass'
 
 
+@dataclass(frozen=True)
 class ModuleObject(AbstractObject):
     ir: 'IRModule'
+
+
+@dataclass(frozen=True)
+class InstanceObject(AbstractObject):
+    class_obj: 'ClassObject'    
     
-    
+
+@dataclass(frozen=True)
 class ConstObject(AbstractObject):
     value: Union[str, int, float, bool]
+
 
 class BuiltinObject(AbstractObject):
     ...
 
-class CellObject(AbstractObject):
-    ...
-    
-class InstanceObject(AbstractObject):
-    ...
 
 class ListObject(AbstractObject):
     ...
+
 
 class TupleObject(AbstractObject):
     ...
@@ -189,9 +181,6 @@ class DictObject(AbstractObject):
     ...
 
 class SetObject(AbstractObject):
-    ...
-    
-class MethodObject(AbstractObject):
     ...
 
 

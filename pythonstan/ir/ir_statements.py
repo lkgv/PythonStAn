@@ -980,6 +980,7 @@ class IRModule(IRScope, IRStatement):
 class IRFunc(IRScope, IRStatement):
     name: str
     args: ast.arguments
+    arg_names: Set[str]
     decorator_list: List[ast.expr]
     returns: ast.expr
     type_comment: str
@@ -999,6 +1000,16 @@ class IRFunc(IRScope, IRStatement):
         super().__init__(qualname)
         self.name = fn.name
         self.args = fn.args
+        self.arg_names = set()
+        for arg in fn.args.args:
+            self.arg_names.add(arg.arg)
+        for arg in fn.args.kwonlyargs:
+            self.arg_names.add(arg.arg)
+        if fn.args.vararg:
+            self.arg_names.add(fn.args.vararg.arg)
+        if fn.args.kwarg:
+            self.arg_names.add(fn.args.kwarg.arg)
+
         self.decorator_list = fn.decorator_list
         self.is_static_method = self.is_class_method = self.is_setter = self.is_getter = False
         for decr in fn.decorator_list:
@@ -1033,7 +1044,7 @@ class IRFunc(IRScope, IRStatement):
         return {*()}
 
     def get_loads(self) -> Set[str]:
-        return {*()}
+        return self.cell_vars
 
     def get_dels(self) -> Set[str]:
         return {*()}
@@ -1045,7 +1056,7 @@ class IRFunc(IRScope, IRStatement):
             return f'<function {self.name}>'
 
     def get_arg_names(self) -> ast.arguments:
-        return self.args
+        return self.arg_names
 
     def __repr__(self) -> str:
         decrs = ', '.join([ast.unparse(decr) for decr in self.decorator_list])

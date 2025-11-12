@@ -51,27 +51,60 @@ class IRTranslator:
     def translate_module(self, module: IRModule, import_stmt: Optional['IRImport'] = None
                          ) -> List['Constraint']:
         assert isinstance(module, IRModule), f"Module is not an IRModule: {type(module)}"
-        constraints = []
-        
+
         # avoid infinite recursion
         if module in self._scope_constraints:
             return self._scope_constraints[module]
         
-        self._current_scope = module
-        self._current_module = module
-        
+        constraints = []
         ir = self.scope_manager.get_ir(module, 'ir')
+
         if ir is not None:
+            self._current_scope = module
+            self._current_module = module
             for stmt in ir:
                 constraints.extend(self._process_stmt(stmt))
+
+            self._scope_constraints[module] = constraints
         
-        self._scope_constraints[module] = constraints
+        return constraints
+    
+        
+    def translate_class(self, cls_stmt: IRClass) -> Tuple[Variable, List['Constraint']]:
+        """Translate class definition: allocate class object and bind methods."""
+        assert isinstance(cls_stmt, IRClass), f"Class is not an IRClass: {type(cls_stmt)}"
+
+        if cls_stmt in self._scope_constraints:
+            return self._scope_constraints[cls_stmt]
+        
+        constraints = []
+        irs = self.scope_manager.get_ir(cls_stmt, "ir")
+
+        if irs is not None:
+            old_scope = self._current_scope
+            self._current_scope = cls_stmt
+            for stmt in irs:
+                constraints.extend(self._process_stmt(stmt))
+            self._current_scope = old_scope
+
+            self._scope_constraints[cls_stmt] = constraints
+        
         return constraints
     
     def _make_variable(self, name: str) -> 'Variable':
         if self._current_scope is None:
             raise RuntimeError("No active scope for variable creation")
+        
+        if isinstance(self._current_scope, IRModule):
+            kind = VariableKind.GLOBAL
+        elif name in self._current_scope.get_nonlocal_vars():
+            kind = VariableKind.NONLOCAL
+        elif name in self._current_scope.get_global_vars():
+            kind = VariableKind.GLOBAL
+        else:
+            kind = VariableKind.LOCAL
 
+        '''
         if name.startswith('$'):
             kind = VariableKind.TEMPORARY
         elif name in self._current_scope.get_nonlocal_vars():
@@ -82,6 +115,7 @@ class IRTranslator:
             kind = VariableKind.GLOBAL
         else:
             kind = VariableKind.LOCAL
+        '''
             
         return self._var_factory.make_variable(
             name=name,
@@ -215,7 +249,7 @@ class IRTranslator:
                         ))
         
         elif isinstance(rval, ast.Constant):
-            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.CONSTANT, name=f"constant_{rval.value}")
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.CONSTANT)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
         
         # for fields of class, we need to store the value to the class
@@ -264,8 +298,7 @@ class IRTranslator:
         
         target_var = self._make_variable(lval) if lval else None
         
-        call_site_id = f"{self._current_scope.get_qualname}:{id(stmt)}"
-        
+        call_site_id = f"{self._current_scope.get_qualname()}:{stmt.get_ast().lineno}:{stmt.get_ast().col_offset}:{stmt}"
         constraints.append(CallConstraint(
             callee=callee_var,
             args=arg_vars,
@@ -388,45 +421,12 @@ class IRTranslator:
         """Translate function definition: allocate function object."""
         constraints = []
         
-        func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION, self._current_scope, stmt.name)
+        if isinstance(self._current_scope, IRClass) and (not stmt.is_static_method):
+            func_alloc = AllocSite.from_ir_node(stmt, AllocKind.METHOD)
+        else:
+            func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION)
         func_var = self._make_variable(stmt.name)
         constraints.append(AllocConstraint(target=func_var, alloc_site=func_alloc))
-        
-        # Force each function to be analyzed
-        if True:
-            ir = self.scope_manager.get_ir(stmt, 'ir')
-            if ir is not None:
-                for stmt in ir:
-                    constraints.extend(self._process_stmt(stmt))
-        
-        if hasattr(stmt, 'cell_vars') and stmt.cell_vars:
-            for freevar_name in stmt.cell_vars:
-                try:
-                    cell_alloc = AllocSite(
-                        file=self._current_scope.name,
-                        line=0,
-                        col=0,
-                        kind=AllocKind.CELL,                        
-                        name=f"cell_{freevar_name}",
-                        stmt=None
-                    )
-                    cell_var = self._make_variable(f"$cell_{freevar_name}")
-                    constraints.append(AllocConstraint(target=cell_var, alloc_site=cell_alloc))
-                    
-                    outer_var = self._make_variable(freevar_name)
-                    constraints.append(StoreConstraint(
-                        base=cell_var,
-                        field=attr("contents"),
-                        source=outer_var
-                    ))
-                    
-                    constraints.append(StoreConstraint(
-                        base=func_var,
-                        field=attr(f"__closure__{freevar_name}"),
-                        source=cell_var
-                    ))
-                except Exception as e:
-                    logger.debug(f"Error handling closure variable {freevar_name}: {e}")
         
         if hasattr(stmt, 'decorator_list') and stmt.decorator_list:
             current_var = func_var
@@ -485,45 +485,18 @@ class IRTranslator:
         
         return func_var, constraints
     
-    def _translate_class_def(self, stmt: IRClass) -> Tuple[Variable, List['Constraint']]:
+    def _translate_class_def(self, ir_cls: IRClass) -> Tuple[Variable, List['Constraint']]:
         """Translate class definition: allocate class object and bind methods."""
-        
-        """NOTE: HERE IS A BIG BUG, SHOUD NOT RESOLVE AST"""
-        """ declare the thole class and generate some constraints to bind some methods to the class """
         constraints = []
         
-        class_alloc = AllocSite.from_ir_node(stmt, AllocKind.CLASS, name=stmt.name)
-        class_var = self._make_variable(stmt.name)
+        class_alloc = AllocSite.from_ir_node(ir_cls, AllocKind.CLASS)
+        class_var = self._make_variable(ir_cls.name)
         constraints.append(AllocConstraint(target=class_var, alloc_site=class_alloc))
-        
-        # We need to get all fields in the bases and store them to the class object
-        
-        for subscope in self.scope_manager.get_subscopes(stmt):
-            # NOTICE: staticmethod and classmethod are not supported yet
-            if isinstance(subscope, IRFunc):
-                fn_var, fn_constraints = self._translate_function_def(subscope)
-                constraints.extend(fn_constraints)
-                Field = attr(self._make_variable(f"{stmt.name}.{subscope.name}"))
-                constraints.append(StoreConstraint(
-                    base=class_var,
-                    field=Field,
-                    source= fn_var
-                ))
-            elif isinstance(subscope, IRClass):
-                class_var, class_constraints = self._translate_class_def(subscope)
-                constraints.extend(class_constraints)
-                Field = attr(self._make_variable(f"{stmt.name}.{subscope.name}"))
-                constraints.append(StoreConstraint(
-                    base=class_var,
-                    field=Field,
-                    source=class_var
-                ))
-            else:
-                logger.debug(f"Unknown subscope type: {type(subscope)}")
-        
+
         
         # TODO [CRITICAL] the method of treating inheritances is totally wrong, we should use the class hierarchy manager to handle this.
-        for base_name in stmt.get_bases():
+        '''
+        for base_name in ir_cls.get_bases():
             if not isinstance(base_name, ast.Name):
                 continue # TODO resolve the base name in detail
             
@@ -533,10 +506,11 @@ class IRTranslator:
                 field=attr("__bases__"),
                 source=base_var
             ))
+        '''
         
         # for fields of class, we need to store the value to the class
         if isinstance(self._current_scope, IRClass):
-            field = attr(stmt.name)
+            field = attr(ir_cls.name)
             base = self._make_variable("$class")
             constraints.append(StoreConstraint(base=base, field=field, source=class_var))
         
@@ -550,26 +524,9 @@ class IRTranslator:
         # translate the IRs in the imported module
         module_ir = self.scope_manager.get_module_graph().get_succ_module(self._current_scope, stmt)
         if module_ir is None:
-            alloc_site = AllocSite(
-                file=self._current_module.filename,
-                line=stmt.get_ast().lineno,
-                col=stmt.get_ast().col_offset,
-                kind=AllocKind.UNKNOWN,
-                scope = self._current_scope,
-                name=f"unknown_import_[{stmt}]",
-                stmt=stmt
-            )
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.UNKNOWN)
         else:
-            logger.info(f"creating import allocation {stmt}")
-            alloc_site = AllocSite(
-                file=self._current_module.filename,
-                line=stmt.get_ast().lineno,
-                col=stmt.get_ast().col_offset,
-                kind=AllocKind.MODULE,
-                scope=self._current_scope,
-                name=module_ir.get_qualname(),
-                stmt=stmt
-            )
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.MODULE)
 
         # allocate the module variable
         if stmt.module is None:

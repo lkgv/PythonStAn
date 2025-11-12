@@ -1,8 +1,9 @@
 from ast import stmt
 from typing import Set, Iterator
 
-from pythonstan.ir import IRScope, IRStatement
+from pythonstan.ir import IRScope, IRStatement, IRFunc, IRModule
 from pythonstan.graph.cfg import ControlFlowGraph
+from pythonstan.utils.var_collector import VarCollector
 from .analysis import AnalysisConfig, AnalysisDriver
 from .dataflow.driver import DataflowAnalysisDriver
 
@@ -50,10 +51,14 @@ class ClosureAnalysis(AnalysisDriver):
             if cfg:
                 self.liveness_analysis.analyze(scope, cfg)
 
+                # set cell vars for each scope
                 entry = cfg.get_entry()
-                cell_vars = self.liveness_analysis.results["in"][entry]
-                for var in cell_vars:
-                    scope.add_cell_var(var)
+                cell_vars = self.liveness_analysis.results["out"][entry]
+                if isinstance(scope, IRFunc):
+                    arguments = scope.get_arg_names()
+                    cell_vars.difference_update(arguments)
+                if not isinstance(scope, IRModule):
+                    scope.cell_vars = cell_vars
 
             parent = parent_scope.get(scope, None)
             if parent:

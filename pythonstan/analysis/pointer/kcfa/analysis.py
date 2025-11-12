@@ -92,13 +92,10 @@ class PointerAnalysis(AnalysisDriver):
         scope = self.world.get_entry_module()
         
         # Make scope with context
-        alloc_site = AllocSite(scope.filename, line=0, col=0,
-                               kind=AllocKind.MODULE,
-                               scope=None,
-                               name=scope.get_qualname(),
-                               stmt=None)
-        module_obj = ModuleObject(alloc_site, empty_context)
-        ctx_scope = Scope(scope, module_obj, empty_context, None, None)
+        alloc_site = AllocSite.from_ir_node(None, AllocKind.MODULE)
+        module_obj = ModuleObject(empty_context, alloc_site, entry_scope)
+        ctx_scope = Scope(scope, None, empty_context, None, None)
+        self.state.set_internal_scope(module_obj, ctx_scope)
         
         # Generate constraints
         try:
