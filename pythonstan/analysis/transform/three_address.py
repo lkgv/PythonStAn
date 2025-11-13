@@ -281,6 +281,7 @@ class ThreeAddressTransformer(NodeTransformer):
                     tmp_test = ast.UnaryOp(op=ast.Not(), operand=tmp_l)
                 else:
                     raise NotImplementedError("The op is not a bool op!")
+                e = tmp_test
                 tmp_blk.append(ast.If(test=tmp_test, body=blk, orelse=[]))
             blk = tmp_blk
             elts.insert(0, tmp_elt)
@@ -811,18 +812,22 @@ class ThreeAddressTransformer(NodeTransformer):
             args=[iter_l, self.const_colle.load(None)],
             keywords=[]))
         ast.copy_location(next_stmt, node.iter)
+
         body.append(next_stmt)
-        test_expr = ast.Compare(
+        tmp_test_l, tmp_test_s = self.tmp_gen()
+        test_stmt = ast.Assign(targets=[tmp_test_s], value=ast.Compare(
             left=tmp_l,
             ops=[ast.IsNot()],
-            comparators=[self.const_colle.load(None)])
-        ast.copy_location(test_expr, node.target)
+            comparators=[self.const_colle.load(None)]))
+        ast.copy_location(test_stmt, node.target)
+        body.append(test_stmt)
         ass_blk = self.resolve_single_Assign(node.target, tmp_l, node.iter)
         b_blk = self.visit_stmt_list(node.body)
         ass_blk.extend(b_blk)
         ass_blk.append(copy.deepcopy(next_stmt))
+        ass_blk.append(copy.deepcopy(test_stmt))
         o_blk = self.visit_stmt_list(node.orelse)
-        while_stmt = ast.While(test=test_expr, body=ass_blk, orelse=o_blk)
+        while_stmt = ast.While(test=tmp_test_l, body=ass_blk, orelse=o_blk)
         ast.copy_location(while_stmt, node)
         body.append(while_stmt)
         return body
