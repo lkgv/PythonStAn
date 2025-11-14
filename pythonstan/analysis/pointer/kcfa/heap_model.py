@@ -26,6 +26,7 @@ class FieldKind(Enum):
     VALUE = "value"
     UNKNOWN = "unknown"
     POSITION = "position"
+    KEY = "key"
 
 
 @dataclass(frozen=True)
@@ -51,35 +52,54 @@ class Field:
         """Validate field constraints."""
         if self.kind == FieldKind.ATTRIBUTE and self.name is None:
             raise ValueError("ATTRIBUTE field must have name")
-        if self.kind != FieldKind.ATTRIBUTE and self.name is not None:
-            raise ValueError(f"{self.kind.value} field should not have name")
+        if self.kind == FieldKind.KEY and self.name is None:
+            raise ValueError("KEY field must have name")
         if self.kind == FieldKind.POSITION and self.index is None:
             raise ValueError("POSITION field must have index")
-        if self.kind != FieldKind.POSITION and self.index is not None:
-            raise ValueError(f"{self.kind.value} field should not have index")
+        if self.kind in [FieldKind.ELEMENT, FieldKind.VALUE, FieldKind.UNKNOWN]:
+            if self.name is not None or self.index is not None:
+                raise ValueError(f"{self.kind.value} field should not have name or index")
     
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.kind == FieldKind.ATTRIBUTE:
             return f".{self.name}"
-        if self.kind == FieldKind.ATTRIBUTE:
-            return f".({self.index})"
+        if self.kind == FieldKind.POSITION:
+            return f"[{self.index}]"
+        if self.kind == FieldKind.KEY:
+            return f"['{self.name}']"
         return f".{self.kind.value}"
 
 
 def position(index: int) -> Field:
     """Create position field key for containers.
     
-    Used for list, set, and tuple elements where we abstract over all indices.
+    Used for tuple elements with specific integer indices for precise tracking.
     
     Args:
-        index: Index of the element
+        index: Index of the element (must be an integer)
     
     Returns:
-        Field for container element access
+        Field for specific position access (e.g., tuple[0], tuple[1])
     """
-    assert index is not None, "index must be provided"
-    return Field(FieldKind.POSITION, str(index))
+    assert isinstance(index, int), "index must be an integer"
+    return Field(FieldKind.POSITION, None, index)
+
+
+def key(key_name: str) -> Field:
+    """Create key field for specific dict key access.
+    
+    Used for dict["key"] where key is statically known constant.
+    
+    Args:
+        key_name: Dictionary key as string
+    
+    Returns:
+        Field for specific key access
+    """
+    if not isinstance(key_name, str):
+        key_name = str(key_name)
+    return Field(FieldKind.KEY, key_name, None)
 
 
 def attr(name: str) -> Field:
@@ -98,19 +118,20 @@ def attr(name: str) -> Field:
     return Field(FieldKind.ATTRIBUTE, name, None)
 
 
-def elem(index: Optional[int] = None) -> Field:
+def elem() -> Field:
     """Create element field key for containers.
     
-    Used for list, set, and tuple elements where we abstract over all indices.
+    Used for list and set elements where we abstract over all indices.
+    Also used as a fallback for tuples with unknown/dynamic indices.
     
     Returns:
-        Field for container element access
+        Field for generic container element access
     
     Example:
         >>> elem()
-        Field(kind=FieldKind.ELEMENT, name=None)
+        Field(kind=FieldKind.ELEMENT, name=None, index=None)
     """
-    return Field(FieldKind.ELEMENT, None, index)
+    return Field(FieldKind.ELEMENT, None, None)
 
 
 def value() -> Field:

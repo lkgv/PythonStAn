@@ -21,6 +21,8 @@ __all__ = [
     "LoadConstraint",
     "StoreConstraint",
     "AllocConstraint",
+    "LoadSubscrConstraint",
+    "StoreSubscrConstraint",
     "CallConstraint",
     "ReturnConstraint",
     "ConstraintManager"
@@ -72,50 +74,116 @@ class CopyConstraint(Constraint):
 
 @dataclass(frozen=True)
 class LoadConstraint(Constraint):
-    """Load constraint: target = base.field.
+    """Load constraint: target = base.field or target = base[index].
     
-    Represents loading a field from an object.
+    Represents loading a field from an object or subscript access.
     
     Attributes:
         base: Base variable pointing to objects
-        field: Field being loaded
+        field: Field being loaded (for attribute access, None for subscript)
         target: Target variable receiving field value
+        index: Index variable for subscript access (None for attribute access)
     """
     
     base: 'Variable'
-    field: 'Field'
+    field: Optional['Field']
     target: 'Variable'
+    index: Optional['Variable'] = None
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        return {self.base, self.target}
+        vars = {self.base}
+        if self.index:
+            vars.add(self.index)
+        return vars
     
     def __str__(self) -> str:
+        if self.index:
+            return f"LoadConstraint: {self.target} = {self.base}[{self.index}]"
         return f"LoadConstraint: {self.target} = {self.base}{self.field}"
 
 
 @dataclass(frozen=True)
-class StoreConstraint(Constraint):
-    """Store constraint: base.field = source.
+class LoadSubscrConstraint(Constraint):
+    """Load constraint: target = base.field or target = base[index].
     
-    Represents storing to a field of an object.
+    Represents loading a field from an object or subscript access.
     
     Attributes:
         base: Base variable pointing to objects
-        field: Field being stored to
+        field: Field being loaded (for attribute access, None for subscript)
+        target: Target variable receiving field value
+        index: Index variable for subscript access (None for attribute access)
+    """
+
+    target: 'Variable'    
+    base: 'Variable'
+    index: 'Variable'
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.index}
+        return vars
+    
+    def __str__(self) -> str:
+        return f"LoadSubscrConstraint: {self.target} = {self.base}[{self.index}]"
+
+
+@dataclass(frozen=True)
+class StoreConstraint(Constraint):
+    """Store constraint: base.field = source or base[index] = source.
+    
+    Represents storing to a field of an object or subscript access.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        field: Field being stored to (for attribute access, None for subscript)
         source: Source variable being stored
+        index: Index variable for subscript access (None for attribute access)
     """
     
     base: 'Variable'
-    field: 'Field'
+    field: Optional['Field']
+    source: 'Variable'
+    index: Optional['Variable'] = None
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.base}
+        return vars
+    
+    def __str__(self) -> str:
+        if self.index:
+            return f"StoreConstraint: {self.base}[{self.index}] = {self.source}"
+        return f"StoreConstraint: {self.base}{self.field} = {self.source}"
+
+
+@dataclass(frozen=True)
+class StoreSubscrConstraint(Constraint):
+    """Store constraint: base.field = source or base[index] = source.
+    
+    Represents storing to a field of an object or subscript access.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        field: Field being stored to (for attribute access, None for subscript)
+        source: Source variable being stored
+        index: Index variable for subscript access (None for attribute access)
+    """
+    
+    base: 'Variable'
+    index: 'Variable'
     source: 'Variable'
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        return {self.base, self.source}
+        vars = {self.index}
+        if self.index:
+            vars.add(self.index)
+        return vars
     
     def __str__(self) -> str:
-        return f"StoreConstraint: {self.base}{self.field} = {self.source}"
+        return f"StoreSubscrConstraint: {self.base}[{self.index}] = {self.source}"
 
 
 @dataclass(frozen=True)

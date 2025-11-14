@@ -14,7 +14,9 @@ if TYPE_CHECKING:
     from .context import AbstractContext, Scope, Ctx
     from .variable import Variable
 
-__all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject"]
+__all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject", "ConstantObject", 
+           "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
+           "TupleObject", "DictObject", "SetObject", "ObjectFactory"]
 
 
 class AllocKind(Enum):
@@ -162,27 +164,40 @@ class InstanceObject(AbstractObject):
     
 
 @dataclass(frozen=True)
-class ConstObject(AbstractObject):
+class ConstantObject(AbstractObject):
     value: Union[str, int, float, bool]
 
 
+@dataclass(frozen=True)
 class BuiltinObject(AbstractObject):
-    ...
+    """Builtin object (e.g., built-in functions)."""
+    pass
 
 
+@dataclass(frozen=True)
 class ListObject(AbstractObject):
-    ...
+    """List object with mutable elements tracked via elem() field."""
+    pass
 
 
+@dataclass(frozen=True)
 class TupleObject(AbstractObject):
-    ...
+    """Tuple object with immutable elements tracked via position(i) fields."""
+    pass
 
+
+@dataclass(frozen=True)
 class DictObject(AbstractObject):
-    ...
+    """Dictionary object with values tracked via key(k) and value() fields."""
+    pass
 
+
+@dataclass(frozen=True)
 class SetObject(AbstractObject):
-    ...
+    """Set object with elements tracked via elem() field."""
+    pass
 
 
 class ObjectFactory():
-    ...
+    """Factory for creating abstract objects."""
+    pass

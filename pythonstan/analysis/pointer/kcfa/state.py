@@ -8,12 +8,14 @@ from dataclasses import dataclass
 from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, TYPE_CHECKING
 from collections import defaultdict
 
-from pythonstan.ir.ir_statements import IRModule
-from .object import FunctionObject, ModuleObject, ClassObject, MethodObject, InstanceObject
+from pythonstan.ir.ir_statements import IRModule, IRStatement
+from .object import (FunctionObject, ModuleObject, ClassObject, MethodObject, InstanceObject,
+                     ListObject, TupleObject, DictObject, SetObject)
 from .variable import VariableFactory, VariableKind
-from pythonstan.graph.call_graph import AbstractCallGraph
+from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 from .context import CallSite, Ctx, AbstractContext, Scope
 from .constraints import ConstraintManager
+from .heap_model import FieldKind
 
 if TYPE_CHECKING:
     from .object import AbstractObject, AllocSite
@@ -24,18 +26,19 @@ if TYPE_CHECKING:
 __all__ = ["PointsToSet", "PointerAnalysisState"]
 
 
-class PointerCallGraph(AbstractCallGraph[CallSite, str]):
+# TODO to be done 
+class PointerCallGraph(AbstractCallGraph[Ctx[IRStatement], Scope]):
 
     def __init__(self):
         super().__init__()
         self.plain_edges = set()
     
-    def add_edge(self, edge):
+    def add_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
         super().add_edge(edge)
-        self.plain_edges.add((edge.callee, edge.callsite))
+        self.plain_edges.add((edge.callsite.content, edge.callee.stmt))
     
-    def has_edge(self, edge):
-        return (edge.callee, edge.callsite) in self.plain_edges
+    def has_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
+        return (edge.callsite.content, edge.callee.stmt) in self.plain_edges
     
     def num_plain_edges(self):
         return len(self.plain_edges)
@@ -146,7 +149,7 @@ class PointsToSet:
     
     def __iter__(self):
         """Iterate over objects in set."""
-        return iter(self.objects | self.classmethods | self.instancemethods)
+        return iter(self.classmethods | self.instancemethods | self.objects)
     
     def __contains__(self, obj: 'AbstractObject') -> bool:
         """Check if object is in set."""
@@ -185,15 +188,18 @@ class HeapModel:
         self.global_vars = {}
         self.nonlocal_vars = {}
 
-    def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> 'Ctx[Variable]':
+    def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> Optional['Ctx[Variable]']:
+        ctx_key = (scope, )  # (scope, context)
+        registers = self.heap.get(ctx_key, {})
+        return registers.get(var.name, None)
+
+    def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
         ctx_key = (scope, )  # (scope, context)
         registers = self.heap.get(ctx_key, None)
         if registers is None:
             registers = {}
             self.heap[ctx_key] = registers
-        if var.name not in registers:
-            registers[(var.name, var.kind)] = Ctx(scope.context, scope, var)  # TODO whether use context or scope.context?
-        return registers[(var.name, var.kind)]
+        registers[var.name] = ctx_var  # TODO whether use context or scope.context?
     
     def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'Ctx[FieldAccess]':
         ...
@@ -220,7 +226,17 @@ class HeapModel:
     
     def get_nonlocal_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
         return self.nonlocal_vars.get(obj, {})
-    
+
+
+class GuardNode:
+    def __init__(self):
+        ...
+
+
+class SelectorNode:
+    def __init(self):
+        ...
+
 
 class PointerFlowGraph:
     """Represents pointer flow graph in context-sensitive pointer analysis.
@@ -340,12 +356,17 @@ class PointerAnalysisState:
     def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'FieldAccess':
         """Get field access for object field.
         
+        Handles container-specific field resolution:
+        - TupleObject: Supports position(i) fields for precise tracking
+        - DictObject: Supports key(k) fields for precise tracking
+        - ListObject/SetObject: Uses elem() field for all elements
+        
         Args:
             obj: Object to query
             field: Field to query
         
         Returns:
-            Points-to set for field (empty if not found)
+            Contextualized field access for the specified field
         """
 
         field_access = self._field_accesses.get((obj, field), None)
@@ -356,7 +377,7 @@ class PointerAnalysisState:
             exists = False
         assert field_access is None
         
-        cfield = Ctx(obj.context, scope, field_access)
+        cfield = Ctx(obj.context, None, field_access)
 
         if not exists:
             if isinstance(obj, ModuleObject):
@@ -374,6 +395,11 @@ class PointerAnalysisState:
             elif isinstance(obj, ClassObject):
                 # TODO add inheritance
                 ...
+            
+            # Container objects (ListObject, TupleObject, DictObject, SetObject)
+            # are handled directly through their fields (position, key, elem, value)
+            # The sophisticated field tracking is implemented in the solver's
+            # _apply_load and _apply_store methods
 
         return cfield
 
@@ -441,29 +467,16 @@ class PointerAnalysisState:
         return self._call_graph
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> 'Ctx[Variable]':
-        container_obj = scope.obj
-        if isinstance(container_obj, ModuleObject):
-            cvar = self._get_variable_direct(scope, context, var.name, VariableKind.GLOBAL)
-        elif isinstance(container_obj, FunctionObject):
-            if var.is_cell and (tmp := self.get_cell_var(container_obj, var.name)):
-                cvar = tmp
-                target_var = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
-                self.pointer_flow_graph.add_edge(cvar, target_var)
-            elif var.is_nonlocal and (tmp := self.get_nonlocal_var(container_obj, var.name)):
-                cvar = tmp
-                # in a multi-level clocure, nonlocal appears as a writable cell var in the parent scope
-            elif var.is_nonlocal and (tmp := self.get_cell_var(container_obj, var.name)):
-                cvar = tmp
-            elif var.is_global and (tmp := self.get_cell_var(container_obj, var.name)):
-                cvar = tmp
-            else:
-                cvar = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
-        # TODO add logic for class
-        # elif isinstance(container_obj, ClassObject):
-        else:
-            # TODO add option between global_var and local_var to make over-approximate memory
-            cvar = self._get_variable_direct(scope, context, var.name, VariableKind.LOCAL)
+        # TODO change active retriving into passive retriving
+        cvar = self._get_variable_direct(scope.module, scope.module.context, var.name, VariableKind.LOCAL)
+        if cvar is None:
+            kind = VariableKind.GLOBAL if isinstance(scope, ModuleObject) else VariableKind.LOCAL
+            cvar = Ctx(scope.context, scope, self._variable_factory.make_variable(var.name, kind))
+            self.set_variable(scope, context, var, cvar)
         return cvar
+    
+    def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
+        self._heap.set_variable(scope, context, var, ctx_var)
         
     def get_cell_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
         return self._heap.get_cell_vars(obj).get(name, None)
@@ -474,6 +487,15 @@ class PointerAnalysisState:
     def get_global_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
         return self._heap.get_global_vars(obj).get(name, None)
     
+    def get_cell_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self._heap.get_cell_vars(obj)
+    
+    def get_nonlocal_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self._heap.get_nonlocal_vars(obj)
+    
+    def get_global_vars(self, obj: FunctionObject) -> Dict[str, Ctx['Variable']]:
+        return self._heap.get_global_vars(obj)
+    
     def set_cell_vars(self, obj: FunctionObject, vars):
         self._heap.cell_vars[obj] = vars
     
@@ -483,7 +505,7 @@ class PointerAnalysisState:
     def set_global_vars(self, obj: FunctionObject, vars):
         self._heap.global_vars[obj] = vars
         
-    def _get_variable_direct(self, scope: 'Scope', context: 'AbstractContext', var_name: str, var_kind: VariableKind) -> 'Ctx[Variable]':
+    def _get_variable_direct(self, scope: 'Scope', context: 'AbstractContext', var_name: str, var_kind: VariableKind) -> Optional['Ctx[Variable]']:
         var = self._variable_factory.make_variable(var_name, var_kind)
         return self._heap.get_variable(scope, context, var)
     

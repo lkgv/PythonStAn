@@ -13,7 +13,6 @@ from pythonstan.ir.ir_statements import IRScope, IRModule
 
 if TYPE_CHECKING:
     from .object import AbstractObject, AllocSite
-    
 
 __all__ = [
     "CallSite",
