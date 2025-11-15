@@ -6,15 +6,24 @@ policies including call-string, object, type, receiver, and hybrid contexts.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any
+from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING
+
+from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
+from pythonstan.ir.ir_statements import IRScope, IRModule
+
+if TYPE_CHECKING:
+    from .object import AbstractObject, AllocSite
 
 __all__ = [
     "CallSite",
+    "Ctx",
+    "Scope",
     "AbstractContext",
     "CallStringContext",
     "ObjectContext",
     "TypeContext",
     "ReceiverContext",
+    "ParamContext",
     "HybridContext",
 ]
 
@@ -40,7 +49,8 @@ class CallSite:
         return f"{self.site_id}{bb_suffix}#{self.idx}"
 
 
-class AbstractContext(ABC):
+T = TypeVar('T', 'CallSite', 'AbstractObject', 'AllocSite')
+class AbstractContext(ABC, Generic[T]):
     """Base class for all context implementations."""
     
     @abstractmethod
@@ -53,6 +63,11 @@ class AbstractContext(ABC):
         """Check if context is empty."""
         pass
     
+    @abstractmethod
+    def append(self, call_site: T) -> 'AbstractContext':
+        """Append a call site to the context."""
+        pass
+
     @abstractmethod
     def __hash__(self) -> int:
         """Hash for use in dictionaries/sets."""
@@ -71,7 +86,7 @@ class AbstractContext(ABC):
 
 
 @dataclass(frozen=True)
-class CallStringContext(AbstractContext):
+class CallStringContext(AbstractContext['CallSite']):
     """Call-string sensitivity (k-CFA).
     
     Context is a sequence of call sites representing the call string.
@@ -112,31 +127,33 @@ class CallStringContext(AbstractContext):
 
 
 @dataclass(frozen=True)
-class ObjectContext(AbstractContext):
+class ObjectContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     """Object sensitivity: allocation site chain.
     
     Attributes:
-        alloc_sites: Allocation site IDs
+        alloc_sites: Objects and call sites
         depth: Maximum depth for object context
     """
     
-    alloc_sites: Tuple[str, ...] = ()
+    alloc_sites: Tuple[Union['CallSite', 'AbstractObject'], ...] = ()
     depth: int = 2
     
     def to_string(self) -> str:
         if not self.alloc_sites:
             return "<>"
-        shortened = [s.split(':')[-1] if ':' in s else s for s in self.alloc_sites]
+        shortened = [str(s) for s in self.alloc_sites]
         return "<" + ",".join(shortened) + ">"
     
     def is_empty(self) -> bool:
         return len(self.alloc_sites) == 0
     
-    def append(self, alloc_site: str) -> 'ObjectContext':
+    def append(self, item: Union['CallSite', 'AbstractObject']) -> 'ObjectContext':
         """Create new context by appending allocation site."""
+        if isinstance(item, AbstractContext):
+            item = item.alloc_site
         if self.depth == 0:
             return self
-        new_sites = (self.alloc_sites + (alloc_site,))[-self.depth:]
+        new_sites = (self.alloc_sites + (item,))[-self.depth:]
         return ObjectContext(new_sites, self.depth)
     
     def __hash__(self) -> int:
@@ -149,15 +166,15 @@ class ObjectContext(AbstractContext):
 
 
 @dataclass(frozen=True)
-class TypeContext(AbstractContext):
+class TypeContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     """Type sensitivity: receiver type chain.
     
     Attributes:
-        types: Type names
+        types: Type objects and call sites
         depth: Maximum depth for type context
     """
     
-    types: Tuple[str, ...] = ()
+    types: Tuple[Union['CallSite', 'AbstractObject'], ...] = ()
     depth: int = 2
     
     def to_string(self) -> str:
@@ -168,11 +185,11 @@ class TypeContext(AbstractContext):
     def is_empty(self) -> bool:
         return len(self.types) == 0
     
-    def append(self, type_name: str) -> 'TypeContext':
+    def append(self, item: Union['CallSite', 'AbstractObject']) -> 'TypeContext':
         """Create new context by appending type."""
         if self.depth == 0:
             return self
-        new_types = (self.types + (type_name,))[-self.depth:]
+        new_types = (self.types + (item,))[-self.depth:]
         return TypeContext(new_types, self.depth)
     
     def __hash__(self) -> int:
@@ -185,15 +202,15 @@ class TypeContext(AbstractContext):
 
 
 @dataclass(frozen=True)
-class ReceiverContext(AbstractContext):
+class ReceiverContext(AbstractContext[Union['CallSite', 'AllocSite']]):
     """Receiver-object sensitivity: self/receiver allocation sites.
     
     Attributes:
-        receivers: Receiver allocation site IDs
+        receivers: Receiver allocation sites and call sites
         depth: Maximum depth for receiver context
     """
     
-    receivers: Tuple[str, ...] = ()
+    receivers: Tuple[Union['CallSite', 'AllocSite'], ...] = ()
     depth: int = 2
     
     def to_string(self) -> str:
@@ -205,11 +222,11 @@ class ReceiverContext(AbstractContext):
     def is_empty(self) -> bool:
         return len(self.receivers) == 0
     
-    def append(self, receiver_site: str) -> 'ReceiverContext':
+    def append(self, item: Union['CallSite', 'AllocSite']) -> 'ReceiverContext':
         """Create new context by appending receiver allocation site."""
         if self.depth == 0:
             return self
-        new_receivers = (self.receivers + (receiver_site,))[-self.depth:]
+        new_receivers = (self.receivers + (item,))[-self.depth:]
         return ReceiverContext(new_receivers, self.depth)
     
     def __hash__(self) -> int:
@@ -222,7 +239,43 @@ class ReceiverContext(AbstractContext):
 
 
 @dataclass(frozen=True)
-class HybridContext(AbstractContext):
+class ParamContext(AbstractContext[Tuple['AbstractObject', ...]]):
+    """Receiver-object sensitivity: self/receiver allocation sites.
+    
+    Attributes:
+        params: Parameters
+        depth: Maximum depth for receiver context
+    """
+
+    params: Tuple[Union[CallSite, Tuple['AbstractObject', ...]], ...] = ()
+    depth: int = 2
+    
+    def to_string(self) -> str:
+        if not self.params:
+            return "<param:>"
+        return "<param:" + ",".join(str(p) for p in self.params) + ">"
+    
+    def is_empty(self) -> bool:
+        return len(self.params) == 0
+    
+    def append(self, params: Union[CallSite, Tuple['AbstractObject', ...]]) -> 'ParamContext':
+        """Create new context by appending parameters."""
+        if self.depth == 0:
+            return self
+        new_params = (self.params + (params,))[-self.depth:]
+        return ParamContext(new_params, self.depth)
+    
+    def __hash__(self) -> int:
+        return hash((self.params, self.depth))
+    
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, ParamContext):
+            return False
+        return self.params == other.params and self.depth == other.depth
+
+
+@dataclass(frozen=True)
+class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']]]):
     """Hybrid: Combine call-string + object sensitivity.
     
     Attributes:
@@ -232,8 +285,8 @@ class HybridContext(AbstractContext):
         obj_depth: Maximum object context depth
     """
     
-    call_sites: Tuple[CallSite, ...] = ()
-    alloc_sites: Tuple[str, ...] = ()
+    call_sites: Tuple['CallSite', ...] = ()
+    alloc_sites: Tuple['AbstractObject', ...] = ()
     call_k: int = 1
     obj_depth: int = 1
     
@@ -253,12 +306,21 @@ class HybridContext(AbstractContext):
         new_calls = (self.call_sites + (call_site,))[-self.call_k:]
         return HybridContext(new_calls, self.alloc_sites, self.call_k, self.obj_depth)
     
-    def append_object(self, alloc_site: str) -> 'HybridContext':
+    def append_object(self, alloc_site: 'AbstractObject') -> 'HybridContext':
         """Create new context by appending allocation site."""
         if self.obj_depth == 0:
             return self
         new_allocs = (self.alloc_sites + (alloc_site,))[-self.obj_depth:]
         return HybridContext(self.call_sites, new_allocs, self.call_k, self.obj_depth)
+
+    def append(self, call_site: 'CallSite', alloc_site: Optional['AbstractObject']) -> 'HybridContext':
+        if self.call_k == 0:
+            return self
+        if self.obj_depth == 0:
+            return self
+        new_calls = (self.call_sites + (call_site,))[-self.call_k:]
+        new_allocs = (self.alloc_sites + (alloc_site,))[-self.obj_depth:]
+        return HybridContext(new_calls, new_allocs, self.call_k, self.obj_depth)
     
     def __hash__(self) -> int:
         return hash((self.call_sites, self.alloc_sites, self.call_k, self.obj_depth))
@@ -271,3 +333,100 @@ class HybridContext(AbstractContext):
                 self.call_k == other.call_k and 
                 self.obj_depth == other.obj_depth)
 
+
+T = TypeVar('T')
+@dataclass(frozen=True)
+class Ctx(Generic[T]):
+    """Content with context.
+    
+    Attributes:
+        context: AbstractContext[Any]
+        content: T
+    """
+    context: 'AbstractContext[Any]'
+    scope: 'Scope'
+    content: T    
+
+    def __hash__(self) -> int:
+        return hash((self.content, self.scope, self.context))
+    
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, Ctx):
+            return False
+        return (self.content == other.content and
+                # self.context == other.context and
+                self.scope == other.scope)
+
+
+@dataclass(frozen=True)
+class Scope:
+    """Function or module scope for variables.
+    
+    Attributes:
+        name: Qualified scope name (e.g., "module.Class.method")
+        kind: Type of scope
+        parent: Last level scope
+        module: Top level scope
+    """
+    
+    stmt: IRScope
+    obj: Union['FunctionObject', 'ClassObject', 'ModuleObject']
+    context: 'AbstractContext'
+    _parent: Optional['Scope']
+    _module: Optional['Scope']
+    
+    def __post_init__(self):
+        if not isinstance(self.stmt, IRScope):
+            raise ValueError(f"Scope must be an IRScope, {self.stmt} got")
+        if not isinstance(self.stmt, IRModule) and self._parent is None:
+            raise ValueError("Parent is required for non-module scopes")
+        if self._module is not None and not isinstance(self._module.stmt, IRModule):
+            raise ValueError(f"Module shoud be IRModule, but got {type(self._module.stmt)}!")
+    
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def new(cls, obj: 'AbstractObject', module: 'Scope', context: 'AbstractContext', stmt: IRScope, parent: Optional['Scope'] = None) -> 'Scope':
+        if isinstance(stmt, IRModule) and parent is not None:
+            parent = None
+        return cls(stmt, obj, context, parent, module)
+
+    @property
+    def name(self) -> str:
+        return self.stmt.get_qualname()
+    
+    @property
+    def module(self) -> 'Scope':
+        if self._module:
+            return self._module
+        else:
+            return self
+    
+    @property
+    def parent(self) -> 'Scope':
+        if self._parent is None:
+            if self._module is None:
+                return self
+            else:
+                return self._module
+        else:
+            return self._parent
+
+    @property
+    def kind(self) -> Literal["function", "instance_method", "class_method", "static_method", "module", "class"]:
+        from pythonstan.ir.ir_statements import IRFunc, IRClass, IRModule
+        
+        if isinstance(self.stmt, IRFunc):
+            if self.stmt.is_instance_method:
+                return "instance_method"
+            elif self.stmt.is_class_method:
+                return "class_method"
+            elif self.stmt.is_static_method:
+                return "static_method"
+            else:
+                return "function"
+        elif isinstance(self.stmt, IRClass):
+            return "class"
+        elif isinstance(self.stmt, IRModule):
+            return "module"

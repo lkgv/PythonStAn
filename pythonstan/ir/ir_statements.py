@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Set, Union, List, Optional, Tuple
 import ast
 from ast import stmt as Statement
-from ast import Module, ClassDef
+from ast import Module, ClassDef, Name
 
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
@@ -319,7 +319,7 @@ class IRReturn(IRAbstractStmt):
         ast.fix_missing_locations(stmt)
         if stmt.value is not None:
             assert isinstance(stmt.value, ast.Name), "Return value of IR should be ast.Name or None!"
-            self.value = stmt.value
+            self.value = stmt.value.id
         else:
             self.value = None
         self.stmt = stmt
@@ -520,8 +520,8 @@ class IRCall(IRAbstractStmt):
     call: ast.Call
     target: Optional[str]
     func_name: str
-    args: List[Tuple[str, bool]]
-    keywords: List[Tuple[Optional[str], str]]
+    args: List[Tuple[str, bool]]  # (arg_name, is_starred)
+    keywords: List[Tuple[Optional[str], str]]  # (keyword_name, keyword_value)
     load_collector: VarCollector
 
     def __init__(self, stmt):
@@ -896,19 +896,43 @@ class IRPhi(AbstractIRAssign):
 
 class IRScope(ABC):
     qualname: str
+    global_vars: Set[str]
+    nonlocal_vars: Set[str]
+    cell_vars: Set[str]
 
     @abstractmethod
     def __init__(self, qualname: str):
         self.qualname = qualname
+        self.global_vars = set()
+        self.nonlocal_vars = set()
+        self.cell_vars = set()
 
     def get_qualname(self) -> str:
         return self.qualname
+    
+    def add_global_var(self, var: str):
+        self.global_vars.add(var)
+    
+    def add_nonlocal_var(self, var: str):
+        self.nonlocal_vars.add(var)
+    
+    def add_cell_var(self, var: str):
+        self.cell_vars.add(var)
+    
+    def get_global_vars(self) -> Set[str]:
+        return self.global_vars
+    
+    def get_nonlocal_vars(self) -> Set[str]:
+        return self.nonlocal_vars
+    
+    def get_cell_vars(self) -> Set[str]:
+        return self.cell_vars
 
 
 class IRModule(IRScope, IRStatement):
     name: str
     filename: str
-    ast: Module
+    stmt: Module
 
     def __init__(self, qualname: str, module: Module, name="", filename=None):
         super().__init__(qualname)
@@ -917,7 +941,7 @@ class IRModule(IRScope, IRStatement):
             self.filename = "None"
         else:
             self.filename = filename
-        self.ast = module
+        self.stmt = module
 
     def get_name(self) -> str:
         return f'<module \'{self.name}\' from \'{self.filename}\'>'
@@ -926,7 +950,7 @@ class IRModule(IRScope, IRStatement):
         return self.filename
 
     def get_ast(self) -> Module:
-        return self.ast
+        return self.stmt
 
     def get_stores(self) -> Set[str]:
         return {*()}
@@ -956,6 +980,7 @@ class IRModule(IRScope, IRStatement):
 class IRFunc(IRScope, IRStatement):
     name: str
     args: ast.arguments
+    arg_names: Set[str]
     decorator_list: List[ast.expr]
     returns: ast.expr
     type_comment: str
@@ -968,11 +993,23 @@ class IRFunc(IRScope, IRStatement):
     is_instance_method: bool
 
     cell_vars: Set[str]
+    nonlocal_vars: Set[str]
+    global_vars: Set[str]
 
     def __init__(self, qualname: str, fn: ast.stmt, cell_vars=None, is_method: bool = False):
         super().__init__(qualname)
         self.name = fn.name
         self.args = fn.args
+        self.arg_names = set()
+        for arg in fn.args.args:
+            self.arg_names.add(arg.arg)
+        for arg in fn.args.kwonlyargs:
+            self.arg_names.add(arg.arg)
+        if fn.args.vararg:
+            self.arg_names.add(fn.args.vararg.arg)
+        if fn.args.kwarg:
+            self.arg_names.add(fn.args.kwarg.arg)
+
         self.decorator_list = fn.decorator_list
         self.is_static_method = self.is_class_method = self.is_setter = self.is_getter = False
         for decr in fn.decorator_list:
@@ -991,9 +1028,7 @@ class IRFunc(IRScope, IRStatement):
         self.type_comment = fn.type_comment
         self.stmt = fn
         self.is_async = isinstance(fn, ast.AsyncFunctionDef)
-        if cell_vars is None:
-            self.cell_vars = {*()}
-        else:
+        if cell_vars:
             self.cell_vars = cell_vars
 
     def get_ast(self) -> ast.stmt:
@@ -1009,7 +1044,7 @@ class IRFunc(IRScope, IRStatement):
         return {*()}
 
     def get_loads(self) -> Set[str]:
-        return {*()}
+        return self.cell_vars
 
     def get_dels(self) -> Set[str]:
         return {*()}
@@ -1021,7 +1056,7 @@ class IRFunc(IRScope, IRStatement):
             return f'<function {self.name}>'
 
     def get_arg_names(self) -> ast.arguments:
-        return self.args
+        return self.arg_names
 
     def __repr__(self) -> str:
         decrs = ', '.join([ast.unparse(decr) for decr in self.decorator_list])
@@ -1047,7 +1082,7 @@ class IRClass(IRScope, IRStatement):
     bases: List[ast.expr]
     keywords: List[ast.keyword]
     decorator_list: List[ast.expr]
-    ast: ast.ClassDef
+    stmt: ast.ClassDef
 
     cell_vars: Set[str]
 
@@ -1058,7 +1093,7 @@ class IRClass(IRScope, IRStatement):
         self.bases = cls.bases
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
-        self.ast_repr = cls
+        self.stmt = cls
         if cell_vars is None:
             self.cell_vars = {*()}
         else:
@@ -1071,7 +1106,7 @@ class IRClass(IRScope, IRStatement):
         self.cell_vars.add(cell_var)
 
     def get_ast(self) -> ClassDef:
-        return self.ast
+        return self.stmt
 
     def get_stores(self) -> Set[str]:
         return {*()}
@@ -1082,7 +1117,7 @@ class IRClass(IRScope, IRStatement):
     def get_dels(self) -> Set[str]:
         return {*()}
 
-    def get_bases(self) -> List[str]:
+    def get_bases(self) -> List[Name]:
         return self.bases
 
     def __repr__(self) -> str:

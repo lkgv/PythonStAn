@@ -1,4 +1,5 @@
 from typing import Dict, Set, Optional, TypeVar, Generic
+from abc import ABC, abstractmethod
 
 from .call_edge import CallEdge
 
@@ -9,7 +10,7 @@ CallSite = TypeVar("CallSite")
 Method = TypeVar('Method')
 
 
-class AbstractCallGraph(Generic[CallSite, Method]):
+class AbstractCallGraph(Generic[CallSite, Method], ABC):
     callsite_to_edges: Dict[CallSite, Set[CallEdge[CallSite, Method]]]
     callee_to_edges: Dict[Method, Set[CallEdge[CallSite, Method]]]
     callsite_to_container: Dict[CallSite, Method]
@@ -18,14 +19,29 @@ class AbstractCallGraph(Generic[CallSite, Method]):
     reachable_scopes: Set[Method]
     edges: Set[CallEdge[CallSite, Method]]
 
+    @abstractmethod
     def __init__(self):
         self.callsite_to_edges = {}
         self.callee_to_edges = {}
         self.callsite_to_container = {}
-        self.callsites_to = {}
+        self.callsites_in = {}
         self.entry_scopes = {*()}
         self.reachable_scopes = {*()}
         self.edges = {*()}
+    
+    def add_edge(self, edge: CallEdge[CallSite, Method]):
+        if edge.get_callsite() not in self.callsite_to_edges:
+            self.callsite_to_edges[edge.get_callsite()] = {*()}
+        if edge.get_callee() not in self.callee_to_edges:
+            self.callee_to_edges[edge.get_callee()] = {*()}
+        if edge.get_callee() not in self.callsites_in:
+            self.callsites_in[edge.get_callee()] = {*()}
+        self.callsite_to_edges[edge.get_callsite()].add(edge)
+        self.callee_to_edges[edge.get_callee()].add(edge)
+        self.callsite_to_container[edge.get_callsite()] = edge.get_callee()
+        self.callsites_in[edge.get_callee()].add(edge.get_callsite())
+        self.reachable_scopes.add(edge.get_callee)
+        self.edges.add(edge)
 
     def get_callers_of(self, callee: Method) -> Set[CallSite]:
         return {e.get_callsite() for e in self.callee_to_edges.get(callee, {*()})}
@@ -52,10 +68,10 @@ class AbstractCallGraph(Generic[CallSite, Method]):
         return self.callee_to_edges.get(callee, {*()})
 
     def get_edges(self) -> Set[CallEdge[CallSite, Method]]:
-        return {e for e in self.callsite_to_edges.values()}
-
+        return self.edges
+    
     def get_number_of_edges(self) -> int:
-        return sum([len(es) for es in self.callsite_to_edges.values()])
-
+        return len(self.edges)
+    
     def get_nodes(self) -> Set[Method]:
         return self.reachable_scopes

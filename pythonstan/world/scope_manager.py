@@ -3,21 +3,23 @@ import os
 from typing import Set, List, Dict, Tuple, Any, Optional, FrozenSet
 
 from .namespace import Namespace
-from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule
+from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule, IRImport
 from pythonstan.utils.persistent_rb_tree import PersistentMap
 
 
 class ModuleGraph:
     preds: Dict[IRModule, List[IRModule]]
     succs: Dict[IRModule, List[IRModule]]
+    succ_module_index: Dict[Tuple[IRModule, IRImport], IRModule]
     nodes = Set[IRModule]
 
     def __init__(self):
         self.preds = {}
         self.succs = {}
         self.nodes = {*()}
+        self.succ_module_index = {}
 
-    def add_edge(self, src: IRModule, tgt: IRModule):
+    def add_edge(self, src: IRModule, stmt, tgt: IRModule):
         if src not in self.preds:
             self.preds[src] = []
             self.succs[src] = []
@@ -28,6 +30,7 @@ class ModuleGraph:
             self.nodes.add(tgt)
         self.preds[tgt].append(src)
         self.succs[src].append(tgt)
+        self.succ_module_index[(src, stmt)] = tgt
 
     def add_node(self, node: IRModule):
         self.nodes.add(node)
@@ -45,6 +48,9 @@ class ModuleGraph:
 
     def get_modules(self) -> FrozenSet[IRModule]:
         return frozenset(self.nodes)
+    
+    def get_succ_module(self, src: IRModule, stmt: IRImport) -> Optional[IRModule]:
+        return self.succ_module_index.get((src, stmt), None)
 
 
 class ScopeManager:
@@ -55,6 +61,7 @@ class ScopeManager:
     father: Dict[IRScope, IRScope]
     names2scope: Dict[str, IRScope]
     scope_ir: Dict[Tuple[str, str], Any]
+    file2mod: Dict[str, IRModule]
 
     def build(self):
         self.scopes = {*()}
@@ -63,7 +70,8 @@ class ScopeManager:
         self.father = {}
         self.names2scope = {}
         self.scope_ir = {}
-
+        self.file2mod = {}
+        
     def get_module_graph(self) -> ModuleGraph:
         return self.module_graph
 
@@ -100,6 +108,8 @@ class ScopeManager:
             self.subscopes[scope] = [cls]
 
     def add_module(self, ns: Namespace, filename: str) -> Optional[IRModule]:
+        if filename in self.file2mod or ns.to_str() in self.names2scope:
+            return self.file2mod[filename]        
         if not os.path.isfile(filename):
             return None
         with open(filename, 'r') as f:
@@ -107,6 +117,7 @@ class ScopeManager:
         mod = IRModule(ns.to_str(), m_ast, ns.get_name(), filename)
         self.scopes.add(mod)
         self.names2scope[mod.get_qualname()] = mod
+        self.file2mod[filename] = mod
         return mod
 
     def get_module(self, names: str) -> IRScope:

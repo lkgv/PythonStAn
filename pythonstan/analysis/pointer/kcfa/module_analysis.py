@@ -84,7 +84,7 @@ class ModuleAnalyzer:
         
         empty_context = context_selector.empty_context()
         
-        constraints = translator.translate_module(module_ir, empty_context)
+        constraints, _ = translator.translate_module(module_ir, empty_context)
         
         for constraint in constraints:
             solver.add_constraint(constraint)

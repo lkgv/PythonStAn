@@ -6,9 +6,16 @@ for attribute access, container elements, and dictionary values.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Set
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "value", "unknown"]
+from yaml import NodeEvent
+
+if TYPE_CHECKING:
+    from .object import AbstractObject
+    from .variable import Variable
+    from .context import AbstractContext, Ctx
+
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown"]
 
 
 class FieldKind(Enum):
@@ -19,6 +26,7 @@ class FieldKind(Enum):
     VALUE = "value"
     UNKNOWN = "unknown"
     POSITION = "position"
+    KEY = "key"
 
 
 @dataclass(frozen=True)
@@ -44,34 +52,38 @@ class Field:
         """Validate field constraints."""
         if self.kind == FieldKind.ATTRIBUTE and self.name is None:
             raise ValueError("ATTRIBUTE field must have name")
-        if self.kind != FieldKind.ATTRIBUTE and self.name is not None:
-            raise ValueError(f"{self.kind.value} field should not have name")
+        if self.kind == FieldKind.KEY and self.name is None:
+            raise ValueError("KEY field must have name")
         if self.kind == FieldKind.POSITION and self.index is None:
             raise ValueError("POSITION field must have index")
-        if self.kind != FieldKind.POSITION and self.index is not None:
-            raise ValueError(f"{self.kind.value} field should not have index")
+        if self.kind in [FieldKind.ELEMENT, FieldKind.VALUE, FieldKind.UNKNOWN]:
+            if self.name is not None or self.index is not None:
+                raise ValueError(f"{self.kind.value} field should not have name or index")
     
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.kind == FieldKind.ATTRIBUTE:
             return f".{self.name}"
-        if self.kind == FieldKind.ATTRIBUTE:
-            return f".({self.index})"
+        if self.kind == FieldKind.POSITION:
+            return f"[{self.index}]"
+        if self.kind == FieldKind.KEY:
+            return f"['{self.name}']"
         return f".{self.kind.value}"
 
-
-def position(index: int) -> Field:
-    """Create position field key for containers.
+def key(key_name: str) -> Field:
+    """Create key field for specific key/index access. Used for dictionary and list/tuple elements.
     
-    Used for list, set, and tuple elements where we abstract over all indices.
+    Used for dict["key"] where key is statically known constant.
     
     Args:
-        index: Index of the element
+        key_name: Dictionary key as string
     
     Returns:
-        Field for container element access
+        Field for specific key access
     """
-    return Field(FieldKind.POSITION, str(index))
+    if not isinstance(key_name, str):
+        key_name = str(key_name)
+    return Field(FieldKind.KEY, key_name, None)
 
 
 def attr(name: str) -> Field:
@@ -87,37 +99,22 @@ def attr(name: str) -> Field:
         >>> attr("foo")
         Field(kind=FieldKind.ATTRIBUTE, name="foo")
     """
-    return Field(FieldKind.ATTRIBUTE, name)
+    return Field(FieldKind.ATTRIBUTE, name, None)
 
 
 def elem() -> Field:
     """Create element field key for containers.
     
-    Used for list, set, and tuple elements where we abstract over all indices.
+    Used for dict/list/tuple/set elements where we abstract over all indices.
     
     Returns:
-        Field for container element access
+        Field for generic container element access
     
     Example:
         >>> elem()
-        Field(kind=FieldKind.ELEMENT, name=None)
+        Field(kind=FieldKind.ELEMENT, name=None, index=None)
     """
-    return Field(FieldKind.ELEMENT)
-
-
-def value() -> Field:
-    """Create value field key for dictionaries.
-    
-    Used for dictionary values where we abstract over all keys.
-    
-    Returns:
-        Field for dictionary value access
-    
-    Example:
-        >>> value()
-        Field(kind=FieldKind.VALUE, name=None)
-    """
-    return Field(FieldKind.VALUE)
+    return Field(FieldKind.ELEMENT, None, None)
 
 
 def unknown() -> Field:
@@ -132,5 +129,4 @@ def unknown() -> Field:
         >>> unknown()
         Field(kind=FieldKind.UNKNOWN, name=None)
     """
-    return Field(FieldKind.UNKNOWN)
-
+    return Field(FieldKind.UNKNOWN, None, None)

@@ -6,12 +6,17 @@ Objects are context-sensitive and identified by their allocation site and contex
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TYPE_CHECKING
+import ast
+from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .context import AbstractContext
+    from pythonstan.ir.ir_statements import *
+    from .context import AbstractContext, Scope, Ctx
+    from .variable import Variable
 
-__all__ = ["AllocKind", "AllocSite", "AbstractObject"]
+__all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject", "ConstantObject", 
+           "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
+           "TupleObject", "DictObject", "SetObject", "ObjectFactory"]
 
 
 class AllocKind(Enum):
@@ -23,11 +28,14 @@ class AllocKind(Enum):
     DICT = "dict"
     SET = "set"
     FUNCTION = "func"
+    METHOD = "method"
     CLASS = "class"
+    INSTANCE = "instance"
     MODULE = "module"
     BOUND_METHOD = "method"
     BUILTIN = "builtin"
     CELL = "cell"
+    CONSTANT = "constant"
     UNKNOWN = "unknown"
 
 
@@ -45,45 +53,37 @@ class AllocSite:
         kind: Type of allocation
         name: Optional name for named allocations (functions, classes)
     """
-    
-    file: str
-    line: int
-    col: int
+
+    stmt: 'IRStatement'
     kind: AllocKind
-    name: Optional[str] = None
     
     def __str__(self) -> str:
         """String representation for debugging and display."""
-        loc = f"{self.file}:{self.line}:{self.col}"
-        if self.name:
-            return f"{loc}:{self.kind.value}:{self.name}"
-        return f"{loc}:{self.kind.value}"
+        return f"{self.stmt}@{self.kind}"
+    
+    @property
+    def line(self) -> str:        
+        return self.stmt.get_ast().getattr('line', 0)
+    
+    @property
+    def col(self) -> str:
+        return self.stmt.get_ast().getattr("col_offset", 0)
     
     @staticmethod
-    def from_ir_node(node, kind: AllocKind, name: Optional[str] = None) -> 'AllocSite':
+    def from_ir_node(stmt: 'IRStatement', kind: AllocKind) -> 'AllocSite':
         """Create allocation site from IR node.
         Extract source location from IR node.
         IR nodes typically have file, line, col attributes.
         
         Args:
-            node: IR node with source location
+            stmt: IR node
             kind: Allocation kind
-            name: Optional name
         
         Returns:
             AllocSite extracted from node
         """
-        file = getattr(node, 'file', '<unknown>')
-        line = getattr(node, 'line', 0)
-        col = getattr(node, 'col', 0)
-        
-        # Some IR nodes use 'lineno' and 'col_offset' (ast-style)
-        if line == 0 and hasattr(node, 'lineno'):
-            line = node.lineno
-        if col == 0 and hasattr(node, 'col_offset'):
-            col = node.col_offset
-            
-        return AllocSite(file=file, line=line, col=col, kind=kind, name=name)
+
+        return AllocSite(stmt, kind)
 
 
 @dataclass(frozen=True)
@@ -96,12 +96,13 @@ class AbstractObject:
     calling contexts.
     
     Attributes:
-        alloc_site: Allocation site (static identity)
+        scope: container scope
         context: Analysis context (dynamic identity)
+        alloc_site: Allocation site (static identity)
     """
     
-    alloc_site: AllocSite
     context: 'AbstractContext'
+    alloc_site: AllocSite
     
     def __str__(self) -> str:
         """String representation showing site and context."""
@@ -122,3 +123,81 @@ class AbstractObject:
             AllocKind.BUILTIN
         )
 
+
+@dataclass(frozen=True)
+class FunctionObject(AbstractObject):
+    """Function object with context sensitivity."""
+    
+    container_scope: 'Scope'
+    ir: 'IRFunc'
+
+
+@dataclass(frozen=True)
+class MethodObject(FunctionObject):
+    class_obj: 'ClassObject'
+    instance_obj: Optional['InstanceObject']
+
+    def deliver_into(self, inst: 'InstanceObject') -> 'MethodObject':
+        return MethodObject(self.context, self.alloc_site, inst.class_obj, inst)
+    
+    def inherit_into(self, cls_obj: 'ClassObject') -> 'MethodObject':
+        return MethodObject(self.context, self.alloc_site, cls_obj, None)
+    
+
+# TODO Add some types of objects
+
+@dataclass(frozen=True)
+class ClassObject(AbstractObject):
+
+    container_scope: 'Scope'
+    ir: 'IRClass'
+
+
+@dataclass(frozen=True)
+class ModuleObject(AbstractObject):
+    ir: 'IRModule'
+
+
+@dataclass(frozen=True)
+class InstanceObject(AbstractObject):
+    class_obj: 'ClassObject'    
+    
+
+@dataclass(frozen=True)
+class ConstantObject(AbstractObject):
+    value: Union[str, int, float, bool]
+
+
+@dataclass(frozen=True)
+class BuiltinObject(AbstractObject):
+    """Builtin object (e.g., built-in functions)."""
+    pass
+
+
+@dataclass(frozen=True)
+class ListObject(AbstractObject):
+    """List object with mutable elements tracked via elem() field."""
+    pass
+
+
+@dataclass(frozen=True)
+class TupleObject(AbstractObject):
+    """Tuple object with immutable elements tracked via position(i) fields."""
+    pass
+
+
+@dataclass(frozen=True)
+class DictObject(AbstractObject):
+    """Dictionary object with values tracked via key(k) and value() fields."""
+    pass
+
+
+@dataclass(frozen=True)
+class SetObject(AbstractObject):
+    """Set object with elements tracked via elem() field."""
+    pass
+
+
+class ObjectFactory():
+    """Factory for creating abstract objects."""
+    pass

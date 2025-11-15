@@ -7,24 +7,52 @@ constraint-based propagation.
 import logging
 from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple
 
+from pythonstan.ir.ir_statements import IRFunc, IRModule, IRClass, IRAssign
+
 from .state import PointerAnalysisState, PointsToSet
 from .constraints import (Constraint, CopyConstraint, LoadConstraint, StoreConstraint,
-                          AllocConstraint, CallConstraint, ReturnConstraint)
-from .variable import Variable, Scope, VariableKind, VariableFactory, FieldAccess
+                          AllocConstraint, CallConstraint, LoadSubscrConstraint, StoreSubscrConstraint)
+from .variable import Variable, VariableKind, VariableFactory, FieldAccess
 from .config import Config
-from .heap_model import Field, attr
-from pythonstan.graph.call_graph import AbstractCallGraph
+from .heap_model import Field, attr, key, elem
+from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge, CallKind
 from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, CallSite, AbstractContext
+from .context import Ctx, Scope
 from .class_hierarchy import ClassHierarchyManager
 from .builtin_api_handler import BuiltinSummaryManager
 from .unknown_tracker import UnknownTracker, UnknownKind
-from .object import AllocKind, AllocSite, AbstractObject
+from .object import *
 from .solver_interface import ISolverQuery
 
 __all__ = ["PointerSolver", "SolverQuery"]
 
 logger = logging.getLogger(__name__)
+
+
+class Worklist:
+    items: Dict[Ctx[Variable], Tuple['Scope', Ctx[Variable], PointsToSet]]
+
+    def __init__(self):
+        self.items = {}
+
+    def add(self, content: Tuple['Scope', Ctx[Variable], PointsToSet]):
+        scope, var, pts = content
+        if var in self.items:
+            _, _, orig_pts = self.items.pop(var)
+            self.items[var] = (scope, var, orig_pts.union(pts))
+        else:
+            self.items[var] = content
+    
+    def pop(self) -> Tuple['Scope', Ctx[Variable], PointsToSet]:
+        _, v = self.items.popitem()
+        return v
+    
+    def empty(self) -> bool:
+        return len(self.items) == 0
+    
+    def __len__(self) -> int:
+        return len(self.items)
 
 
 class PointerSolver:
@@ -54,164 +82,455 @@ class PointerSolver:
         self.config = config
         self.ir_translator = ir_translator
         self.context_selector = context_selector
-        self.function_registry = function_registry or {}
-        self.class_hierarchy = class_hierarchy
         self.builtin_manager = builtin_manager
         self.variable_factory = variable_factory or VariableFactory()
-        self._worklist: Set[Tuple[Variable, PointsToSet]] = set()
+        # self._worklist: Set[Tuple['Scope', Ctx[Variable], PointsToSet]] = set()
+        self._worklist: Worklist = Worklist()
+        self._static_constraints: Set[Tuple['Scope', 'AbstractContext', 'Constraint']] = set()
         self._iteration = 0
         self._stats: Dict[str, int] = {
             "iterations": 0,
             "constraints_applied": 0
         }
+        self._modules = set()
         self._unknown_tracker = UnknownTracker()
     
-    def add_constraint(self, constraint: 'Constraint') -> None:
-        self.state.constraints.add(constraint)
-    
+    def add_constraint(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint') -> None:
+        if isinstance(constraint, CopyConstraint):
+            self._static_constraints.add((scope, context, constraint))
+        elif isinstance(constraint, AllocConstraint):
+            self._static_constraints.add((scope, context, constraint))
+        else:
+            if isinstance(constraint, LoadConstraint):
+                target = self.state.get_variable(scope, context, constraint.target)
+                self.state.constraints.add(scope, target, constraint)
+            elif isinstance(constraint, StoreConstraint):
+                source = self.state.get_variable(scope, context, constraint.source)
+                self.state.constraints.add(scope, source, constraint)
+            elif isinstance(constraint, CallConstraint):
+                callee = self.state.get_variable(scope, context, constraint.callee)
+                self.state.constraints.add(scope, callee, constraint)
+            elif isinstance(constraint, LoadSubscrConstraint):
+                index = self.state.get_variable(scope, context, constraint.index)
+                self.state.constraints.add(scope, index, constraint)
+            elif isinstance(constraint, StoreSubscrConstraint):
+                index = self.state.get_variable(scope, context, constraint.index)
+                self.state.constraints.add(scope, index, constraint)
+
     def solve_to_fixpoint(self) -> None:
-        self.process_static_constraints()
+        # self.process_static_constraints()
         
         logger.info("Starting constraint solving")
+        max_iter = 1000000 # self.config.max_iterations
         
-        max_iter = self.config.max_iterations
-        
-        while self._worklist and self._iteration < max_iter:
+        while ((not self._worklist.empty()) or self._static_constraints) and self._iteration < max_iter:
             self._iteration += 1
             # Log progress periodically
             if self._iteration % 1000 == 0:
-                logger.debug(f"Iteration {self._iteration}, worklist size {len(self._worklist)}")
+                logger.info(f"Iteration {self._iteration}, worklist size {len(self._worklist)}, objs: {len(self.state._heap.objects)}, call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
             
-            var, pts = self._worklist.pop()
-            
-            logger.info(f"Processing variable {var} with points-to set {pts}")
+            if self._static_constraints:
+                scope, ctx, constraint = self._static_constraints.pop()
+                self._apply_static(scope, scope.context, constraint)
 
-            diff = pts - self.state.get_points_to(var)
-            if not diff.is_empty():
-                self.state.set_points_to(var, diff)
-                for target in self.state.pointer_flow_graph.get_succs(var):
-                    self._worklist.add((target, diff))
-                    
-                constraints_to_process = list(self.state.constraints.get_by_variable(var))
-                for constraint in constraints_to_process:
-                    logger.info(f"Processing constraint {constraint}")
-                    self._apply_constraint(constraint, diff)
+            # if not self._worklist.empty():
+            else:
+                scope, var, pts = self._worklist.pop()
+                diff = pts - self.state.get_points_to(var)
+
+                if not diff.is_empty():
+                    self.state.set_points_to(var, diff)
+
+                    constraints_to_process = list(self.state.constraints.get_by_variable(var))
+                    for constraint in constraints_to_process:
+                        self._apply_constraint(scope, var, constraint, diff)
+                        
+                    for target_var in self.state.pointer_flow_graph.get_succs(var):
+                        if isinstance(target_var.content, FieldAccess):
+                            obj = target_var.content.obj
+
+                            # bind new class object into class method objects
+                            if isinstance(obj, ClassObject):
+                                diff = diff.inherit_to(obj)
+                            # bind new class object into instance method objects
+                            elif isinstance(obj, InstanceObject):
+                                diff = diff.deliver_into(obj)
+
+                        self._worklist.add((target_var.scope, target_var, diff))
+
+            # else:
+            #     scope, ctx, constraint = self._static_constraints.pop()
+            #     self._apply_static(scope, ctx, constraint)
         
         if self._iteration >= max_iter:
             logger.warning(f"Reached max iterations {max_iter}")
         
+        logger.info(f"Processed {len(self._modules)} modules: {self._modules}")
+        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} abslote: {self.state._call_graph.num_plain_edges()}")
+        logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")
+        
         self._stats["iterations"] = self._iteration
         logger.info(f"Converged after {self._iteration} iterations")
-    
-    def process_static_constraints(self):
-        for constraint in self.state.constraints.get_by_type(CopyConstraint):
-            self._apply_copy(constraint)
-        for constraint in self.state.constraints.get_by_type(AllocConstraint):
-            self._apply_alloc(constraint)
-        for constraint in self.state.constraints.get_by_type(ReturnConstraint):
-            self._apply_return(constraint)
-    
-    def _apply_constraint(self, constraint: 'Constraint', diff: 'PointsToSet') -> bool:
+
+    def _apply_static(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint'):
+        if isinstance(constraint, AllocConstraint):
+            self._apply_alloc(scope, context, constraint)
+        elif isinstance(constraint, CopyConstraint):
+            self._apply_copy(scope, context, constraint)
+
+    def _apply_constraint(self, scope: 'Scope', variable: Ctx[Any], constraint: 'Constraint', diff: 'PointsToSet') -> bool:
+        # Here shoud add supports for Imports
+
         if isinstance(constraint, LoadConstraint):
-            return self._apply_load(constraint, diff)
+            return self._apply_load(scope, variable, constraint, diff)
         elif isinstance(constraint, StoreConstraint):
-            return self._apply_store(constraint, diff)
+            return self._apply_store(scope, variable, constraint, diff)
         elif isinstance(constraint, CallConstraint):
-            return self._apply_call(constraint, diff)
-        elif isinstance(constraint, (CopyConstraint, AllocConstraint, ReturnConstraint)):
-            # These constraints are static, so we don't need to apply them
-            return False
+            return self._apply_call(scope, variable, constraint, diff)
+        elif isinstance(constraint, LoadSubscrConstraint):
+            return self._apply_load_subscr(scope, variable, constraint, diff)
+        elif isinstance(constraint, StoreSubscrConstraint):
+            return self._apply_store_subscr(scope, variable, constraint, diff)
         else:
             logger.warning(f"Unknown constraint type: {type(constraint)}")
             return False
-    
-    def _apply_copy(self, c: 'CopyConstraint'):
+
+    def _apply_copy(self, scope: 'Scope', context: 'AbstractContext', c: 'CopyConstraint'):
         """Apply copy constraint: target = source."""
-        self.state.pointer_flow_graph.add_edge(c.source, c.target)    
+        src = self.state.get_variable(scope, context, c.source)
+        tgt = self.state.get_variable(scope, context, c.target)
+        self.state.pointer_flow_graph.add_edge(src, tgt)
         
-    def _apply_alloc(self, c: 'AllocConstraint'):
+    def _apply_alloc(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint'):
         """Apply allocation constraint: target = new Object."""
-        obj = AbstractObject(alloc_site=c.alloc_site, context=c.target.context)
-        pts = PointsToSet.singleton(obj)
-        self._worklist.add((c.target, pts))    
+
+        orig_obj = self.state._heap.get_obj(scope, context, c.alloc_site)
+        if orig_obj is not None:  #  and not isinstance(orig_obj, AbstractObject):
+            return
+
+        if c.alloc_site.kind == AllocKind.FUNCTION:
+            obj = self._alloc_function(scope, context, c)
         
-    def _apply_return(self, c: 'ReturnConstraint'):
-        """Apply return constraint: caller_target = callee_return."""
-        self.state.pointer_flow_graph.add_edge(c.callee_return, c.caller_target)
+        elif c.alloc_site.kind == AllocKind.METHOD:
+            obj = self._alloc_method(scope, context, c)
+
+        elif c.alloc_site.kind == AllocKind.CLASS:
+            # complex class translation logic, for processing base classes
+            obj = self._alloc_class(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.MODULE:
+            obj = self._alloc_module(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.CONSTANT and self.config.index_sensitive:
+            obj = self._alloc_constant(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.LIST and self.config.index_sensitive:
+            obj = self._alloc_list(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.TUPLE: #  and self.config.index_sensitive:
+            obj = self._alloc_tuple(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.DICT: #  and self.config.index_sensitive:
+            obj = self._alloc_dict(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.SET and self.config.index_sensitive:
+            obj = self._alloc_set(scope, context, c)
+        
+        elif c.alloc_site.kind == AllocKind.OBJECT and False:
+            # logic for instance allocation is located in _apply_call
+            obj = None 
+            
+        else:
+            obj = None # AbstractObject(alloc_site=c.alloc_site, context=context)
+
+        if obj is not None:
+            self.state._heap.set_obj(scope, context, c.alloc_site, obj)
+            pts = PointsToSet.singleton(obj)
+            target = self.state.get_variable(scope, context, c.target)
+            self.state.obj_scope[obj] = scope
+            self._worklist.add((scope, target, pts))
     
-    def _apply_load(self, c: 'LoadConstraint', pts: 'PointsToSet'):
-        """Apply load constraint: target = base.field."""
-        
-        # TODO For a setattr, set all object in the same module with the same type with that value
-        for base_obj in pts:
-            field_access = self.state.get_field(base_obj, c.field)
-            self.state.pointer_flow_graph.add_edge(field_access, c.target)
-        '''
-        ** For future reference:
-        
-        for base_obj in pts:
-            # Check if we're loading function objects - create bound methods
-            for field_obj in field_pts:
-                if field_obj.kind == AllocKind.FUNCTON:
-                    bm_alloc = AllocSite(
-                        file=c.target.scope.name,
-                        line=0,
-                        col=0,
-                        kind=AllocKind.BOUND_METHOD,
-                        name=f"{base_obj.alloc_site.name if base_obj.alloc_site.name else 'obj'}.{c.field}"
-                    )
-                    bm_obj = AbstractObject(alloc_site=bm_alloc, context=c.target.context)
-                    
-                    self.state.set_field(bm_obj, attr("__self__"), PointsToSet.singleton(base_obj))
-                    self.state.set_field(bm_obj, attr("__func__"), PointsToSet.singleton(field_obj))
-                    
-                    changed = self.state.set_points_to(c.target, PointsToSet.singleton(bm_obj))
-                else:
-                    changed = self.state.set_points_to(c.target, PointsToSet.singleton(field_obj))
-        '''
+    def _alloc_constant(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ConstantObject':
+        stmt: 'IRAssign' = c.alloc_site.stmt
+        obj = ConstantObject(self.context_selector.empty_context(), c.alloc_site, stmt.get_rval().value)
+        return obj
     
-    def _apply_store(self, c: 'StoreConstraint', pts: 'PointsToSet'):
-        """Apply store constraint: base.field = source."""
-        for base_obj in pts:
-            field_access = self.state.get_field(base_obj, c.field)
-            self.state.pointer_flow_graph.add_edge(field_access, c.source)
+    def _alloc_list(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ListObject':
+        """Allocate list object."""
+        obj = ListObject(context, c.alloc_site)
+        return obj
     
-    def _apply_call(self, c: 'CallConstraint', pts: 'PointsToSet') -> bool:
-        """Apply call constraint: target = callee(args...)."""        
-        '''
-        Unknown tracking is not implemented yet.
+    def _alloc_tuple(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'TupleObject':
+        """Allocate tuple object."""
+        obj = TupleObject(context, c.alloc_site)
+        return obj
+    
+    def _alloc_dict(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'DictObject':
+        """Allocate dict object."""
+        obj = DictObject(context, c.alloc_site)
+        return obj
+    
+    def _alloc_set(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'SetObject':
+        """Allocate set object."""
+        obj = SetObject(context, c.alloc_site)
+        return obj
+    
+    def _alloc_method(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'MethodObject':
+        ir_func = c.alloc_site.stmt
+        # logger.info(f"alloc function {c}")
+        assert isinstance(ir_func, IRFunc), f"AllocSite to be allocated as function {c.alloc_site} should be IRFunc, {type(ir_func)} got!"
+
+        obj = MethodObject(context, c.alloc_site, scope, c.alloc_site.stmt, scope.obj, None)
+
+        # TODO change the way of loading cell vars into directly put
         
-        if callee_pts.is_empty():
+        # process cell vars into the closure
+        cell_vars = {}
+        for var_name in ir_func.get_cell_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.CELL)
+            cell_vars[var_name] = self.state.get_variable(scope.parent, context, var)
+        self.state.set_cell_vars(obj, cell_vars)
+        
+        # collect global vars into the closure
+        global_vars = {}
+        for var_name in ir_func.get_global_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.GLOBAL)
+            global_vars[var_name] = self.state.get_variable(scope.parent, context, var)
+        self.state.set_global_vars(obj, global_vars)
+            
+        # collect nonlocal vars into the closure
+        nonlocal_vars = {}
+        for var_name in ir_func.get_nonlocal_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.NONLOCAL)
+            nonlocal_vars[var_name] = self.state.get_variable(scope.parent, context, var)
+        self.state.set_nonlocal_vars(obj, nonlocal_vars)
+
+        # Processing contents at once
+
+        func_obj = obj
+        func_ir = ir_func
+        call_context = self.context_selector.select_call_context(ir_func, context, scope.obj, None)
+        # func_ir = self.function_registry[func_name]
+        alloc_site = func_obj.alloc_site
+        # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
+        callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
+        old_scope = self.ir_translator._current_scope
+        # old_context = self.ir_translator._current_context        
+        self.ir_translator._current_scope = alloc_site.stmt
+        # self.ir_translator._current_context = call_context
+        
+        try:
+            body_constraints = self.ir_translator.translate_function(func_ir)
+        except Exception as e:
+            body_constraints = []
+        finally:
+            self.ir_translator._current_scope = old_scope
+            # self.ir_translator._current_context = old_context
+        for constraint in body_constraints:
+            self.add_constraint(callee_scope, call_context, constraint)
+
+
+        return obj
+
+    def _alloc_function(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'FunctionObject':
+        ir_func = c.alloc_site.stmt
+        # logger.info(f"alloc function {c}")
+        assert isinstance(ir_func, IRFunc), f"AllocSite to be allocated as function {c.alloc_site} should be IRFunc, {type(ir_func)} got!"
+
+        obj = FunctionObject(context, c.alloc_site, scope, c.alloc_site.stmt)
+        
+        # process cell vars into the closure
+        cell_vars = {}
+        for var_name in ir_func.get_cell_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.CELL)
+            cell_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_cell_vars(obj, cell_vars)
+        
+        # collect global vars into the closure
+        global_vars = {}
+        for var_name in ir_func.get_global_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.GLOBAL)
+            global_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_global_vars(obj, global_vars)
+            
+        # collect nonlocal vars into the closure
+        nonlocal_vars = {}
+        for var_name in ir_func.get_nonlocal_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.NONLOCAL)
+            nonlocal_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_nonlocal_vars(obj, nonlocal_vars)
+
+
+
+        # Processing contents at once
+        func_obj = obj
+        func_ir = ir_func
+        call_context = self.context_selector.select_call_context(ir_func, context, None, None)
+        # func_ir = self.function_registry[func_name]
+        # method_scope = self.state.obj_scope[func_obj]
+        alloc_site = func_obj.alloc_site
+        # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
+        callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
+        old_scope = self.ir_translator._current_scope
+        # old_context = self.ir_translator._current_context        
+        self.ir_translator._current_scope = alloc_site.stmt
+        # self.ir_translator._current_context = call_context
+        
+        try:
+            body_constraints = self.ir_translator.translate_function(func_ir)
+        except Exception as e:
+            body_constraints = []
+        finally:
+            self.ir_translator._current_scope = old_scope
+            # self.ir_translator._current_context = old_context
+
+        for constraint in body_constraints:
+            self.add_constraint(callee_scope, call_context, constraint)
+
+
+        return obj
+    
+    def _alloc_class(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ClassObject':
+        ir_cls = c.alloc_site.stmt
+        # logger.info(f"alloc function {c}")
+        assert isinstance(ir_cls, IRClass), f"AllocSite to be allocated as class {c.alloc_site} should be IRClass, {type(ir_cls)} got!"
+
+        obj = ClassObject(context, c.alloc_site, scope, c.alloc_site.stmt)
+        
+        # process cell vars into the closure
+        cell_vars = {}
+        for var_name in ir_cls.get_cell_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.CELL)
+            cell_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_cell_vars(obj, cell_vars)
+        
+        # collect global vars into the closure
+        global_vars = {}
+        for var_name in ir_cls.get_global_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.GLOBAL)
+            global_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_global_vars(obj, global_vars)
+            
+        # collect nonlocal vars into the closure
+        nonlocal_vars = {}
+        for var_name in ir_cls.get_nonlocal_vars():
+            var = self.variable_factory.make_variable(var_name, VariableKind.NONLOCAL)
+            nonlocal_vars[var_name] = self.state.get_variable(scope, context, var)
+        self.state.set_nonlocal_vars(obj, nonlocal_vars)
+
+        # resolve the content of module
+        ctx_scope = Scope.new(obj, scope.module, context, ir_cls, scope)
+        self.state.set_internal_scope(obj, ctx_scope)
+
+        # inner_var = self.state.get_variable(ctx_scope, context, self.variable_factory.make_variable("$class", VariableKind.LOCAL))
+        # self._worklist.add((scope, inner_var, PointsToSet.singleton(obj)))
+
+        # translate the IRs in the imported module        
+        for constraint in self.ir_translator.translate_class(ir_cls):
+            self.add_constraint(ctx_scope, context, constraint)
+        
+        for inner_var in self.ir_translator.used_variables:
+            ctx_field = self.state.get_field(scope, context, obj, attr(inner_var.name))
+            ctx_inner_var = self.state.get_variable(ctx_scope, context, inner_var)
+            self.state.pointer_flow_graph.add_edge(ctx_inner_var, ctx_field)
+
+        return obj
+
+    def _alloc_module(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ModuleObject':
+        assert c.alloc_site.kind == AllocKind.MODULE, "AllocSite kind in module allocation should be Module"
+        assert c.alloc_site.stmt is not None, "AllocSite should have IRImport as stmt"
+
+        module_ir = self.state.scope_manager.module_graph.get_succ_module(scope.module.stmt, c.alloc_site.stmt)
+                
+        if module_ir is None:
             self._unknown_tracker.record(
-                UnknownKind.CALLEE_EMPTY,
-                c.call_site,
-                f"Call with empty callee points-to set: {c.callee}"
+                UnknownKind.CALLEE_NON_CALLABLE,
+                str(c.alloc_site),
+                f"Attempting to import unknown module: {c.alloc_site.stmt}",
+                context=str(context)
             )
             
             if self.config.verbose:
-                logger.warning(f"[UNKNOWN] Empty callee at {c.call_site}: {c.callee}")
-                
-            if c.target:
-                unknown_alloc = AllocSite(
-                    file="<unknown>",
-                    line=0,
-                    col=0,
-                    kind=AllocKind.UNKNOWN,
-                    name=f"unknown_call_{c.call_site}"
-                )
-                unknown_obj = AbstractObject(unknown_alloc, c.target.context)
-                self.state.set_points_to(c.target, PointsToSet.singleton(unknown_obj))
-                return True
+                logger.warning(f"[UNKNOWN] Module not found at {c.alloc_site}")
             
-            return False
-        '''
+            unknown_obj = AbstractObject(c.alloc_site, scope.context)
+            return unknown_obj
+
+        self._modules.add(module_ir)
+        module_obj = ModuleObject(context, c.alloc_site, module_ir)
+
+        # resolve the content of module
+        module_ctx = context
+        ctx_scope = Scope.new(module_obj, None, module_ctx, module_ir, None)
+
+        self.state.set_internal_scope(module_obj, ctx_scope)
+
+        # translate the IRs in the imported module        
+        for constraint in self.ir_translator.translate_module(module_ir, c.alloc_site.stmt):
+            self.add_constraint(ctx_scope, module_ctx, constraint)
         
+        return module_obj
+    
+    def _apply_load_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'LoadSubscrConstraint', pts: 'PointsToSet'):
+        """Apply load constraint: target = base[index]."""
+        unknown_index = False
+        for index_obj in pts:
+            if isinstance(index_obj, ConstantObject) and isinstance(index_obj.value, int) and index_obj.value >= 0 and index_obj.value < 20:
+                field = key(index_obj.value)
+                self.add_constraint(scope, scope.context, LoadConstraint(c.base, field, c.target))
+            else:
+                unknown_index = True
+        if unknown_index:
+            self.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
+    
+    def _apply_store_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'StoreSubscrConstraint', pts: 'PointsToSet'):
+        """Apply store constraint: base[index] = source."""
+        unknown_index = False
+        for index_obj in pts:
+            if isinstance(index_obj, ConstantObject):
+                field = key(index_obj.value)
+                self.add_constraint(scope, scope.context, StoreConstraint(c.base, field, c.source))
+            else:
+                unknown_index = True
+        if unknown_index:
+            self.add_constraint(scope, scope.context, StoreConstraint(c.base, elem(), c.source))
+    
+    def _apply_load(self, scope: 'Scope', variable: 'Ctx', c: 'LoadConstraint', pts: 'PointsToSet'):
+        """Apply load constraint: target = base.field or target = base[index]."""
+        context = scope.context
+        target_var = self.state.get_variable(scope, context, c.target)
+        
+        for base_obj in pts:
+            field_access = self.state.get_field(scope, context, base_obj, c.field)
+            self.state.pointer_flow_graph.add_edge(field_access, target_var)
+    
+    def _apply_store(self, scope: 'Scope', variable: 'Ctx', c: 'StoreConstraint', pts: 'PointsToSet'):
+        """Apply store constraint: base.field = source or base[index] = source."""
+        context = scope.context
+        source_var = self.state.get_variable(scope, context, c.source)
+
+        for base_obj in pts:
+            field_access = self.state.get_field(scope, context, base_obj, c.field)
+            self.state.pointer_flow_graph.add_edge(source_var, field_access)
+    
+    def _apply_call(self, scope: 'Scope', variable: 'Ctx', c: 'CallConstraint', pts: 'PointsToSet') -> bool:
+        """Apply call constraint: target = callee(args...)."""
+        context = scope.context
+        # TODO renew call graph
+
+        # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
+         
         changed = False
         for callee_obj in pts:
+
+            # logger.info(f"Handling function call: {c.call_site} -> {callee_obj.alloc_site.stmt}\n    {type(callee_obj)} {type(callee_obj.alloc_site.stmt)}")
+
             if callee_obj.kind == AllocKind.FUNCTION:
-                changed = self._handle_function_call(c, callee_obj)                    
+                changed = self._handle_function_call(scope, context, c, callee_obj)
             elif callee_obj.kind == AllocKind.CLASS:
-                changed = self._handle_class_instantiation(c, callee_obj)                    
+                changed = self._handle_class_instantiation(scope, context, c, callee_obj)
+            elif callee_obj.kind == AllocKind.METHOD:
+                changed = self._handle_method_call(scope, context, c, callee_obj)
             elif callee_obj.kind == AllocKind.BOUND_METHOD:
                 changed = self._handle_bound_method_call(c, callee_obj)
             elif callee_obj.kind == AllocKind.BUILTIN:
@@ -228,99 +547,97 @@ class PointerSolver:
                 if self.config.verbose:
                     logger.warning(f"[UNKNOWN] Non-callable at {c.call_site}: {callee_obj}")
                 
+                '''
                 if c.target:
                     unknown_alloc = AllocSite(
-                        file="<unknown>",
+                        file=c.call_site,
                         line=0,
                         col=0,
                         kind=AllocKind.UNKNOWN,
-                        name=f"unknown_noncallable_{c.call_site}"
+                        scope=scope,
+                        name=f"unknown_noncallable_{c.call_site}",
+                        stmt=None
                     )
-                    unknown_obj = AbstractObject(unknown_alloc, c.target.context)
-                    self.state.set_points_to(c.target, PointsToSet.singleton(unknown_obj))
+                    target_var = self.state.get_variable(scope, context, c.target)
+                    unknown_obj = AbstractObject(unknown_alloc, scope.context)
+                    self._worklist.add((scope, target_var, PointsToSet.singleton(unknown_obj)))
                     changed = True
+                '''
         
         return changed
     
-    def _handle_function_call(self, call: 'CallConstraint', func_obj: 'AbstractObject') -> bool:
-        """Handle function call: analyze function body with parameter bindings.
-            1. Selects calling context
-            2. Translates function body to constraints
-            3. Generates parameter passing constraints
-            4. Connects return value to caller
-            5. Adds call edge to call graph
-        """
+    def _handle_method_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
+        # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        if not isinstance(method_obj, MethodObject):
+            logger.info(f"is not method object, {type(func_obj)} got!")
+            return False
         
-        if not self.ir_translator or not self.context_selector: 
-            self._unknown_tracker.record(
-                UnknownKind.MISSING_DEPENDENCIES,
-                call.call_site,
-                "IR translator or context selector not available"
-            )
-            logger.debug("[UNKNOWN] Missing dependencies for function call")
+        func_ir: IRFunc = method_obj.alloc_site.stmt
+        func_name = func_ir.get_qualname()
 
-            if call.target:
-                unknown_alloc = AllocSite(
-                    file="<unknown>",
-                    line=0,
-                    col=0,
-                    kind=AllocKind.UNKNOWN,
-                    name=f"unknown_missing_deps_{call.call_site}"
-                )
-                unknown_obj = AbstractObject(unknown_alloc, call.target.context)
-                self.state.set_points_to(call.target, PointsToSet.singleton(unknown_obj))
-                return True
+        if func_ir.is_static_method:
+            return self._handle_function_call(scope, context, call, method_obj)
+        
+        if func_ir.is_class_method:
+            holder_obj = method_obj.class_obj
+        else:
+            holder_obj = method_obj.instance_obj
+            if not holder_obj:
+                holder_obj = method_obj.class_obj
+        
+        if not holder_obj:
+            logger.info(f"No holder got in {method_obj}")
             return False
         
-        func_name = func_obj.alloc_site.name
-        if not func_name or func_name not in self.function_registry:
-            from .unknown_tracker import UnknownKind
-            from .object import AllocSite, AllocKind, AbstractObject
-            from .state import PointsToSet
-            
-            self._unknown_tracker.record(
-                UnknownKind.FUNCTION_NOT_IN_REGISTRY,
-                call.call_site,
-                f"Function '{func_name}' not found in registry"
-            )
-            
-            if self.config.verbose:
-                logger.warning(f"[UNKNOWN] Function not in registry: {func_name}")
-            
-            if call.target:
-                unknown_alloc = AllocSite(
-                    file="<unknown>",
-                    line=0,
-                    col=0,
-                    kind=AllocKind.UNKNOWN,
-                    name=f"unknown_func_{func_name or 'unnamed'}"
-                )
-                unknown_obj = AbstractObject(unknown_alloc, call.target.context)
-                self.state.set_points_to(call.target, PointsToSet.singleton(unknown_obj))
-                return True
-            return False
+        call_site = CallSite(call.call_site, len(call.args))
         
-        call_site_obj = CallSite(call.call_site, len(call.args))
+        self_var = self.state.get_variable(scope, context, self.variable_factory.make_variable(f"$self@{call.call_site}"))
+        self._worklist.add((scope, self_var, PointsToSet.singleton(holder_obj)))
+
+        args = [self.state.get_variable(scope, context, arg) for arg in call.args]
+        args.insert(0, self_var)
+        kwargs = {k: self.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
+
         call_context = self.context_selector.select_call_context(
-            call_site_obj,
-            call.callee.context,
-            None  # No receiver for regular functions
+            call_site,
+            context,
+            holder_obj,
+            params=frozenset(args)
         )
         
-        func_ir = self.function_registry[func_name]
+        logger.debug(f"Handling function call: {call.call_site} -> {method_obj.alloc_site.stmt}")
         
-        callee_scope = Scope(name=func_name, stmt=func_ir, context=call_context, kind="function")
+        method_scope = self.state.get_internal_scope(holder_obj)
+        callee_scope = Scope.new(method_obj, method_scope.module, call_context, func_ir, method_scope)
+        assert holder_obj
+
+        call_edge = CallEdge(kind=CallKind.FUNCTION, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
+        # if self.state.call_graph.has_edge(edge):
+        #     return False
+
+        # Put all cell and global vars into scope
+        cell_vars = self.state.get_cell_vars(method_obj)
+        for name, var in cell_vars.items():
+            target_var = self.state.get_variable(callee_scope, call_context, self.variable_factory.make_variable(name))
+            self.state.pointer_flow_graph.add_edge(var, target_var)
+        
+        nonlocal_vars = self.state.get_nonlocal_vars(method_obj)
+        for name, var in nonlocal_vars.items():
+            self.state.set_variable(callee_scope, call_context, var.content, var)
+    
+        global_vars = self.state.get_global_vars(method_obj)
+        for name, var in global_vars.items():
+            var = self.state.get_variable(scope.module, scope.module.context, self.variable_factory.make_variable(name))
+            self.state.set_variable(callee_scope, call_context, var.content, var)
+
+
+        alloc_site = method_obj.alloc_site
+        
         old_scope = self.ir_translator._current_scope
-        old_context = self.ir_translator._current_context
-        
-        self.ir_translator._current_scope = callee_scope
-        self.ir_translator._current_context = call_context
-        
-        
-        
-        # TODO dynamic translating functions cost a lot.
+        self.ir_translator._current_scope = alloc_site.stmt
+
         try:
-            body_constraints = self.ir_translator.translate_function(func_ir, call_context)
+            body_constraints = self.ir_translator.translate_function(func_ir)
         except Exception as e:
             self._unknown_tracker.record(
                 UnknownKind.TRANSLATION_ERROR,
@@ -335,114 +652,541 @@ class PointerSolver:
             body_constraints = []
         finally:
             self.ir_translator._current_scope = old_scope
-            self.ir_translator._current_context = old_context
+            # self.ir_translator._current_context = old_context
         
         changed = False
         for constraint in body_constraints:
-            self.add_constraint(constraint)
+            self.add_constraint(callee_scope, call_context, constraint)
             changed = True
         
+        
+                
+        if hasattr(func_ir, 'args'):
+            func_args = func_ir.args
+            arg_vars = args  # Positional argument variables from call site
+            kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
+            
+            # Track which parameters have been bound
+            arg_index = 0
+            consumed_kwargs = set()  # Track which keyword arguments have been matched
+            
+            # 1. Handle positional-only parameters (Python 3.8+)
+            # These can ONLY be filled by positional arguments, not keywords
+            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+                for param in func_args.posonlyargs:
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    if arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    else:
+                        # Must use default value (if available)
+                        pass
+            
+            # 2. Handle regular positional/keyword parameters
+            # These can be filled by either positional OR keyword arguments
+            if func_args.args:
+                num_regular_params = len(func_args.args)
+                num_defaults = len(func_args.defaults) if func_args.defaults else 0
+                first_default_idx = num_regular_params - num_defaults
+                
+                for param_idx, param in enumerate(func_args.args):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # First check if this parameter is provided as a keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    elif param_idx >= first_default_idx:
+                        # This parameter has a default value
+                        pass
+                    else:
+                        # Missing required parameter - this is an error in real Python
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 3. Handle *args (vararg) - collects remaining positional arguments
+            if func_args.vararg:
+                vararg_name = func_args.vararg.arg
+                vararg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(vararg_name)
+                )
+                
+                # Create a tuple object to hold the varargs
+                vararg_alloc = AllocSite(f"{call.call_site}:*args", AllocKind.TUPLE)
+                vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
+                
+                # Add the tuple to the vararg parameter
+                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                if changed_vararg:
+                    changed = True
+                
+                # All remaining positional arguments go into *args
+                for i in range(arg_index, len(arg_vars)):
+                    # Store each remaining argument as an element of the tuple
+                    field = attr(str(i - arg_index))
+                    element_var = self.state.get_field_variable(vararg_var, field)
+                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+            elif arg_index < len(arg_vars):
+                # Too many positional arguments and no *args to catch them
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
+                    context=func_name
+                )
+            
+            # 4. Handle keyword-only parameters
+            # These MUST be provided by keyword arguments (or use defaults)
+            if func_args.kwonlyargs:
+                for kw_idx, param in enumerate(func_args.kwonlyargs):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope,
+                        call_context,
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # Check if provided as keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
+                        # Check if there's a default value
+                        kw_default = func_args.kw_defaults[kw_idx]
+                        if kw_default is not None:
+                            # Has a default value
+                            pass
+                        else:
+                            # Missing required keyword-only parameter
+                            self._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                call.call_site,
+                                f"Required keyword-only parameter {param_name} not provided",
+                                context=func_name
+                            )
+                    else:
+                        # Missing required keyword-only parameter with no default
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required keyword-only parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 5. Handle **kwargs (kwarg) - collects remaining keyword arguments
+            remaining_kwargs = {k: v for k, v in kwarg_vars.items() if k not in consumed_kwargs}
+            
+            if func_args.kwarg:
+                kwarg_name = func_args.kwarg.arg
+                kwarg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(kwarg_name)
+                )
+                
+                # Create a dict object to hold the kwargs
+                kwarg_alloc = AllocSite(f"{call.call_site}:**kwargs", AllocKind.DICT)
+                kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
+                
+                # Add the dict to the kwarg parameter
+                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                if changed_kwarg:
+                    changed = True
+                
+                # Store all remaining keyword arguments into the **kwargs dict
+                for kw_name, kw_var in remaining_kwargs.items():
+                    # Use the keyword name as the dict key (field)
+                    field = attr(kw_name)
+                    dict_value_var = self.state.get_field(callee_scope, call_context, kwarg_var, field)
+                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+            elif remaining_kwargs:
+                # Unexpected keyword arguments and no **kwargs to catch them
+                extra_kw_names = ', '.join(remaining_kwargs.keys())
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Unexpected keyword arguments: {extra_kw_names}",
+                    context=func_name
+                )
+
+        '''
+        # TODO to be updated into precisely matching the arguments
+        if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args') and len(func_ir.args.args) > 0:
+            param_names = [arg.arg for arg in func_ir.args.args]
+            self_name = self.variable_factory.make_variable(param_names.pop(0))
+            self_var = self.state.get_variable(callee_scope, call_context, self_name)
+            self._worklist.add((callee_scope, self_var, PointsToSet.singleton(holder_obj)))
+            for i, param_name in enumerate(param_names):
+                if i < len(args):
+                    arg_var = args[i]
+                    param = self.variable_factory.make_variable(param_name)
+                    param_var = self.state.get_variable(callee_scope, call_context, param)
+                    self.state.pointer_flow_graph.add_edge(arg_var, param_var)
+        '''
+
+        
+        if call.target:
+            ret = self.variable_factory.make_variable("$return")
+            ret_var = self.state.get_variable(callee_scope, call_context, ret)
+            target = self.variable_factory.make_variable(call.target)
+            target_var = self.state.get_variable(scope, context, target)
+            self.state.pointer_flow_graph.add_edge(ret_var, target_var)
+
+        self.state.call_graph.add_edge(call_edge)
+        logger.debug(f"Adding call edge: {call_edge}")
+
+        return changed
+    
+    def _handle_function_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', func_obj: 'AbstractObject') -> bool:
+        """Handle function call: analyze function body with parameter bindings.
+            1. Selects calling context
+            2. Translates function body to constraints
+            3. Generates parameter passing constraints
+            4. Connects return value to caller
+            5. Adds call edge to call graph
+        """
+        # logger.info(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
+        if not isinstance(func_obj, FunctionObject):
+            logger.info(f"is not function object, {type(func_obj)} got!")
+            return False
+        
+        func_ir: IRFunc = func_obj.alloc_site.stmt
+        func_name = func_ir.get_name()
+        alloc_site = func_obj.alloc_site
+        # logger.info(f"Handling function call: {call.call_site} -> {alloc_site}")
+        args = [self.state.get_variable(scope, context, arg) for arg in call.args]
+        kwargs = {k: self.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
+        
+        call_site = CallSite(call.call_site, len(call.args))
+        call_context = self.context_selector.select_call_context(
+            call_site,
+            context,
+            None,  # No receiver ffor regular functions
+            params=frozenset(args)
+        )
+        
+        logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
+        
+        # func_ir = self.function_registry[func_name]
+        method_scope = self.state.obj_scope[func_obj]
+        alloc_site = func_obj.alloc_site
+        # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
+        callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
+        call_edge = CallEdge(kind=CallKind.FUNCTION, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
+        # if self.state.call_graph.has_edge(edge):
+        #     return False
+
+        # Put all cell and global vars into scope
+        cell_vars = self.state.get_cell_vars(func_obj)
+        for name, var in cell_vars.items():
+            target_var = self.state.get_variable(callee_scope, call_context, self.variable_factory.make_variable(name))
+            self.state.pointer_flow_graph.add_edge(var, target_var)
+        
+        nonlocal_vars = self.state.get_nonlocal_vars(func_obj)
+        for name, var in nonlocal_vars.items():
+            self.state.set_variable(callee_scope, call_context, var.content, var)
+    
+        global_vars = self.state.get_global_vars(func_obj)
+        for name, var in global_vars.items():
+            var = self.state.get_variable(scope.module, scope.module.context, self.variable_factory.make_variable(name))
+            self.state.set_variable(callee_scope, call_context, var.content, var)
+
+        old_scope = self.ir_translator._current_scope
+        # old_context = self.ir_translator._current_context        
+        self.ir_translator._current_scope = alloc_site.stmt
+        # self.ir_translator._current_context = call_context
+        
+        try:
+            body_constraints = self.ir_translator.translate_function(func_ir)
+        except Exception as e:
+            self._unknown_tracker.record(
+                UnknownKind.TRANSLATION_ERROR,
+                call.call_site,
+                f"Error translating function body: {str(e)}",
+                context=func_name
+            )
+            
+            if self.config.verbose:
+                logger.warning(f"[UNKNOWN] Translation error for {func_name}: {e}")
+            
+            body_constraints = []
+        finally:
+            self.ir_translator._current_scope = old_scope
+            # self.ir_translator._current_context = old_context
+        
+        changed = False
+        for constraint in body_constraints:
+            self.add_constraint(callee_scope, call_context, constraint)
+            changed = True
+    
+        if hasattr(func_ir, 'args'):
+            func_args = func_ir.args
+            arg_vars = args  # Positional argument variables from call site
+            kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
+            
+            # Track which parameters have been bound
+            arg_index = 0
+            consumed_kwargs = set()  # Track which keyword arguments have been matched
+            
+            # 1. Handle positional-only parameters (Python 3.8+)
+            # These can ONLY be filled by positional arguments, not keywords
+            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+                for param in func_args.posonlyargs:
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    if arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    else:
+                        # Must use default value (if available)
+                        pass
+            
+            # 2. Handle regular positional/keyword parameters
+            # These can be filled by either positional OR keyword arguments
+            if func_args.args:
+                num_regular_params = len(func_args.args)
+                num_defaults = len(func_args.defaults) if func_args.defaults else 0
+                first_default_idx = num_regular_params - num_defaults
+                
+                for param_idx, param in enumerate(func_args.args):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # First check if this parameter is provided as a keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    elif param_idx >= first_default_idx:
+                        # This parameter has a default value
+                        pass
+                    else:
+                        # Missing required parameter - this is an error in real Python
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 3. Handle *args (vararg) - collects remaining positional arguments
+            if func_args.vararg:
+                vararg_name = func_args.vararg.arg
+                vararg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(vararg_name)
+                )
+                
+                # Create a tuple object to hold the varargs
+                vararg_alloc = AllocSite(f"{call.call_site}:*args", AllocKind.TUPLE)
+                vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
+                
+                # Add the tuple to the vararg parameter
+                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                if changed_vararg:
+                    changed = True
+                
+                # All remaining positional arguments go into *args
+                for i in range(arg_index, len(arg_vars)):
+                    # Store each remaining argument as an element of the tuple
+                    field = attr(str(i - arg_index))
+                    element_var = self.state.get_field_variable(vararg_var, field)
+                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+            elif arg_index < len(arg_vars):
+                # Too many positional arguments and no *args to catch them
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
+                    context=func_name
+                )
+            
+            # 4. Handle keyword-only parameters
+            # These MUST be provided by keyword arguments (or use defaults)
+            if func_args.kwonlyargs:
+                for kw_idx, param in enumerate(func_args.kwonlyargs):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope,
+                        call_context,
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # Check if provided as keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
+                        # Check if there's a default value
+                        kw_default = func_args.kw_defaults[kw_idx]
+                        if kw_default is not None:
+                            # Has a default value
+                            pass
+                        else:
+                            # Missing required keyword-only parameter
+                            self._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                call.call_site,
+                                f"Required keyword-only parameter {param_name} not provided",
+                                context=func_name
+                            )
+                    else:
+                        # Missing required keyword-only parameter with no default
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required keyword-only parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 5. Handle **kwargs (kwarg) - collects remaining keyword arguments
+            remaining_kwargs = {k: v for k, v in kwarg_vars.items() if k not in consumed_kwargs}
+            
+            if func_args.kwarg:
+                kwarg_name = func_args.kwarg.arg
+                kwarg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(kwarg_name)
+                )
+                
+                # Create a dict object to hold the kwargs
+                kwarg_alloc = AllocSite(f"{call.call_site}:**kwargs", AllocKind.DICT)
+                kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
+                
+                # Add the dict to the kwarg parameter
+                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                if changed_kwarg:
+                    changed = True
+                
+                # Store all remaining keyword arguments into the **kwargs dict
+                for kw_name, kw_var in remaining_kwargs.items():
+                    # Use the keyword name as the dict key (field)
+                    field = attr(kw_name)
+                    dict_value_var = self.state.get_field_variable(kwarg_var, field)
+                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+            elif remaining_kwargs:
+                # Unexpected keyword arguments and no **kwargs to catch them
+                extra_kw_names = ', '.join(remaining_kwargs.keys())
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Unexpected keyword arguments: {extra_kw_names}",
+                    context=func_name
+                )
+
+
+        '''
+        # Old way to handle argument matching
         if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args'):
             param_names = [arg.arg for arg in func_ir.args.args]
             for i, param_name in enumerate(param_names):
-                if i < len(call.args):
-                    param_var = self._make_variable(param_name, callee_scope, call_context, VariableKind.PARAMETER)
-                    self.state.pointer_flow_graph.add_edge(call.args[i], param_var)
-        
-        # Handle closure variable restoration
-        if hasattr(func_ir, 'cell_vars') and func_ir.cell_vars:
-            for freevar_name in func_ir.cell_vars:
-                try:
-                    # Load cell from function closure
-                    cell_var = self._make_variable(
-                        name=f"$cell_{freevar_name}",
-                        scope=callee_scope,
-                        context=call_context,
-                        kind=VariableKind.TEMPORARY
-                    )
-                    
-                    func_var = call.callee
-                    load_cell_constraint = LoadConstraint(
-                        base=func_var,
-                        field=attr(f"__closure__{freevar_name}"),
-                        target=cell_var
-                    )
-                    self.add_constraint(load_cell_constraint)
-                    inner_var = self._make_variable(
-                        name=freevar_name,
-                        scope=callee_scope,
-                        context=call_context,
-                        kind=VariableKind.LOCAL
-                    )
-                    load_value_constraint = LoadConstraint(
-                        base=cell_var,
-                        field=attr("contents"),
-                        target=inner_var
-                    )
-                    self.add_constraint(load_value_constraint)
-                    changed = True
-                except Exception as e:
-                    logger.debug(f"Error restoring closure variable {freevar_name}: {e}")
+                if i < len(args):
+                    param = self.variable_factory.make_variable(param_name)
+                    param_var = self.state.get_variable(callee_scope, call_context, param)
+                    arg_var = args[i]
+                    self.state.pointer_flow_graph.add_edge(arg_var, param_var)
+        '''
         
         if call.target:
-            return_var = Variable(
-                name="$return",
-                scope=callee_scope,
-                context=call_context,
-                kind=VariableKind.TEMPORARY
-            )
-            self.state.pointer_flow_graph.add_edge(return_var, call.target)
+            ret = self.variable_factory.make_variable("$return")
+            ret_var = self.state.get_variable(callee_scope, call_context, ret)
+            target = self.variable_factory.make_variable(call.target)
+            target_var = self.state.get_variable(scope, context, target)
+            self.state.pointer_flow_graph.add_edge(ret_var, target_var)
         
-        if hasattr(self.state, '_call_edges'):
-            from pythonstan.graph.call_graph import CallEdge, CallKind
-            edge = CallEdge(
-                kind=CallKind.FUNCTION,
-                callsite=call.call_site,
-                callee=func_name
-            )
-            self.state._call_edges.append(edge)
-        
+        self.state.call_graph.add_edge(call_edge)
+        logger.debug(f"Adding call edge: {call_edge}")
+
         return changed
     
-    def _handle_class_instantiation(self, call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
+    def _handle_class_instantiation(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
         """Handle class instantiation: create instance + call __init__."""
         if not call.target:
             return False
-        
-        instance_alloc = AllocSite(
-            file=class_obj.alloc_site.file,
-            line=class_obj.alloc_site.line,
-            col=class_obj.alloc_site.col,
-            kind=AllocKind.OBJECT,
-            name=class_obj.alloc_site.name
-        )
+
+        instance_alloc = AllocSite(call.call_site, AllocKind.INSTANCE)
         
         if self.context_selector:
             call_site = CallSite(call.call_site, len(call.args))
-            alloc_context = self.context_selector.select_alloc_context(
-                call_site,
-                call.target.context,
-                class_obj
-            )
+            alloc_context = self.context_selector.select_alloc_context(context, instance_alloc, class_obj)
         else:
-            alloc_context = call.target.context
+            alloc_context = context
         
-        instance_obj = AbstractObject(instance_alloc, alloc_context)
-        
-        changed = self.state.set_points_to(call.target, PointsToSet.singleton(instance_obj))
-        
+        instance_obj = InstanceObject(alloc_context, instance_alloc, class_obj)
+
+        target_var = self.state.get_variable(scope, context, call.target)        
+        changed = self._worklist.add((scope, target_var, PointsToSet.singleton(instance_obj)))
+
+        params = [self.state.get_variable(scope, context, arg) for arg in call.args]
+        params.insert(0, instance_obj)
+        instance_parent = self.state.get_internal_scope(class_obj).parent
+        assert instance_parent, f"{self.state.get_internal_scope(class_obj)} : {class_obj} has no parent"
+        instance_ctx = self.context_selector.select_call_context(call.call_site, context, instance_obj, frozenset(params))
+        instance_scope = Scope.new(instance_obj, instance_parent.module, instance_ctx, class_obj.alloc_site.stmt, instance_parent)
+        self.state.set_internal_scope(instance_obj, instance_scope)
+
+        # Call __init__ function
+        init_field = self.state.get_field(instance_ctx, instance_ctx, instance_obj, attr("__init__"))
+        var_name = f"$init@{instance_obj}:{class_obj}"
+        init_var = self.variable_factory.make_variable(var_name)
+        ctx_init_var = self.state.get_variable(scope, context, init_var)
+        self.state.pointer_flow_graph.add_edge(init_field, ctx_init_var)
+        self.add_constraint(scope, context, CallConstraint(init_var, call.args, call.kwargs, None, call.call_site))
+
+        '''
         if self.class_hierarchy and self.class_hierarchy.has_class(class_obj):
             init_pts = self.state.get_field(class_obj, attr("__init__"))
             
             if not init_pts.is_empty():
                 instance_var = Variable(
                     name="$instance",
-                    scope=call.target.scope,
+                    scope=scope,
                     context=call.target.context,
                     kind=VariableKind.TEMPORARY
                 )
                 
-                self.state.set_points_to(instance_var, PointsToSet.singleton(instance_obj))
+                self._worklist.add((scope, instance_var, PointsToSet.singleton(instance_obj)))
 
                 init_args = (instance_var,) + call.args
                 init_call = CallConstraint(
@@ -462,6 +1206,7 @@ class PointerSolver:
                 
                 self.add_constraint(init_call)
                 changed = True
+        '''
         
         return changed
     
@@ -492,6 +1237,7 @@ class PointerSolver:
         method_call = CallConstraint(
             callee=func_var,
             args=(self_var,) + call.args,
+            kwargs=frozenset(),
             target=call.target,
             call_site=call.call_site + "_method"
         )
@@ -504,7 +1250,7 @@ class PointerSolver:
             logger.debug("Cannot handle builtin call: no builtin manager")
             return False
 
-        builtin_name = builtin_obj.alloc_site.name
+        builtin_name = builtin_obj.alloc_site.stmt.get_name()
         if not builtin_name:
             return False
         summary = self.builtin_manager.get_summary(builtin_name)
@@ -517,19 +1263,6 @@ class PointerSolver:
             self.add_constraint(constraint)
         
         return len(constraints) > 0
-    
-    def _make_variable(self, name: str, scope: Scope, context: 'AbstractContext', kind: VariableKind = VariableKind.LOCAL) -> 'Variable':
-        return self.variable_factory.make_variable(name, scope, context, kind)
-    
-    def _make_field_access(self, obj: 'AbstractObject', field: 'Field') -> 'FieldAccess':
-        return self.variable_factory.make_field_access(obj, field)
-    
-    def _get_field_access(self, obj: 'AbstractObject', field: 'Field') -> 'FieldAccess':
-        field_access = self.state.get_field(obj, field)
-        if field_access is None:
-            field_access = self._make_field_access(obj, field)
-            self.state.set_field(obj, field, field_access)
-        return field_access
     
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)
@@ -552,7 +1285,7 @@ class SolverQuery(ISolverQuery):
         pts2 = self._state.get_points_to(v2)
         
         # Check for intersection
-        return bool(pts1.objects & pts2.objects)
+        return (not pts1.intersection(pts2).is_empty())
     
     def call_graph(self) -> 'AbstractCallGraph':
         return self._state.call_graph

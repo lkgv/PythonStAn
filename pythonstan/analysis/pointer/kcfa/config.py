@@ -47,24 +47,27 @@ class Config:
     track_unknowns: bool = True
     log_unknown_details: bool = False
     type: str = "pointer analysis"
+    index_sensitive: bool = False
     
     @classmethod
     def from_dict(cls, config_dict: Dict):
-        return cls(context_policy=config_dict.get("context_policy", "2-cfa"),
-                   max_iterations=config_dict.get("max_iterations", 10000),
-                   max_points_to_size=config_dict.get("max_points_to_size", None),
-                   verbose=config_dict.get("verbose", False),
-                   log_level=config_dict.get("log_level", "INFO"),
-                   enable_instrumentation=config_dict.get("enable_instrumentation", False),
-                   entry_points=config_dict.get("entry_points", None),
-                   build_class_hierarchy=config_dict.get("build_class_hierarchy", True),
-                   use_mro_resolution=config_dict.get("use_mro_resolution", True),
-                   project_path=config_dict.get("project_path", None),
-                   library_paths=config_dict.get("library_paths", None),
-                   max_import_depth=config_dict.get("max_import_depth", 2),
-                   track_unknowns=config_dict.get("track_unknowns", True),
-                   log_unknown_details=config_dict.get("log_unknown_details", False),
-                   type="pointer analysis")
+        return cls(
+            context_policy=config_dict.get("context_policy", "2-cfa"),
+            max_iterations=config_dict.get("max_iterations", 10000),
+            max_points_to_size=config_dict.get("max_points_to_size", None),
+            verbose=config_dict.get("verbose", False),
+            log_level=config_dict.get("log_level", "INFO"),
+            enable_instrumentation=config_dict.get("enable_instrumentation", False),
+            entry_points=config_dict.get("entry_points", None),
+            build_class_hierarchy=config_dict.get("build_class_hierarchy", True),
+            use_mro_resolution=config_dict.get("use_mro_resolution", True),
+            project_path=config_dict.get("project_path", None),
+            library_paths=config_dict.get("library_paths", None),
+            max_import_depth=config_dict.get("max_import_depth", 2),
+            track_unknowns=config_dict.get("track_unknowns", True),
+            log_unknown_details=config_dict.get("log_unknown_details", False),
+            index_sensitive=config_dict.get("index_sensitive", False),
+            type="pointer analysis")
     
     def to_dict(self) -> Dict:
         return {
@@ -82,6 +85,7 @@ class Config:
             "max_import_depth": self.max_import_depth,
             "track_unknowns": self.track_unknowns,
             "log_unknown_details": self.log_unknown_details,
+            "index_sensitive": self.index_sensitive,
             "type": self.type
         }
     

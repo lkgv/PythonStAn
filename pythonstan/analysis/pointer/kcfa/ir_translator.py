@@ -3,171 +3,283 @@
 This module translates IR events to pointer constraints for analysis.
 """
 
-from typing import List, TYPE_CHECKING, Optional, Tuple
+from typing import List, TYPE_CHECKING, Optional, Tuple, Dict
 import logging, ast
 
 from .constraints import *
-from .context import AbstractContext
 from .config import Config
-from .variable import Variable, Scope, VariableFactory, VariableKind
-from .heap_model import elem, value, attr
-from .module_finder import ModuleFinder
-from pythonstan.ir.ir_statements import (
-    IRCopy, IRAssign, IRImport, IRLoadAttr, IRModule, IRStoreAttr,
-    IRCall, IRReturn, IRLoadSubscr, IRStoreSubscr,
-    IRFunc, IRClass
-)
+from .variable import Variable, VariableFactory, VariableKind
+from .heap_model import elem, attr, key
+from pythonstan.ir.ir_statements import *
 from .object import AllocSite, AllocKind
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["IRTranslator"]
 
+BINOP_TABLE = {
+    ast.Add: "__add__",       # +  
+    ast.Sub: "__sub__",       # -  
+    ast.Mult: "__mul__",      # *  
+    ast.Div: "__truediv__",   # /  
+    ast.FloorDiv: "__floordiv__",  # //  
+    ast.Mod: "__mod__",       # %  
+    ast.Pow: "__pow__",       # **  
+    ast.LShift: "__lshift__", # <<  
+    ast.RShift: "__rshift__", # >>  
+    ast.BitOr: "__or__",      # |  
+    ast.BitXor: "__xor__",    # ^  
+    ast.BitAnd: "__and__",    # &  
+    ast.MatMult: "__matmul__", # @ (矩阵乘法)  
+    ast.Eq: "__eq__",         # ==  
+    ast.NotEq: "__ne__",      # !=  
+    ast.Lt: "__lt__",         # <  
+    ast.LtE: "__le__",        # <=  
+    ast.Gt: "__gt__",         # >  
+    ast.GtE: "__ge__",        # >=  
+    ast.In: "__contains__",    # in  
+}
+
 
 class IRTranslator:
     """Translates IR to pointer constraints."""
-    
-    def __init__(self, config: 'Config', module_finder: Optional['ModuleFinder'] = None):    
+    def __init__(self, config: 'Config'):    
         self.config = config
         self._var_factory = VariableFactory()
-        self._current_scope: Optional['Scope'] = None
-        self._current_context: Optional['AbstractContext'] = None
-        self.module_finder = module_finder
+        self._current_scope: Optional['IRScope'] = None
+        self._current_module: Optional['IRModule'] = None
+        self._scope_constraints: Dict[IRScope, List['Constraint']] = {}
         self._import_depth = 0  # Track import depth for recursion limit
         
         from pythonstan.world import World
         self.scope_manager = World().scope_manager
         self.namespace_manager = World().namespace_manager
     
-    def translate_function(self, func: IRFunc, context: 'AbstractContext') -> List['Constraint']:        
+    def translate_function(self, func: IRFunc) -> List['Constraint']:        
         constraints = []
-        func_name = getattr(func, 'name', '<unknown>')
-        self._current_scope = Scope(name=func_name, kind="function")
-        self._current_context = context
+        
+        # avoid infinite recursion
+        if func in self._scope_constraints:
+            return self._scope_constraints[func]
+        
+        self._current_scope = func
         stmts = self.scope_manager.get_ir(func, 'ir')
         if stmts is not None:
             for stmt in stmts:
-                if isinstance(stmt, IRCopy):
-                    constraints.extend(self._translate_copy(stmt))
-                elif isinstance(stmt, IRAssign):
-                    constraints.extend(self._translate_assign(stmt))
-                elif isinstance(stmt, IRLoadAttr):
-                    constraints.extend(self._translate_load_attr(stmt))
-                elif isinstance(stmt, IRStoreAttr):
-                    constraints.extend(self._translate_store_attr(stmt))
-                elif isinstance(stmt, IRCall):
-                    constraints.extend(self._translate_call(stmt))
-                elif isinstance(stmt, IRReturn):
-                    constraints.extend(self._translate_return(stmt))
-                elif isinstance(stmt, IRLoadSubscr):
-                    constraints.extend(self._translate_load_subscr(stmt))
-                elif isinstance(stmt, IRStoreSubscr):
-                    constraints.extend(self._translate_store_subscr(stmt))
-                elif isinstance(stmt, IRFunc):
-                    constraints.extend(self._translate_function_def(stmt)[1])
-                elif isinstance(stmt, IRClass):
-                    constraints.extend(self._translate_class_def(stmt))
+                constraints.extend(self._process_stmt(stmt))
+        
+        self._scope_constraints[func] = constraints
         return constraints
     
-    def translate_module(self, module: IRModule, context: Optional['AbstractContext'] = None) -> List['Constraint']:
-        constraints = []
-        
-        module_name = getattr(module, 'name', '__main__')
-        self._current_scope = Scope(name=module_name, stmt=module, context=context, kind="module")
-        
-        # Set context (or use empty context if not provided)
-        if context is None:
-            from .context import CallStringContext
-            context = CallStringContext(call_sites=(), k=0)
-        self._current_context = context
+    def translate_module(self, module: IRModule, import_stmt: Optional['IRImport'] = None
+                         ) -> List['Constraint']:
+        assert isinstance(module, IRModule), f"Module is not an IRModule: {type(module)}"
 
-        try:
-            subscopes = self.scope_manager.get_subscopes(module)
-            if subscopes:
-                for subscope in subscopes:
-                    if isinstance(subscope, IRFunc):
-                        constraints.extend(self._translate_function_def(subscope)[1])
-                    elif isinstance(subscope, IRClass):
-                        constraints.extend(self._translate_class_def(subscope)[1])
-        except Exception as e:
-            logger.debug(f"Could not get subscopes from World: {e}")
+        # avoid infinite recursion
+        if module in self._scope_constraints:
+            return self._scope_constraints[module]
         
-        for stmt in self.scope_manager.get_ir(module, 'ir'):
-            if isinstance(stmt, IRImport):
-                constraints.extend(self._translate_import(stmt))
+        constraints = []
+        ir = self.scope_manager.get_ir(module, 'ir')
+
+        if ir is not None:
+            self._current_scope = module
+            self._current_module = module
+            for stmt in ir:
+                constraints.extend(self._process_stmt(stmt))
+
+            self._scope_constraints[module] = constraints
         
-        if False and hasattr(module, 'ast') and hasattr(module.ast, 'body'):
-            for stmt in module.ast.body:
-                if isinstance(stmt, (ast.Import, ast.ImportFrom)):
-                    constraints.extend(self._translate_import(stmt))
+        return constraints
+    
+        
+    def translate_class(self, cls_stmt: IRClass) -> Tuple[Variable, List['Constraint']]:
+        """Translate class definition: allocate class object and bind methods."""
+        assert isinstance(cls_stmt, IRClass), f"Class is not an IRClass: {type(cls_stmt)}"
+
+        if cls_stmt in self._scope_constraints:
+            return self._scope_constraints[cls_stmt]
+        
+        constraints = []
+        self.used_variables = []
+        irs = self.scope_manager.get_ir(cls_stmt, "ir")
+
+        if irs is not None:
+            old_scope = self._current_scope
+            self._current_scope = cls_stmt
+            for stmt in irs:
+                constraints.extend(self._process_stmt(stmt))
+            self._current_scope = old_scope
+
+            self._scope_constraints[cls_stmt] = constraints
         
         return constraints
     
     def _make_variable(self, name: str) -> 'Variable':
-        if self._current_scope is None or self._current_context is None:
-            raise RuntimeError("No active scope/context for variable creation")
+        if self._current_scope is None:
+            raise RuntimeError("No active scope for variable creation")
+        
+        if isinstance(self._current_scope, IRModule):
+            kind = VariableKind.GLOBAL
+        elif name in self._current_scope.get_nonlocal_vars():
+            kind = VariableKind.NONLOCAL
+        elif name in self._current_scope.get_global_vars():
+            kind = VariableKind.GLOBAL
+        else:
+            kind = VariableKind.LOCAL
 
-        kind = VariableKind.TEMPORARY if name.startswith('$') else VariableKind.LOCAL
+        '''
+        if name.startswith('$'):
+            kind = VariableKind.TEMPORARY
+        elif name in self._current_scope.get_nonlocal_vars():
+            kind = VariableKind.NONLOCAL
+        elif name in self._current_scope.get_cell_vars():
+            kind = VariableKind.CELL
+        elif name in self._current_scope.get_global_vars():
+            kind = VariableKind.GLOBAL
+        else:
+            kind = VariableKind.LOCAL
+        '''
+            
         return self._var_factory.make_variable(
             name=name,
-            scope=self._current_scope,
-            context=self._current_context,
             kind=kind
         )
     
-    def _translate_copy(self, stmt) -> List['Constraint']:
+    def _process_stmt(self, stmt: IRStatement) -> List['Constraint']:
+        ret = []
+        
+        if isinstance(stmt, IRCopy):
+            ret = self._translate_copy(stmt)
+        elif isinstance(stmt, IRAssign):
+            ret = self._translate_assign(stmt)
+        elif isinstance(stmt, IRLoadAttr):
+            ret = self._translate_load_attr(stmt)
+        elif isinstance(stmt, IRStoreAttr):
+            ret = self._translate_store_attr(stmt)
+        elif isinstance(stmt, IRCall):
+            ret = self._translate_call(stmt)
+        elif isinstance(stmt, IRReturn):
+            ret = self._translate_return(stmt)
+        elif isinstance(stmt, IRLoadSubscr):
+            ret = self._translate_load_subscr(stmt)
+        elif isinstance(stmt, IRStoreSubscr):
+            ret = self._translate_store_subscr(stmt)
+        elif isinstance(stmt, IRFunc):
+            _, ret = self._translate_function_def(stmt)
+        elif isinstance(stmt, IRClass):
+            _, ret = self._translate_class_def(stmt)
+        elif isinstance(stmt, IRImport):
+            ret = self._translate_import(stmt)
+        elif isinstance(stmt, IRYield):
+            ret = self._translate_yield(stmt)
+        elif isinstance(stmt, IRAwait):
+            ret = self._translate_await(stmt)
+        
+        for c in ret:
+            assert isinstance(c, Constraint), f"Constraint is not a constraint: {type(c)}, stmt: {stmt}"
+
+        return ret
+    
+    def _translate_copy(self, stmt: IRCopy) -> List['Constraint']:
         """Translate IRCopy: target = source"""
-        lval = stmt.get_lval()
-        rval = stmt.get_rval()
+        constraints = []
+        
+        lval = stmt.get_lval().id
+        rval = stmt.get_rval().id
         
         source_var = self._make_variable(rval)
         target_var = self._make_variable(lval)
+        constraints.append(CopyConstraint(source=source_var, target=target_var))
         
-        return [CopyConstraint(source=source_var, target=target_var)]
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
+        
+        return constraints
+
+    def _translate_yield(self, stmt: IRYield) -> List['Constraint']:
+        """Translate IRYield: yield value"""
+        # raise NotImplementedError("Yield statement is not supported yet")
+        return []
     
-    def _translate_assign(self, stmt) -> List['Constraint']:
+    def _translate_await(self, stmt: IRAwait) -> List['Constraint']:
+        """Translate IRAwait: await value"""
+        # raise NotImplementedError("Await statement is not supported yet")
+        return []
+    
+    def _translate_assign(self, stmt: IRAssign) -> List['Constraint']:
         """Translate IRAssign: may allocate objects"""
         constraints = []
         lval = stmt.get_lval()
         rval = stmt.get_rval()
         
-        target_var = self._make_variable(lval)
+        target_var = self._make_variable(lval.id)
         
         if isinstance(rval, ast.List):
             alloc_site = AllocSite.from_ir_node(stmt, AllocKind.LIST)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
-            
             if hasattr(rval, 'elts'):
-                for elt_expr in rval.elts:
+                for i, elt_expr in enumerate(rval.elts):
                     if isinstance(elt_expr, ast.Name):
                         elem_var = self._make_variable(elt_expr.id)
+                        if self.config.index_sensitive:
+                            # Store at specific position field                            
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=key(i),
+                                source=elem_var
+                            ))
+                        # Also store at generic elem() for soundness
                         constraints.append(StoreConstraint(
                             base=target_var,
                             field=elem(),
                             source=elem_var
                         ))
+                        
+        elif isinstance(rval, ast.BinOp):
+            lvar = self._make_variable(rval.left.id)
+            rvar = self._make_variable(rval.right.id)
+            target = self._make_variable(lval.id)
+            self._translate_binary_op(lvar, rvar, target, rval.op)
             
         elif isinstance(rval, ast.Dict):
             alloc_site = AllocSite.from_ir_node(stmt, AllocKind.DICT)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
-            if hasattr(rval, 'values'):
-                for val_expr in rval.values:
+            if hasattr(rval, 'keys') and hasattr(rval, 'values'):
+                for i, (key_expr, val_expr) in enumerate(zip(rval.keys, rval.values)):
                     if isinstance(val_expr, ast.Name):
                         val_var = self._make_variable(val_expr.id)
+                        # Use key field for constant string keys, value() as fallback
+                        if isinstance(key_expr, ast.Constant) and self.config.index_sensitive:
+                            field = key(key_expr.value)
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=field,
+                                source=val_var
+                            ))
                         constraints.append(StoreConstraint(
                             base=target_var,
-                            field=value(),
+                            field=elem(),
                             source=val_var
                         ))
                         
-        # TODO Tuple should set index as field (eg. t = (a, b) is t._1 = a, t._2 = b)
+        # Tuple uses position-based fields for precise tracking
         elif isinstance(rval, ast.Tuple):
             alloc_site = AllocSite.from_ir_node(stmt, AllocKind.TUPLE)
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
             if hasattr(rval, 'elts'):
-                for elt_expr in rval.elts:
+                for i, elt_expr in enumerate(rval.elts):
                     if isinstance(elt_expr, ast.Name):
-                        elem_var = self._make_variable(elt_expr.id)
+                        elem_var = self._make_variable(elt_expr.id)                        
+                        if self.config.index_sensitive:
+                            # Store at specific position field
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=key(i),
+                                source=elem_var
+                            ))
+                        # Also store at generic elem() for soundness
                         constraints.append(StoreConstraint(
                             base=target_var,
                             field=elem(),
@@ -187,31 +299,36 @@ class IRTranslator:
                             source=elem_var
                         ))
         
+        elif isinstance(rval, ast.Constant):
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.CONSTANT)
+            constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
+        
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
+        
         return constraints
     
-    def _translate_load_attr(self, stmt) -> List['Constraint']:
-        """Translate IRLoadAttr: target = base.attr"""
-        from .constraints import LoadConstraint
-        from .heap_model import attr
-        
-        lval = stmt.get_lval()
-        obj_name = stmt.get_obj()
+    def _translate_load_attr(self, stmt: IRLoadAttr) -> List['Constraint']:
+        """Translate IRLoadAttr: target = base.attr"""       
+        lval = stmt.get_lval().id
+        obj_name = stmt.get_obj().id
         attr_name = stmt.get_attr()
         
         base_var = self._make_variable(obj_name)
         target_var = self._make_variable(lval)
         field = attr(attr_name) if attr_name else attr("<unknown>")
+
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
         
         return [LoadConstraint(base=base_var, field=field, target=target_var)]
     
-    def _translate_store_attr(self, stmt) -> List['Constraint']:
+    def _translate_store_attr(self, stmt: IRStoreAttr) -> List['Constraint']:
         """Translate IRStoreAttr: base.attr = source"""
-        from .constraints import StoreConstraint
-        from .heap_model import attr
-        
-        obj_name = stmt.get_obj()
+        obj_name = stmt.get_obj().id
         attr_name = stmt.get_attr()
-        value_name = stmt.get_rval()
+        value_name = stmt.get_rval().id
         
         base_var = self._make_variable(obj_name)
         source_var = self._make_variable(value_name)
@@ -222,30 +339,38 @@ class IRTranslator:
     def _translate_call(self, stmt: IRCall) -> List['Constraint']:
         """Translate IRCall: target = callee(args...)"""
         # TODO all conditions of arguments should be translated to constraints
-        from .constraints import CallConstraint
+        constraints = []
         
         lval = stmt.get_target()
         callee_expr = stmt.get_func_name()
         args = stmt.get_args()
         
         callee_var = self._make_variable(callee_expr)
-        arg_vars = tuple(self._make_variable(arg) for arg in args)
+        arg_vars = tuple(self._make_variable(arg) for arg, _ in args)
+        
         target_var = self._make_variable(lval) if lval else None
         
-        call_site_id = f"{self._current_scope.name}:{id(stmt)}"
-        
-        return [CallConstraint(
+        call_site_id = f"{self._current_scope.get_qualname()}:{stmt.get_ast().lineno}:{stmt.get_ast().col_offset}:{stmt}"
+        keyword_vars = {kw_name: self._make_variable(kw_val) 
+                        for kw_name, kw_val in stmt.get_keywords() 
+                        if kw_name is not None}
+        constraints.append(CallConstraint(
             callee=callee_var,
             args=arg_vars,
+            kwargs=frozenset(keyword_vars.items()),
             target=target_var,
             call_site=call_site_id
-        )]
+        ))
+        
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
+        
+        return constraints
     
     def _translate_return(self, stmt: IRReturn) -> List['Constraint']:
         """Translate IRReturn: return value"""
-        from .constraints import CopyConstraint
-        
-        rval = stmt.get_rval()
+        rval = stmt.get_value()
         
         if rval:
             source_var = self._make_variable(rval)
@@ -254,133 +379,137 @@ class IRTranslator:
         
         return []
     
-    def _translate_load_subscr(self, stmt) -> List['Constraint']:        
-        lval = stmt.get_lval()
-        container_name = stmt.get_container()
+    def _translate_load_subscr(self, stmt: IRLoadSubscr) -> List['Constraint']:        
+        """Translate IRLoadSubscr: target = container[index]"""
+        lval = stmt.get_lval().id
+        container_name = stmt.get_obj().id
+        
+        subslice = stmt.get_slice()
         
         container_var = self._make_variable(container_name)
         target_var = self._make_variable(lval)
         
         constraints = []
-
-        constraints.append(LoadConstraint(
-            base=container_var,
-            field=elem(),
-            target=target_var
-        ))
         
+        # Extract index variable for dynamic field resolution
+        if hasattr(subslice, 'id'):
+            index_var = self._make_variable(subslice.id)
+        else:
+            # For non-name indexes (constants, etc.), create a temporary
+            index_var = self._make_variable(f"$index_{id(stmt)}")
+        
+        # Generate LoadSubscrConstraint with index variable for dynamic resolution
+        if self.config.index_sensitive:
+            constraints.append(LoadSubscrConstraint(
+                base=container_var,
+                index=index_var,
+                target=target_var
+            ))
+        else:
+            constraints.append(LoadConstraint(
+                base=container_var,
+                field=elem(),
+                target=target_var
+            ))
+        
+        # Also generate __getitem__ call for custom container types
         getitem_method_var = self._make_variable(f"$getitem_{id(stmt)}")
         constraints.append(LoadConstraint(
             base=container_var,
             field=attr("__getitem__"),
-            target=getitem_method_var
+            target=getitem_method_var,
+            index=None
         ))
-        if hasattr(stmt, 'get_slice'):
-            try:
-                index_expr = stmt.get_slice()
-                if hasattr(index_expr, 'id'):
-                    index_var = self._make_variable(index_expr.id)
-                else:
-                    index_var = self._make_variable(f"$index_{id(stmt)}")
-                
-                call_site = f"{self._current_scope.name}:getitem:{id(stmt)}"
-                constraints.append(CallConstraint(
-                    callee=getitem_method_var,
-                    args=(index_var,),
-                    target=target_var,
-                    call_site=call_site
-                ))
-            except Exception as e:
-                logger.debug(f"Error generating __getitem__ call: {e}")
+        
+        try:
+            call_site = f"{self._current_scope.name}:getitem:{id(stmt)}"
+            constraints.append(CallConstraint(
+                callee=getitem_method_var,
+                args=(index_var,),
+                kwargs=frozenset(),
+                target=target_var,
+                call_site=call_site
+            ))
+        except Exception as e:
+            logger.debug(f"Error generating __getitem__ call: {e}")
+        
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
         
         return constraints
     
-    def _translate_store_subscr(self, stmt) -> List['Constraint']:
+    def _translate_store_subscr(self, stmt: IRStoreSubscr) -> List['Constraint']:
         """Translate IRStoreSubscr: container[index] = value"""
-        from .constraints import StoreConstraint, LoadConstraint, CallConstraint
-        from .heap_model import elem, value, attr
-        
-        container_name = stmt.get_container()
-        value_name = stmt.get_rval()
+        container_name = stmt.get_obj().id
+        value_name = stmt.get_rval().id
         
         container_var = self._make_variable(container_name)
         value_var = self._make_variable(value_name)
         
         constraints = []
         
-        constraints.append(StoreConstraint(
+        # Extract index variable for dynamic field resolution
+        index_expr = stmt.get_slice()
+        if hasattr(index_expr, 'id'):
+            index_var = self._make_variable(index_expr.id)
+        else:
+            # For non-name indexes (constants, etc.), create a temporary
+            index_var = self._make_variable(f"$index_{id(stmt)}")
+        
+        # Generate StoreSubscrConstraint with index variable for dynamic resolution
+        constraints.append(StoreSubscrConstraint(
             base=container_var,
-            field=elem(),
+            index=index_var,
             source=value_var
         ))
+        if self.config.index_sensitive:
+            constraints.append(StoreSubscrConstraint(
+                base=container_var,
+                index=index_var,
+                source=value_var
+            ))
+        else:
+            constraints.append(StoreConstraint(
+                base=container_var,
+                field=elem(),
+                target=value_var
+            ))
         
+        # Also generate __setitem__ call for custom container types
         setitem_method_var = self._make_variable(f"$setitem_{id(stmt)}")
         constraints.append(LoadConstraint(
             base=container_var,
             field=attr("__setitem__"),
-            target=setitem_method_var
+            target=setitem_method_var,
+            index=None
         ))
-        if hasattr(stmt, 'get_slice'):
-            try:
-                index_expr = stmt.get_slice()
-                if hasattr(index_expr, 'id'):
-                    index_var = self._make_variable(index_expr.id)
-                else:
-                    index_var = self._make_variable(f"$index_{id(stmt)}")
-                
-                call_site = f"{self._current_scope.name}:setitem:{id(stmt)}"
-                
-                constraints.append(CallConstraint(
-                    callee=setitem_method_var,
-                    args=(index_var, value_var),
-                    target=None,
-                    call_site=call_site
-                ))
-            except Exception as e:
-                logger.debug(f"Error generating __setitem__ call: {e}")
+        
+        try:
+            call_site = f"{self._current_scope.name}:setitem:{id(stmt)}"
+            
+            constraints.append(CallConstraint(
+                callee=setitem_method_var,
+                args=(index_var, value_var),
+                kwargs=frozenset(),
+                target=None,
+                call_site=call_site
+            ))
+        except Exception as e:
+            logger.debug(f"Error generating __setitem__ call: {e}")
         
         return constraints
     
     def _translate_function_def(self, stmt: IRFunc) -> Tuple[Variable, List['Constraint']]:
         """Translate function definition: allocate function object."""
-        from .constraints import AllocConstraint, StoreConstraint, CallConstraint, CopyConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import attr
-        import ast
-        
         constraints = []
         
-        func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION, stmt.name)
+        if isinstance(self._current_scope, IRClass) and (not stmt.is_static_method):
+            func_alloc = AllocSite.from_ir_node(stmt, AllocKind.METHOD)
+        else:
+            func_alloc = AllocSite.from_ir_node(stmt, AllocKind.FUNCTION)
         func_var = self._make_variable(stmt.name)
         constraints.append(AllocConstraint(target=func_var, alloc_site=func_alloc))
-        
-        if hasattr(stmt, 'cell_vars') and stmt.cell_vars:
-            for freevar_name in stmt.cell_vars:
-                try:
-                    cell_alloc = AllocSite(
-                        file=self._current_scope.name,
-                        line=0,
-                        col=0,
-                        kind=AllocKind.CELL,
-                        name=f"cell_{freevar_name}"
-                    )
-                    cell_var = self._make_variable(f"$cell_{freevar_name}")
-                    constraints.append(AllocConstraint(target=cell_var, alloc_site=cell_alloc))
-                    
-                    outer_var = self._make_variable(freevar_name)
-                    constraints.append(StoreConstraint(
-                        base=cell_var,
-                        field=attr("contents"),
-                        source=outer_var
-                    ))
-                    
-                    constraints.append(StoreConstraint(
-                        base=func_var,
-                        field=attr(f"__closure__{freevar_name}"),
-                        source=cell_var
-                    ))
-                except Exception as e:
-                    logger.debug(f"Error handling closure variable {freevar_name}: {e}")
         
         if hasattr(stmt, 'decorator_list') and stmt.decorator_list:
             current_var = func_var
@@ -395,7 +524,6 @@ class IRTranslator:
                         decorator_var = self._make_variable(f"$decorator_{stmt.name}_{idx}")
                         if isinstance(decorator_expr.value, ast.Name):
                             obj_var = self._make_variable(decorator_expr.value.id)
-                            from .constraints import LoadConstraint
                             constraints.append(LoadConstraint(
                                 base=obj_var,
                                 field=attr(decorator_expr.attr),
@@ -420,6 +548,7 @@ class IRTranslator:
                     constraints.append(CallConstraint(
                         callee=decorator_var,
                         args=(current_var,),
+                        kwargs=frozenset(),
                         target=result_var,
                         call_site=call_site
                     ))
@@ -431,191 +560,79 @@ class IRTranslator:
             # Rebind function name to final decorated result
             if len(stmt.decorator_list) > 0:
                 constraints.append(CopyConstraint(source=current_var, target=func_var))
+                
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(func_var)
         
         return func_var, constraints
     
-    def _translate_class_def(self, stmt: IRClass) -> Tuple[Variable, List['Constraint']]:
+    def _translate_class_def(self, ir_cls: IRClass) -> Tuple[Variable, List['Constraint']]:
         """Translate class definition: allocate class object and bind methods."""
-        
-        """NOTE: HERE IS A BIG BUG, SHOUD NOT RESOLVE AST"""
-       
         constraints = []
-        logger.info(stmt)
         
-        class_alloc = AllocSite.from_ir_node(stmt, AllocKind.CLASS, stmt.name)
-        class_var = self._make_variable(stmt.name)
+        class_alloc = AllocSite.from_ir_node(ir_cls, AllocKind.CLASS)
+        class_var = self._make_variable(ir_cls.name)
         constraints.append(AllocConstraint(target=class_var, alloc_site=class_alloc))
-        
-        for subscope in self.scope_manager.get_subscopes(stmt):
-            # NOTICE: staticmethod and classmethod are not supported yet
-            if isinstance(subscope, IRFunc):
-                fn_var, fn_constraints = self._translate_function_def(subscope)
-                constraints.extend(fn_constraints)
-                Field = attr(self._make_variable(f"{stmt.name}.{subscope.name}"))
-                constraints.append(StoreConstraint(
-                    base=class_var,
-                    field=Field,
-                    source= fn_var
-                ))  
-            elif isinstance(subscope, IRClass):
-                class_var, class_constraints = self._translate_class_def(subscope)
-                constraints.extend(class_constraints)
-                Field = attr(self._make_variable(f"{stmt.name}.{subscope.name}"))
-                constraints.append(StoreConstraint(
-                    base=class_var,
-                    field=Field,
-                    source=class_var
-                ))
-            else:
-                logger.debug(f"Unknown subscope type: {type(subscope)}")
-        
+
         
         # TODO [CRITICAL] the method of treating inheritances is totally wrong, we should use the class hierarchy manager to handle this.
-        for base_name in stmt.get_bases():                
-            base_var = self._make_variable(base_name)
+        '''
+        for base_name in ir_cls.get_bases():
+            if not isinstance(base_name, ast.Name):
+                continue # TODO resolve the base name in detail
+            
+            base_var = self._make_variable(base_name.id)
             constraints.append(StoreConstraint(
                 base=class_var,
                 field=attr("__bases__"),
                 source=base_var
             ))
+        '''
+        
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(class_var)
+        
         return class_var, constraints
     
-    
-    # TODO [CRITICAL] we should change the logic of import: load in import_manager -> seek the import in scope_manager if exists, else Unknown.
     def _translate_import(self, stmt: IRImport) -> List['Constraint']:
         """Translate import statement with transitive analysis. """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import attr
-        import ast
-        
         constraints = []
+        target_var = None
         
+        # translate the IRs in the imported module
+        module_ir = self.scope_manager.get_module_graph().get_succ_module(self._current_scope, stmt)
+        if module_ir is None:
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.UNKNOWN)
+        else:
+            alloc_site = AllocSite.from_ir_node(stmt, AllocKind.MODULE)
+
+        # allocate the module variable
+        if stmt.module is None:
+            local_var = self._make_variable(stmt.name)
+            constraints.append(AllocConstraint(target=local_var, alloc_site=alloc_site))
+        elif stmt.asname is None:
+            module_var = self._make_variable(stmt.module)
+            constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
+            local_var = self._make_variable(stmt.name)
+            if target_var is not None:
+                constraints.append(CopyConstraint(source=target_var, target=local_var))
+            else:
+                constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
+        else:
+            module_var = self._make_variable(stmt.module)
+            constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
+            local_var = self._make_variable(stmt.asname)
+            if target_var is not None:
+                constraints.append(CopyConstraint(source=target_var, target=local_var))
+            else:
+                constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
         
-        # TODO some bugs get here, the stmt should be IRImport, so leave the mitigation here
-        stmt = stmt.get_ast()
-        
-        
-        if not hasattr(self, '_import_depth'):
-            self._import_depth = 0
-        
-        if self.config.max_import_depth >= 0 and self._import_depth >= self.config.max_import_depth:
-            logger.debug(f"Skipping import (depth {self._import_depth} >= max {self.config.max_import_depth})")
-            return constraints
-        
-        if isinstance(stmt, ast.Import):
-            for alias in stmt.names:
-                local_name = alias.asname if alias.asname else alias.name
-                module_name = alias.name
-                constraints.extend(self._import_module(module_name, local_name))
-        
-        elif isinstance(stmt, ast.ImportFrom):
-            level = getattr(stmt, 'level', 0)
-            module_name = stmt.module or ''
-            
-            # Handle relative imports
-            if level > 0 and self.module_finder:
-                current_ns = self._current_scope.name if self._current_scope else '__main__'
-                resolved = self.module_finder.resolve_relative_import(current_ns, module_name, level)
-                if resolved:
-                    module_name = resolved
-                else:
-                    logger.debug(f"Could not resolve relative import level={level}, module={module_name}")
-                    return constraints
-            
-            if module_name:
-                for alias in stmt.names:
-                    item_name = alias.name
-                    local_name = alias.asname if alias.asname else alias.name
-                    constraints.extend(self._import_from(module_name, item_name, local_name))
-        
-        return constraints
-    
-    def _import_module(self, module_name: str, local_name: str) -> List['Constraint']:
-        """Import entire module with transitive analysis."""
-        constraints = []
-        
-        module_var = self._make_variable(local_name)
-        module_alloc = AllocSite(
-            file="<import>",
-            line=0,
-            col=0,
-            kind=AllocKind.MODULE,
-            name=module_name
-        )
-        constraints.append(AllocConstraint(target=module_var, alloc_site=module_alloc))
-        
-        if self.module_finder and self.config.max_import_depth != 0:
-            try:
-                module_ir = self.module_finder.get_module_ir(module_name)
-                if module_ir:
-                    old_depth = self._import_depth
-                    self._import_depth += 1
-                    
-                    old_scope = self._current_scope
-                    old_context = self._current_context
-                    
-                    try:
-                        module_constraints = self.translate_module(module_ir)
-                        constraints.extend(module_constraints)
-                        logger.debug(f"Analyzed imported module {module_name} ({len(module_constraints)} constraints)")
-                    finally:
-                        self._import_depth = old_depth
-                        self._current_scope = old_scope
-                        self._current_context = old_context
-            except Exception as e:
-                logger.debug(f"Could not analyze module {module_name}: {e}")
-        
-        return constraints
-    
-    def _import_from(self, module_name: str, item_name: str, local_name: str) -> List['Constraint']:
-        """Import specific item from module with transitive analysis."""
-        constraints = []
-        
-        module_var = self._make_variable(f"$module_{module_name}")
-        module_alloc = AllocSite(
-            file="<import>",
-            line=0,
-            col=0,
-            kind=AllocKind.MODULE,
-            name=module_name
-        )
-        constraints.append(AllocConstraint(target=module_var, alloc_site=module_alloc))
-        
-        if self.module_finder and self.config.max_import_depth != 0:
-            try:
-                resolved = self.module_finder.resolve_import_from(module_name, item_name)
-                if resolved:
-                    resolved_ns, module_path = resolved
-                    module_ir = self.module_finder.get_module_ir(resolved_ns)
-                else:
-                    module_ir = self.module_finder.get_module_ir(module_name)
-                
-                if module_ir:
-                    old_depth = self._import_depth
-                    self._import_depth += 1
-                    
-                    old_scope = self._current_scope
-                    old_context = self._current_context
-                    
-                    try:
-                        module_constraints = self.translate_module(module_ir)
-                        constraints.extend(module_constraints)
-                        logger.debug(f"Analyzed module {module_name} for 'from' import ({len(module_constraints)} constraints)")
-                    finally:
-                        self._import_depth = old_depth
-                        self._current_scope = old_scope
-                        self._current_context = old_context
-            except Exception as e:
-                logger.debug(f"Could not analyze module {module_name} for 'from' import: {e}")
-        
-        local_var = self._make_variable(local_name)
-        constraints.append(LoadConstraint(
-            base=module_var,
-            field=attr(item_name),
-            target=local_var
-        ))
-        
+        # for fields of class, we need to store the value to the class
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(local_var)
+
         return constraints
     
     def _translate_with_enter(self, context_manager_var: 'Variable', target_var: 'Variable') -> List['Constraint']:
@@ -636,6 +653,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=enter_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -660,6 +678,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=exit_method_var,
             args=(),
+            kwargs=frozenset(),
             target=None,
             call_site=call_site
         ))
@@ -684,6 +703,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=iter_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -705,6 +725,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=next_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -716,9 +737,13 @@ class IRTranslator:
         left_var: 'Variable', 
         right_var: 'Variable', 
         target_var: 'Variable',
-        op_name: str
+        op: ast.operator
     ) -> List['Constraint']:
         constraints = []
+
+        op_name = BINOP_TABLE.get(op, None)
+        if not op_name:
+            return constraints
         
         method_var = self._make_variable(f"${op_name}_{id(left_var)}")
         constraints.append(LoadConstraint(
@@ -731,10 +756,12 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=method_var,
             args=(right_var,),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
+
+        if isinstance(self._current_scope, IRClass):
+            self.used_variables.append(target_var)
         
         return constraints
-
-

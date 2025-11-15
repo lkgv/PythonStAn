@@ -6,6 +6,7 @@ This module provides the main entry point for running pointer analysis.
 import logging
 from typing import Optional, List, Any, TYPE_CHECKING, Dict
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
 from pythonstan.ir import IRScope
 
 if TYPE_CHECKING:
@@ -33,9 +34,9 @@ class PointerAnalysis(AnalysisDriver):
         from .ir_translator import IRTranslator
         from .context_selector import ContextSelector, parse_policy
         from .class_hierarchy import ClassHierarchyManager
-        from .builtin_api_handler import BuiltinSummaryManager
-        
+        from .builtin_api_handler import BuiltinSummaryManager        
         from pythonstan.world import World
+        
         self.config = analysis_config
         if not hasattr(self.config, 'options'):
             print(f"Analysis config {self.config} has no options")
@@ -46,7 +47,7 @@ class PointerAnalysis(AnalysisDriver):
         self.state = PointerAnalysisState()
         policy = parse_policy(self.kcfa_config.context_policy)
         self.context_selector = ContextSelector(policy=policy)
-        self.translator = IRTranslator(self.kcfa_config, module_finder=None)
+        self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
         self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
         self.function_registry = {}
@@ -79,25 +80,38 @@ class PointerAnalysis(AnalysisDriver):
 
         # Get empty context for module-level analysis
         empty_context = self.context_selector.empty_context()
-                
+        
+        from .object import ModuleObject
+        from .context import Scope
+
         # Translate ALL scopes to constraints (not just entry module)
         logger.info("Translating all scopes to constraints...")
         
         constraints = []
-        for scope in self.world.scope_manager.get_module_graph().get_modules():
-            try:
-                scope_name = scope.get_qualname()
-                logger.debug(f"Translating module: {scope_name}")                    
-                constraints.extend(self.translator.translate_module(scope, empty_context))
-            except Exception as e:
-                logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")
-                continue
         
+        scope = self.world.get_entry_module()
+        
+        # Make scope with context
+        alloc_site = AllocSite.from_ir_node(None, AllocKind.MODULE)
+        module_obj = ModuleObject(empty_context, alloc_site, entry_scope)
+        ctx_scope = Scope(scope, None, empty_context, None, None)
+        self.state.set_internal_scope(module_obj, ctx_scope)
+        
+        # Generate constraints
+        try:
+            scope_name = scope.get_qualname()
+            logger.debug(f"Translating module: {scope_name}")                    
+            c = self.translator.translate_module(scope)
+            constraints.extend(c)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")        
         logger.info(f"Total constraints generated: {len(constraints)}")
         
         # Add all constraints to solver
         for constraint in constraints:
-            self.solver.add_constraint(constraint)
+            self.solver.add_constraint(ctx_scope, empty_context, constraint)
         
         # Solve to fixpoint
         self.solver.solve_to_fixpoint()

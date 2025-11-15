@@ -16,6 +16,7 @@ class AnalysisConfig:
     def __init__(self, name, id, description="", prev_analysis=None, inter_procedure=False, options=None):
         if options.get("type") is None:
             print(name, id, description, prev_analysis, inter_procedure, options)
+            print(options)
             raise ValueError("type is required")
         self.name = name
         self.id = id

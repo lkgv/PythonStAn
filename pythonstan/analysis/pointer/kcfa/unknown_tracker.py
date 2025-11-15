@@ -40,6 +40,9 @@ class UnknownKind(Enum):
     
     TRANSLATION_ERROR = "translation_error"
     """Exception during IR translation"""
+    
+    MISSING_ARGUMENT = "missing_argument"
+    """Missing argument"""
 
 
 @dataclass

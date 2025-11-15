@@ -4,6 +4,7 @@ from ast import stmt
 from pythonstan.graph.cfg import BaseBlock
 from pythonstan.ir import IRScope, IRStatement
 from pythonstan.utils.var_collector import VarCollector
+from pythonstan.graph.cfg import ControlFlowGraph
 from .analysis import DataflowAnalysis
 
 
@@ -31,7 +32,7 @@ class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRStatement]]):
     def need_transfer_edge(self, edge):
         super().need_transfer_edge(edge)
     
-    def compute_defs(self, scope: IRScope, cfg):
+    def compute_defs(self, scope: IRScope, cfg: ControlFlowGraph):
         defs = {}
         for cur_stmt in cfg.stmts:
             for var_id in cur_stmt.get_stores():

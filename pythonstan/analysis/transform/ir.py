@@ -22,7 +22,7 @@ class IR(Transform):
     def transform(self, module: IRModule):
         global imports
         three_address_form = World().scope_manager.get_ir(module, "three address form")
-        imports = []
+        imports.clear()
         self.transformer = IRTransformer(module)
         self.transformer.process_stmts(three_address_form.body)
         ir = self.transformer.stmts
@@ -41,9 +41,6 @@ class LabelGenerator:
         label = Label(self.next_idx)
         self.next_idx += 1
         return label
-
-# TODO create var Class
-# TODO add global/local attribute
 
 
 class IRTransformer(NodeVisitor):
@@ -143,7 +140,16 @@ class IRTransformer(NodeVisitor):
 
     def visit_ImportFrom(self, node: ImportFrom):
         stmt = IRImport(node)
+        imports.append(stmt)
         self.stmts.append(stmt)
+    
+    def visit_Global(self, node: Global):
+        for name in node.names:
+            self.scope.add_global_var(name)
+    
+    def visit_Nonlocal(self, node: Nonlocal):
+        for name in node.names:
+            self.scope.add_nonlocal_var(name)
 
     def visit_While(self, node: While):
         self.breaks_stack.append([])

@@ -6,13 +6,14 @@ provides efficient storage and indexing for constraint-based solving.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Dict, Type, Tuple, Optional, TYPE_CHECKING
+from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING
 from collections import defaultdict
 
 if TYPE_CHECKING:
+    from pythonstan.ir import IRCall
     from .variable import Variable
     from .heap_model import Field
-    from .object import AllocSite
+    from .object import AllocSite, Scope
 
 __all__ = [
     "Constraint",
@@ -20,6 +21,8 @@ __all__ = [
     "LoadConstraint",
     "StoreConstraint",
     "AllocConstraint",
+    "LoadSubscrConstraint",
+    "StoreSubscrConstraint",
     "CallConstraint",
     "ReturnConstraint",
     "ConstraintManager"
@@ -66,55 +69,121 @@ class CopyConstraint(Constraint):
         return {self.source, self.target}
     
     def __str__(self) -> str:
-        return f"{self.target} = {self.source}"
+        return f"CopyConstraint: {self.target} = {self.source}"
 
 
 @dataclass(frozen=True)
 class LoadConstraint(Constraint):
-    """Load constraint: target = base.field.
+    """Load constraint: target = base.field or target = base[index].
     
-    Represents loading a field from an object.
+    Represents loading a field from an object or subscript access.
     
     Attributes:
         base: Base variable pointing to objects
-        field: Field being loaded
+        field: Field being loaded (for attribute access, None for subscript)
         target: Target variable receiving field value
+        index: Index variable for subscript access (None for attribute access)
     """
     
     base: 'Variable'
-    field: 'Field'
+    field: Optional['Field']
     target: 'Variable'
+    index: Optional['Variable'] = None
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        return {self.base, self.target}
+        vars = {self.base}
+        if self.index:
+            vars.add(self.index)
+        return vars
     
     def __str__(self) -> str:
-        return f"{self.target} = {self.base}{self.field}"
+        if self.index:
+            return f"LoadConstraint: {self.target} = {self.base}[{self.index}]"
+        return f"LoadConstraint: {self.target} = {self.base}{self.field}"
+
+
+@dataclass(frozen=True)
+class LoadSubscrConstraint(Constraint):
+    """Load constraint: target = base.field or target = base[index].
+    
+    Represents loading a field from an object or subscript access.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        field: Field being loaded (for attribute access, None for subscript)
+        target: Target variable receiving field value
+        index: Index variable for subscript access (None for attribute access)
+    """
+
+    target: 'Variable'    
+    base: 'Variable'
+    index: 'Variable'
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.index}
+        return vars
+    
+    def __str__(self) -> str:
+        return f"LoadSubscrConstraint: {self.target} = {self.base}[{self.index}]"
 
 
 @dataclass(frozen=True)
 class StoreConstraint(Constraint):
-    """Store constraint: base.field = source.
+    """Store constraint: base.field = source or base[index] = source.
     
-    Represents storing to a field of an object.
+    Represents storing to a field of an object or subscript access.
     
     Attributes:
         base: Base variable pointing to objects
-        field: Field being stored to
+        field: Field being stored to (for attribute access, None for subscript)
         source: Source variable being stored
+        index: Index variable for subscript access (None for attribute access)
     """
     
     base: 'Variable'
-    field: 'Field'
+    field: Optional['Field']
+    source: 'Variable'
+    index: Optional['Variable'] = None
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.base}
+        return vars
+    
+    def __str__(self) -> str:
+        if self.index:
+            return f"StoreConstraint: {self.base}[{self.index}] = {self.source}"
+        return f"StoreConstraint: {self.base}{self.field} = {self.source}"
+
+
+@dataclass(frozen=True)
+class StoreSubscrConstraint(Constraint):
+    """Store constraint: base.field = source or base[index] = source.
+    
+    Represents storing to a field of an object or subscript access.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        field: Field being stored to (for attribute access, None for subscript)
+        source: Source variable being stored
+        index: Index variable for subscript access (None for attribute access)
+    """
+    
+    base: 'Variable'
+    index: 'Variable'
     source: 'Variable'
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        return {self.base, self.source}
+        vars = {self.index}
+        if self.index:
+            vars.add(self.index)
+        return vars
     
     def __str__(self) -> str:
-        return f"{self.base}{self.field} = {self.source}"
+        return f"StoreSubscrConstraint: {self.base}[{self.index}] = {self.source}"
 
 
 @dataclass(frozen=True)
@@ -136,7 +205,7 @@ class AllocConstraint(Constraint):
         return {self.target}
     
     def __str__(self) -> str:
-        return f"{self.target} = new {self.alloc_site}"
+        return f"AllocConstraint: {self.target} = new {self.alloc_site}"
 
 
 @dataclass(frozen=True)
@@ -155,12 +224,13 @@ class CallConstraint(Constraint):
     
     callee: 'Variable'
     args: Tuple['Variable', ...]
+    kwargs: FrozenSet[Tuple[str, 'Variable']]
     target: Optional['Variable']
     call_site: str
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        vars = {self.callee, *self.args}
+        vars = {self.callee, *self.args, *self.kwargs.values()}
         if self.target:
             vars.add(self.target)
         return vars
@@ -169,7 +239,7 @@ class CallConstraint(Constraint):
         args_str = ", ".join(str(a) for a in self.args)
         if self.target:
             return f"{self.target} = {self.callee}({args_str})"
-        return f"{self.callee}({args_str})"
+        return f"CallConstraint: {self.callee}({args_str})"
 
 
 @dataclass(frozen=True)
@@ -191,7 +261,7 @@ class ReturnConstraint(Constraint):
         return {self.callee_return, self.caller_target}
     
     def __str__(self) -> str:
-        return f"{self.caller_target} = return({self.callee_return})"
+        return f"ReturnConstraint: {self.caller_target} = return({self.callee_return})"
 
 
 class ConstraintManager:
@@ -202,11 +272,11 @@ class ConstraintManager:
     
     def __init__(self):
         """Initialize empty constraint manager."""
-        self._constraints: Set[Constraint] = set()
-        self._by_variable: Dict['Variable', Set[Constraint]] = defaultdict(set)
-        self._by_type: Dict[Type[Constraint], Set[Constraint]] = defaultdict(set)
+        self._constraints: Set[Tuple['Variable', Constraint]] = set()
+        self._by_variable: Dict['Variable', List[Constraint]] = defaultdict(list)
+        self._by_type: Dict[Type[Constraint], List[Constraint]] = defaultdict(list)
     
-    def add(self, constraint: Constraint) -> bool:
+    def add(self, scope, var, constraint: Constraint) -> bool:
         """Add constraint to manager.
         
         Args:
@@ -215,25 +285,16 @@ class ConstraintManager:
         Returns:
             True if constraint was new (not duplicate)
         """
-        if constraint in self._constraints:
+        if (scope, constraint) in self._constraints:
             return False
-        
-        self._constraints.add(constraint)
-        
-        # Index by variables
-        if isinstance(constraint, LoadConstraint):
-            self._by_variable[constraint.base].add(constraint)
-        elif isinstance(constraint, StoreConstraint):
-            self._by_variable[constraint.base].add(constraint)
-        elif isinstance(constraint, CallConstraint):
-            self._by_variable[constraint.callee].add(constraint)
-            
-        # Index by type
-        self._by_type[type(constraint)].add(constraint)
-        
+   
+        self._constraints.add((scope, constraint))
+        self._by_variable[var].append(constraint)
+        self._by_type[type(constraint)].append((scope, constraint))
+
         return True
     
-    def remove(self, constraint: Constraint) -> bool:
+    def remove(self, scope, var, constraint: Constraint) -> bool:
         """Remove constraint from manager.
         
         Args:
@@ -242,10 +303,10 @@ class ConstraintManager:
         Returns:
             True if constraint existed
         """
-        if constraint not in self._constraints:
+        if (scope, constraint) not in self._constraints:
             return False
         
-        self._constraints.remove(constraint)
+        self._constraints.remove((scope, constraint))
         
         # Remove from variable index
         for var in constraint.variables():
@@ -265,7 +326,7 @@ class ConstraintManager:
         Returns:
             Set of constraints (empty if none)
         """
-        return self._by_variable.get(var, set())
+        return self._by_variable.get(var, list())
     
     def get_by_type(self, constraint_type: Type[Constraint]) -> Set[Constraint]:
         """Get all constraints of given type.
@@ -276,7 +337,7 @@ class ConstraintManager:
         Returns:
             Set of constraints of that type
         """
-        return self._by_type.get(constraint_type, set())
+        return self._by_type.get(constraint_type, list())
     
     def all(self) -> Set[Constraint]:
         """Get all constraints.
@@ -289,4 +350,3 @@ class ConstraintManager:
     def __len__(self) -> int:
         """Get number of constraints."""
         return len(self._constraints)
-

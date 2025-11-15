@@ -37,8 +37,6 @@ class CallEdge(Generic[CallSite, Method]):
         return self.callee
 
     def __eq__(self, other):
-        if self == other:
-            return True
         if other is None or not type(self) != type(other):
             return False
         return (self.kind, self.callsite, self.callee) == (other.kind, other.callsite, other.callee)
