@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .variable import Variable
     from .context import AbstractContext, Ctx
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "value", "unknown"]
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown"]
 
 
 class FieldKind(Enum):
@@ -70,24 +70,8 @@ class Field:
             return f"['{self.name}']"
         return f".{self.kind.value}"
 
-
-def position(index: int) -> Field:
-    """Create position field key for containers.
-    
-    Used for tuple elements with specific integer indices for precise tracking.
-    
-    Args:
-        index: Index of the element (must be an integer)
-    
-    Returns:
-        Field for specific position access (e.g., tuple[0], tuple[1])
-    """
-    assert isinstance(index, int), "index must be an integer"
-    return Field(FieldKind.POSITION, None, index)
-
-
 def key(key_name: str) -> Field:
-    """Create key field for specific dict key access.
+    """Create key field for specific key/index access. Used for dictionary and list/tuple elements.
     
     Used for dict["key"] where key is statically known constant.
     
@@ -121,8 +105,7 @@ def attr(name: str) -> Field:
 def elem() -> Field:
     """Create element field key for containers.
     
-    Used for list and set elements where we abstract over all indices.
-    Also used as a fallback for tuples with unknown/dynamic indices.
+    Used for dict/list/tuple/set elements where we abstract over all indices.
     
     Returns:
         Field for generic container element access
@@ -132,21 +115,6 @@ def elem() -> Field:
         Field(kind=FieldKind.ELEMENT, name=None, index=None)
     """
     return Field(FieldKind.ELEMENT, None, None)
-
-
-def value() -> Field:
-    """Create value field key for dictionaries.
-    
-    Used for dictionary values where we abstract over all keys.
-    
-    Returns:
-        Field for dictionary value access
-    
-    Example:
-        >>> value()
-        Field(kind=FieldKind.VALUE, name=None)
-    """
-    return Field(FieldKind.VALUE, None, None)
 
 
 def unknown() -> Field:

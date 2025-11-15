@@ -14,7 +14,7 @@ from .constraints import (Constraint, CopyConstraint, LoadConstraint, StoreConst
                           AllocConstraint, CallConstraint, LoadSubscrConstraint, StoreSubscrConstraint)
 from .variable import Variable, VariableKind, VariableFactory, FieldAccess
 from .config import Config
-from .heap_model import Field, attr, position, key, elem, value
+from .heap_model import Field, attr, key, elem
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge, CallKind
 from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, CallSite, AbstractContext
@@ -221,22 +221,22 @@ class PointerSolver:
         elif c.alloc_site.kind == AllocKind.MODULE:
             obj = self._alloc_module(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.CONSTANT:
+        elif c.alloc_site.kind == AllocKind.CONSTANT and self.config.index_sensitive:
             obj = self._alloc_constant(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.LIST:
+        elif c.alloc_site.kind == AllocKind.LIST and self.config.index_sensitive:
             obj = self._alloc_list(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.TUPLE:
+        elif c.alloc_site.kind == AllocKind.TUPLE: #  and self.config.index_sensitive:
             obj = self._alloc_tuple(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.DICT:
+        elif c.alloc_site.kind == AllocKind.DICT: #  and self.config.index_sensitive:
             obj = self._alloc_dict(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.SET:
+        elif c.alloc_site.kind == AllocKind.SET and self.config.index_sensitive:
             obj = self._alloc_set(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.OBJECT:
+        elif c.alloc_site.kind == AllocKind.OBJECT and False:
             # logic for instance allocation is located in _apply_call
             obj = None 
             
@@ -473,22 +473,27 @@ class PointerSolver:
     
     def _apply_load_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'LoadSubscrConstraint', pts: 'PointsToSet'):
         """Apply load constraint: target = base[index]."""
+        unknown_index = False
         for index_obj in pts:
-            if isinstance(index_obj, ConstantObject):
+            if isinstance(index_obj, ConstantObject) and isinstance(index_obj.value, int) and index_obj.value >= 0 and index_obj.value < 20:
                 field = key(index_obj.value)
                 self.add_constraint(scope, scope.context, LoadConstraint(c.base, field, c.target))
             else:
-                self.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
-
+                unknown_index = True
+        if unknown_index:
+            self.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
     
     def _apply_store_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'StoreSubscrConstraint', pts: 'PointsToSet'):
         """Apply store constraint: base[index] = source."""
+        unknown_index = False
         for index_obj in pts:
             if isinstance(index_obj, ConstantObject):
                 field = key(index_obj.value)
                 self.add_constraint(scope, scope.context, StoreConstraint(c.base, field, c.source))
             else:
-                self.add_constraint(scope, scope.context, StoreConstraint(c.base, elem(), c.source))
+                unknown_index = True
+        if unknown_index:
+            self.add_constraint(scope, scope.context, StoreConstraint(c.base, elem(), c.source))
     
     def _apply_load(self, scope: 'Scope', variable: 'Ctx', c: 'LoadConstraint', pts: 'PointsToSet'):
         """Apply load constraint: target = base.field or target = base[index]."""
@@ -585,9 +590,13 @@ class PointerSolver:
             return False
         
         call_site = CallSite(call.call_site, len(call.args))
+        
+        self_var = self.state.get_variable(scope, context, self.variable_factory.make_variable(f"$self@{call.call_site}"))
+        self._worklist.add((scope, self_var, PointsToSet.singleton(holder_obj)))
 
         args = [self.state.get_variable(scope, context, arg) for arg in call.args]
-        # args.insert(0, holder_obj)
+        args.insert(0, self_var)
+        kwargs = {k: self.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
 
         call_context = self.context_selector.select_call_context(
             call_site,
@@ -605,7 +614,6 @@ class PointerSolver:
         call_edge = CallEdge(kind=CallKind.FUNCTION, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
         # if self.state.call_graph.has_edge(edge):
         #     return False
-
 
         # Put all cell and global vars into scope
         cell_vars = self.state.get_cell_vars(method_obj)
@@ -651,6 +659,182 @@ class PointerSolver:
             self.add_constraint(callee_scope, call_context, constraint)
             changed = True
         
+        
+                
+        if hasattr(func_ir, 'args'):
+            func_args = func_ir.args
+            arg_vars = args  # Positional argument variables from call site
+            kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
+            
+            # Track which parameters have been bound
+            arg_index = 0
+            consumed_kwargs = set()  # Track which keyword arguments have been matched
+            
+            # 1. Handle positional-only parameters (Python 3.8+)
+            # These can ONLY be filled by positional arguments, not keywords
+            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+                for param in func_args.posonlyargs:
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    if arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    else:
+                        # Must use default value (if available)
+                        pass
+            
+            # 2. Handle regular positional/keyword parameters
+            # These can be filled by either positional OR keyword arguments
+            if func_args.args:
+                num_regular_params = len(func_args.args)
+                num_defaults = len(func_args.defaults) if func_args.defaults else 0
+                first_default_idx = num_regular_params - num_defaults
+                
+                for param_idx, param in enumerate(func_args.args):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # First check if this parameter is provided as a keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    elif param_idx >= first_default_idx:
+                        # This parameter has a default value
+                        pass
+                    else:
+                        # Missing required parameter - this is an error in real Python
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 3. Handle *args (vararg) - collects remaining positional arguments
+            if func_args.vararg:
+                vararg_name = func_args.vararg.arg
+                vararg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(vararg_name)
+                )
+                
+                # Create a tuple object to hold the varargs
+                vararg_alloc = AllocSite(f"{call.call_site}:*args", AllocKind.TUPLE)
+                vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
+                
+                # Add the tuple to the vararg parameter
+                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                if changed_vararg:
+                    changed = True
+                
+                # All remaining positional arguments go into *args
+                for i in range(arg_index, len(arg_vars)):
+                    # Store each remaining argument as an element of the tuple
+                    field = attr(str(i - arg_index))
+                    element_var = self.state.get_field_variable(vararg_var, field)
+                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+            elif arg_index < len(arg_vars):
+                # Too many positional arguments and no *args to catch them
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
+                    context=func_name
+                )
+            
+            # 4. Handle keyword-only parameters
+            # These MUST be provided by keyword arguments (or use defaults)
+            if func_args.kwonlyargs:
+                for kw_idx, param in enumerate(func_args.kwonlyargs):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope,
+                        call_context,
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # Check if provided as keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
+                        # Check if there's a default value
+                        kw_default = func_args.kw_defaults[kw_idx]
+                        if kw_default is not None:
+                            # Has a default value
+                            pass
+                        else:
+                            # Missing required keyword-only parameter
+                            self._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                call.call_site,
+                                f"Required keyword-only parameter {param_name} not provided",
+                                context=func_name
+                            )
+                    else:
+                        # Missing required keyword-only parameter with no default
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required keyword-only parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 5. Handle **kwargs (kwarg) - collects remaining keyword arguments
+            remaining_kwargs = {k: v for k, v in kwarg_vars.items() if k not in consumed_kwargs}
+            
+            if func_args.kwarg:
+                kwarg_name = func_args.kwarg.arg
+                kwarg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(kwarg_name)
+                )
+                
+                # Create a dict object to hold the kwargs
+                kwarg_alloc = AllocSite(f"{call.call_site}:**kwargs", AllocKind.DICT)
+                kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
+                
+                # Add the dict to the kwarg parameter
+                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                if changed_kwarg:
+                    changed = True
+                
+                # Store all remaining keyword arguments into the **kwargs dict
+                for kw_name, kw_var in remaining_kwargs.items():
+                    # Use the keyword name as the dict key (field)
+                    field = attr(kw_name)
+                    dict_value_var = self.state.get_field(callee_scope, call_context, kwarg_var, field)
+                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+            elif remaining_kwargs:
+                # Unexpected keyword arguments and no **kwargs to catch them
+                extra_kw_names = ', '.join(remaining_kwargs.keys())
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Unexpected keyword arguments: {extra_kw_names}",
+                    context=func_name
+                )
+
+        '''
+        # TODO to be updated into precisely matching the arguments
         if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args') and len(func_ir.args.args) > 0:
             param_names = [arg.arg for arg in func_ir.args.args]
             self_name = self.variable_factory.make_variable(param_names.pop(0))
@@ -662,6 +846,8 @@ class PointerSolver:
                     param = self.variable_factory.make_variable(param_name)
                     param_var = self.state.get_variable(callee_scope, call_context, param)
                     self.state.pointer_flow_graph.add_edge(arg_var, param_var)
+        '''
+
         
         if call.target:
             ret = self.variable_factory.make_variable("$return")
@@ -693,6 +879,7 @@ class PointerSolver:
         alloc_site = func_obj.alloc_site
         # logger.info(f"Handling function call: {call.call_site} -> {alloc_site}")
         args = [self.state.get_variable(scope, context, arg) for arg in call.args]
+        kwargs = {k: self.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
         
         call_site = CallSite(call.call_site, len(call.args))
         call_context = self.context_selector.select_call_context(
@@ -755,7 +942,182 @@ class PointerSolver:
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
             changed = True
-        
+    
+        if hasattr(func_ir, 'args'):
+            func_args = func_ir.args
+            arg_vars = args  # Positional argument variables from call site
+            kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
+            
+            # Track which parameters have been bound
+            arg_index = 0
+            consumed_kwargs = set()  # Track which keyword arguments have been matched
+            
+            # 1. Handle positional-only parameters (Python 3.8+)
+            # These can ONLY be filled by positional arguments, not keywords
+            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+                for param in func_args.posonlyargs:
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    if arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    else:
+                        # Must use default value (if available)
+                        pass
+            
+            # 2. Handle regular positional/keyword parameters
+            # These can be filled by either positional OR keyword arguments
+            if func_args.args:
+                num_regular_params = len(func_args.args)
+                num_defaults = len(func_args.defaults) if func_args.defaults else 0
+                first_default_idx = num_regular_params - num_defaults
+                
+                for param_idx, param in enumerate(func_args.args):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope, 
+                        call_context, 
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # First check if this parameter is provided as a keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif arg_index < len(arg_vars):
+                        # Bind positional argument to parameter
+                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        arg_index += 1
+                    elif param_idx >= first_default_idx:
+                        # This parameter has a default value
+                        pass
+                    else:
+                        # Missing required parameter - this is an error in real Python
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 3. Handle *args (vararg) - collects remaining positional arguments
+            if func_args.vararg:
+                vararg_name = func_args.vararg.arg
+                vararg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(vararg_name)
+                )
+                
+                # Create a tuple object to hold the varargs
+                vararg_alloc = AllocSite(f"{call.call_site}:*args", AllocKind.TUPLE)
+                vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
+                
+                # Add the tuple to the vararg parameter
+                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                if changed_vararg:
+                    changed = True
+                
+                # All remaining positional arguments go into *args
+                for i in range(arg_index, len(arg_vars)):
+                    # Store each remaining argument as an element of the tuple
+                    field = attr(str(i - arg_index))
+                    element_var = self.state.get_field_variable(vararg_var, field)
+                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+            elif arg_index < len(arg_vars):
+                # Too many positional arguments and no *args to catch them
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
+                    context=func_name
+                )
+            
+            # 4. Handle keyword-only parameters
+            # These MUST be provided by keyword arguments (or use defaults)
+            if func_args.kwonlyargs:
+                for kw_idx, param in enumerate(func_args.kwonlyargs):
+                    param_name = param.arg
+                    param_var = self.state.get_variable(
+                        callee_scope,
+                        call_context,
+                        self.variable_factory.make_variable(param_name)
+                    )
+                    
+                    # Check if provided as keyword argument
+                    if param_name in kwarg_vars:
+                        # Bind keyword argument to parameter
+                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        consumed_kwargs.add(param_name)
+                    elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
+                        # Check if there's a default value
+                        kw_default = func_args.kw_defaults[kw_idx]
+                        if kw_default is not None:
+                            # Has a default value
+                            pass
+                        else:
+                            # Missing required keyword-only parameter
+                            self._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                call.call_site,
+                                f"Required keyword-only parameter {param_name} not provided",
+                                context=func_name
+                            )
+                    else:
+                        # Missing required keyword-only parameter with no default
+                        self._unknown_tracker.record(
+                            UnknownKind.MISSING_ARGUMENT,
+                            call.call_site,
+                            f"Required keyword-only parameter {param_name} not provided",
+                            context=func_name
+                        )
+            
+            # 5. Handle **kwargs (kwarg) - collects remaining keyword arguments
+            remaining_kwargs = {k: v for k, v in kwarg_vars.items() if k not in consumed_kwargs}
+            
+            if func_args.kwarg:
+                kwarg_name = func_args.kwarg.arg
+                kwarg_var = self.state.get_variable(
+                    callee_scope,
+                    call_context,
+                    self.variable_factory.make_variable(kwarg_name)
+                )
+                
+                # Create a dict object to hold the kwargs
+                kwarg_alloc = AllocSite(f"{call.call_site}:**kwargs", AllocKind.DICT)
+                kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
+                
+                # Add the dict to the kwarg parameter
+                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                if changed_kwarg:
+                    changed = True
+                
+                # Store all remaining keyword arguments into the **kwargs dict
+                for kw_name, kw_var in remaining_kwargs.items():
+                    # Use the keyword name as the dict key (field)
+                    field = attr(kw_name)
+                    dict_value_var = self.state.get_field_variable(kwarg_var, field)
+                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+            elif remaining_kwargs:
+                # Unexpected keyword arguments and no **kwargs to catch them
+                extra_kw_names = ', '.join(remaining_kwargs.keys())
+                self._unknown_tracker.record(
+                    UnknownKind.MISSING_ARGUMENT,
+                    call.call_site,
+                    f"Unexpected keyword arguments: {extra_kw_names}",
+                    context=func_name
+                )
+
+
+        '''
+        # Old way to handle argument matching
         if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args'):
             param_names = [arg.arg for arg in func_ir.args.args]
             for i, param_name in enumerate(param_names):
@@ -764,6 +1126,7 @@ class PointerSolver:
                     param_var = self.state.get_variable(callee_scope, call_context, param)
                     arg_var = args[i]
                     self.state.pointer_flow_graph.add_edge(arg_var, param_var)
+        '''
         
         if call.target:
             ret = self.variable_factory.make_variable("$return")
@@ -809,7 +1172,7 @@ class PointerSolver:
         init_var = self.variable_factory.make_variable(var_name)
         ctx_init_var = self.state.get_variable(scope, context, init_var)
         self.state.pointer_flow_graph.add_edge(init_field, ctx_init_var)
-        self.add_constraint(scope, context, CallConstraint(init_var, call.args, None, call.call_site))
+        self.add_constraint(scope, context, CallConstraint(init_var, call.args, call.kwargs, None, call.call_site))
 
         '''
         if self.class_hierarchy and self.class_hierarchy.has_class(class_obj):
@@ -874,6 +1237,7 @@ class PointerSolver:
         method_call = CallConstraint(
             callee=func_var,
             args=(self_var,) + call.args,
+            kwargs=frozenset(),
             target=call.target,
             call_site=call.call_site + "_method"
         )

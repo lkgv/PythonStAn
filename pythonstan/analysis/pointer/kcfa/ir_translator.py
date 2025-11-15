@@ -9,7 +9,7 @@ import logging, ast
 from .constraints import *
 from .config import Config
 from .variable import Variable, VariableFactory, VariableKind
-from .heap_model import elem, value, attr, position, key
+from .heap_model import elem, attr, key
 from pythonstan.ir.ir_statements import *
 from .object import AllocSite, AllocKind
 
@@ -223,12 +223,13 @@ class IRTranslator:
                 for i, elt_expr in enumerate(rval.elts):
                     if isinstance(elt_expr, ast.Name):
                         elem_var = self._make_variable(elt_expr.id)
-                        # Store at specific position field
-                        constraints.append(StoreConstraint(
-                            base=target_var,
-                            field=key(i),
-                            source=elem_var
-                        ))
+                        if self.config.index_sensitive:
+                            # Store at specific position field                            
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=key(i),
+                                source=elem_var
+                            ))
                         # Also store at generic elem() for soundness
                         constraints.append(StoreConstraint(
                             base=target_var,
@@ -250,13 +251,16 @@ class IRTranslator:
                     if isinstance(val_expr, ast.Name):
                         val_var = self._make_variable(val_expr.id)
                         # Use key field for constant string keys, value() as fallback
-                        if isinstance(key_expr, ast.Constant):
+                        if isinstance(key_expr, ast.Constant) and self.config.index_sensitive:
                             field = key(key_expr.value)
-                        else:
-                            field = elem()
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=field,
+                                source=val_var
+                            ))
                         constraints.append(StoreConstraint(
                             base=target_var,
-                            field=field,
+                            field=elem(),
                             source=val_var
                         ))
                         
@@ -267,13 +271,14 @@ class IRTranslator:
             if hasattr(rval, 'elts'):
                 for i, elt_expr in enumerate(rval.elts):
                     if isinstance(elt_expr, ast.Name):
-                        elem_var = self._make_variable(elt_expr.id)
-                        # Store at specific position field
-                        constraints.append(StoreConstraint(
-                            base=target_var,
-                            field=key(i),
-                            source=elem_var
-                        ))
+                        elem_var = self._make_variable(elt_expr.id)                        
+                        if self.config.index_sensitive:
+                            # Store at specific position field
+                            constraints.append(StoreConstraint(
+                                base=target_var,
+                                field=key(i),
+                                source=elem_var
+                            ))
                         # Also store at generic elem() for soundness
                         constraints.append(StoreConstraint(
                             base=target_var,
@@ -346,9 +351,13 @@ class IRTranslator:
         target_var = self._make_variable(lval) if lval else None
         
         call_site_id = f"{self._current_scope.get_qualname()}:{stmt.get_ast().lineno}:{stmt.get_ast().col_offset}:{stmt}"
+        keyword_vars = {kw_name: self._make_variable(kw_val) 
+                        for kw_name, kw_val in stmt.get_keywords() 
+                        if kw_name is not None}
         constraints.append(CallConstraint(
             callee=callee_var,
             args=arg_vars,
+            kwargs=frozenset(keyword_vars.items()),
             target=target_var,
             call_site=call_site_id
         ))
@@ -390,11 +399,18 @@ class IRTranslator:
             index_var = self._make_variable(f"$index_{id(stmt)}")
         
         # Generate LoadSubscrConstraint with index variable for dynamic resolution
-        constraints.append(LoadSubscrConstraint(
-            base=container_var,
-            index=index_var,
-            target=target_var
-        ))
+        if self.config.index_sensitive:
+            constraints.append(LoadSubscrConstraint(
+                base=container_var,
+                index=index_var,
+                target=target_var
+            ))
+        else:
+            constraints.append(LoadConstraint(
+                base=container_var,
+                field=elem(),
+                target=target_var
+            ))
         
         # Also generate __getitem__ call for custom container types
         getitem_method_var = self._make_variable(f"$getitem_{id(stmt)}")
@@ -410,6 +426,7 @@ class IRTranslator:
             constraints.append(CallConstraint(
                 callee=getitem_method_var,
                 args=(index_var,),
+                kwargs=frozenset(),
                 target=target_var,
                 call_site=call_site
             ))
@@ -446,6 +463,18 @@ class IRTranslator:
             index=index_var,
             source=value_var
         ))
+        if self.config.index_sensitive:
+            constraints.append(StoreSubscrConstraint(
+                base=container_var,
+                index=index_var,
+                source=value_var
+            ))
+        else:
+            constraints.append(StoreConstraint(
+                base=container_var,
+                field=elem(),
+                target=value_var
+            ))
         
         # Also generate __setitem__ call for custom container types
         setitem_method_var = self._make_variable(f"$setitem_{id(stmt)}")
@@ -462,6 +491,7 @@ class IRTranslator:
             constraints.append(CallConstraint(
                 callee=setitem_method_var,
                 args=(index_var, value_var),
+                kwargs=frozenset(),
                 target=None,
                 call_site=call_site
             ))
@@ -518,6 +548,7 @@ class IRTranslator:
                     constraints.append(CallConstraint(
                         callee=decorator_var,
                         args=(current_var,),
+                        kwargs=frozenset(),
                         target=result_var,
                         call_site=call_site
                     ))
@@ -622,6 +653,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=enter_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -646,6 +678,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=exit_method_var,
             args=(),
+            kwargs=frozenset(),
             target=None,
             call_site=call_site
         ))
@@ -670,6 +703,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=iter_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -691,6 +725,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=next_method_var,
             args=(),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))
@@ -721,6 +756,7 @@ class IRTranslator:
         constraints.append(CallConstraint(
             callee=method_var,
             args=(right_var,),
+            kwargs=frozenset(),
             target=target_var,
             call_site=call_site
         ))

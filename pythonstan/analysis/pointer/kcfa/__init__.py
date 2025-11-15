@@ -28,7 +28,7 @@ from .context import (
 from .context_selector import ContextPolicy, ContextSelector, parse_policy
 from .object import AllocKind, AllocSite, AbstractObject
 from .variable import VariableKind, Variable
-from .heap_model import FieldKind, Field, attr, elem, value, unknown
+from .heap_model import FieldKind, Field, attr, elem, unknown
 from .state import PointsToSet, PointerAnalysisState
 from .solver import PointerSolver
 from .ir_translator import IRTranslator

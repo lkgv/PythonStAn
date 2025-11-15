@@ -47,6 +47,7 @@ class Config:
     track_unknowns: bool = True
     log_unknown_details: bool = False
     type: str = "pointer analysis"
+    index_sensitive: bool = False
     
     @classmethod
     def from_dict(cls, config_dict: Dict):
@@ -65,6 +66,7 @@ class Config:
             max_import_depth=config_dict.get("max_import_depth", 2),
             track_unknowns=config_dict.get("track_unknowns", True),
             log_unknown_details=config_dict.get("log_unknown_details", False),
+            index_sensitive=config_dict.get("index_sensitive", False),
             type="pointer analysis")
     
     def to_dict(self) -> Dict:
@@ -83,6 +85,7 @@ class Config:
             "max_import_depth": self.max_import_depth,
             "track_unknowns": self.track_unknowns,
             "log_unknown_details": self.log_unknown_details,
+            "index_sensitive": self.index_sensitive,
             "type": self.type
         }
     

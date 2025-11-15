@@ -6,7 +6,7 @@ provides efficient storage and indexing for constraint-based solving.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Dict, Type, Tuple, Optional, TYPE_CHECKING
+from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING
 from collections import defaultdict
 
 if TYPE_CHECKING:
@@ -224,12 +224,13 @@ class CallConstraint(Constraint):
     
     callee: 'Variable'
     args: Tuple['Variable', ...]
+    kwargs: FrozenSet[Tuple[str, 'Variable']]
     target: Optional['Variable']
     call_site: str
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        vars = {self.callee, *self.args}
+        vars = {self.callee, *self.args, *self.kwargs.values()}
         if self.target:
             vars.add(self.target)
         return vars
@@ -271,9 +272,9 @@ class ConstraintManager:
     
     def __init__(self):
         """Initialize empty constraint manager."""
-        self._constraints: Set[Tuple['Scope', Constraint]] = set()
-        self._by_variable: Dict['Variable', Set[Constraint]] = defaultdict(set)
-        self._by_type: Dict[Type[Constraint], Set[Constraint]] = defaultdict(set)
+        self._constraints: Set[Tuple['Variable', Constraint]] = set()
+        self._by_variable: Dict['Variable', List[Constraint]] = defaultdict(list)
+        self._by_type: Dict[Type[Constraint], List[Constraint]] = defaultdict(list)
     
     def add(self, scope, var, constraint: Constraint) -> bool:
         """Add constraint to manager.
@@ -284,34 +285,16 @@ class ConstraintManager:
         Returns:
             True if constraint was new (not duplicate)
         """
-        
-        # TODO add the support of contexted_vars
-        
-        if constraint in self._constraints:
+        if (scope, constraint) in self._constraints:
             return False
    
         self._constraints.add((scope, constraint))
-        self._by_variable[var].add(constraint)
-        self._by_type[type(constraint)].add((scope, constraint))
-        
-        '''
-        # Index by variables
-        if isinstance(constraint, LoadConstraint):
-            self._by_variable[var].add(constraint)
-        elif isinstance(constraint, StoreConstraint):
-            self._by_variable[constraint.base].add(constraint)
-        elif isinstance(constraint, CallConstraint):
-            self._by_variable[constraint.callee].add(constraint)
-        elif isinstance(constraint, AllocConstraint):
-            self._by_variable[constraint.target].add(constraint)
-            
-        # Index by type
-        self._by_type[type(constraint)].add(constraint)
-        '''
-        
+        self._by_variable[var].append(constraint)
+        self._by_type[type(constraint)].append((scope, constraint))
+
         return True
     
-    def remove(self, constraint: Constraint) -> bool:
+    def remove(self, scope, var, constraint: Constraint) -> bool:
         """Remove constraint from manager.
         
         Args:
@@ -320,10 +303,10 @@ class ConstraintManager:
         Returns:
             True if constraint existed
         """
-        if constraint not in self._constraints:
+        if (scope, constraint) not in self._constraints:
             return False
         
-        self._constraints.remove(constraint)
+        self._constraints.remove((scope, constraint))
         
         # Remove from variable index
         for var in constraint.variables():
@@ -343,7 +326,7 @@ class ConstraintManager:
         Returns:
             Set of constraints (empty if none)
         """
-        return self._by_variable.get(var, set())
+        return self._by_variable.get(var, list())
     
     def get_by_type(self, constraint_type: Type[Constraint]) -> Set[Constraint]:
         """Get all constraints of given type.
@@ -354,7 +337,7 @@ class ConstraintManager:
         Returns:
             Set of constraints of that type
         """
-        return self._by_type.get(constraint_type, set())
+        return self._by_type.get(constraint_type, list())
     
     def all(self) -> Set[Constraint]:
         """Get all constraints.
@@ -367,4 +350,3 @@ class ConstraintManager:
     def __len__(self) -> int:
         """Get number of constraints."""
         return len(self._constraints)
-
