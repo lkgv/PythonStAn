@@ -6,16 +6,16 @@ for attribute access, container elements, and dictionary values.
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, TYPE_CHECKING, Set
+from typing import Optional, Dict, Tuple, Set, TYPE_CHECKING
 
 from yaml import NodeEvent
 
 if TYPE_CHECKING:
-    from .object import AbstractObject
-    from .variable import Variable
-    from .context import AbstractContext, Ctx
+    from .object import AbstractObject, FunctionObject
+    from .variable import Variable, FieldAccess, VariableKind
+    from .context import AbstractContext, Ctx, Scope, AllocSite
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown"]
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown", "HeapModel"]
 
 
 class FieldKind(Enum):
@@ -130,3 +130,64 @@ def unknown() -> Field:
         Field(kind=FieldKind.UNKNOWN, name=None)
     """
     return Field(FieldKind.UNKNOWN, None, None)
+
+
+class HeapModel:
+    """Heap model for pointer analysis.
+    
+    Maintains the heap and field accesses.
+    """
+    
+    heap: 'Dict[Tuple[Scope, AbstractContext], Dict[Tuple[str, VariableKind], Ctx[Variable]]]'
+    prev_scope: 'Dict[Scope, Scope]'
+    objects: 'Dict[Tuple[Scope, AbstractContext, AllocSite], AbstractObject]'
+    cell_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
+    global_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
+    nonlocal_vars: 'Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]'
+    
+    def __init__(self):
+        self.heap = {}
+        self.field_accesses = {}
+        self.objects = {}
+        self.cell_vars = {}
+        self.global_vars = {}
+        self.nonlocal_vars = {}
+
+    def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> Optional['Ctx[Variable]']:
+        ctx_key = (scope, )  # (scope, context)
+        registers = self.heap.get(ctx_key, {})
+        return registers.get(var.name, None)
+
+    def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
+        ctx_key = (scope, )  # (scope, context)
+        registers = self.heap.get(ctx_key, None)
+        if registers is None:
+            registers = {}
+            self.heap[ctx_key] = registers
+        registers[var.name] = ctx_var  # TODO whether use context or scope.context?
+    
+    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'Ctx[FieldAccess]':
+        ...
+
+    def get_all_variables(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Variable]']:
+        ctx_key = (scope, )
+        return self.heap.get(ctx_key, {}).values()
+    
+    def get_all_fields(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Field]']:
+        ...
+    
+    def set_obj(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocSite', o: "AbstractObject"):
+        # print(f"New object: {o}")
+        self.objects[(context, c.stmt, c.kind)] = o
+    
+    def get_obj(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocSite') -> Optional['AbstractObject']:
+        return self.objects.get((context, c.stmt, c.kind), None)
+    
+    def get_cell_vars(self, obj: 'FunctionObject') -> 'Dict[str, Ctx[Variable]]':
+        return self.cell_vars.get(obj, {})
+    
+    def get_global_vars(self, obj: 'FunctionObject') -> 'Dict[str, Ctx[Variable]]':
+        return self.global_vars.get(obj, {})
+    
+    def get_nonlocal_vars(self, obj: 'FunctionObject') -> 'Dict[str, Ctx[Variable]]':
+        return self.nonlocal_vars.get(obj, {})

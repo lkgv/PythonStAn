@@ -1,4 +1,7 @@
-"""Module summaries for modular pointer analysis.
+"""
+TODO kcfa has been refactored, this module need to be rewriten.
+
+Module summaries for modular pointer analysis.
 
 Summaries capture cross-module analysis information including exports,
 functions, classes, and context mappings for compositional analysis.

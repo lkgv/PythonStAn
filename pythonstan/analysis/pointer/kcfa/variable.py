@@ -80,20 +80,9 @@ class FieldAccess:
     """Field access for variables.
     
     Attributes:
-        variable: Variable being accessed
+        variable: Variable fbeing accessed
         field: Field being accessed
     """
-    
-    # TODO[CRITICAL] Can be too complex, you need to consider the condition for different types of obj and field.
-    # For example, if the obj is a module, the field should be a module attribute, you need to correspond it to the variable in the module.
-    # If the obj is a class, the field should be a class attribute, you need to considering the inheritance and MRO.
-    # If the obj is a function, the field should be a function attribute, you need to considering the closure variables.
-    # If the obj is a instance, the field should be a instance attribute, you need to considering the instance variables.
-    # If the obj is a dictionary, the field should be a dictionary value, you need to considering the dictionary values.
-    # If the obj is a list, the field should be a list element, you need to considering the list elements.
-    # If the obj is a tuple, the field should be a tuple element with index, you need to considering the tuple elements.
-    # If the obj is a set, the field should be a set element, you need to considering the set elements.
-    # If the obj is a builtin, the field should be a builtin attribute, you need to considering the builtin attributes.
 
     obj: 'AbstractObject'
     field: 'Field'
@@ -148,4 +137,4 @@ class VariableFactory:
         Returns:
             Created field access
         """
-        field = FieldAccess(obj=obj, field=field)
+        return FieldAccess(obj=obj, field=field)
