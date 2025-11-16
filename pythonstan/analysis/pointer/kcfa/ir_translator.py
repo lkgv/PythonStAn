@@ -193,7 +193,8 @@ class IRTranslator:
         constraints.append(CopyConstraint(source=source_var, target=target_var))
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -304,7 +305,8 @@ class IRTranslator:
             constraints.append(AllocConstraint(target=target_var, alloc_site=alloc_site))
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -319,7 +321,8 @@ class IRTranslator:
         target_var = self._make_variable(lval)
         field = attr(attr_name) if attr_name else attr("<unknown>")
 
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return [LoadConstraint(base=base_var, field=field, target=target_var)]
@@ -363,7 +366,8 @@ class IRTranslator:
         ))
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -434,7 +438,8 @@ class IRTranslator:
             logger.debug(f"Error generating __getitem__ call: {e}")
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -473,7 +478,7 @@ class IRTranslator:
             constraints.append(StoreConstraint(
                 base=container_var,
                 field=elem(),
-                target=value_var
+                source=value_var
             ))
         
         # Also generate __setitem__ call for custom container types
@@ -562,7 +567,8 @@ class IRTranslator:
                 constraints.append(CopyConstraint(source=current_var, target=func_var))
                 
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not func_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(func_var)
         
         return func_var, constraints
@@ -591,7 +597,8 @@ class IRTranslator:
         '''
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not class_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(class_var)
         
         return class_var, constraints
@@ -630,7 +637,8 @@ class IRTranslator:
                 constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
         
         # for fields of class, we need to store the value to the class
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not local_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(local_var)
 
         return constraints
@@ -761,7 +769,8 @@ class IRTranslator:
             call_site=call_site
         ))
 
-        if isinstance(self._current_scope, IRClass):
+        if (isinstance(self._current_scope, IRClass) and 
+            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints

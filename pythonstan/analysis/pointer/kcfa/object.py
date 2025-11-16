@@ -138,10 +138,10 @@ class MethodObject(FunctionObject):
     instance_obj: Optional['InstanceObject']
 
     def deliver_into(self, inst: 'InstanceObject') -> 'MethodObject':
-        return MethodObject(self.context, self.alloc_site, inst.class_obj, inst)
+        return MethodObject(self.context, self.alloc_site, self.container_scope, self.ir, self.class_obj, inst)
     
     def inherit_into(self, cls_obj: 'ClassObject') -> 'MethodObject':
-        return MethodObject(self.context, self.alloc_site, cls_obj, None)
+        return MethodObject(self.context, self.alloc_site, self.container_scope, self.ir, cls_obj, None)
     
 
 # TODO Add some types of objects

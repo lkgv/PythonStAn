@@ -42,13 +42,12 @@ class PointerFlowEdge:
             assert isinstance(self.target, NormalNode) and isinstance(self.target.var.content.obj, ClassObject)
         if self.kind == PointerFlowKind.INSTANCE:
             assert isinstance(self.target, NormalNode) and isinstance(self.target.var.content.obj, InstanceObject)
-
     
     def flow_through(self, pts: 'PointsToSet') -> 'PointsToSet':
         if self.kind == PointerFlowKind.INHERIT:
             return pts.inherit_to(self.target.var.content.obj)
         elif self.kind == PointerFlowKind.INSTANCE:
-            return pts.deliver_into(self.source.var.content.obj)
+            return pts.deliver_into(self.target.var.content.obj)
         else:
             return pts
 
@@ -93,7 +92,7 @@ class GuardNode(PointerFlowNode):
         return self.guard(edge, pts)
     
 
-class SelectorNode:
+class SelectorNode(PointerFlowNode):
     """Selector node in pointer flow graph, only the edge with the least index will be flowed through.
     edges: Dict[PointerFlowEdge, int] - the edges and their indices.
     least_index: int - the least index of the edges.
@@ -101,9 +100,9 @@ class SelectorNode:
     edges: Dict[PointerFlowEdge, int]
     least_index: int
     
-    def __init__(self):
+    def __init__(self, least_index: int = -1):
         self.edges = {}
-        self.least_index = -1
+        self.least_index = least_index
     
     def __hash__(self):
         return id(self)

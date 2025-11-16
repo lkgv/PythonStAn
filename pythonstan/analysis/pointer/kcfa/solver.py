@@ -10,8 +10,7 @@ from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple
 from pythonstan.ir.ir_statements import IRFunc, IRModule, IRClass, IRAssign
 
 from .state import PointerAnalysisState, PointsToSet
-from .constraints import (Constraint, CopyConstraint, LoadConstraint, StoreConstraint,
-                          AllocConstraint, CallConstraint, LoadSubscrConstraint, StoreSubscrConstraint)
+from .constraints import *
 from .variable import Variable, VariableKind, VariableFactory, FieldAccess
 from .config import Config
 from .heap_model import Field, attr, key, elem
@@ -74,11 +73,11 @@ class PointerSolver:
             self.state._static_constraints.add((scope, context, constraint))
         else:
             if isinstance(constraint, LoadConstraint):
-                target = self.state.get_variable(scope, context, constraint.target)
-                self.state.constraints.add(scope, target, constraint)
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
             elif isinstance(constraint, StoreConstraint):
-                source = self.state.get_variable(scope, context, constraint.source)
-                self.state.constraints.add(scope, source, constraint)
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
             elif isinstance(constraint, CallConstraint):
                 callee = self.state.get_variable(scope, context, constraint.callee)
                 self.state.constraints.add(scope, callee, constraint)
@@ -88,15 +87,21 @@ class PointerSolver:
             elif isinstance(constraint, StoreSubscrConstraint):
                 index = self.state.get_variable(scope, context, constraint.index)
                 self.state.constraints.add(scope, index, constraint)
+            elif isinstance(constraint, InheritanceConstraint):
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
+            else:
+                logger.warning(f"Unknown constraint type: {type(constraint)}")
 
     def solve_to_fixpoint(self) -> None:
         logger.info("Starting constraint solving")
         max_iter = self.config.max_iterations
+        max_iter = 1000000
         
         while ((not self.state._worklist.empty()) or self.state._static_constraints) and self._iteration < max_iter:
             self._iteration += 1
             # Log progress periodically
-            if self._iteration % 10000 == 0:
+            if self._iteration % 1000 == 0:
                 logger.info(f"Iteration {self._iteration}, worklist size {len(self.state._worklist)}, objs: {len(self.state._heap.objects)}, "
                             f"call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
             
@@ -114,7 +119,7 @@ class PointerSolver:
                     self.state.set_points_to(node, diff)
 
                     # apply the constraints associated with the variable
-                    if isinstance(node, NormalNode) and isinstance(node.var.content, Variable):
+                    if isinstance(node, NormalNode):
                         for constraint in self.state.constraints.get_by_variable(node.var):
                             self._apply_constraint(scope, node.var, constraint, diff)
                     
@@ -154,6 +159,8 @@ class PointerSolver:
             return self._apply_load_subscr(scope, variable, constraint, diff)
         elif isinstance(constraint, StoreSubscrConstraint):
             return self._apply_store_subscr(scope, variable, constraint, diff)
+        elif isinstance(constraint, InheritanceConstraint):
+            return self._apply_inheritance(scope, variable, constraint, diff)
         else:
             logger.warning(f"Unknown constraint type: {type(constraint)}")
             return False
@@ -190,10 +197,10 @@ class PointerSolver:
         elif c.alloc_site.kind == AllocKind.LIST and self.config.index_sensitive:
             obj = self._alloc_list(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.TUPLE: #  and self.config.index_sensitive:
+        elif c.alloc_site.kind == AllocKind.TUPLE and self.config.index_sensitive:
             obj = self._alloc_tuple(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.DICT: #  and self.config.index_sensitive:
+        elif c.alloc_site.kind == AllocKind.DICT and self.config.index_sensitive:
             obj = self._alloc_dict(scope, context, c)
         
         elif c.alloc_site.kind == AllocKind.SET and self.config.index_sensitive:
@@ -202,9 +209,12 @@ class PointerSolver:
         elif c.alloc_site.kind == AllocKind.OBJECT and False:
             # logic for instance allocation is located in _apply_call
             obj = None 
-            
+        elif not self.config.index_sensitive:
+            obj = AbstractObject(alloc_site=c.alloc_site, context=context)
+                
         else:
-            obj = None # AbstractObject(alloc_site=c.alloc_site, context=context)
+            obj = AbstractObject(alloc_site=c.alloc_site, context=context)
+
 
         if obj is not None:
             self.state._heap.set_obj(scope, context, c.alloc_site, obj)
@@ -240,7 +250,6 @@ class PointerSolver:
     
     def _alloc_method(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'MethodObject':
         ir_func = c.alloc_site.stmt
-        # logger.info(f"alloc function {c}")
         assert isinstance(ir_func, IRFunc), f"AllocSite to be allocated as function {c.alloc_site} should be IRFunc, {type(ir_func)} got!"
 
         obj = MethodObject(context, c.alloc_site, scope, c.alloc_site.stmt, scope.obj, None)
@@ -289,8 +298,7 @@ class PointerSolver:
             # self.ir_translator._current_context = old_context
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
-
-
+            
         return obj
 
     def _alloc_function(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'FunctionObject':
@@ -321,8 +329,6 @@ class PointerSolver:
             nonlocal_vars[var_name] = self.state.get_variable(scope, context, var)
         self.state.set_nonlocal_vars(obj, nonlocal_vars)
 
-
-
         # Processing contents at once
         func_obj = obj
         func_ir = ir_func
@@ -348,15 +354,16 @@ class PointerSolver:
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
 
-
         return obj
     
     def _alloc_class(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ClassObject':
         ir_cls = c.alloc_site.stmt
-        # logger.info(f"alloc function {c}")
+        # logger.info(f"alloc class {c}")
         assert isinstance(ir_cls, IRClass), f"AllocSite to be allocated as class {c.alloc_site} should be IRClass, {type(ir_cls)} got!"
 
         obj = ClassObject(context, c.alloc_site, scope, c.alloc_site.stmt)
+        
+        cls_context = self.context_selector.select_alloc_context(context, obj)
         
         # process cell vars into the closure
         cell_vars = {}
@@ -380,19 +387,19 @@ class PointerSolver:
         self.state.set_nonlocal_vars(obj, nonlocal_vars)
 
         # resolve the content of module
-        ctx_scope = Scope.new(obj, scope.module, context, ir_cls, scope)
+        ctx_scope = Scope.new(obj, scope.module, cls_context, ir_cls, scope)
         self.state.set_internal_scope(obj, ctx_scope)
 
         # inner_var = self.state.get_variable(ctx_scope, context, self.variable_factory.make_variable("$class", VariableKind.LOCAL))
-        # self.state._worklist.add((scope, inner_var, PointsToSet.singleton(obj)))
+        # self.state._worklist.add((scope, NormalNode(inner_var), PointsToSet.singleton(obj)))
 
         # translate the IRs in the imported module        
         for constraint in self.ir_translator.translate_class(ir_cls):
-            self.add_constraint(ctx_scope, context, constraint)
+            self.add_constraint(ctx_scope, cls_context, constraint)
         
         for inner_var in self.ir_translator.used_variables:
             ctx_field = self.state.get_field(scope, context, obj, attr(inner_var.name))
-            ctx_inner_var = self.state.get_variable(ctx_scope, context, inner_var)
+            ctx_inner_var = self.state.get_variable(ctx_scope, cls_context, inner_var)
             self.state._add_var_points_flow(ctx_inner_var, ctx_field)
 
         return obj
@@ -422,6 +429,7 @@ class PointerSolver:
 
         # resolve the content of module
         module_ctx = context
+        # module_ctx = self.context_selector.select_alloc_context(context, module_obj)
         ctx_scope = Scope.new(module_obj, None, module_ctx, module_ir, None)
 
         self.state.set_internal_scope(module_obj, ctx_scope)
@@ -431,12 +439,19 @@ class PointerSolver:
             self.add_constraint(ctx_scope, module_ctx, constraint)
         
         return module_obj
+
+    def _apply_inheritance(self, scope: 'Scope', variable: 'Ctx', c: 'InheritanceConstraint', pts: 'PointsToSet'):
+        """Apply load constraint: target = base[index]."""
+        for base_obj in pts:
+            field_access = self.state.get_field(scope, scope.context, base_obj, c.field)
+            edge = PointerFlowEdge(NormalNode(field_access), c.target, PointerFlowKind.NORMAL)
+            self.state._add_points_flow_edge(edge)
     
     def _apply_load_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'LoadSubscrConstraint', pts: 'PointsToSet'):
         """Apply load constraint: target = base[index]."""
         unknown_index = False
         for index_obj in pts:
-            if isinstance(index_obj, ConstantObject) and isinstance(index_obj.value, int) and index_obj.value >= 0 and index_obj.value < 20:
+            if isinstance(index_obj, ConstantObject):
                 field = key(index_obj.value)
                 self.add_constraint(scope, scope.context, LoadConstraint(c.base, field, c.target))
             else:
@@ -477,7 +492,7 @@ class PointerSolver:
     def _apply_call(self, scope: 'Scope', variable: 'Ctx', c: 'CallConstraint', pts: 'PointsToSet') -> bool:
         """Apply call constraint: target = callee(args...)."""
         context = scope.context
-        logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
+        # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
          
         changed = False
         for callee_obj in pts:
@@ -526,7 +541,8 @@ class PointerSolver:
         return changed
     
     def _handle_method_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
-        # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        
         if not isinstance(method_obj, MethodObject):
             logger.info(f"is not method object, {type(func_obj)} got!")
             return False
@@ -617,8 +633,6 @@ class PointerSolver:
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
             changed = True
-        
-        
                 
         if hasattr(func_ir, 'args'):
             func_args = func_ir.args
@@ -813,6 +827,7 @@ class PointerSolver:
             5. Adds call edge to call graph
         """
         # logger.info(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
+        
         if not isinstance(func_obj, FunctionObject):
             logger.info(f"is not function object, {type(func_obj)} got!")
             return False
@@ -1057,8 +1072,6 @@ class PointerSolver:
                     f"Unexpected keyword arguments: {extra_kw_names}",
                     context=func_name
                 )
-
-
         '''
         # Old way to handle argument matching
         if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args'):
@@ -1085,6 +1098,8 @@ class PointerSolver:
     
     def _handle_class_instantiation(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
         """Handle class instantiation: create instance + call __init__."""
+        # logger.info(f"Handling class instantiation: {call.call_site} -> {class_obj.alloc_site.stmt}")
+        
         if not call.target:
             return False
 
@@ -1174,8 +1189,8 @@ class PointerSolver:
             context=call.callee.context,
             kind=VariableKind.TEMPORARY
         )
-        self.state.set_points_to(func_var, func_pts)
-        self.state.set_points_to(self_var, self_pts)
+        self.state._worklist.add((call.callee.scope, NormalNode(func_var), func_pts))
+        self.state._worklist.add((call.callee.scope, NormalNode(self_var), self_pts))
         
         method_call = CallConstraint(
             callee=func_var,

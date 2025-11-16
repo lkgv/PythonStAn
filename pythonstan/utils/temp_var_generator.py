@@ -2,7 +2,7 @@ import copy
 import ast
 from typing import Dict
 
-TEMP_VAR_TEMPLATE = "tmp$%d"
+TEMP_VAR_TEMPLATE = "$tmp_%d"
 
 def destructable(node):
     return isinstance(node, ast.Tuple) or isinstance(node, ast.List)

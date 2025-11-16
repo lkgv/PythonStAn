@@ -314,6 +314,7 @@ class ThreeAddressTransformer(NodeTransformer):
             returns=None,
             type_comment=None,
             decorator_list=[])
+        ast.copy_location(new_func, node)
         blk.extend(self.visit_FunctionDef(new_func))
         return blk, f_load
 
@@ -1001,14 +1002,23 @@ class ThreeAddressTransformer(NodeTransformer):
         return node
 
     def visit_ClassDef(self, node):
+        blk, bases = [], []
+        for base in node.bases:
+            if base is None or isinstance(base, ast.Name):
+                bases.append(base)
+            else:
+                base_blk, base_elt = self.split_expr(base)
+                blk.extend(base_blk)
+                bases.append(base_elt)
         ins = ast.ClassDef(
             name=node.name,
-            bases=node.bases,
+            bases=bases,
             keywords=node.keywords,
             body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list)
         ast.copy_location(ins, node)
-        return ins
+        blk.append(ins)
+        return blk
 
     def visit_FunctionDef(self, node):
         ast.fix_missing_locations(node)

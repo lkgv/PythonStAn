@@ -154,12 +154,12 @@ class HeapModel:
         self.nonlocal_vars = {}
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> Optional['Ctx[Variable]']:
-        ctx_key = (scope, )  # (scope, context)
+        ctx_key = (context, )  # (scope, context)
         registers = self.heap.get(ctx_key, {})
         return registers.get(var.name, None)
 
     def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
-        ctx_key = (scope, )  # (scope, context)
+        ctx_key = (context, )  # (scope, context)
         registers = self.heap.get(ctx_key, None)
         if registers is None:
             registers = {}

@@ -13,7 +13,7 @@ from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 from .object import *
 from .variable import VariableFactory, VariableKind, FieldAccess, Variable
 from .context import CallSite, Ctx, AbstractContext, Scope
-from .constraints import ConstraintManager, Constraint
+from .constraints import ConstraintManager, Constraint, InheritanceConstraint
 from .heap_model import HeapModel, Field
 from .pointer_flow_graph import PointerFlowGraph, NormalNode, GuardNode, SelectorNode, PointerFlowEdge, PointerFlowNode, PointerFlowKind
 from .points_to_set import PointsToSet
@@ -147,7 +147,7 @@ class PointerAnalysisState:
         field_access = self._field_accesses.get((obj, field), None)
         return field_access
     
-    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'FieldAccess':
+    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'Ctx[FieldAccess]':
         """Get field access for object field.
         
         Handles container-specific field resolution:
@@ -169,7 +169,6 @@ class PointerAnalysisState:
             field_access = self._variable_factory.make_field_access(obj, field)
             self.set_field(scope, context, obj, field, field_access)
             exists = False
-        assert field_access is not None
         
         cfield: Ctx[FieldAccess] = Ctx(obj.context, None, field_access)
 
@@ -181,6 +180,7 @@ class PointerAnalysisState:
                 self._add_var_points_flow(cvar, cfield)
             
             elif isinstance(obj, InstanceObject):
+                # print(f"get field {field.name} for instance {obj}")
                 cls_obj = obj.class_obj
                 assert isinstance(cls_obj, ClassObject), f"cls_obj must be a ClassObject, but got {type(cls_obj)}"
                 cls_scope = self.get_internal_scope(cls_obj)
@@ -191,10 +191,19 @@ class PointerAnalysisState:
                     self._add_points_flow_edge(edge)
             
             elif isinstance(obj, ClassObject):
-                # TODO [CRITICAL] You need to add logic for inheritance here.
-                # For example, if the obj is a class, you need to consider the inheritance and MRO.
-                # You need to create the class field and a SelectorNode between the class field and the instance field.
-                ...
+                bases = obj.alloc_site.stmt.get_bases()
+                scope = obj.container_scope
+
+                if len(bases) > 0:
+                    # TODO here can use the class hierarchy manager to get the base class and the index of the base class.
+                    selector = SelectorNode(len(bases) - 1)
+                    inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.INHERIT)
+                    self._add_points_flow_edge(inherit_edge)
+
+                    for idx, base in enumerate(bases):
+                        base_var = self._variable_factory.make_variable(base)
+                        inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
+                        self._constraints.add(scope, base_var, inherit_constraint)
 
         return cfield
 
@@ -309,7 +318,7 @@ class PointerAnalysisState:
             self._add_points_flow_edge(PointerFlowEdge(NormalNode(src), NormalNode(tgt), PointerFlowKind.NORMAL))
     
     def _add_points_flow_edge(self, edge: PointerFlowEdge):
-        if not self.pointer_flow_graph.add_edge(edge):
+        if self.pointer_flow_graph.add_edge(edge):
             src = edge.source
             tgt = edge.target
             pts = self.pointer_flow_graph.flow_through_edge(edge, self.get_points_to(src)) - self.get_points_to(tgt)
