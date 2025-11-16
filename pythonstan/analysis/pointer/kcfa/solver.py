@@ -10,8 +10,7 @@ from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple
 from pythonstan.ir.ir_statements import IRFunc, IRModule, IRClass, IRAssign
 
 from .state import PointerAnalysisState, PointsToSet
-from .constraints import (Constraint, CopyConstraint, LoadConstraint, StoreConstraint,
-                          AllocConstraint, CallConstraint, LoadSubscrConstraint, StoreSubscrConstraint)
+from .constraints import *
 from .variable import Variable, VariableKind, VariableFactory, FieldAccess
 from .config import Config
 from .heap_model import Field, attr, key, elem
@@ -24,35 +23,11 @@ from .builtin_api_handler import BuiltinSummaryManager
 from .unknown_tracker import UnknownTracker, UnknownKind
 from .object import *
 from .solver_interface import ISolverQuery
+from .pointer_flow_graph import PointerFlowGraph, PointerFlowEdge, PointerFlowNode, NormalNode, GuardNode, SelectorNode, PointerFlowKind
 
 __all__ = ["PointerSolver", "SolverQuery"]
 
 logger = logging.getLogger(__name__)
-
-
-class Worklist:
-    items: Dict[Ctx[Variable], Tuple['Scope', Ctx[Variable], PointsToSet]]
-
-    def __init__(self):
-        self.items = {}
-
-    def add(self, content: Tuple['Scope', Ctx[Variable], PointsToSet]):
-        scope, var, pts = content
-        if var in self.items:
-            _, _, orig_pts = self.items.pop(var)
-            self.items[var] = (scope, var, orig_pts.union(pts))
-        else:
-            self.items[var] = content
-    
-    def pop(self) -> Tuple['Scope', Ctx[Variable], PointsToSet]:
-        _, v = self.items.popitem()
-        return v
-    
-    def empty(self) -> bool:
-        return len(self.items) == 0
-    
-    def __len__(self) -> int:
-        return len(self.items)
 
 
 class PointerSolver:
@@ -63,7 +38,6 @@ class PointerSolver:
         variable_factory: Optional['VariableFactory'] = None,
         ir_translator: Optional['IRTranslator'] = None,
         context_selector: Optional['ContextSelector'] = None,
-        function_registry: Optional[Dict[str, Any]] = None,
         class_hierarchy: Optional['ClassHierarchyManager'] = None,
         builtin_manager: Optional['BuiltinSummaryManager'] = None
     ):
@@ -84,9 +58,6 @@ class PointerSolver:
         self.context_selector = context_selector
         self.builtin_manager = builtin_manager
         self.variable_factory = variable_factory or VariableFactory()
-        # self._worklist: Set[Tuple['Scope', Ctx[Variable], PointsToSet]] = set()
-        self._worklist: Worklist = Worklist()
-        self._static_constraints: Set[Tuple['Scope', 'AbstractContext', 'Constraint']] = set()
         self._iteration = 0
         self._stats: Dict[str, int] = {
             "iterations": 0,
@@ -97,16 +68,16 @@ class PointerSolver:
     
     def add_constraint(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint') -> None:
         if isinstance(constraint, CopyConstraint):
-            self._static_constraints.add((scope, context, constraint))
+            self.state._static_constraints.add((scope, context, constraint))
         elif isinstance(constraint, AllocConstraint):
-            self._static_constraints.add((scope, context, constraint))
+            self.state._static_constraints.add((scope, context, constraint))
         else:
             if isinstance(constraint, LoadConstraint):
-                target = self.state.get_variable(scope, context, constraint.target)
-                self.state.constraints.add(scope, target, constraint)
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
             elif isinstance(constraint, StoreConstraint):
-                source = self.state.get_variable(scope, context, constraint.source)
-                self.state.constraints.add(scope, source, constraint)
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
             elif isinstance(constraint, CallConstraint):
                 callee = self.state.get_variable(scope, context, constraint.callee)
                 self.state.constraints.add(scope, callee, constraint)
@@ -116,50 +87,48 @@ class PointerSolver:
             elif isinstance(constraint, StoreSubscrConstraint):
                 index = self.state.get_variable(scope, context, constraint.index)
                 self.state.constraints.add(scope, index, constraint)
+            elif isinstance(constraint, InheritanceConstraint):
+                base = self.state.get_variable(scope, context, constraint.base)
+                self.state.constraints.add(scope, base, constraint)
+            else:
+                logger.warning(f"Unknown constraint type: {type(constraint)}")
 
     def solve_to_fixpoint(self) -> None:
-        # self.process_static_constraints()
-        
         logger.info("Starting constraint solving")
-        max_iter = 1000000 # self.config.max_iterations
+        max_iter = self.config.max_iterations
+        max_iter = 1000000
         
-        while ((not self._worklist.empty()) or self._static_constraints) and self._iteration < max_iter:
+        while ((not self.state._worklist.empty()) or self.state._static_constraints) and self._iteration < max_iter:
             self._iteration += 1
             # Log progress periodically
             if self._iteration % 1000 == 0:
-                logger.info(f"Iteration {self._iteration}, worklist size {len(self._worklist)}, objs: {len(self.state._heap.objects)}, call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
+                logger.info(f"Iteration {self._iteration}, worklist size {len(self.state._worklist)}, objs: {len(self.state._heap.objects)}, "
+                            f"call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
             
-            if self._static_constraints:
-                scope, ctx, constraint = self._static_constraints.pop()
+            if self.state._static_constraints:
+                scope, ctx, constraint = self.state._static_constraints.pop()
                 self._apply_static(scope, scope.context, constraint)
 
-            # if not self._worklist.empty():
-            else:
-                scope, var, pts = self._worklist.pop()
-                diff = pts - self.state.get_points_to(var)
-
+            # if not self.state._worklist.empty():
+            else:                
+                scope, node, pts = self.state._worklist.pop()
+                if isinstance(node, NormalNode):
+                    assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
+                diff = pts - self.state.get_points_to(node)
                 if not diff.is_empty():
-                    self.state.set_points_to(var, diff)
+                    self.state.set_points_to(node, diff)
 
-                    constraints_to_process = list(self.state.constraints.get_by_variable(var))
-                    for constraint in constraints_to_process:
-                        self._apply_constraint(scope, var, constraint, diff)
-                        
-                    for target_var in self.state.pointer_flow_graph.get_succs(var):
-                        if isinstance(target_var.content, FieldAccess):
-                            obj = target_var.content.obj
-
-                            # bind new class object into class method objects
-                            if isinstance(obj, ClassObject):
-                                diff = diff.inherit_to(obj)
-                            # bind new class object into instance method objects
-                            elif isinstance(obj, InstanceObject):
-                                diff = diff.deliver_into(obj)
-
-                        self._worklist.add((target_var.scope, target_var, diff))
+                    # apply the constraints associated with the variable
+                    if isinstance(node, NormalNode):
+                        for constraint in self.state.constraints.get_by_variable(node.var):
+                            self._apply_constraint(scope, node.var, constraint, diff)
+                    
+                    for succ, succ_pts in self.state.pointer_flow_graph.propagate(node, diff):
+                        succ_scope = succ.var.scope if isinstance(succ, NormalNode) else None
+                        self.state._worklist.add((succ_scope, succ, succ_pts))
 
             # else:
-            #     scope, ctx, constraint = self._static_constraints.pop()
+            #     scope, ctx, constraint = self.state._static_constraints.pop()
             #     self._apply_static(scope, ctx, constraint)
         
         if self._iteration >= max_iter:
@@ -167,8 +136,7 @@ class PointerSolver:
         
         logger.info(f"Processed {len(self._modules)} modules: {self._modules}")
         logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} abslote: {self.state._call_graph.num_plain_edges()}")
-        logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")
-        
+        logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")        
         self._stats["iterations"] = self._iteration
         logger.info(f"Converged after {self._iteration} iterations")
 
@@ -191,6 +159,8 @@ class PointerSolver:
             return self._apply_load_subscr(scope, variable, constraint, diff)
         elif isinstance(constraint, StoreSubscrConstraint):
             return self._apply_store_subscr(scope, variable, constraint, diff)
+        elif isinstance(constraint, InheritanceConstraint):
+            return self._apply_inheritance(scope, variable, constraint, diff)
         else:
             logger.warning(f"Unknown constraint type: {type(constraint)}")
             return False
@@ -199,7 +169,7 @@ class PointerSolver:
         """Apply copy constraint: target = source."""
         src = self.state.get_variable(scope, context, c.source)
         tgt = self.state.get_variable(scope, context, c.target)
-        self.state.pointer_flow_graph.add_edge(src, tgt)
+        self.state._add_var_points_flow(src, tgt)
         
     def _apply_alloc(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint'):
         """Apply allocation constraint: target = new Object."""
@@ -227,10 +197,10 @@ class PointerSolver:
         elif c.alloc_site.kind == AllocKind.LIST and self.config.index_sensitive:
             obj = self._alloc_list(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.TUPLE: #  and self.config.index_sensitive:
+        elif c.alloc_site.kind == AllocKind.TUPLE and self.config.index_sensitive:
             obj = self._alloc_tuple(scope, context, c)
         
-        elif c.alloc_site.kind == AllocKind.DICT: #  and self.config.index_sensitive:
+        elif c.alloc_site.kind == AllocKind.DICT and self.config.index_sensitive:
             obj = self._alloc_dict(scope, context, c)
         
         elif c.alloc_site.kind == AllocKind.SET and self.config.index_sensitive:
@@ -239,16 +209,19 @@ class PointerSolver:
         elif c.alloc_site.kind == AllocKind.OBJECT and False:
             # logic for instance allocation is located in _apply_call
             obj = None 
-            
+        elif not self.config.index_sensitive:
+            obj = AbstractObject(alloc_site=c.alloc_site, context=context)
+                
         else:
-            obj = None # AbstractObject(alloc_site=c.alloc_site, context=context)
+            obj = AbstractObject(alloc_site=c.alloc_site, context=context)
+
 
         if obj is not None:
             self.state._heap.set_obj(scope, context, c.alloc_site, obj)
             pts = PointsToSet.singleton(obj)
             target = self.state.get_variable(scope, context, c.target)
             self.state.obj_scope[obj] = scope
-            self._worklist.add((scope, target, pts))
+            self.state._worklist.add((scope, NormalNode(target), pts))
     
     def _alloc_constant(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ConstantObject':
         stmt: 'IRAssign' = c.alloc_site.stmt
@@ -277,12 +250,9 @@ class PointerSolver:
     
     def _alloc_method(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'MethodObject':
         ir_func = c.alloc_site.stmt
-        # logger.info(f"alloc function {c}")
         assert isinstance(ir_func, IRFunc), f"AllocSite to be allocated as function {c.alloc_site} should be IRFunc, {type(ir_func)} got!"
 
         obj = MethodObject(context, c.alloc_site, scope, c.alloc_site.stmt, scope.obj, None)
-
-        # TODO change the way of loading cell vars into directly put
         
         # process cell vars into the closure
         cell_vars = {}
@@ -328,8 +298,7 @@ class PointerSolver:
             # self.ir_translator._current_context = old_context
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
-
-
+            
         return obj
 
     def _alloc_function(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'FunctionObject':
@@ -360,8 +329,6 @@ class PointerSolver:
             nonlocal_vars[var_name] = self.state.get_variable(scope, context, var)
         self.state.set_nonlocal_vars(obj, nonlocal_vars)
 
-
-
         # Processing contents at once
         func_obj = obj
         func_ir = ir_func
@@ -387,15 +354,16 @@ class PointerSolver:
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
 
-
         return obj
     
     def _alloc_class(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ClassObject':
         ir_cls = c.alloc_site.stmt
-        # logger.info(f"alloc function {c}")
+        # logger.info(f"alloc class {c}")
         assert isinstance(ir_cls, IRClass), f"AllocSite to be allocated as class {c.alloc_site} should be IRClass, {type(ir_cls)} got!"
 
         obj = ClassObject(context, c.alloc_site, scope, c.alloc_site.stmt)
+        
+        cls_context = self.context_selector.select_alloc_context(context, obj)
         
         # process cell vars into the closure
         cell_vars = {}
@@ -419,20 +387,20 @@ class PointerSolver:
         self.state.set_nonlocal_vars(obj, nonlocal_vars)
 
         # resolve the content of module
-        ctx_scope = Scope.new(obj, scope.module, context, ir_cls, scope)
+        ctx_scope = Scope.new(obj, scope.module, cls_context, ir_cls, scope)
         self.state.set_internal_scope(obj, ctx_scope)
 
         # inner_var = self.state.get_variable(ctx_scope, context, self.variable_factory.make_variable("$class", VariableKind.LOCAL))
-        # self._worklist.add((scope, inner_var, PointsToSet.singleton(obj)))
+        # self.state._worklist.add((scope, NormalNode(inner_var), PointsToSet.singleton(obj)))
 
         # translate the IRs in the imported module        
         for constraint in self.ir_translator.translate_class(ir_cls):
-            self.add_constraint(ctx_scope, context, constraint)
+            self.add_constraint(ctx_scope, cls_context, constraint)
         
         for inner_var in self.ir_translator.used_variables:
             ctx_field = self.state.get_field(scope, context, obj, attr(inner_var.name))
-            ctx_inner_var = self.state.get_variable(ctx_scope, context, inner_var)
-            self.state.pointer_flow_graph.add_edge(ctx_inner_var, ctx_field)
+            ctx_inner_var = self.state.get_variable(ctx_scope, cls_context, inner_var)
+            self.state._add_var_points_flow(ctx_inner_var, ctx_field)
 
         return obj
 
@@ -461,6 +429,7 @@ class PointerSolver:
 
         # resolve the content of module
         module_ctx = context
+        # module_ctx = self.context_selector.select_alloc_context(context, module_obj)
         ctx_scope = Scope.new(module_obj, None, module_ctx, module_ir, None)
 
         self.state.set_internal_scope(module_obj, ctx_scope)
@@ -470,12 +439,19 @@ class PointerSolver:
             self.add_constraint(ctx_scope, module_ctx, constraint)
         
         return module_obj
+
+    def _apply_inheritance(self, scope: 'Scope', variable: 'Ctx', c: 'InheritanceConstraint', pts: 'PointsToSet'):
+        """Apply load constraint: target = base[index]."""
+        for base_obj in pts:
+            field_access = self.state.get_field(scope, scope.context, base_obj, c.field)
+            edge = PointerFlowEdge(NormalNode(field_access), c.target, PointerFlowKind.NORMAL)
+            self.state._add_points_flow_edge(edge)
     
     def _apply_load_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'LoadSubscrConstraint', pts: 'PointsToSet'):
         """Apply load constraint: target = base[index]."""
         unknown_index = False
         for index_obj in pts:
-            if isinstance(index_obj, ConstantObject) and isinstance(index_obj.value, int) and index_obj.value >= 0 and index_obj.value < 20:
+            if isinstance(index_obj, ConstantObject):
                 field = key(index_obj.value)
                 self.add_constraint(scope, scope.context, LoadConstraint(c.base, field, c.target))
             else:
@@ -502,7 +478,7 @@ class PointerSolver:
         
         for base_obj in pts:
             field_access = self.state.get_field(scope, context, base_obj, c.field)
-            self.state.pointer_flow_graph.add_edge(field_access, target_var)
+            self.state._add_var_points_flow(field_access, target_var)
     
     def _apply_store(self, scope: 'Scope', variable: 'Ctx', c: 'StoreConstraint', pts: 'PointsToSet'):
         """Apply store constraint: base.field = source or base[index] = source."""
@@ -511,13 +487,11 @@ class PointerSolver:
 
         for base_obj in pts:
             field_access = self.state.get_field(scope, context, base_obj, c.field)
-            self.state.pointer_flow_graph.add_edge(source_var, field_access)
+            self.state._add_var_points_flow(source_var, field_access)
     
     def _apply_call(self, scope: 'Scope', variable: 'Ctx', c: 'CallConstraint', pts: 'PointsToSet') -> bool:
         """Apply call constraint: target = callee(args...)."""
         context = scope.context
-        # TODO renew call graph
-
         # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
          
         changed = False
@@ -560,14 +534,15 @@ class PointerSolver:
                     )
                     target_var = self.state.get_variable(scope, context, c.target)
                     unknown_obj = AbstractObject(unknown_alloc, scope.context)
-                    self._worklist.add((scope, target_var, PointsToSet.singleton(unknown_obj)))
+                    self.state._worklist.add((scope, target_var, PointsToSet.singleton(unknown_obj)))
                     changed = True
                 '''
         
         return changed
     
     def _handle_method_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
-        # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        
         if not isinstance(method_obj, MethodObject):
             logger.info(f"is not method object, {type(func_obj)} got!")
             return False
@@ -592,7 +567,7 @@ class PointerSolver:
         call_site = CallSite(call.call_site, len(call.args))
         
         self_var = self.state.get_variable(scope, context, self.variable_factory.make_variable(f"$self@{call.call_site}"))
-        self._worklist.add((scope, self_var, PointsToSet.singleton(holder_obj)))
+        self.state._worklist.add((scope, NormalNode(self_var), PointsToSet.singleton(holder_obj)))
 
         args = [self.state.get_variable(scope, context, arg) for arg in call.args]
         args.insert(0, self_var)
@@ -619,7 +594,7 @@ class PointerSolver:
         cell_vars = self.state.get_cell_vars(method_obj)
         for name, var in cell_vars.items():
             target_var = self.state.get_variable(callee_scope, call_context, self.variable_factory.make_variable(name))
-            self.state.pointer_flow_graph.add_edge(var, target_var)
+            self.state._add_var_points_flow(var, target_var)
         
         nonlocal_vars = self.state.get_nonlocal_vars(method_obj)
         for name, var in nonlocal_vars.items():
@@ -658,8 +633,6 @@ class PointerSolver:
         for constraint in body_constraints:
             self.add_constraint(callee_scope, call_context, constraint)
             changed = True
-        
-        
                 
         if hasattr(func_ir, 'args'):
             func_args = func_ir.args
@@ -683,7 +656,7 @@ class PointerSolver:
                     
                     if arg_index < len(arg_vars):
                         # Bind positional argument to parameter
-                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        self.state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
                     else:
                         # Must use default value (if available)
@@ -707,11 +680,11 @@ class PointerSolver:
                     # First check if this parameter is provided as a keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
-                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        self.state._add_var_points_flow(kwarg_vars[param_name], param_var)
                         consumed_kwargs.add(param_name)
                     elif arg_index < len(arg_vars):
                         # Bind positional argument to parameter
-                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        self.state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
                     elif param_idx >= first_default_idx:
                         # This parameter has a default value
@@ -739,16 +712,16 @@ class PointerSolver:
                 vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
                 
                 # Add the tuple to the vararg parameter
-                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                changed_vararg = self.state._worklist.add((callee_scope, NormalNode(vararg_var), PointsToSet.singleton(vararg_tuple_obj)))
                 if changed_vararg:
                     changed = True
                 
                 # All remaining positional arguments go into *args
                 for i in range(arg_index, len(arg_vars)):
                     # Store each remaining argument as an element of the tuple
-                    field = attr(str(i - arg_index))
-                    element_var = self.state.get_field_variable(vararg_var, field)
-                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+                    field = key(i - arg_index)
+                    element_var = self.state.get_field(callee_scope, call_context, vararg_var, field)
+                    self.state._add_var_points_flow(arg_vars[i], element_var)
             elif arg_index < len(arg_vars):
                 # Too many positional arguments and no *args to catch them
                 self._unknown_tracker.record(
@@ -772,7 +745,7 @@ class PointerSolver:
                     # Check if provided as keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
-                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        self.state._add_var_points_flow(kwarg_vars[param_name], param_var)
                         consumed_kwargs.add(param_name)
                     elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
                         # Check if there's a default value
@@ -813,7 +786,7 @@ class PointerSolver:
                 kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
                 
                 # Add the dict to the kwarg parameter
-                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                changed_kwarg = self.state._worklist.add((callee_scope, NormalNode(kwarg_var), PointsToSet.singleton(kwarg_dict_obj)))
                 if changed_kwarg:
                     changed = True
                 
@@ -822,7 +795,7 @@ class PointerSolver:
                     # Use the keyword name as the dict key (field)
                     field = attr(kw_name)
                     dict_value_var = self.state.get_field(callee_scope, call_context, kwarg_var, field)
-                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+                    self.state._add_var_points_flow(kw_var, dict_value_var)
             elif remaining_kwargs:
                 # Unexpected keyword arguments and no **kwargs to catch them
                 extra_kw_names = ', '.join(remaining_kwargs.keys())
@@ -833,28 +806,12 @@ class PointerSolver:
                     context=func_name
                 )
 
-        '''
-        # TODO to be updated into precisely matching the arguments
-        if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args') and len(func_ir.args.args) > 0:
-            param_names = [arg.arg for arg in func_ir.args.args]
-            self_name = self.variable_factory.make_variable(param_names.pop(0))
-            self_var = self.state.get_variable(callee_scope, call_context, self_name)
-            self._worklist.add((callee_scope, self_var, PointsToSet.singleton(holder_obj)))
-            for i, param_name in enumerate(param_names):
-                if i < len(args):
-                    arg_var = args[i]
-                    param = self.variable_factory.make_variable(param_name)
-                    param_var = self.state.get_variable(callee_scope, call_context, param)
-                    self.state.pointer_flow_graph.add_edge(arg_var, param_var)
-        '''
-
-        
         if call.target:
             ret = self.variable_factory.make_variable("$return")
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
             target = self.variable_factory.make_variable(call.target)
             target_var = self.state.get_variable(scope, context, target)
-            self.state.pointer_flow_graph.add_edge(ret_var, target_var)
+            self.state._add_var_points_flow(ret_var, target_var)
 
         self.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
@@ -870,6 +827,7 @@ class PointerSolver:
             5. Adds call edge to call graph
         """
         # logger.info(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
+        
         if not isinstance(func_obj, FunctionObject):
             logger.info(f"is not function object, {type(func_obj)} got!")
             return False
@@ -904,7 +862,7 @@ class PointerSolver:
         cell_vars = self.state.get_cell_vars(func_obj)
         for name, var in cell_vars.items():
             target_var = self.state.get_variable(callee_scope, call_context, self.variable_factory.make_variable(name))
-            self.state.pointer_flow_graph.add_edge(var, target_var)
+            self.state._add_var_points_flow(var, target_var)
         
         nonlocal_vars = self.state.get_nonlocal_vars(func_obj)
         for name, var in nonlocal_vars.items():
@@ -965,7 +923,7 @@ class PointerSolver:
                     
                     if arg_index < len(arg_vars):
                         # Bind positional argument to parameter
-                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        self.state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
                     else:
                         # Must use default value (if available)
@@ -989,11 +947,11 @@ class PointerSolver:
                     # First check if this parameter is provided as a keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
-                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        self.state._add_var_points_flow(kwarg_vars[param_name], param_var)
                         consumed_kwargs.add(param_name)
                     elif arg_index < len(arg_vars):
                         # Bind positional argument to parameter
-                        self.state.pointer_flow_graph.add_edge(arg_vars[arg_index], param_var)
+                        self.state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
                     elif param_idx >= first_default_idx:
                         # This parameter has a default value
@@ -1021,16 +979,16 @@ class PointerSolver:
                 vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
                 
                 # Add the tuple to the vararg parameter
-                changed_vararg = self._worklist.add((callee_scope, vararg_var, PointsToSet.singleton(vararg_tuple_obj)))
+                changed_vararg = self.state._worklist.add((callee_scope, NormalNode(vararg_var), PointsToSet.singleton(vararg_tuple_obj)))
                 if changed_vararg:
                     changed = True
                 
                 # All remaining positional arguments go into *args
                 for i in range(arg_index, len(arg_vars)):
                     # Store each remaining argument as an element of the tuple
-                    field = attr(str(i - arg_index))
-                    element_var = self.state.get_field_variable(vararg_var, field)
-                    self.state.pointer_flow_graph.add_edge(arg_vars[i], element_var)
+                    field = key(i - arg_index)
+                    element_var = self.state.get_field(callee_scope, call_context, vararg_var, field)
+                    self.state._add_var_points_flow(arg_vars[i], element_var)
             elif arg_index < len(arg_vars):
                 # Too many positional arguments and no *args to catch them
                 self._unknown_tracker.record(
@@ -1054,7 +1012,7 @@ class PointerSolver:
                     # Check if provided as keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
-                        self.state.pointer_flow_graph.add_edge(kwarg_vars[param_name], param_var)
+                        self.state._add_var_points_flow(kwarg_vars[param_name], param_var)
                         consumed_kwargs.add(param_name)
                     elif func_args.kw_defaults and kw_idx < len(func_args.kw_defaults):
                         # Check if there's a default value
@@ -1095,7 +1053,7 @@ class PointerSolver:
                 kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
                 
                 # Add the dict to the kwarg parameter
-                changed_kwarg = self._worklist.add((callee_scope, kwarg_var, PointsToSet.singleton(kwarg_dict_obj)))
+                changed_kwarg = self.state._worklist.add((callee_scope, NormalNode(kwarg_var), PointsToSet.singleton(kwarg_dict_obj)))
                 if changed_kwarg:
                     changed = True
                 
@@ -1103,8 +1061,8 @@ class PointerSolver:
                 for kw_name, kw_var in remaining_kwargs.items():
                     # Use the keyword name as the dict key (field)
                     field = attr(kw_name)
-                    dict_value_var = self.state.get_field_variable(kwarg_var, field)
-                    self.state.pointer_flow_graph.add_edge(kw_var, dict_value_var)
+                    dict_value_var = self.state.get_field(callee_scope, call_context, kwarg_var, field)
+                    self.state._add_var_points_flow(kw_var, dict_value_var)
             elif remaining_kwargs:
                 # Unexpected keyword arguments and no **kwargs to catch them
                 extra_kw_names = ', '.join(remaining_kwargs.keys())
@@ -1114,8 +1072,6 @@ class PointerSolver:
                     f"Unexpected keyword arguments: {extra_kw_names}",
                     context=func_name
                 )
-
-
         '''
         # Old way to handle argument matching
         if hasattr(func_ir, 'args') and hasattr(func_ir.args, 'args'):
@@ -1125,7 +1081,7 @@ class PointerSolver:
                     param = self.variable_factory.make_variable(param_name)
                     param_var = self.state.get_variable(callee_scope, call_context, param)
                     arg_var = args[i]
-                    self.state.pointer_flow_graph.add_edge(arg_var, param_var)
+                    self.state._add_var_points_flow(arg_var, param_var)
         '''
         
         if call.target:
@@ -1133,7 +1089,7 @@ class PointerSolver:
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
             target = self.variable_factory.make_variable(call.target)
             target_var = self.state.get_variable(scope, context, target)
-            self.state.pointer_flow_graph.add_edge(ret_var, target_var)
+            self.state._add_var_points_flow(ret_var, target_var)
         
         self.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
@@ -1142,6 +1098,8 @@ class PointerSolver:
     
     def _handle_class_instantiation(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
         """Handle class instantiation: create instance + call __init__."""
+        # logger.info(f"Handling class instantiation: {call.call_site} -> {class_obj.alloc_site.stmt}")
+        
         if not call.target:
             return False
 
@@ -1156,7 +1114,7 @@ class PointerSolver:
         instance_obj = InstanceObject(alloc_context, instance_alloc, class_obj)
 
         target_var = self.state.get_variable(scope, context, call.target)        
-        changed = self._worklist.add((scope, target_var, PointsToSet.singleton(instance_obj)))
+        changed = self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(instance_obj)))
 
         params = [self.state.get_variable(scope, context, arg) for arg in call.args]
         params.insert(0, instance_obj)
@@ -1171,7 +1129,7 @@ class PointerSolver:
         var_name = f"$init@{instance_obj}:{class_obj}"
         init_var = self.variable_factory.make_variable(var_name)
         ctx_init_var = self.state.get_variable(scope, context, init_var)
-        self.state.pointer_flow_graph.add_edge(init_field, ctx_init_var)
+        self.state._add_var_points_flow(init_field, ctx_init_var)
         self.add_constraint(scope, context, CallConstraint(init_var, call.args, call.kwargs, None, call.call_site))
 
         '''
@@ -1186,7 +1144,7 @@ class PointerSolver:
                     kind=VariableKind.TEMPORARY
                 )
                 
-                self._worklist.add((scope, instance_var, PointsToSet.singleton(instance_obj)))
+                self.state._worklist.add((scope, instance_var, PointsToSet.singleton(instance_obj)))
 
                 init_args = (instance_var,) + call.args
                 init_call = CallConstraint(
@@ -1231,8 +1189,8 @@ class PointerSolver:
             context=call.callee.context,
             kind=VariableKind.TEMPORARY
         )
-        self.state.set_points_to(func_var, func_pts)
-        self.state.set_points_to(self_var, self_pts)
+        self.state._worklist.add((call.callee.scope, NormalNode(func_var), func_pts))
+        self.state._worklist.add((call.callee.scope, NormalNode(self_var), self_pts))
         
         method_call = CallConstraint(
             callee=func_var,

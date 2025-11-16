@@ -346,15 +346,15 @@ class Ctx(Generic[T]):
     context: 'AbstractContext[Any]'
     scope: 'Scope'
     content: T    
-
+    
     def __hash__(self) -> int:
         return hash((self.content, self.scope, self.context))
     
-    def __eq__(self, other: Any) -> bool:
+    def old__eq__(self, other: Any) -> bool:
         if not isinstance(other, Ctx):
             return False
         return (self.content == other.content and
-                # self.context == other.context and
+                self.context == other.context and
                 self.scope == other.scope)
 
 

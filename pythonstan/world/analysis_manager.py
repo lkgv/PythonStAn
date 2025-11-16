@@ -104,7 +104,8 @@ class AnalysisManager:
         
         if self.time_count:
             end_time = time.perf_counter()
-            print(f"Analysis {analyzer_name} for module {module.get_qualname()} took {end_time - start_time:.2f} seconds")
+            if not isinstance(analyzer, TransformDriver):
+                print(f"Analysis {analyzer_name} for module {module.get_qualname()} took {end_time - start_time:.2f} seconds")
 
     def do_analysis(self, analyzer: AnalysisDriver, module: IRModule):
         prev_results = {}

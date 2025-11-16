@@ -1,4 +1,5 @@
 """Single-module analyzer for modular pointer analysis.
+TODO kcfa has been refactored, this module need to be rewriten.
 
 Analyzes individual modules with imported module summaries,
 producing module summaries for compositional analysis.

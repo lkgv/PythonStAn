@@ -11,13 +11,16 @@ from collections import defaultdict
 
 if TYPE_CHECKING:
     from pythonstan.ir import IRCall
-    from .variable import Variable
+    from .variable import Variable, FieldAccess
     from .heap_model import Field
+    from .pointer_flow_graph import SelectorNode
     from .object import AllocSite, Scope
+    from .context import Ctx
 
 __all__ = [
     "Constraint",
     "CopyConstraint",
+    "InheritanceConstraint",
     "LoadConstraint",
     "StoreConstraint",
     "AllocConstraint",
@@ -101,6 +104,32 @@ class LoadConstraint(Constraint):
         if self.index:
             return f"LoadConstraint: {self.target} = {self.base}[{self.index}]"
         return f"LoadConstraint: {self.target} = {self.base}{self.field}"
+
+
+@dataclass(frozen=True)
+class InheritanceConstraint(Constraint):
+    """Inheritance constraint: target.obj.class(.., base, ...) and base.field -> target
+    
+    Represents loading a field inherit from the index-th base class.
+    
+    Attributes:
+        base: Base variable pointing to base class objects
+        field: Field being loaded
+        target: Target field access
+        index: Index of the base class in the inheritance chain
+    """
+    
+    base: 'Variable'
+    field: Optional['Field']
+    target: 'SelectorNode'
+    index: int = 0
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        return {self.base}
+    
+    def __str__(self) -> str:
+        return f"InheritanceConstraint: {self.base}.{self.field} -[{self.index}]-> {self.target}"
 
 
 @dataclass(frozen=True)

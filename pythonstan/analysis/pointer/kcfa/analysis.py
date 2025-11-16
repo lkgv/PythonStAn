@@ -50,14 +50,12 @@ class PointerAnalysis(AnalysisDriver):
         self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
         self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
-        self.function_registry = {}
         
         self.solver = PointerSolver(
             state=self.state,
             config=self.kcfa_config,
             ir_translator=self.translator,
             context_selector=self.context_selector,
-            function_registry=self.function_registry,
             class_hierarchy=self.class_hierarchy,
             builtin_manager=self.builtin_manager
         )

@@ -66,7 +66,7 @@ class Config:
             max_import_depth=config_dict.get("max_import_depth", 2),
             track_unknowns=config_dict.get("track_unknowns", True),
             log_unknown_details=config_dict.get("log_unknown_details", False),
-            index_sensitive=config_dict.get("index_sensitive", False),
+            index_sensitive=config_dict.get("index_sensitive", True),
             type="pointer analysis")
     
     def to_dict(self) -> Dict:
