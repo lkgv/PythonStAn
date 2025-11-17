@@ -77,7 +77,7 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
     
-    def __init__(self):
+    def __init__(self, builtin_library=None):
         """Initialize empty analysis state."""
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
@@ -91,9 +91,14 @@ class PointerAnalysisState:
         self._static_constraints: Set[Tuple['Scope', 'AbstractContext', 'Constraint']] = set()
         self._internal_scope = {}
         self.obj_scope = {}
+        self._builtin_library = builtin_library
 
         from pythonstan.world import World
-        self._scope_manager = World().scope_manager
+        try:
+            self._scope_manager = World().scope_manager
+        except AttributeError:
+            # For tests that don't initialize World properly
+            self._scope_manager = None
     
     def set_internal_scope(self, obj, scope):
         self._internal_scope[obj] = scope
@@ -154,6 +159,7 @@ class PointerAnalysisState:
         - TupleObject: Supports position(i) fields for precise tracking
         - DictObject: Supports key(k) fields for precise tracking
         - ListObject/SetObject: Uses elem() field for all elements
+        - Builtin containers: Dispatch to builtin library for methods
         
         Args:
             obj: Object to query
@@ -162,6 +168,39 @@ class PointerAnalysisState:
         Returns:
             Contextualized field access for the specified field
         """
+        from .heap_model import FieldKind
+        
+        # Check if this is a builtin container type accessing a method
+        if self._builtin_library and field.kind == FieldKind.ATTRIBUTE and field.name:
+            from .object import ListObject, DictObject, SetObject, TupleObject
+            
+            builtin_type = None
+            if isinstance(obj, ListObject):
+                builtin_type = 'list'
+            elif isinstance(obj, DictObject):
+                builtin_type = 'dict'
+            elif isinstance(obj, SetObject):
+                builtin_type = 'set'
+            elif isinstance(obj, TupleObject):
+                builtin_type = 'tuple'
+            
+            if builtin_type:
+                # Try to get builtin method
+                method_obj = self._builtin_library.get_builtin_method(
+                    builtin_type, field.name, context
+                )
+                if method_obj:
+                    # Return the method object wrapped in a field access
+                    # Create a synthetic field access that points to the method
+                    method_field_access = self._variable_factory.make_field_access(obj, field)
+                    self.set_field(scope, context, obj, field, method_field_access)
+                    cfield: Ctx[FieldAccess] = Ctx(obj.context, None, method_field_access)
+                    
+                    # Add method object to this field access's points-to set
+                    from .points_to_set import PointsToSet
+                    self._worklist.add((scope, NormalNode(cfield), PointsToSet.singleton(method_obj)))
+                    
+                    return cfield
 
         field_access = self._field_accesses.get((obj, field), None)
         exists = True
@@ -174,6 +213,9 @@ class PointerAnalysisState:
 
         if not exists:
             if isinstance(obj, ModuleObject):
+                if field.name is None:
+                    return cfield
+                
                 internal_scope = self.get_internal_scope(obj)
                 var = self._variable_factory.make_variable(field.name, VariableKind.GLOBAL)
                 cvar = self.get_variable(internal_scope, internal_scope.context, var)
@@ -196,12 +238,12 @@ class PointerAnalysisState:
 
                 if len(bases) > 0:
                     # TODO here can use the class hierarchy manager to get the base class and the index of the base class.
-                    selector = SelectorNode(len(bases) - 1)
+                    selector = SelectorNode()
                     inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.INHERIT)
                     self._add_points_flow_edge(inherit_edge)
 
                     for idx, base in enumerate(bases):
-                        base_var = self._variable_factory.make_variable(base)
+                        base_var = self._variable_factory.make_variable(base.id)
                         inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
                         self._constraints.add(scope, base_var, inherit_constraint)
 
@@ -310,10 +352,14 @@ class PointerAnalysisState:
         self._heap.global_vars[obj] = vars            
         
     def _get_variable_direct(self, scope: 'Scope', context: 'AbstractContext', var_name: str, var_kind: VariableKind) -> Optional['Ctx[Variable]']:
+        assert isinstance(var_name, str), f"var_name must be a string, but got {type(var_name)}"
+        
         var = self._variable_factory.make_variable(var_name, var_kind)
         return self._heap.get_variable(scope, context, var)
         
     def _add_var_points_flow(self, src: Ctx[Any], tgt: Ctx[Any]):
+        assert isinstance(src, Ctx), f"src must be a Ctx, but got {type(src)}"
+        assert isinstance(tgt, Ctx), f"tgt must be a Ctx, but got {type(tgt)}"
         if src != tgt:
             self._add_points_flow_edge(PointerFlowEdge(NormalNode(src), NormalNode(tgt), PointerFlowKind.NORMAL))
     

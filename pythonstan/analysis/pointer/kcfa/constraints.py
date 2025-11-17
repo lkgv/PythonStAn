@@ -314,12 +314,12 @@ class ConstraintManager:
         Returns:
             True if constraint was new (not duplicate)
         """
-        if (scope, constraint) in self._constraints:
+        if (scope.context, constraint) in self._constraints:
             return False
    
-        self._constraints.add((scope, constraint))
+        self._constraints.add((scope.context, constraint))
         self._by_variable[var].append(constraint)
-        self._by_type[type(constraint)].append((scope, constraint))
+        self._by_type[type(constraint)].append((constraint))
 
         return True
     

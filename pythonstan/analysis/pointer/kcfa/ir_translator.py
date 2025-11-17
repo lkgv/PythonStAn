@@ -606,8 +606,7 @@ class IRTranslator:
     def _translate_import(self, stmt: IRImport) -> List['Constraint']:
         """Translate import statement with transitive analysis. """
         constraints = []
-        target_var = None
-        
+
         # translate the IRs in the imported module
         module_ir = self.scope_manager.get_module_graph().get_succ_module(self._current_scope, stmt)
         if module_ir is None:
@@ -617,24 +616,21 @@ class IRTranslator:
 
         # allocate the module variable
         if stmt.module is None:
-            local_var = self._make_variable(stmt.name)
-            constraints.append(AllocConstraint(target=local_var, alloc_site=alloc_site))
+            if stmt.asname is None:
+                module_var = self._make_variable(stmt.name)
+            else:
+                module_var = self._make_variable(stmt.asname)
+            constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
         elif stmt.asname is None:
             module_var = self._make_variable(stmt.module)
             constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
             local_var = self._make_variable(stmt.name)
-            if target_var is not None:
-                constraints.append(CopyConstraint(source=target_var, target=local_var))
-            else:
-                constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
+            constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
         else:
             module_var = self._make_variable(stmt.module)
             constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
             local_var = self._make_variable(stmt.asname)
-            if target_var is not None:
-                constraints.append(CopyConstraint(source=target_var, target=local_var))
-            else:
-                constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
+            constraints.append(LoadConstraint(base=module_var, field=attr(stmt.name), target=local_var))
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 

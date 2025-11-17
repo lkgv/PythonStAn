@@ -43,7 +43,7 @@ from .constraints import (
     ConstraintManager
 )
 from .class_hierarchy import ClassHierarchyManager, MROError
-from .builtin_api_handler import BuiltinSummary
+from .builtin_api_handler import BuiltinLibrary
 
 __all__ = [
     # Main entry points
@@ -95,7 +95,7 @@ __all__ = [
     "MROError",
     
     # Extension points
-    "BuiltinSummary",
+    "BuiltinLibrary",
 ]
 
 __version__ = "1.0.0"

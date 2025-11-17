@@ -16,7 +16,8 @@ from .variable import Variable, Scope, VariableKind
 from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, parse_policy
 from .class_hierarchy import ClassHierarchyManager
-from .builtin_api_handler import BuiltinSummaryManager
+from .builtin_api_handler import BuiltinLibrary
+from .object import ObjectFactory
 from .module_summary import ModuleSummary
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,12 @@ class ModuleAnalyzer:
         module_name = self._get_module_name(module_ir)
         logger.info(f"Analyzing module: {module_name}")
         
-        state = PointerAnalysisState()
+        # Initialize object factory and builtin library
+        object_factory = ObjectFactory()
+        builtin_library = BuiltinLibrary(self.config, object_factory)
+        
+        # Initialize state with builtin library
+        state = PointerAnalysisState(builtin_library=builtin_library)
         
         policy = parse_policy(self.config.context_policy)
         context_selector = ContextSelector(policy=policy)
@@ -66,8 +72,6 @@ class ModuleAnalyzer:
         if self.config.build_class_hierarchy:
             class_hierarchy = ClassHierarchyManager()
         
-        builtin_manager = BuiltinSummaryManager(context_selector.empty_context())
-        
         translator = IRTranslator(self.config)
         
         solver = PointerSolver(
@@ -75,9 +79,8 @@ class ModuleAnalyzer:
             config=self.config,
             ir_translator=translator,
             context_selector=context_selector,
-            function_registry={},
             class_hierarchy=class_hierarchy,
-            builtin_manager=builtin_manager
+            builtin_library=builtin_library
         )
         
         for import_name, summary in import_summaries.items():

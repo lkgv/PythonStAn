@@ -46,6 +46,10 @@ class Variable:
     name: str
     kind: VariableKind = VariableKind.LOCAL
     
+    def __post_init__(self):
+        assert isinstance(self.name, str), f"Variable name must be a string, but got {type(self.name)}"
+        assert isinstance(self.kind, VariableKind), f"Variable kind must be a VariableKind, but got {type(self.kind)}"
+    
     def __str__(self) -> str:
         """String representation: name@kind"""
         assert self.name is not None, "Variable name is required"

@@ -34,7 +34,8 @@ class PointerAnalysis(AnalysisDriver):
         from .ir_translator import IRTranslator
         from .context_selector import ContextSelector, parse_policy
         from .class_hierarchy import ClassHierarchyManager
-        from .builtin_api_handler import BuiltinSummaryManager        
+        from .builtin_api_handler import BuiltinLibrary
+        from .object import ObjectFactory
         from pythonstan.world import World
         
         self.config = analysis_config
@@ -44,12 +45,18 @@ class PointerAnalysis(AnalysisDriver):
         self._setup_logging()
         self._result: Optional['AnalysisResult'] = None
         self.world = World()
-        self.state = PointerAnalysisState()
+        
+        # Initialize object factory and builtin library
+        self.object_factory = ObjectFactory()
+        self.builtin_library = BuiltinLibrary(self.kcfa_config, self.object_factory)
+        
+        # Initialize state with builtin library
+        self.state = PointerAnalysisState(builtin_library=self.builtin_library)
+        
         policy = parse_policy(self.kcfa_config.context_policy)
         self.context_selector = ContextSelector(policy=policy)
         self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
-        self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
         
         self.solver = PointerSolver(
             state=self.state,
@@ -57,7 +64,7 @@ class PointerAnalysis(AnalysisDriver):
             ir_translator=self.translator,
             context_selector=self.context_selector,
             class_hierarchy=self.class_hierarchy,
-            builtin_manager=self.builtin_manager
+            builtin_library=self.builtin_library
         )
 
     def analyze(
@@ -90,7 +97,7 @@ class PointerAnalysis(AnalysisDriver):
         scope = self.world.get_entry_module()
         
         # Make scope with context
-        alloc_site = AllocSite.from_ir_node(None, AllocKind.MODULE)
+        alloc_site = AllocSite.from_ir_node(scope, AllocKind.MODULE)
         module_obj = ModuleObject(empty_context, alloc_site, entry_scope)
         ctx_scope = Scope(scope, None, empty_context, None, None)
         self.state.set_internal_scope(module_obj, ctx_scope)

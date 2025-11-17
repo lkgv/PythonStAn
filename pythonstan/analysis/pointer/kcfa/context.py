@@ -383,6 +383,14 @@ class Scope:
         if self._module is not None and not isinstance(self._module.stmt, IRModule):
             raise ValueError(f"Module shoud be IRModule, but got {type(self._module.stmt)}!")
     
+    def __hash__(self) -> int:
+        return hash((self.stmt, self.context, self.obj))
+    
+    def __eq__(self, other: 'Scope') -> bool:
+        if not isinstance(other, Scope):
+            return False
+        return self.stmt == other.stmt and self.context == other.context and self.obj == other.obj
+    
     def __str__(self) -> str:
         return self.name
 

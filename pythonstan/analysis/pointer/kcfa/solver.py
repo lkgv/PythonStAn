@@ -19,7 +19,7 @@ from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, CallSite, AbstractContext
 from .context import Ctx, Scope
 from .class_hierarchy import ClassHierarchyManager
-from .builtin_api_handler import BuiltinSummaryManager
+from .builtin_api_handler import BuiltinLibrary
 from .unknown_tracker import UnknownTracker, UnknownKind
 from .object import *
 from .solver_interface import ISolverQuery
@@ -39,7 +39,7 @@ class PointerSolver:
         ir_translator: Optional['IRTranslator'] = None,
         context_selector: Optional['ContextSelector'] = None,
         class_hierarchy: Optional['ClassHierarchyManager'] = None,
-        builtin_manager: Optional['BuiltinSummaryManager'] = None
+        builtin_library: Optional['BuiltinLibrary'] = None
     ):
         """Initialize solver.
         
@@ -50,13 +50,13 @@ class PointerSolver:
             context_selector: Context selector for call/alloc contexts
             function_registry: Map of function names to IR functions
             class_hierarchy: Class hierarchy manager for MRO
-            builtin_manager: Builtin summary manager
+            builtin_library: Builtin library for modeling builtins
         """
         self.state = state
         self.config = config
         self.ir_translator = ir_translator
         self.context_selector = context_selector
-        self.builtin_manager = builtin_manager
+        self.builtin_library = builtin_library
         self.variable_factory = variable_factory or VariableFactory()
         self._iteration = 0
         self._stats: Dict[str, int] = {
@@ -135,7 +135,8 @@ class PointerSolver:
             logger.warning(f"Reached max iterations {max_iter}")
         
         logger.info(f"Processed {len(self._modules)} modules: {self._modules}")
-        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} abslote: {self.state._call_graph.num_plain_edges()}")
+        logger.info(f"Call Constraints: {len(self.state.constraints.get_by_type(CallConstraint))}")
+        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} absolute: {self.state._call_graph.num_plain_edges()}")
         logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")        
         self._stats["iterations"] = self._iteration
         logger.info(f"Converged after {self._iteration} iterations")
@@ -508,7 +509,7 @@ class PointerSolver:
             elif callee_obj.kind == AllocKind.BOUND_METHOD:
                 changed = self._handle_bound_method_call(c, callee_obj)
             elif callee_obj.kind == AllocKind.BUILTIN:
-                changed = self._handle_builtin_call(c, callee_obj)
+                changed = self._handle_builtin_call(scope, context, c, callee_obj)
             # TODO add the __callable__ magic method
             else:
                 self._unknown_tracker.record(
@@ -541,13 +542,14 @@ class PointerSolver:
         return changed
     
     def _handle_method_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
-        logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt.get_qualname()}")
         
         if not isinstance(method_obj, MethodObject):
             logger.info(f"is not method object, {type(func_obj)} got!")
             return False
-        
+                
         func_ir: IRFunc = method_obj.alloc_site.stmt
+        assert isinstance(func_ir, IRFunc), f"MethodObject alloc site stmt should be IRFunc, {type(func_ir)} got!"
         func_name = func_ir.get_qualname()
 
         if func_ir.is_static_method:
@@ -577,7 +579,7 @@ class PointerSolver:
             call_site,
             context,
             holder_obj,
-            params=frozenset(args)
+            params=frozenset(args) | frozenset(kwargs.items())
         )
         
         logger.debug(f"Handling function call: {call.call_site} -> {method_obj.alloc_site.stmt}")
@@ -809,8 +811,7 @@ class PointerSolver:
         if call.target:
             ret = self.variable_factory.make_variable("$return")
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
-            target = self.variable_factory.make_variable(call.target)
-            target_var = self.state.get_variable(scope, context, target)
+            target_var = self.state.get_variable(scope, context, call.target)
             self.state._add_var_points_flow(ret_var, target_var)
 
         self.state.call_graph.add_edge(call_edge)
@@ -844,7 +845,7 @@ class PointerSolver:
             call_site,
             context,
             None,  # No receiver ffor regular functions
-            params=frozenset(args)
+            params=frozenset(args) | frozenset(kwargs.items())
         )
         
         logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
@@ -1087,8 +1088,7 @@ class PointerSolver:
         if call.target:
             ret = self.variable_factory.make_variable("$return")
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
-            target = self.variable_factory.make_variable(call.target)
-            target_var = self.state.get_variable(scope, context, target)
+            target_var = self.state.get_variable(scope, context, call.target)
             self.state._add_var_points_flow(ret_var, target_var)
         
         self.state.call_graph.add_edge(call_edge)
@@ -1116,8 +1116,10 @@ class PointerSolver:
         target_var = self.state.get_variable(scope, context, call.target)        
         changed = self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(instance_obj)))
 
-        params = [self.state.get_variable(scope, context, arg) for arg in call.args]
-        params.insert(0, instance_obj)
+        cls_scope = self.state.get_internal_scope(class_obj)
+        params = ([("$self", instance_obj)] + [self.state.get_variable(scope, context, arg) for arg in call.args] +
+                  [(k, self.state.get_variable(cls_scope, cls_scope.context, arg)) for k, arg in call.kwargs])
+        
         instance_parent = self.state.get_internal_scope(class_obj).parent
         assert instance_parent, f"{self.state.get_internal_scope(class_obj)} : {class_obj} has no parent"
         instance_ctx = self.context_selector.select_call_context(call.call_site, context, instance_obj, frozenset(params))
@@ -1131,40 +1133,6 @@ class PointerSolver:
         ctx_init_var = self.state.get_variable(scope, context, init_var)
         self.state._add_var_points_flow(init_field, ctx_init_var)
         self.add_constraint(scope, context, CallConstraint(init_var, call.args, call.kwargs, None, call.call_site))
-
-        '''
-        if self.class_hierarchy and self.class_hierarchy.has_class(class_obj):
-            init_pts = self.state.get_field(class_obj, attr("__init__"))
-            
-            if not init_pts.is_empty():
-                instance_var = Variable(
-                    name="$instance",
-                    scope=scope,
-                    context=call.target.context,
-                    kind=VariableKind.TEMPORARY
-                )
-                
-                self.state._worklist.add((scope, instance_var, PointsToSet.singleton(instance_obj)))
-
-                init_args = (instance_var,) + call.args
-                init_call = CallConstraint(
-                    callee=Variable(
-                        name="$init",
-                        scope=call.callee.scope,
-                        context=call.callee.context,
-                        kind=VariableKind.TEMPORARY
-                    ),
-                    args=init_args,
-                    target=None,  # __init__ returns None
-                    call_site=call.call_site + "_init"
-                )
-                
-                init_var = init_call.callee
-                self.state.set_points_to(init_var, init_pts)
-                
-                self.add_constraint(init_call)
-                changed = True
-        '''
         
         return changed
     
@@ -1202,25 +1170,26 @@ class PointerSolver:
         self.add_constraint(method_call)
         return True
     
-    def _handle_builtin_call(self, call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
-        """Handle builtin call: use summary to generate constraints."""
-        if not self.builtin_manager:
-            logger.debug("Cannot handle builtin call: no builtin manager")
+    def _handle_builtin_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
+        """Handle builtin call: dispatch to builtin library."""
+        if not self.builtin_library:
+            logger.debug("Cannot handle builtin call: no builtin library")
             return False
 
-        builtin_name = builtin_obj.alloc_site.stmt.get_name()
-        if not builtin_name:
-            return False
-        summary = self.builtin_manager.get_summary(builtin_name)
-        if not summary:
-            logger.debug(f"No summary for builtin: {builtin_name}")
-            return False
+        # Resolve argument variables
+        args = [self.state.get_variable(scope, context, arg) for arg in call.args]
+        kwargs = {k: self.state.get_variable(scope, context, v) for k, v in call.kwargs}
         
-        constraints = summary.apply(call.target, list(call.args), call.callee.context)
-        for constraint in constraints:
-            self.add_constraint(constraint)
+        # Resolve target variable
+        target = None
+        if call.target:
+            target = self.state.get_variable(scope, context, call.target)
         
-        return len(constraints) > 0
+        # Dispatch to builtin library
+        return self.builtin_library.handle_builtin_call(
+            self.state, scope, context, builtin_obj,
+            args, kwargs, target
+        )
     
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)
