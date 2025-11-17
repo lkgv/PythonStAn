@@ -19,7 +19,7 @@ from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, CallSite, AbstractContext
 from .context import Ctx, Scope
 from .class_hierarchy import ClassHierarchyManager
-from .builtin_api_handler import BuiltinLibrary
+from .builtin_api_handler import BuiltinSummaryManager
 from .unknown_tracker import UnknownTracker, UnknownKind
 from .object import *
 from .solver_interface import ISolverQuery
@@ -39,7 +39,7 @@ class PointerSolver:
         ir_translator: Optional['IRTranslator'] = None,
         context_selector: Optional['ContextSelector'] = None,
         class_hierarchy: Optional['ClassHierarchyManager'] = None,
-        builtin_library: Optional['BuiltinLibrary'] = None
+        builtin_manager: Optional['BuiltinSummaryManager'] = None
     ):
         """Initialize solver.
         
@@ -50,13 +50,13 @@ class PointerSolver:
             context_selector: Context selector for call/alloc contexts
             function_registry: Map of function names to IR functions
             class_hierarchy: Class hierarchy manager for MRO
-            builtin_library: Builtin library for modeling builtins
+            builtin_manager: Builtin summary manager
         """
         self.state = state
         self.config = config
         self.ir_translator = ir_translator
         self.context_selector = context_selector
-        self.builtin_library = builtin_library
+        self.builtin_manager = builtin_manager
         self.variable_factory = variable_factory or VariableFactory()
         self._iteration = 0
         self._stats: Dict[str, int] = {
@@ -65,6 +65,10 @@ class PointerSolver:
         }
         self._modules = set()
         self._unknown_tracker = UnknownTracker()
+        
+        # Initialize builtin handler with state
+        if self.builtin_manager:
+            self.builtin_manager.set_state(state)
     
     def add_constraint(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint') -> None:
         if isinstance(constraint, CopyConstraint):
@@ -1171,25 +1175,33 @@ class PointerSolver:
         return True
     
     def _handle_builtin_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
-        """Handle builtin call: dispatch to builtin library."""
-        if not self.builtin_library:
-            logger.debug("Cannot handle builtin call: no builtin library")
+        """Handle builtin call: use builtin API handler to generate constraints.
+        
+        This method delegates to the BuiltinAPIHandler which creates appropriate
+        constraints and PFG edges for builtin operations.
+        """
+        if not self.builtin_manager:
+            logger.debug("Cannot handle builtin call: no builtin manager")
             return False
 
-        # Resolve argument variables
-        args = [self.state.get_variable(scope, context, arg) for arg in call.args]
-        kwargs = {k: self.state.get_variable(scope, context, v) for k, v in call.kwargs}
+        # Get the builtin API handler
+        handler = self.builtin_manager.get_handler()
+        if not handler:
+            logger.debug("Builtin handler not initialized")
+            return False
         
-        # Resolve target variable
-        target = None
-        if call.target:
-            target = self.state.get_variable(scope, context, call.target)
-        
-        # Dispatch to builtin library
-        return self.builtin_library.handle_builtin_call(
-            self.state, scope, context, builtin_obj,
-            args, kwargs, target
-        )
+        # Delegate to handler to generate constraints
+        try:
+            constraints = handler.handle_builtin_call(scope, context, call, builtin_obj)
+            
+            # Add all generated constraints to the solver
+            for constraint in constraints:
+                self.add_constraint(scope, context, constraint)
+            
+            return len(constraints) > 0
+        except Exception as e:
+            logger.warning(f"Error handling builtin call: {e}")
+            return False
     
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)

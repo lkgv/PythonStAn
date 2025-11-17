@@ -14,7 +14,7 @@ from .object import *
 from .variable import VariableFactory, VariableKind, FieldAccess, Variable
 from .context import CallSite, Ctx, AbstractContext, Scope
 from .constraints import ConstraintManager, Constraint, InheritanceConstraint
-from .heap_model import HeapModel, Field
+from .heap_model import HeapModel, Field, FieldKind
 from .pointer_flow_graph import PointerFlowGraph, NormalNode, GuardNode, SelectorNode, PointerFlowEdge, PointerFlowNode, PointerFlowKind
 from .points_to_set import PointsToSet
 
@@ -77,7 +77,7 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
     
-    def __init__(self, builtin_library=None):
+    def __init__(self):
         """Initialize empty analysis state."""
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
@@ -91,14 +91,9 @@ class PointerAnalysisState:
         self._static_constraints: Set[Tuple['Scope', 'AbstractContext', 'Constraint']] = set()
         self._internal_scope = {}
         self.obj_scope = {}
-        self._builtin_library = builtin_library
 
-        from pythonstan.world import World
-        try:
-            self._scope_manager = World().scope_manager
-        except AttributeError:
-            # For tests that don't initialize World properly
-            self._scope_manager = None
+        # Note: scope_manager is set lazily when needed
+        self._scope_manager = None
     
     def set_internal_scope(self, obj, scope):
         self._internal_scope[obj] = scope
@@ -159,7 +154,6 @@ class PointerAnalysisState:
         - TupleObject: Supports position(i) fields for precise tracking
         - DictObject: Supports key(k) fields for precise tracking
         - ListObject/SetObject: Uses elem() field for all elements
-        - Builtin containers: Dispatch to builtin library for methods
         
         Args:
             obj: Object to query
@@ -168,39 +162,6 @@ class PointerAnalysisState:
         Returns:
             Contextualized field access for the specified field
         """
-        from .heap_model import FieldKind
-        
-        # Check if this is a builtin container type accessing a method
-        if self._builtin_library and field.kind == FieldKind.ATTRIBUTE and field.name:
-            from .object import ListObject, DictObject, SetObject, TupleObject
-            
-            builtin_type = None
-            if isinstance(obj, ListObject):
-                builtin_type = 'list'
-            elif isinstance(obj, DictObject):
-                builtin_type = 'dict'
-            elif isinstance(obj, SetObject):
-                builtin_type = 'set'
-            elif isinstance(obj, TupleObject):
-                builtin_type = 'tuple'
-            
-            if builtin_type:
-                # Try to get builtin method
-                method_obj = self._builtin_library.get_builtin_method(
-                    builtin_type, field.name, context
-                )
-                if method_obj:
-                    # Return the method object wrapped in a field access
-                    # Create a synthetic field access that points to the method
-                    method_field_access = self._variable_factory.make_field_access(obj, field)
-                    self.set_field(scope, context, obj, field, method_field_access)
-                    cfield: Ctx[FieldAccess] = Ctx(obj.context, None, method_field_access)
-                    
-                    # Add method object to this field access's points-to set
-                    from .points_to_set import PointsToSet
-                    self._worklist.add((scope, NormalNode(cfield), PointsToSet.singleton(method_obj)))
-                    
-                    return cfield
 
         field_access = self._field_accesses.get((obj, field), None)
         exists = True
@@ -246,8 +207,64 @@ class PointerAnalysisState:
                         base_var = self._variable_factory.make_variable(base.id)
                         inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
                         self._constraints.add(scope, base_var, inherit_constraint)
+            
+            # Handle builtin instance objects - create builtin method objects on-demand
+            from .object import BuiltinInstanceObject, BuiltinMethodObject, ObjectFactory
+            if isinstance(obj, BuiltinInstanceObject) and field.kind == FieldKind.ATTRIBUTE and field.name:
+                # Check if this is a known builtin method
+                method_name = field.name
+                builtin_methods = self._get_builtin_methods_for_type(obj.builtin_type)
+                
+                if method_name in builtin_methods:
+                    # Create a builtin method object bound to this instance
+                    method_obj = ObjectFactory.create_builtin_method(
+                        method_name=method_name,
+                        receiver=obj,
+                        context=obj.context
+                    )
+                    
+                    # Add the method object to the field's points-to set
+                    self._worklist.add((scope, NormalNode(cfield), PointsToSet.singleton(method_obj)))
 
         return cfield
+    
+    def _get_builtin_methods_for_type(self, builtin_type: str) -> Set[str]:
+        """Get the set of known methods for a builtin type.
+        
+        Args:
+            builtin_type: Type name (e.g., "list", "dict", "set")
+        
+        Returns:
+            Set of method names
+        """
+        methods = {
+            "list": {
+                "append", "extend", "insert", "remove", "pop", "clear",
+                "index", "count", "sort", "reverse", "copy",
+                "__getitem__", "__setitem__", "__iter__", "__len__"
+            },
+            "dict": {
+                "get", "pop", "popitem", "clear", "update", "setdefault",
+                "keys", "values", "items", "copy",
+                "__getitem__", "__setitem__", "__iter__", "__len__", "__contains__"
+            },
+            "set": {
+                "add", "remove", "discard", "pop", "clear", "copy",
+                "union", "intersection", "difference", "symmetric_difference",
+                "update", "intersection_update", "difference_update",
+                "__iter__", "__len__", "__contains__"
+            },
+            "tuple": {
+                "count", "index",
+                "__getitem__", "__iter__", "__len__"
+            },
+            "str": {
+                "upper", "lower", "strip", "split", "join", "replace",
+                "startswith", "endswith", "find", "index", "format",
+                "__getitem__", "__iter__", "__len__", "__contains__"
+            },
+        }
+        return methods.get(builtin_type, set())
 
     
     def set_field(
@@ -274,6 +291,9 @@ class PointerAnalysisState:
     
     @property
     def scope_manager(self) -> 'ScopeManager':
+        if self._scope_manager is None:
+            from pythonstan.world import World
+            self._scope_manager = World().scope_manager
         return self._scope_manager
     
     @property

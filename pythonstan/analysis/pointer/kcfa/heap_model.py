@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .variable import Variable, FieldAccess, VariableKind
     from .context import AbstractContext, Ctx, Scope, AllocSite
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown", "HeapModel"]
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "value", "unknown", "HeapModel"]
 
 
 class FieldKind(Enum):
@@ -115,6 +115,21 @@ def elem() -> Field:
         Field(kind=FieldKind.ELEMENT, name=None, index=None)
     """
     return Field(FieldKind.ELEMENT, None, None)
+
+
+def value() -> Field:
+    """Create value field key for dictionaries.
+    
+    Used for dict values where we abstract over all keys.
+    
+    Returns:
+        Field for generic dictionary value access
+    
+    Example:
+        >>> value()
+        Field(kind=FieldKind.VALUE, name=None, index=None)
+    """
+    return Field(FieldKind.VALUE, None, None)
 
 
 def unknown() -> Field:

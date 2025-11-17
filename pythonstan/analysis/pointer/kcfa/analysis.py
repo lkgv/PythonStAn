@@ -34,8 +34,7 @@ class PointerAnalysis(AnalysisDriver):
         from .ir_translator import IRTranslator
         from .context_selector import ContextSelector, parse_policy
         from .class_hierarchy import ClassHierarchyManager
-        from .builtin_api_handler import BuiltinLibrary
-        from .object import ObjectFactory
+        from .builtin_api_handler import BuiltinSummaryManager        
         from pythonstan.world import World
         
         self.config = analysis_config
@@ -45,18 +44,12 @@ class PointerAnalysis(AnalysisDriver):
         self._setup_logging()
         self._result: Optional['AnalysisResult'] = None
         self.world = World()
-        
-        # Initialize object factory and builtin library
-        self.object_factory = ObjectFactory()
-        self.builtin_library = BuiltinLibrary(self.kcfa_config, self.object_factory)
-        
-        # Initialize state with builtin library
-        self.state = PointerAnalysisState(builtin_library=self.builtin_library)
-        
+        self.state = PointerAnalysisState()
         policy = parse_policy(self.kcfa_config.context_policy)
         self.context_selector = ContextSelector(policy=policy)
         self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
+        self.builtin_manager = BuiltinSummaryManager(self.kcfa_config)
         
         self.solver = PointerSolver(
             state=self.state,
@@ -64,7 +57,7 @@ class PointerAnalysis(AnalysisDriver):
             ir_translator=self.translator,
             context_selector=self.context_selector,
             class_hierarchy=self.class_hierarchy,
-            builtin_library=self.builtin_library
+            builtin_manager=self.builtin_manager
         )
 
     def analyze(
