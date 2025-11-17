@@ -617,10 +617,10 @@ class IRTranslator:
         # allocate the module variable
         if stmt.module is None:
             if stmt.asname is None:
-                module_var = self._make_variable(stmt.name)
+                local_var = self._make_variable(stmt.name)
             else:
-                module_var = self._make_variable(stmt.asname)
-            constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))
+                local_var = self._make_variable(stmt.asname)
+            constraints.append(AllocConstraint(target=local_var, alloc_site=alloc_site))
         elif stmt.asname is None:
             module_var = self._make_variable(stmt.module)
             constraints.append(AllocConstraint(target=module_var, alloc_site=alloc_site))

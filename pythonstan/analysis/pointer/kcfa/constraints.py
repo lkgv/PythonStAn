@@ -28,6 +28,7 @@ __all__ = [
     "StoreSubscrConstraint",
     "CallConstraint",
     "ReturnConstraint",
+    "SuperResolveConstraint",
     "ConstraintManager"
 ]
 
@@ -130,6 +131,45 @@ class InheritanceConstraint(Constraint):
     
     def __str__(self) -> str:
         return f"InheritanceConstraint: {self.base}.{self.field} -[{self.index}]-> {self.target}"
+
+
+@dataclass(frozen=True)
+class SuperResolveConstraint(Constraint):
+    """Constraint to resolve super() arguments and populate SuperObject.
+    
+    This constraint is triggered when super() result's points-to set contains
+    a SuperObject allocation. It resolves the class and instance arguments:
+    
+    - Explicit: super(Class, obj) - resolve from provided variables
+    - Implicit: super() - resolve from __class__ cell var and first parameter
+    
+    Once resolved, updates the SuperObject with current_class and instance_obj.
+    
+    Attributes:
+        target: Variable pointing to SuperObject allocation
+        class_var: Variable for class argument (None for implicit)
+        instance_var: Variable for instance argument (None for implicit)
+        implicit: True if super() called without arguments
+    """
+    
+    target: 'Variable'
+    class_var: Optional['Variable']
+    instance_var: Optional['Variable']
+    implicit: bool = False
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.target}
+        if self.class_var:
+            vars.add(self.class_var)
+        if self.instance_var:
+            vars.add(self.instance_var)
+        return vars
+    
+    def __str__(self) -> str:
+        if self.implicit:
+            return f"SuperResolveConstraint: {self.target} = super() (implicit)"
+        return f"SuperResolveConstraint: {self.target} = super({self.class_var}, {self.instance_var})"
 
 
 @dataclass(frozen=True)

@@ -26,7 +26,7 @@ from .context import (
     Scope
 )
 from .context_selector import ContextPolicy, ContextSelector, parse_policy
-from .object import AllocKind, AllocSite, AbstractObject
+from .object import AllocKind, AllocSite, AbstractObject, SuperObject, ObjectFactory
 from .variable import VariableKind, Variable
 from .heap_model import FieldKind, Field, attr, elem, unknown
 from .state import PointsToSet, PointerAnalysisState
@@ -40,6 +40,7 @@ from .constraints import (
     AllocConstraint,
     CallConstraint,
     ReturnConstraint,
+    SuperResolveConstraint,
     ConstraintManager
 )
 from .class_hierarchy import ClassHierarchyManager, MROError
@@ -67,6 +68,8 @@ __all__ = [
     "AllocKind",
     "AllocSite",
     "AbstractObject",
+    "SuperObject",
+    "ObjectFactory",
     "VariableKind",
     "Scope",
     "Variable",
@@ -88,6 +91,7 @@ __all__ = [
     "AllocConstraint",
     "CallConstraint",
     "ReturnConstraint",
+    "SuperResolveConstraint",
     "ConstraintManager",
     
     # Class hierarchy

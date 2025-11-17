@@ -121,6 +121,9 @@ class BuiltinAPIHandler:
             "int": self._handle_int,
             "float": self._handle_float,
             "str": self._handle_str,
+            
+            # Object-oriented functions
+            "super": self._handle_super,
         }
     
     def handle_builtin_call(
@@ -1010,6 +1013,70 @@ class BuiltinAPIHandler:
         if call.target:
             alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        return constraints
+    
+    # ===== Object-Oriented Functions =====
+    
+    def _handle_super(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle super() builtin for MRO-based method resolution.
+        
+        Creates a SuperObject that enables parent class field access:
+        
+        Supported forms:
+        - super() - no args, uses __class__ cell var and first param
+        - super(Class, instance) - explicit class and instance
+        
+        The SuperObject is created via AllocConstraint. A SuperResolveConstraint
+        then populates it with current_class and instance_obj. When fields are
+        accessed on the SuperObject, state.get_field() uses InheritanceConstraint
+        to resolve through parent classes via PFG edges.
+        
+        Design:
+        1. AllocConstraint creates SuperObject allocation
+        2. SuperResolveConstraint resolves class/instance from args
+        3. Field access on SuperObject triggers InheritanceConstraint
+        4. Parent class fields flow to super field via PFG edges
+        5. Methods are bound to instance_obj when called
+        """
+        from .constraints import AllocConstraint, SuperResolveConstraint
+        from .object import AllocSite, AllocKind
+        
+        constraints = []
+        
+        if not call.target:
+            return constraints
+        
+        # Create SuperObject allocation
+        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+        constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        # Add SuperResolveConstraint to populate current_class and instance_obj
+        # This constraint applies when the target's points-to set contains SuperObject
+        if len(call.args) >= 2:
+            # super(Class, instance) - explicit form
+            class_var = call.args[0]
+            instance_var = call.args[1]
+            constraints.append(SuperResolveConstraint(
+                target=call.target,
+                class_var=class_var,
+                instance_var=instance_var,
+                implicit=False
+            ))
+        else:
+            # super() - implicit form, needs to look up __class__ and first param
+            # The constraint examines the enclosing scope when applied
+            constraints.append(SuperResolveConstraint(
+                target=call.target,
+                class_var=None,
+                instance_var=None,
+                implicit=True
+            ))
         
         return constraints
     

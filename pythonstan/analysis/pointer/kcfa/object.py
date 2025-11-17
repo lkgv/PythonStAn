@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 __all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject", "ConstantObject", 
            "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
            "TupleObject", "DictObject", "SetObject", "BuiltinClassObject", "BuiltinInstanceObject",
-           "BuiltinMethodObject", "BuiltinFunctionObject", "ObjectFactory"]
+           "BuiltinMethodObject", "BuiltinFunctionObject", "SuperObject", "ObjectFactory"]
 
 
 class AllocKind(Enum):
@@ -271,6 +271,31 @@ class BuiltinFunctionObject(AbstractObject):
         return f"<builtin_function '{self.function_name}'>"
 
 
+@dataclass(frozen=True)
+class SuperObject(AbstractObject):
+    """Super proxy object for MRO-based method resolution.
+    
+    Represents the result of super() calls. Field access on SuperObject
+    resolves to parent class fields using MRO and InheritanceConstraint.
+    
+    Key behaviors:
+    - Field access triggers InheritanceConstraint for parent classes
+    - Methods accessed are bound to instance_obj if present
+    - Uses SelectorNode + PFG edges for lazy parent field resolution
+    
+    Attributes:
+        current_class: Class context where super() was called (determines MRO position)
+        instance_obj: Instance for method binding (None for unbound super)
+    """
+    current_class: Optional['ClassObject']  # Class to skip in MRO lookup
+    instance_obj: Optional['AbstractObject']  # Instance for binding methods
+    
+    def __str__(self) -> str:
+        if self.current_class:
+            return f"<super of {self.current_class}>"
+        return f"<super at {self.alloc_site}>"
+
+
 class ObjectFactory:
     """Factory for creating abstract objects with proper context sensitivity.
     
@@ -441,3 +466,29 @@ class ObjectFactory:
         """
         alloc_site = AllocSite(stmt=stmt, kind=AllocKind.SET)
         return SetObject(context=context, alloc_site=alloc_site)
+    
+    @staticmethod
+    def create_super(
+        context: 'AbstractContext',
+        stmt: Union[str, 'IRStatement'],
+        current_class: Optional['ClassObject'] = None,
+        instance_obj: Optional['AbstractObject'] = None
+    ) -> 'SuperObject':
+        """Create a super proxy object.
+        
+        Args:
+            context: Analysis context
+            stmt: IR statement or identifier for allocation site
+            current_class: Class context for MRO lookup (None = unresolved)
+            instance_obj: Instance for method binding (None = unbound)
+        
+        Returns:
+            SuperObject for parent class access
+        """
+        alloc_site = AllocSite(stmt=stmt, kind=AllocKind.OBJECT)
+        return SuperObject(
+            context=context,
+            alloc_site=alloc_site,
+            current_class=current_class,
+            instance_obj=instance_obj
+        )

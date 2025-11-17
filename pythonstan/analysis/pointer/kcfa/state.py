@@ -209,7 +209,7 @@ class PointerAnalysisState:
                         self._constraints.add(scope, base_var, inherit_constraint)
             
             # Handle builtin instance objects - create builtin method objects on-demand
-            from .object import BuiltinInstanceObject, BuiltinMethodObject, ObjectFactory
+            from .object import BuiltinInstanceObject, BuiltinMethodObject, SuperObject, ObjectFactory
             if isinstance(obj, BuiltinInstanceObject) and field.kind == FieldKind.ATTRIBUTE and field.name:
                 # Check if this is a known builtin method
                 method_name = field.name
@@ -225,6 +225,53 @@ class PointerAnalysisState:
                     
                     # Add the method object to the field's points-to set
                     self._worklist.add((scope, NormalNode(cfield), PointsToSet.singleton(method_obj)))
+            
+            # Handle SuperObject - resolve fields via parent class MRO
+            elif isinstance(obj, SuperObject):
+                """
+                SuperObject field resolution via PFG + InheritanceConstraint:
+                
+                1. Identify parent classes to search (skip current_class in MRO)
+                2. Create SelectorNode to aggregate results from parents
+                3. Add PFG edge: selector -> cfield (parent fields flow to result)
+                4. For each parent class, add InheritanceConstraint (lazy resolution)
+                5. Methods flow through PFG and get bound to instance_obj if present
+                
+                This reuses the same mechanism as ClassObject inheritance but starts
+                from parent classes instead of the class itself.
+                """
+                if obj.current_class:
+                    # Get base classes from the current class
+                    # These are the parent classes super() will search
+                    from pythonstan.ir.ir_statements import IRClass
+                    if isinstance(obj.current_class.alloc_site.stmt, IRClass):
+                        bases = obj.current_class.alloc_site.stmt.get_bases()
+                        current_scope = obj.current_class.container_scope
+                        
+                        if len(bases) > 0:
+                            # Create SelectorNode to collect parent class fields
+                            selector = SelectorNode()
+                            
+                            # Add PFG edge: selector -> cfield
+                            # When parent fields are resolved, they flow to cfield
+                            inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.INHERIT)
+                            self._add_points_flow_edge(inherit_edge)
+                            
+                            # Add InheritanceConstraint for each parent class
+                            # These constraints apply lazily when parent points-to sets are known
+                            for idx, base in enumerate(bases):
+                                base_var = self._variable_factory.make_variable(base.id)
+                                inherit_constraint = InheritanceConstraint(
+                                    base=base_var,
+                                    field=field,
+                                    target=selector,
+                                    index=idx
+                                )
+                                self._constraints.add(current_scope, base_var, inherit_constraint)
+                            
+                            # Methods from parent classes will flow through the PFG edges
+                            # If obj.instance_obj is set, method binding happens during call handling
+                            # The MethodObject.deliver_into() is called when methods are invoked
 
         return cfield
     
