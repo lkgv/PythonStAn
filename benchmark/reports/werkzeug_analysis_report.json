@@ -1,0 +1,12 @@
+{
+  "project": "werkzeug",
+  "timestamp": "2025-10-17T21:03:16.758446",
+  "duration_seconds": 3.889166831970215,
+  "modules_analyzed": 40,
+  "modules_failed": 0,
+  "success_rate": 100.0,
+  "errors": {},
+  "call_graph_metrics": {},
+  "points_to_metrics": {},
+  "context_sensitivity_metrics": {}
+}

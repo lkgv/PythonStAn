@@ -1,0 +1,53 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-25T23:57:39.478978",
+  "k_value": 2,
+  "lazy_ir": true,
+  "dependencies_included": [
+    "werkzeug",
+    "jinja2",
+    "click",
+    "markupsafe"
+  ],
+  "ast_stats": {
+    "total_calls": 1356,
+    "direct_calls": 504,
+    "attribute_calls": 834,
+    "subscript_calls": 2,
+    "functions_defined": 413,
+    "classes_defined": 49,
+    "modules_analyzed": 35
+  },
+  "pipeline_funnel": {
+    "ast_calls": 1356,
+    "ir_calls": 0,
+    "call_events": 0,
+    "resolved_calls": 0,
+    "edges_created": 136
+  },
+  "conversion_rates": {
+    "ast_to_edges": 10.029498525073747,
+    "estimated_loss": 89.97050147492625
+  },
+  "modules_analyzed": 61,
+  "functions_discovered": 1058,
+  "call_edges_discovered": 136,
+  "bottleneck_stage": "event_extraction",
+  "primary_loss_reason": "Significant loss during event extraction. Many call sites not converted to CallEvents.",
+  "unresolved_callees_top_50": [],
+  "correlation_coefficient": 0.0,
+  "functions_with_no_calls": 0,
+  "functions_with_calls": 70,
+  "recommendations": [
+    "CRITICAL: Implement cross-module call resolution",
+    "Option 1: Two-pass analysis (collect all function signatures, then re-analyze)",
+    "Option 2: Build unified symbol table before analysis",
+    "Option 3: Use entry-point driven analysis",
+    "Estimated improvement: 3-5x more call edges"
+  ],
+  "estimated_improvements": {
+    "two_pass_analysis": "+300-400% call edges (expected 40-60% coverage)",
+    "unified_symbol_table": "+250-350% call edges",
+    "entry_point_driven": "+200-300% call edges (reachable code only)"
+  }
+}

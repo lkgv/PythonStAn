@@ -1,0 +1,8 @@
+{
+  "module_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src/flask/helpers.py",
+  "module_name": "helpers",
+  "call_discovery": null,
+  "per_function_metrics": [],
+  "summary": {},
+  "error": "name 'call_events_by_func' is not defined"
+}

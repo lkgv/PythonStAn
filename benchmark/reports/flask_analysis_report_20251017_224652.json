@@ -1,0 +1,61 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-17T22:46:52.443906",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 1,
+  "modules_succeeded": 1,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.008103370666503906,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.008103370666503906,
+    "analysis_time": 0.008103370666503906,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 7774.542544427445
+  },
+  "points_to_metrics": {
+    "total_variables": 0,
+    "total_points_to_sets": 0,
+    "singleton_sets": 0,
+    "empty_sets": 0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "median_set_size": 0.0,
+    "set_size_distribution": {}
+  },
+  "call_graph_metrics": {
+    "total_functions": 1,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

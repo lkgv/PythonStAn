@@ -30,6 +30,8 @@ def main():
     print('\n'.join([ast.unparse(x) for x in ppl.get_world().scope_manager.get_ir(ppl.get_world().entry_module, 'three address form').body]))
     for scope in ppl.get_world().scope_manager.get_scopes():
         print(f'<Scope: {scope.get_qualname()}>')
+        
+        # Here is the TAC code of the scope translated by pipeline.
         print('\n'.join([str(x) for x in ppl.get_world().scope_manager.get_ir(scope, 'ir')]))
         print()
     print(ppl.get_world().scope_manager.get_scopes())

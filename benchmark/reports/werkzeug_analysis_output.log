@@ -1,0 +1,2594 @@
+
+======================================================================
+Analyzing WERKZEUG with 2-CFA (obj_depth=2)
+======================================================================
+
+Project: Werkzeug WSGI utility library
+Path: /mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug
+Source: /mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src/werkzeug
+
+Found 40 Python files to analyze
+
+[1/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 1 scopes in module __main__
+Setting up unified analysis for 1 scopes
+Planned analysis for 1 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1, calls=0
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 1, 'constraints_processed': 1, 'calls_processed': 0}
+Successfully analyzed scope: __main__
+✓
+[2/40]   Analyzing: _internal.py... Generate CFG for __main__
+Analyzing 49 scopes in module __main__
+Setting up unified analysis for 49 scopes
+Planned analysis for 39 functions
+Added class test.py:50:0:class with bases []
+Added class test.py:191:0:class with bases ['logging.StreamHandler']
+Added class test.py:252:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=430, calls=144
+Added call edge: [] --[test.py:23:31:call#0]--> [test.py:23:31:call#0]:__main__.$func_0
+Added call edge: [] --[test.py:58:11:call#0]--> [test.py:58:11:call#0]:__main__._Missing
+Added call edge: [] --[test.py:81:0:call#0]--> [test.py:81:0:call#0]:__main__._check_str_tuple.$func_2
+Added call edge: [] --[test.py:179:4:call#0]--> [test.py:179:4:call#0]:__main__._has_level_handler.$func_3
+Added call edge: [] --[test.py:215:4:call#0]--> [test.py:215:4:call#0]:__main__._has_level_handler
+Added call edge: [] --[test.py:221:8:call#0]--> [test.py:221:8:call#0]:__main__._ColorStreamHandler
+Added call edge: [] --[test.py:387:4:call#0]--> [test.py:387:4:call#0]:__main__._cookie_unquote
+Added call edge: [] --[test.py:403:0:call#0]--> [test.py:403:0:call#0]:__main__._encode_idna.$func_4
+Added call edge: [] --[test.py:419:0:call#0]--> [test.py:419:0:call#0]:__main__._decode_idna.$func_5
+Added call edge: [] --[test.py:454:13:call#0]--> [test.py:454:13:call#0]:__main__._encode_idna
+Added call edge: [] --[test.py:478:8:call#0]--> [test.py:478:8:call#0]:__main__._easteregg.bzzzzzzz
+Added call edge: [] --[test.py:438:19:call#0]--> [test.py:438:19:call#0]:__main__._decode_idna.decode_part
+Added call edge: [] --[test.py:179:4:call#0]--> [test.py:179:4:call#0]:__main__._has_level_handler.$func_3
+Added call edge: [] --[test.py:438:19:call#0]--> [test.py:438:19:call#0]:__main__._decode_idna.decode_part
+Added call edge: [] --[test.py:403:0:call#0]--> [test.py:403:0:call#0]:__main__._encode_idna.$func_4
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 146, 'constraints_processed': 602, 'calls_processed': 192}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.$func_0
+Successfully analyzed scope: __main__._Missing
+Successfully analyzed scope: __main__._make_encode_wrapper
+Successfully analyzed scope: __main__._make_encode_wrapper
+Successfully analyzed scope: __main__._make_encode_wrapper
+Successfully analyzed scope: __main__._check_str_tuple
+Successfully analyzed scope: __main__._to_bytes
+Successfully analyzed scope: __main__._to_str
+Successfully analyzed scope: __main__._to_str
+Successfully analyzed scope: __main__._to_str
+Successfully analyzed scope: __main__._wsgi_decoding_dance
+Successfully analyzed scope: __main__._wsgi_encoding_dance
+Successfully analyzed scope: __main__._get_environ
+Successfully analyzed scope: __main__._has_level_handler
+Successfully analyzed scope: __main__._ColorStreamHandler
+Successfully analyzed scope: __main__._log
+Successfully analyzed scope: __main__._dt_as_utc
+Successfully analyzed scope: __main__._dt_as_utc
+Successfully analyzed scope: __main__._dt_as_utc
+Successfully analyzed scope: __main__._DictAccessorProperty
+Successfully analyzed scope: __main__._cookie_quote
+Successfully analyzed scope: __main__._cookie_unquote
+Successfully analyzed scope: __main__._cookie_parse_impl
+Successfully analyzed scope: __main__._encode_idna
+Successfully analyzed scope: __main__._decode_idna
+Successfully analyzed scope: __main__._make_cookie_domain
+Successfully analyzed scope: __main__._make_cookie_domain
+Successfully analyzed scope: __main__._make_cookie_domain
+Successfully analyzed scope: __main__._easteregg
+Successfully analyzed scope: __main__._Missing.__repr__
+Successfully analyzed scope: __main__._Missing.__reduce__
+Successfully analyzed scope: __main__._make_encode_wrapper.$func_1
+Successfully analyzed scope: __main__._check_str_tuple.$func_2
+Successfully analyzed scope: __main__._has_level_handler.$func_3
+Successfully analyzed scope: __main__._ColorStreamHandler.__init__
+Successfully analyzed scope: __main__._DictAccessorProperty.__init__
+Successfully analyzed scope: __main__._DictAccessorProperty.lookup
+Successfully analyzed scope: __main__._DictAccessorProperty.__get__
+Successfully analyzed scope: __main__._DictAccessorProperty.__get__
+Successfully analyzed scope: __main__._DictAccessorProperty.__get__
+Successfully analyzed scope: __main__._DictAccessorProperty.__set__
+Successfully analyzed scope: __main__._DictAccessorProperty.__delete__
+Successfully analyzed scope: __main__._DictAccessorProperty.__repr__
+Successfully analyzed scope: __main__._encode_idna.$func_4
+Successfully analyzed scope: __main__._decode_idna.decode_part
+Successfully analyzed scope: __main__._decode_idna.$func_5
+Successfully analyzed scope: __main__._easteregg.bzzzzzzz
+Successfully analyzed scope: __main__._easteregg.easteregged
+✓
+[3/40]   Analyzing: _reloader.py... Generate CFG for __main__
+Analyzing 31 scopes in module __main__
+Setting up unified analysis for 31 scopes
+Planned analysis for 31 functions
+Added class test.py:219:0:class with bases []
+Added class test.py:280:0:class with bases ['test.py:219:0:class']
+Added class test.py:304:0:class with bases ['test.py:219:0:class']
+Added class test.py:312:8:class with bases ['PatternMatchingEventHandler']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=473, calls=167
+Added call edge: [] --[test.py:63:0:call#0]--> [test.py:63:0:call#0]:__main__._iter_module_paths
+Added call edge: [] --[test.py:63:0:call#0]--> [test.py:63:0:call#0]:__main__._remove_by_pattern
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._iter_module_paths
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._remove_by_pattern
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._find_common_roots
+Added call edge: [] --[test.py:141:0:call#0]--> [test.py:141:0:call#0]:__main__._find_common_roots.$func_0
+Added call edge: [] --[test.py:141:0:call#0]--> [test.py:141:0:call#0]:__main__._find_common_roots._walk
+Added call edge: [] --[test.py:433:8:call#0]--> [test.py:433:8:call#0]:__main__.ensure_echo_on
+Added call edge: [] --[test.py:155:8:call#0]--> [test.py:155:8:call#0]:__main__._find_common_roots._walk
+Added call edge: [] --[test.py:263:19:call#0]--> [test.py:263:19:call#0]:__main__._get_args_for_reloading
+Added call edge: [] --[test.py:287:4:call#0]--> [test.py:287:4:call#0]:__main__._find_stat_paths
+Added call edge: [] --[test.py:361:4:call#0]--> [test.py:361:4:call#0]:__main__._find_watchdog_paths
+Added call edge: [] --[test.py:141:0:call#0]--> [test.py:141:0:call#0]:__main__._find_common_roots.$func_0
+Added call edge: [] --[test.py:141:0:call#0]--> [test.py:141:0:call#0]:__main__._find_common_roots._walk
+Added call edge: [] --[test.py:155:8:call#0]--> [test.py:155:8:call#0]:__main__._find_common_roots._walk
+Added call edge: [] --[test.py:155:8:call#0]--> [test.py:155:8:call#0]:__main__._find_common_roots._walk
+Added call edge: [] --[test.py:63:0:call#0]--> [test.py:63:0:call#0]:__main__._iter_module_paths
+Added call edge: [] --[test.py:63:0:call#0]--> [test.py:63:0:call#0]:__main__._remove_by_pattern
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._iter_module_paths
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._remove_by_pattern
+Added call edge: [] --[test.py:117:0:call#0]--> [test.py:117:0:call#0]:__main__._find_common_roots
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 121, 'constraints_processed': 774, 'calls_processed': 281}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._iter_module_paths
+Successfully analyzed scope: __main__._remove_by_pattern
+Successfully analyzed scope: __main__._find_stat_paths
+Successfully analyzed scope: __main__._find_watchdog_paths
+Successfully analyzed scope: __main__._find_common_roots
+Successfully analyzed scope: __main__._get_args_for_reloading
+Successfully analyzed scope: __main__.ReloaderLoop
+Successfully analyzed scope: __main__.StatReloaderLoop
+Successfully analyzed scope: __main__.WatchdogReloaderLoop
+Successfully analyzed scope: __main__.ensure_echo_on
+Successfully analyzed scope: __main__.run_with_reloader
+Successfully analyzed scope: __main__._find_common_roots.$func_0
+Successfully analyzed scope: __main__._find_common_roots._walk
+Successfully analyzed scope: __main__.ReloaderLoop.__init__
+Successfully analyzed scope: __main__.ReloaderLoop.__enter__
+Successfully analyzed scope: __main__.ReloaderLoop.__exit__
+Successfully analyzed scope: __main__.ReloaderLoop.run
+Successfully analyzed scope: __main__.ReloaderLoop.run_step
+Successfully analyzed scope: __main__.ReloaderLoop.restart_with_reloader
+Successfully analyzed scope: __main__.ReloaderLoop.trigger_reload
+Successfully analyzed scope: __main__.ReloaderLoop.log_reload
+Successfully analyzed scope: __main__.StatReloaderLoop.__enter__
+Successfully analyzed scope: __main__.StatReloaderLoop.run_step
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.__init__
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.trigger_reload
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.__enter__
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.__exit__
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.run
+Successfully analyzed scope: __main__.WatchdogReloaderLoop.run_step
+Successfully analyzed scope: __main__.run_with_reloader.$func_1
+✓
+[4/40]   Analyzing: datastructures.py... Generate CFG for __main__
+Analyzing 350 scopes in module __main__
+Setting up unified analysis for 350 scopes
+Planned analysis for 349 functions
+Added class test.py:38:0:class with bases []
+Added class test.py:91:0:class with bases ['test.py:38:0:class', 'list']
+Added class test.py:103:0:class with bases []
+Added class test.py:153:0:class with bases ['test.py:103:0:class']
+Added class test.py:196:0:class with bases ['dict']
+Added class test.py:230:0:class with bases ['dict']
+Added class test.py:271:0:class with bases ['test.py:103:0:class', 'test.py:230:0:class']
+Added class test.py:289:0:class with bases ['test.py:230:0:class']
+Added class test.py:621:0:class with bases []
+Added class test.py:653:0:class with bases ['test.py:289:0:class']
+Added class test.py:848:0:class with bases []
+Added class test.py:1301:0:class with bases []
+Added class test.py:1354:0:class with bases ['test.py:1301:0:class', 'test.py:848:0:class']
+Added class test.py:1405:0:class with bases ['test.py:153:0:class', 'test.py:289:0:class']
+Added class test.py:1539:0:class with bases ['test.py:289:0:class']
+Added class test.py:1572:0:class with bases ['test.py:103:0:class', 'dict']
+Added class test.py:1592:0:class with bases ['test.py:153:0:class', 'test.py:289:0:class']
+Added class test.py:1609:0:class with bases ['test.py:153:0:class', 'test.py:653:0:class']
+Added class test.py:1629:0:class with bases ['test.py:91:0:class']
+Added class test.py:1808:0:class with bases ['test.py:1629:0:class']
+Added class test.py:1882:0:class with bases ['test.py:1629:0:class']
+Added class test.py:1936:0:class with bases ['test.py:1629:0:class']
+Added class test.py:1964:0:class with bases ['test.py:196:0:class', 'dict']
+Added class test.py:2063:0:class with bases ['test.py:103:0:class', 'test.py:1964:0:class']
+Added class test.py:2086:0:class with bases ['test.py:1964:0:class']
+Added class test.py:2129:0:class with bases ['test.py:196:0:class', 'dict']
+Added class test.py:2205:0:class with bases ['test.py:196:0:class', 'dict']
+Added class test.py:2218:0:class with bases ['MutableSet']
+Added class test.py:2368:0:class with bases ['Collection']
+Added class test.py:2456:0:class with bases []
+Added class test.py:2486:0:class with bases []
+Added class test.py:2573:0:class with bases []
+Added class test.py:2631:0:class with bases ['test.py:103:0:class', 'dict']
+Added class test.py:2770:0:class with bases ['test.py:196:0:class', 'dict']
+Added class test.py:2894:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=2024, calls=861
+Added call edge: [] --[test.py:223:18:call#0]--> [test.py:223:18:call#0]:__main__._calls_update
+Added call edge: [] --[test.py:224:18:call#0]--> [test.py:224:18:call#0]:__main__._calls_update
+Added call edge: [] --[test.py:225:12:call#0]--> [test.py:225:12:call#0]:__main__._calls_update
+Added call edge: [] --[test.py:226:14:call#0]--> [test.py:226:14:call#0]:__main__._calls_update
+Added call edge: [] --[test.py:227:13:call#0]--> [test.py:227:13:call#0]:__main__._calls_update
+Added call edge: [] --[test.py:2000:15:call#0]--> [test.py:2000:15:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2001:15:call#0]--> [test.py:2001:15:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2002:14:call#0]--> [test.py:2002:14:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2003:19:call#0]--> [test.py:2003:19:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2081:16:call#0]--> [test.py:2081:16:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2082:16:call#0]--> [test.py:2082:16:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2083:21:call#0]--> [test.py:2083:21:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2108:13:call#0]--> [test.py:2108:13:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2109:14:call#0]--> [test.py:2109:14:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2110:22:call#0]--> [test.py:2110:22:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2111:23:call#0]--> [test.py:2111:23:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2112:15:call#0]--> [test.py:2112:15:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2113:16:call#0]--> [test.py:2113:16:call#0]:__main__.cache_control_property
+Added call edge: [] --[test.py:2146:15:call#0]--> [test.py:2146:15:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2147:16:call#0]--> [test.py:2147:16:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2148:18:call#0]--> [test.py:2148:18:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2149:18:call#0]--> [test.py:2149:18:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2150:15:call#0]--> [test.py:2150:15:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2151:18:call#0]--> [test.py:2151:18:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2152:22:call#0]--> [test.py:2152:22:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2153:16:call#0]--> [test.py:2153:16:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2154:14:call#0]--> [test.py:2154:14:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2155:19:call#0]--> [test.py:2155:19:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2156:16:call#0]--> [test.py:2156:16:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2157:18:call#0]--> [test.py:2157:18:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2158:17:call#0]--> [test.py:2158:17:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2159:19:call#0]--> [test.py:2159:19:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2160:19:call#0]--> [test.py:2160:19:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2161:16:call#0]--> [test.py:2161:16:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2162:17:call#0]--> [test.py:2162:17:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2163:14:call#0]--> [test.py:2163:14:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2164:17:call#0]--> [test.py:2164:17:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2165:22:call#0]--> [test.py:2165:22:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2166:22:call#0]--> [test.py:2166:22:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2167:16:call#0]--> [test.py:2167:16:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2168:21:call#0]--> [test.py:2168:21:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2169:21:call#0]--> [test.py:2169:21:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2170:17:call#0]--> [test.py:2170:17:call#0]:__main__.csp_property
+Added call edge: [] --[test.py:2585:12:call#0]--> [test.py:2585:12:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2587:12:call#0]--> [test.py:2587:12:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2590:11:call#0]--> [test.py:2590:11:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2592:13:call#0]--> [test.py:2592:13:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2827:11:call#0]--> [test.py:2827:11:call#0]:__main__.auth_property
+Added call edge: [] --[test.py:2832:12:call#0]--> [test.py:2832:12:call#0]:__main__.auth_property
+Added call edge: [] --[test.py:2840:13:call#0]--> [test.py:2840:13:call#0]:__main__._set_property
+Added call edge: [] --[test.py:2846:12:call#0]--> [test.py:2846:12:call#0]:__main__.auth_property
+Added call edge: [] --[test.py:2853:13:call#0]--> [test.py:2853:13:call#0]:__main__.auth_property
+Added call edge: [] --[test.py:2861:16:call#0]--> [test.py:2861:16:call#0]:__main__.auth_property
+Added call edge: [] --[test.py:2869:10:call#0]--> [test.py:2869:10:call#0]:__main__._set_property
+Added call edge: [] --[test.py:57:4:call#0]--> [test.py:57:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:60:4:call#0]--> [test.py:60:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:63:4:call#0]--> [test.py:63:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:66:4:call#0]--> [test.py:66:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:69:4:call#0]--> [test.py:69:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:72:4:call#0]--> [test.py:72:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:75:4:call#0]--> [test.py:75:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:78:4:call#0]--> [test.py:78:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:81:4:call#0]--> [test.py:81:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:84:4:call#0]--> [test.py:84:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:87:4:call#0]--> [test.py:87:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:131:4:call#0]--> [test.py:131:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:134:4:call#0]--> [test.py:134:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:137:4:call#0]--> [test.py:137:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:140:4:call#0]--> [test.py:140:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:143:4:call#0]--> [test.py:143:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:146:4:call#0]--> [test.py:146:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:149:4:call#0]--> [test.py:149:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:167:4:call#0]--> [test.py:167:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:170:4:call#0]--> [test.py:170:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:173:4:call#0]--> [test.py:173:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:176:4:call#0]--> [test.py:176:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:179:4:call#0]--> [test.py:179:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:278:4:call#0]--> [test.py:278:4:call#0]:__main__.TypeConversionDict
+Added call edge: [] --[test.py:516:4:call#0]--> [test.py:516:4:call#0]:__main__.MultiDict.deepcopy
+Added call edge: [] --[test.py:534:4:call#0]--> [test.py:534:4:call#0]:__main__.iter_multi_items
+Added call edge: [] --[test.py:761:4:call#0]--> [test.py:761:4:call#0]:__main__._omd_bucket
+Added call edge: [] --[test.py:787:4:call#0]--> [test.py:787:4:call#0]:__main__.iter_multi_items
+Added call edge: [] --[test.py:1024:8:call#0]--> [test.py:1024:8:call#0]:__main__.iter_multi_items
+Added call edge: [] --[test.py:1007:4:call#0]--> [test.py:1007:4:call#0]:__main__.iter_multi_items
+Added call edge: [] --[test.py:1107:21:call#0]--> [test.py:1107:21:call#0]:__main__._options_header_vkw
+Added call edge: [] --[test.py:1108:15:call#0]--> [test.py:1108:15:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1109:17:call#0]--> [test.py:1109:17:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1150:21:call#0]--> [test.py:1150:21:call#0]:__main__._options_header_vkw
+Added call edge: [] --[test.py:1151:15:call#0]--> [test.py:1151:15:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1152:17:call#0]--> [test.py:1152:17:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1225:20:call#0]--> [test.py:1225:20:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1225:20:call#0]--> [test.py:1225:20:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1311:4:call#0]--> [test.py:1311:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1314:4:call#0]--> [test.py:1314:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1317:4:call#0]--> [test.py:1317:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1320:4:call#0]--> [test.py:1320:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1323:4:call#0]--> [test.py:1323:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1326:4:call#0]--> [test.py:1326:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1329:4:call#0]--> [test.py:1329:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1332:4:call#0]--> [test.py:1332:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1335:4:call#0]--> [test.py:1335:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1338:4:call#0]--> [test.py:1338:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1341:4:call#0]--> [test.py:1341:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1344:4:call#0]--> [test.py:1344:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1347:4:call#0]--> [test.py:1347:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1350:4:call#0]--> [test.py:1350:4:call#0]:__main__.is_immutable
+Added call edge: [] --[test.py:1379:8:call#0]--> [test.py:1379:8:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1373:4:call#0]--> [test.py:1373:4:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1390:12:call#0]--> [test.py:1390:12:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1398:12:call#0]--> [test.py:1398:12:call#0]:__main__._unicodify_header_value
+Added call edge: [] --[test.py:1499:4:call#0]--> [test.py:1499:4:call#0]:__main__.MultiDict
+Added call edge: [] --[test.py:1567:20:call#0]--> [test.py:1567:20:call#0]:__main__.FileStorage
+Added call edge: [] --[test.py:1598:4:call#0]--> [test.py:1598:4:call#0]:__main__.MultiDict
+Added call edge: [] --[test.py:1618:4:call#0]--> [test.py:1618:4:call#0]:__main__.OrderedMultiDict
+Added call edge: [] --[test.py:1827:27:call#0]--> [test.py:1827:27:call#0]:__main__._normalize_mime
+Added call edge: [] --[test.py:1836:26:call#0]--> [test.py:1836:26:call#0]:__main__._normalize_mime
+Added call edge: [] --[test.py:1885:4:call#0]--> [test.py:1885:4:call#0]:__main__._normalize_lang
+Added call edge: [] --[test.py:1885:4:call#0]--> [test.py:1885:4:call#0]:__main__._normalize_lang
+Added call edge: [] --[test.py:1915:19:call#0]--> [test.py:1915:19:call#0]:__main__.Accept
+Added call edge: [] --[test.py:2531:8:call#0]--> [test.py:2531:8:call#0]:__main__.ContentRange
+Added call edge: [] --[test.py:2931:22:call#0]--> [test.py:2931:22:call#0]:__main__.Headers
+Added call edge: [] --[test.py:516:4:call#0]--> [test.py:516:4:call#0]:__main__.MultiDict.deepcopy
+Added call edge: [] --[test.py:2585:12:call#0]--> [test.py:2585:12:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2587:12:call#0]--> [test.py:2587:12:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2590:11:call#0]--> [test.py:2590:11:call#0]:__main__._callback_property
+Added call edge: [] --[test.py:2592:13:call#0]--> [test.py:2592:13:call#0]:__main__._callback_property
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 923, 'constraints_processed': 2288, 'calls_processed': 1015}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.is_immutable
+Successfully analyzed scope: __main__.iter_multi_items
+Successfully analyzed scope: __main__.ImmutableListMixin
+Successfully analyzed scope: __main__.ImmutableList
+Successfully analyzed scope: __main__.ImmutableDictMixin
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin
+Successfully analyzed scope: __main__._calls_update
+Successfully analyzed scope: __main__.UpdateDictMixin
+Successfully analyzed scope: __main__.TypeConversionDict
+Successfully analyzed scope: __main__.ImmutableTypeConversionDict
+Successfully analyzed scope: __main__.MultiDict
+Successfully analyzed scope: __main__._omd_bucket
+Successfully analyzed scope: __main__.OrderedMultiDict
+Successfully analyzed scope: __main__._options_header_vkw
+Successfully analyzed scope: __main__._unicodify_header_value
+Successfully analyzed scope: __main__.Headers
+Successfully analyzed scope: __main__.ImmutableHeadersMixin
+Successfully analyzed scope: __main__.EnvironHeaders
+Successfully analyzed scope: __main__.CombinedMultiDict
+Successfully analyzed scope: __main__.FileMultiDict
+Successfully analyzed scope: __main__.ImmutableDict
+Successfully analyzed scope: __main__.ImmutableMultiDict
+Successfully analyzed scope: __main__.ImmutableOrderedMultiDict
+Successfully analyzed scope: __main__.Accept
+Successfully analyzed scope: __main__._normalize_mime
+Successfully analyzed scope: __main__.MIMEAccept
+Successfully analyzed scope: __main__._normalize_lang
+Successfully analyzed scope: __main__.LanguageAccept
+Successfully analyzed scope: __main__.CharsetAccept
+Successfully analyzed scope: __main__.cache_control_property
+Successfully analyzed scope: __main__._CacheControl
+Successfully analyzed scope: __main__.RequestCacheControl
+Successfully analyzed scope: __main__.ResponseCacheControl
+Successfully analyzed scope: __main__.csp_property
+Successfully analyzed scope: __main__.ContentSecurityPolicy
+Successfully analyzed scope: __main__.CallbackDict
+Successfully analyzed scope: __main__.HeaderSet
+Successfully analyzed scope: __main__.ETags
+Successfully analyzed scope: __main__.IfRange
+Successfully analyzed scope: __main__.Range
+Successfully analyzed scope: __main__._callback_property
+Successfully analyzed scope: __main__.ContentRange
+Successfully analyzed scope: __main__.Authorization
+Successfully analyzed scope: __main__.auth_property
+Successfully analyzed scope: __main__._set_property
+Successfully analyzed scope: __main__.WWWAuthenticate
+Successfully analyzed scope: __main__.FileStorage
+Successfully analyzed scope: __main__.ImmutableListMixin.__hash__
+Successfully analyzed scope: __main__.ImmutableListMixin.__reduce_ex__
+Successfully analyzed scope: __main__.ImmutableListMixin.__delitem__
+Successfully analyzed scope: __main__.ImmutableListMixin.__iadd__
+Successfully analyzed scope: __main__.ImmutableListMixin.__imul__
+Successfully analyzed scope: __main__.ImmutableListMixin.__setitem__
+Successfully analyzed scope: __main__.ImmutableListMixin.append
+Successfully analyzed scope: __main__.ImmutableListMixin.remove
+Successfully analyzed scope: __main__.ImmutableListMixin.extend
+Successfully analyzed scope: __main__.ImmutableListMixin.insert
+Successfully analyzed scope: __main__.ImmutableListMixin.pop
+Successfully analyzed scope: __main__.ImmutableListMixin.reverse
+Successfully analyzed scope: __main__.ImmutableListMixin.sort
+Successfully analyzed scope: __main__.ImmutableList.__repr__
+Successfully analyzed scope: __main__.ImmutableDictMixin.fromkeys
+Successfully analyzed scope: __main__.ImmutableDictMixin.__reduce_ex__
+Successfully analyzed scope: __main__.ImmutableDictMixin._iter_hashitems
+Successfully analyzed scope: __main__.ImmutableDictMixin.__hash__
+Successfully analyzed scope: __main__.ImmutableDictMixin.setdefault
+Successfully analyzed scope: __main__.ImmutableDictMixin.update
+Successfully analyzed scope: __main__.ImmutableDictMixin.pop
+Successfully analyzed scope: __main__.ImmutableDictMixin.popitem
+Successfully analyzed scope: __main__.ImmutableDictMixin.__setitem__
+Successfully analyzed scope: __main__.ImmutableDictMixin.__delitem__
+Successfully analyzed scope: __main__.ImmutableDictMixin.clear
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.__reduce_ex__
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin._iter_hashitems
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.add
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.popitemlist
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.poplist
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.setlist
+Successfully analyzed scope: __main__.ImmutableMultiDictMixin.setlistdefault
+Successfully analyzed scope: __main__._calls_update.oncall
+Successfully analyzed scope: __main__.UpdateDictMixin.setdefault
+Successfully analyzed scope: __main__.UpdateDictMixin.pop
+Successfully analyzed scope: __main__.TypeConversionDict.get
+Successfully analyzed scope: __main__.ImmutableTypeConversionDict.copy
+Successfully analyzed scope: __main__.ImmutableTypeConversionDict.__copy__
+Successfully analyzed scope: __main__.MultiDict.__init__
+Successfully analyzed scope: __main__.MultiDict.__getstate__
+Successfully analyzed scope: __main__.MultiDict.__setstate__
+Successfully analyzed scope: __main__.MultiDict.__iter__
+Successfully analyzed scope: __main__.MultiDict.__getitem__
+Successfully analyzed scope: __main__.MultiDict.__setitem__
+Successfully analyzed scope: __main__.MultiDict.add
+Successfully analyzed scope: __main__.MultiDict.getlist
+Successfully analyzed scope: __main__.MultiDict.setlist
+Successfully analyzed scope: __main__.MultiDict.setdefault
+Successfully analyzed scope: __main__.MultiDict.setlistdefault
+Successfully analyzed scope: __main__.MultiDict.items
+Successfully analyzed scope: __main__.MultiDict.lists
+Successfully analyzed scope: __main__.MultiDict.values
+Successfully analyzed scope: __main__.MultiDict.listvalues
+Successfully analyzed scope: __main__.MultiDict.copy
+Successfully analyzed scope: __main__.MultiDict.deepcopy
+Successfully analyzed scope: __main__.MultiDict.to_dict
+Successfully analyzed scope: __main__.MultiDict.update
+Successfully analyzed scope: __main__.MultiDict.pop
+Successfully analyzed scope: __main__.MultiDict.popitem
+Successfully analyzed scope: __main__.MultiDict.poplist
+Successfully analyzed scope: __main__.MultiDict.popitemlist
+Successfully analyzed scope: __main__.MultiDict.__copy__
+Successfully analyzed scope: __main__.MultiDict.__deepcopy__
+Successfully analyzed scope: __main__.MultiDict.__repr__
+Successfully analyzed scope: __main__._omd_bucket.__init__
+Successfully analyzed scope: __main__._omd_bucket.unlink
+Successfully analyzed scope: __main__.OrderedMultiDict.__init__
+Successfully analyzed scope: __main__.OrderedMultiDict.__eq__
+Successfully analyzed scope: __main__.OrderedMultiDict.__reduce_ex__
+Successfully analyzed scope: __main__.OrderedMultiDict.__getstate__
+Successfully analyzed scope: __main__.OrderedMultiDict.__setstate__
+Successfully analyzed scope: __main__.OrderedMultiDict.__getitem__
+Successfully analyzed scope: __main__.OrderedMultiDict.__setitem__
+Successfully analyzed scope: __main__.OrderedMultiDict.__delitem__
+Successfully analyzed scope: __main__.OrderedMultiDict.keys
+Successfully analyzed scope: __main__.OrderedMultiDict.__iter__
+Successfully analyzed scope: __main__.OrderedMultiDict.values
+Successfully analyzed scope: __main__.OrderedMultiDict.items
+Successfully analyzed scope: __main__.OrderedMultiDict.lists
+Successfully analyzed scope: __main__.OrderedMultiDict.listvalues
+Successfully analyzed scope: __main__.OrderedMultiDict.add
+Successfully analyzed scope: __main__.OrderedMultiDict.getlist
+Successfully analyzed scope: __main__.OrderedMultiDict.setlist
+Successfully analyzed scope: __main__.OrderedMultiDict.setlistdefault
+Successfully analyzed scope: __main__.OrderedMultiDict.update
+Successfully analyzed scope: __main__.OrderedMultiDict.poplist
+Successfully analyzed scope: __main__.OrderedMultiDict.pop
+Successfully analyzed scope: __main__.OrderedMultiDict.popitem
+Successfully analyzed scope: __main__.OrderedMultiDict.popitemlist
+Successfully analyzed scope: __main__.Headers.__init__
+Successfully analyzed scope: __main__.Headers.__getitem__
+Successfully analyzed scope: __main__.Headers.__eq__
+Successfully analyzed scope: __main__.Headers.get
+Successfully analyzed scope: __main__.Headers.getlist
+Successfully analyzed scope: __main__.Headers.get_all
+Successfully analyzed scope: __main__.Headers.items
+Successfully analyzed scope: __main__.Headers.keys
+Successfully analyzed scope: __main__.Headers.values
+Successfully analyzed scope: __main__.Headers.extend
+Successfully analyzed scope: __main__.Headers.__delitem__
+Successfully analyzed scope: __main__.Headers.remove
+Successfully analyzed scope: __main__.Headers.pop
+Successfully analyzed scope: __main__.Headers.popitem
+Successfully analyzed scope: __main__.Headers.__contains__
+Successfully analyzed scope: __main__.Headers.__iter__
+Successfully analyzed scope: __main__.Headers.__len__
+Successfully analyzed scope: __main__.Headers.add
+Successfully analyzed scope: __main__.Headers._validate_value
+Successfully analyzed scope: __main__.Headers.add_header
+Successfully analyzed scope: __main__.Headers.clear
+Successfully analyzed scope: __main__.Headers.set
+Successfully analyzed scope: __main__.Headers.setlist
+Successfully analyzed scope: __main__.Headers.setdefault
+Successfully analyzed scope: __main__.Headers.setlistdefault
+Successfully analyzed scope: __main__.Headers.__setitem__
+Successfully analyzed scope: __main__.Headers.update
+Successfully analyzed scope: __main__.Headers.to_wsgi_list
+Successfully analyzed scope: __main__.Headers.copy
+Successfully analyzed scope: __main__.Headers.__copy__
+Successfully analyzed scope: __main__.Headers.__str__
+Successfully analyzed scope: __main__.Headers.__repr__
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.__delitem__
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.__setitem__
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.set
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.setlist
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.add
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.add_header
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.remove
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.extend
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.update
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.insert
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.pop
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.popitem
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.setdefault
+Successfully analyzed scope: __main__.ImmutableHeadersMixin.setlistdefault
+Successfully analyzed scope: __main__.EnvironHeaders.__init__
+Successfully analyzed scope: __main__.EnvironHeaders.__eq__
+Successfully analyzed scope: __main__.EnvironHeaders.__getitem__
+Successfully analyzed scope: __main__.EnvironHeaders.__len__
+Successfully analyzed scope: __main__.EnvironHeaders.__iter__
+Successfully analyzed scope: __main__.EnvironHeaders.copy
+Successfully analyzed scope: __main__.CombinedMultiDict.__reduce_ex__
+Successfully analyzed scope: __main__.CombinedMultiDict.__init__
+Successfully analyzed scope: __main__.CombinedMultiDict.fromkeys
+Successfully analyzed scope: __main__.CombinedMultiDict.__getitem__
+Successfully analyzed scope: __main__.CombinedMultiDict.get
+Successfully analyzed scope: __main__.CombinedMultiDict.getlist
+Successfully analyzed scope: __main__.CombinedMultiDict._keys_impl
+Successfully analyzed scope: __main__.CombinedMultiDict.keys
+Successfully analyzed scope: __main__.CombinedMultiDict.__iter__
+Successfully analyzed scope: __main__.CombinedMultiDict.items
+Successfully analyzed scope: __main__.CombinedMultiDict.values
+Successfully analyzed scope: __main__.CombinedMultiDict.lists
+Successfully analyzed scope: __main__.CombinedMultiDict.listvalues
+Successfully analyzed scope: __main__.CombinedMultiDict.copy
+Successfully analyzed scope: __main__.CombinedMultiDict.to_dict
+Successfully analyzed scope: __main__.CombinedMultiDict.__len__
+Successfully analyzed scope: __main__.CombinedMultiDict.__contains__
+Successfully analyzed scope: __main__.CombinedMultiDict.__repr__
+Successfully analyzed scope: __main__.FileMultiDict.add_file
+Successfully analyzed scope: __main__.ImmutableDict.__repr__
+Successfully analyzed scope: __main__.ImmutableDict.copy
+Successfully analyzed scope: __main__.ImmutableDict.__copy__
+Successfully analyzed scope: __main__.ImmutableMultiDict.copy
+Successfully analyzed scope: __main__.ImmutableMultiDict.__copy__
+Successfully analyzed scope: __main__.ImmutableOrderedMultiDict._iter_hashitems
+Successfully analyzed scope: __main__.ImmutableOrderedMultiDict.copy
+Successfully analyzed scope: __main__.ImmutableOrderedMultiDict.__copy__
+Successfully analyzed scope: __main__.Accept.__init__
+Successfully analyzed scope: __main__.Accept._specificity
+Successfully analyzed scope: __main__.Accept._value_matches
+Successfully analyzed scope: __main__.Accept.__getitem__
+Successfully analyzed scope: __main__.Accept.quality
+Successfully analyzed scope: __main__.Accept.__contains__
+Successfully analyzed scope: __main__.Accept.__repr__
+Successfully analyzed scope: __main__.Accept.index
+Successfully analyzed scope: __main__.Accept.find
+Successfully analyzed scope: __main__.Accept.values
+Successfully analyzed scope: __main__.Accept.to_header
+Successfully analyzed scope: __main__.Accept.__str__
+Successfully analyzed scope: __main__.Accept._best_single_match
+Successfully analyzed scope: __main__.Accept.best_match
+Successfully analyzed scope: __main__.Accept.best
+Successfully analyzed scope: __main__.MIMEAccept._specificity
+Successfully analyzed scope: __main__.MIMEAccept._value_matches
+Successfully analyzed scope: __main__.MIMEAccept.accept_html
+Successfully analyzed scope: __main__.MIMEAccept.accept_xhtml
+Successfully analyzed scope: __main__.MIMEAccept.accept_json
+Successfully analyzed scope: __main__.LanguageAccept._value_matches
+Successfully analyzed scope: __main__.LanguageAccept.best_match
+Successfully analyzed scope: __main__.CharsetAccept._value_matches
+Successfully analyzed scope: __main__.cache_control_property.$func_8
+Successfully analyzed scope: __main__.cache_control_property.$func_9
+Successfully analyzed scope: __main__.cache_control_property.$func_10
+Successfully analyzed scope: __main__._CacheControl.__init__
+Successfully analyzed scope: __main__._CacheControl._get_cache_value
+Successfully analyzed scope: __main__._CacheControl._set_cache_value
+Successfully analyzed scope: __main__._CacheControl._del_cache_value
+Successfully analyzed scope: __main__._CacheControl.to_header
+Successfully analyzed scope: __main__._CacheControl.__str__
+Successfully analyzed scope: __main__._CacheControl.__repr__
+Successfully analyzed scope: __main__.csp_property.$func_12
+Successfully analyzed scope: __main__.csp_property.$func_13
+Successfully analyzed scope: __main__.csp_property.$func_14
+Successfully analyzed scope: __main__.ContentSecurityPolicy.__init__
+Successfully analyzed scope: __main__.ContentSecurityPolicy._get_value
+Successfully analyzed scope: __main__.ContentSecurityPolicy._set_value
+Successfully analyzed scope: __main__.ContentSecurityPolicy._del_value
+Successfully analyzed scope: __main__.ContentSecurityPolicy.to_header
+Successfully analyzed scope: __main__.ContentSecurityPolicy.__str__
+Successfully analyzed scope: __main__.ContentSecurityPolicy.__repr__
+Successfully analyzed scope: __main__.CallbackDict.__init__
+Successfully analyzed scope: __main__.CallbackDict.__repr__
+Successfully analyzed scope: __main__.HeaderSet.__init__
+Successfully analyzed scope: __main__.HeaderSet.add
+Successfully analyzed scope: __main__.HeaderSet.remove
+Successfully analyzed scope: __main__.HeaderSet.update
+Successfully analyzed scope: __main__.HeaderSet.discard
+Successfully analyzed scope: __main__.HeaderSet.find
+Successfully analyzed scope: __main__.HeaderSet.index
+Successfully analyzed scope: __main__.HeaderSet.clear
+Successfully analyzed scope: __main__.HeaderSet.as_set
+Successfully analyzed scope: __main__.HeaderSet.to_header
+Successfully analyzed scope: __main__.HeaderSet.__getitem__
+Successfully analyzed scope: __main__.HeaderSet.__delitem__
+Successfully analyzed scope: __main__.HeaderSet.__setitem__
+Successfully analyzed scope: __main__.HeaderSet.__contains__
+Successfully analyzed scope: __main__.HeaderSet.__len__
+Successfully analyzed scope: __main__.HeaderSet.__iter__
+Successfully analyzed scope: __main__.HeaderSet.__bool__
+Successfully analyzed scope: __main__.HeaderSet.__str__
+Successfully analyzed scope: __main__.HeaderSet.__repr__
+Successfully analyzed scope: __main__.ETags.__init__
+Successfully analyzed scope: __main__.ETags.as_set
+Successfully analyzed scope: __main__.ETags.is_weak
+Successfully analyzed scope: __main__.ETags.is_strong
+Successfully analyzed scope: __main__.ETags.contains_weak
+Successfully analyzed scope: __main__.ETags.contains
+Successfully analyzed scope: __main__.ETags.contains_raw
+Successfully analyzed scope: __main__.ETags.to_header
+Successfully analyzed scope: __main__.ETags.__call__
+Successfully analyzed scope: __main__.ETags.__bool__
+Successfully analyzed scope: __main__.ETags.__str__
+Successfully analyzed scope: __main__.ETags.__len__
+Successfully analyzed scope: __main__.ETags.__iter__
+Successfully analyzed scope: __main__.ETags.__contains__
+Successfully analyzed scope: __main__.ETags.__repr__
+Successfully analyzed scope: __main__.IfRange.__init__
+Successfully analyzed scope: __main__.IfRange.to_header
+Successfully analyzed scope: __main__.IfRange.__str__
+Successfully analyzed scope: __main__.IfRange.__repr__
+Successfully analyzed scope: __main__.Range.__init__
+Successfully analyzed scope: __main__.Range.range_for_length
+Successfully analyzed scope: __main__.Range.make_content_range
+Successfully analyzed scope: __main__.Range.to_header
+Successfully analyzed scope: __main__.Range.to_content_range_header
+Successfully analyzed scope: __main__.Range.__str__
+Successfully analyzed scope: __main__.Range.__repr__
+Successfully analyzed scope: __main__._callback_property.fget
+Successfully analyzed scope: __main__._callback_property.fset
+Successfully analyzed scope: __main__.ContentRange.__init__
+Successfully analyzed scope: __main__.ContentRange.set
+Successfully analyzed scope: __main__.ContentRange.unset
+Successfully analyzed scope: __main__.ContentRange.to_header
+Successfully analyzed scope: __main__.ContentRange.__bool__
+Successfully analyzed scope: __main__.ContentRange.__str__
+Successfully analyzed scope: __main__.ContentRange.__repr__
+Successfully analyzed scope: __main__.Authorization.__init__
+Successfully analyzed scope: __main__.Authorization.username
+Successfully analyzed scope: __main__.Authorization.password
+Successfully analyzed scope: __main__.Authorization.realm
+Successfully analyzed scope: __main__.Authorization.nonce
+Successfully analyzed scope: __main__.Authorization.uri
+Successfully analyzed scope: __main__.Authorization.nc
+Successfully analyzed scope: __main__.Authorization.cnonce
+Successfully analyzed scope: __main__.Authorization.response
+Successfully analyzed scope: __main__.Authorization.opaque
+Successfully analyzed scope: __main__.Authorization.qop
+Successfully analyzed scope: __main__.Authorization.to_header
+Successfully analyzed scope: __main__.auth_property._set_value
+Successfully analyzed scope: __main__.auth_property.$func_16
+Successfully analyzed scope: __main__._set_property.fget
+Successfully analyzed scope: __main__.WWWAuthenticate.__init__
+Successfully analyzed scope: __main__.WWWAuthenticate.set_basic
+Successfully analyzed scope: __main__.WWWAuthenticate.set_digest
+Successfully analyzed scope: __main__.WWWAuthenticate.to_header
+Successfully analyzed scope: __main__.WWWAuthenticate.__str__
+Successfully analyzed scope: __main__.WWWAuthenticate.__repr__
+Successfully analyzed scope: __main__.WWWAuthenticate.stale
+Successfully analyzed scope: __main__.WWWAuthenticate.stale
+Successfully analyzed scope: __main__.FileStorage.__init__
+Successfully analyzed scope: __main__.FileStorage._parse_content_type
+Successfully analyzed scope: __main__.FileStorage.content_type
+Successfully analyzed scope: __main__.FileStorage.content_length
+Successfully analyzed scope: __main__.FileStorage.mimetype
+Successfully analyzed scope: __main__.FileStorage.mimetype_params
+Successfully analyzed scope: __main__.FileStorage.save
+Successfully analyzed scope: __main__.FileStorage.close
+Successfully analyzed scope: __main__.FileStorage.__bool__
+Successfully analyzed scope: __main__.FileStorage.__getattr__
+Successfully analyzed scope: __main__.FileStorage.__iter__
+Successfully analyzed scope: __main__.FileStorage.__repr__
+✓
+[5/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 23 scopes in module __main__
+Setting up unified analysis for 23 scopes
+Planned analysis for 22 functions
+Added class test.py:124:0:class with bases []
+Added class test.py:223:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=439, calls=137
+Added call edge: [] --[test.py:120:18:call#0]--> [test.py:120:18:call#0]:__main__.get_machine_id._generate
+Added call edge: [] --[test.py:137:0:call#0]--> [test.py:137:0:call#0]:__main__.get_machine_id
+Added call edge: [] --[test.py:212:29:call#0]--> [test.py:212:29:call#0]:__main__.get_pin_and_cookie_name.$func_0
+Added call edge: [] --[test.py:314:25:call#0]--> [test.py:314:25:call#0]:__main__.get_pin_and_cookie_name
+Added call edge: [] --[test.py:389:29:call#0]--> [test.py:389:29:call#0]:__main__._ConsoleFrame
+Added call edge: [] --[test.py:413:4:call#0]--> [test.py:413:4:call#0]:__main__.hash_pin
+Added call edge: [] --[test.py:478:8:call#0]--> [test.py:478:8:call#0]:__main__.hash_pin
+Added call edge: [] --[test.py:120:18:call#0]--> [test.py:120:18:call#0]:__main__.get_machine_id._generate
+Added call edge: [] --[test.py:137:0:call#0]--> [test.py:137:0:call#0]:__main__.get_machine_id
+Added call edge: [] --[test.py:212:29:call#0]--> [test.py:212:29:call#0]:__main__.get_pin_and_cookie_name.$func_0
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 155, 'constraints_processed': 584, 'calls_processed': 189}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.hash_pin
+Successfully analyzed scope: __main__.get_machine_id
+Successfully analyzed scope: __main__._ConsoleFrame
+Successfully analyzed scope: __main__.get_pin_and_cookie_name
+Successfully analyzed scope: __main__.DebuggedApplication
+Successfully analyzed scope: __main__.get_machine_id._generate
+Successfully analyzed scope: __main__._ConsoleFrame.__init__
+Successfully analyzed scope: __main__._ConsoleFrame.eval
+Successfully analyzed scope: __main__.get_pin_and_cookie_name.$func_0
+Successfully analyzed scope: __main__.DebuggedApplication.__init__
+Successfully analyzed scope: __main__.DebuggedApplication.pin
+Successfully analyzed scope: __main__.DebuggedApplication.pin
+Successfully analyzed scope: __main__.DebuggedApplication.pin_cookie_name
+Successfully analyzed scope: __main__.DebuggedApplication.debug_application
+Successfully analyzed scope: __main__.DebuggedApplication.execute_command
+Successfully analyzed scope: __main__.DebuggedApplication.display_console
+Successfully analyzed scope: __main__.DebuggedApplication.get_resource
+Successfully analyzed scope: __main__.DebuggedApplication.check_pin_trust
+Successfully analyzed scope: __main__.DebuggedApplication._fail_pin_auth
+Successfully analyzed scope: __main__.DebuggedApplication.pin_auth
+Successfully analyzed scope: __main__.DebuggedApplication.log_pin_request
+Successfully analyzed scope: __main__.DebuggedApplication.__call__
+✓
+[6/40]   Analyzing: console.py... Generate CFG for __main__
+Analyzing 34 scopes in module __main__
+Setting up unified analysis for 34 scopes
+Planned analysis for 34 functions
+Added class test.py:20:0:class with bases []
+Added class test.py:62:0:class with bases []
+Added class test.py:117:0:class with bases []
+Added class test.py:135:0:class with bases ['code.InteractiveInterpreter']
+Added class test.py:202:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=182, calls=61
+Added call edge: [] --[test.py:67:8:call#0]--> [test.py:67:8:call#0]:__main__.ThreadedStream
+Added call edge: [] --[test.py:66:4:call#0]--> [test.py:66:4:call#0]:__main__.HTMLStringO
+Added call edge: [] --[test.py:139:22:call#0]--> [test.py:139:22:call#0]:__main__._ConsoleLoader
+Added call edge: [] --[test.py:214:20:call#0]--> [test.py:214:20:call#0]:__main__._InteractiveConsole
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 72, 'constraints_processed': 182, 'calls_processed': 61}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.HTMLStringO
+Successfully analyzed scope: __main__.ThreadedStream
+Successfully analyzed scope: __main__._ConsoleLoader
+Successfully analyzed scope: __main__._InteractiveConsole
+Successfully analyzed scope: __main__.Console
+Successfully analyzed scope: __main__.HTMLStringO.__init__
+Successfully analyzed scope: __main__.HTMLStringO.isatty
+Successfully analyzed scope: __main__.HTMLStringO.close
+Successfully analyzed scope: __main__.HTMLStringO.flush
+Successfully analyzed scope: __main__.HTMLStringO.seek
+Successfully analyzed scope: __main__.HTMLStringO.readline
+Successfully analyzed scope: __main__.HTMLStringO.reset
+Successfully analyzed scope: __main__.HTMLStringO._write
+Successfully analyzed scope: __main__.HTMLStringO.write
+Successfully analyzed scope: __main__.HTMLStringO.writelines
+Successfully analyzed scope: __main__.ThreadedStream.push
+Successfully analyzed scope: __main__.ThreadedStream.fetch
+Successfully analyzed scope: __main__.ThreadedStream.displayhook
+Successfully analyzed scope: __main__.ThreadedStream.__setattr__
+Successfully analyzed scope: __main__.ThreadedStream.__dir__
+Successfully analyzed scope: __main__.ThreadedStream.__getattribute__
+Successfully analyzed scope: __main__.ThreadedStream.__repr__
+Successfully analyzed scope: __main__._ConsoleLoader.__init__
+Successfully analyzed scope: __main__._ConsoleLoader.register
+Successfully analyzed scope: __main__._ConsoleLoader.get_source_by_code
+Successfully analyzed scope: __main__._InteractiveConsole.__init__
+Successfully analyzed scope: __main__._InteractiveConsole.runsource
+Successfully analyzed scope: __main__._InteractiveConsole.runcode
+Successfully analyzed scope: __main__._InteractiveConsole.showtraceback
+Successfully analyzed scope: __main__._InteractiveConsole.showsyntaxerror
+Successfully analyzed scope: __main__._InteractiveConsole.write
+Successfully analyzed scope: __main__.Console.__init__
+Successfully analyzed scope: __main__.Console.eval
+✓
+[7/40]   Analyzing: repr.py... Generate CFG for __main__
+Analyzing 21 scopes in module __main__
+Setting up unified analysis for 21 scopes
+Planned analysis for 21 functions
+Added class test.py:52:0:class with bases []
+Added class test.py:121:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=294, calls=137
+Added call edge: [] --[test.py:80:9:call#0]--> [test.py:80:9:call#0]:__main__._Helper
+Added call edge: [] --[test.py:35:0:call#0]--> [test.py:35:0:call#0]:__main__.DebugReprGenerator
+Added call edge: [] --[test.py:44:10:call#0]--> [test.py:44:10:call#0]:__main__.DebugReprGenerator
+Added call edge: [] --[test.py:125:16:call#0]--> [test.py:125:16:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:126:17:call#0]--> [test.py:126:17:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:127:15:call#0]--> [test.py:127:15:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:128:21:call#0]--> [test.py:128:21:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:129:17:call#0]--> [test.py:129:17:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:102:8:call#0]--> [test.py:102:8:call#0]:__main__._add_subclass_info
+Added call edge: [] --[test.py:101:4:call#0]--> [test.py:101:4:call#0]:__main__._add_subclass_info
+Added call edge: [] --[test.py:134:18:call#0]--> [test.py:134:18:call#0]:__main__.DebugReprGenerator.repr
+Added call edge: [] --[test.py:141:12:call#0]--> [test.py:141:12:call#0]:__main__.DebugReprGenerator.repr
+Added call edge: [] --[test.py:160:8:call#0]--> [test.py:160:8:call#0]:__main__._add_subclass_info
+Added call edge: [] --[test.py:172:8:call#0]--> [test.py:172:8:call#0]:__main__._add_subclass_info
+Added call edge: [] --[test.py:166:4:call#0]--> [test.py:166:4:call#0]:__main__._add_subclass_info
+Added call edge: [] --[test.py:194:12:call#0]--> [test.py:194:12:call#0]:__main__.DebugReprGenerator.repr
+Added call edge: [] --[test.py:125:16:call#0]--> [test.py:125:16:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:126:17:call#0]--> [test.py:126:17:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:127:15:call#0]--> [test.py:127:15:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:128:21:call#0]--> [test.py:128:21:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:129:17:call#0]--> [test.py:129:17:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:125:16:call#0]--> [test.py:125:16:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:126:17:call#0]--> [test.py:126:17:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:127:15:call#0]--> [test.py:127:15:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:128:21:call#0]--> [test.py:128:21:call#0]:__main__._sequence_repr_maker
+Added call edge: [] --[test.py:129:17:call#0]--> [test.py:129:17:call#0]:__main__._sequence_repr_maker
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 123, 'constraints_processed': 424, 'calls_processed': 195}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.debug_repr
+Successfully analyzed scope: __main__.dump
+Successfully analyzed scope: __main__._Helper
+Successfully analyzed scope: __main__._add_subclass_info
+Successfully analyzed scope: __main__._sequence_repr_maker
+Successfully analyzed scope: __main__.DebugReprGenerator
+Successfully analyzed scope: __main__._Helper.__repr__
+Successfully analyzed scope: __main__._Helper.__call__
+Successfully analyzed scope: __main__._sequence_repr_maker.proxy
+Successfully analyzed scope: __main__.DebugReprGenerator.__init__
+Successfully analyzed scope: __main__.DebugReprGenerator.regex_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.string_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.dict_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.object_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.dispatch_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.fallback_repr
+Successfully analyzed scope: __main__.DebugReprGenerator.repr
+Successfully analyzed scope: __main__.DebugReprGenerator.dump_object
+Successfully analyzed scope: __main__.DebugReprGenerator.dump_locals
+Successfully analyzed scope: __main__.DebugReprGenerator.render_object_dump
+✓
+[8/40]   Analyzing: tbtools.py... Generate CFG for __main__
+Analyzing 18 scopes in module __main__
+Setting up unified analysis for 18 scopes
+Planned analysis for 18 functions
+Added class test.py:218:0:class with bases []
+Added class test.py:338:0:class with bases ['traceback.FrameSummary']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=281, calls=89
+Added call edge: [] --[test.py:155:4:call#0]--> [test.py:155:4:call#0]:__main__.DebugFrameSummary
+Added call edge: [] --[test.py:209:25:call#0]--> [test.py:209:25:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:213:23:call#0]--> [test.py:213:23:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:229:19:call#0]--> [test.py:229:19:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:155:4:call#0]--> [test.py:155:4:call#0]:__main__.DebugFrameSummary
+Added call edge: [] --[test.py:209:25:call#0]--> [test.py:209:25:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:213:23:call#0]--> [test.py:213:23:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:155:4:call#0]--> [test.py:155:4:call#0]:__main__.DebugFrameSummary
+Added call edge: [] --[test.py:209:25:call#0]--> [test.py:209:25:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:213:23:call#0]--> [test.py:213:23:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:155:4:call#0]--> [test.py:155:4:call#0]:__main__.DebugFrameSummary
+Added call edge: [] --[test.py:209:25:call#0]--> [test.py:209:25:call#0]:__main__._process_traceback
+Added call edge: [] --[test.py:213:23:call#0]--> [test.py:213:23:call#0]:__main__._process_traceback
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 135, 'constraints_processed': 515, 'calls_processed': 149}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._process_traceback
+Successfully analyzed scope: __main__.DebugTraceback
+Successfully analyzed scope: __main__.DebugFrameSummary
+Successfully analyzed scope: __main__.render_console_html
+Successfully analyzed scope: __main__.DebugTraceback.__init__
+Successfully analyzed scope: __main__.DebugTraceback.__str__
+Successfully analyzed scope: __main__.DebugTraceback.all_tracebacks
+Successfully analyzed scope: __main__.DebugTraceback.all_frames
+Successfully analyzed scope: __main__.DebugTraceback.render_traceback_text
+Successfully analyzed scope: __main__.DebugTraceback.render_traceback_html
+Successfully analyzed scope: __main__.DebugTraceback.render_debugger_html
+Successfully analyzed scope: __main__.DebugFrameSummary.__init__
+Successfully analyzed scope: __main__.DebugFrameSummary.info
+Successfully analyzed scope: __main__.DebugFrameSummary.is_library
+Successfully analyzed scope: __main__.DebugFrameSummary.console
+Successfully analyzed scope: __main__.DebugFrameSummary.eval
+Successfully analyzed scope: __main__.DebugFrameSummary.render_html
+✓
+[9/40]   Analyzing: exceptions.py... Generate CFG for __main__
+Analyzing 63 scopes in module __main__
+Setting up unified analysis for 63 scopes
+Planned analysis for 62 functions
+Added class test.py:64:0:class with bases ['Exception']
+Added class test.py:174:0:class with bases ['test.py:64:0:class']
+Added class test.py:188:0:class with bases ['test.py:174:0:class', 'KeyError']
+Added class test.py:222:0:class with bases ['test.py:174:0:class']
+Added class test.py:237:0:class with bases ['test.py:174:0:class']
+Added class test.py:245:0:class with bases ['test.py:174:0:class']
+Added class test.py:252:0:class with bases ['test.py:64:0:class']
+Added class test.py:326:0:class with bases ['test.py:64:0:class']
+Added class test.py:341:0:class with bases ['test.py:64:0:class']
+Added class test.py:354:0:class with bases ['test.py:64:0:class']
+Added class test.py:390:0:class with bases ['test.py:64:0:class']
+Added class test.py:406:0:class with bases ['test.py:64:0:class']
+Added class test.py:419:0:class with bases ['test.py:64:0:class']
+Added class test.py:436:0:class with bases ['test.py:64:0:class']
+Added class test.py:450:0:class with bases ['test.py:64:0:class']
+Added class test.py:464:0:class with bases ['test.py:64:0:class']
+Added class test.py:477:0:class with bases ['test.py:64:0:class']
+Added class test.py:488:0:class with bases ['test.py:64:0:class']
+Added class test.py:501:0:class with bases ['test.py:64:0:class']
+Added class test.py:514:0:class with bases ['test.py:64:0:class']
+Added class test.py:550:0:class with bases ['test.py:64:0:class']
+Added class test.py:562:0:class with bases ['test.py:64:0:class']
+Added class test.py:575:0:class with bases ['test.py:64:0:class']
+Added class test.py:589:0:class with bases ['test.py:64:0:class']
+Added class test.py:599:0:class with bases ['test.py:64:0:class']
+Added class test.py:614:0:class with bases ['test.py:64:0:class']
+Added class test.py:633:0:class with bases ['test.py:64:0:class']
+Added class test.py:668:0:class with bases ['test.py:633:0:class']
+Added class test.py:689:0:class with bases ['test.py:64:0:class']
+Added class test.py:701:0:class with bases ['test.py:64:0:class']
+Added class test.py:712:0:class with bases ['test.py:64:0:class']
+Added class test.py:742:0:class with bases ['test.py:64:0:class']
+Added class test.py:753:0:class with bases ['test.py:64:0:class']
+Added class test.py:767:0:class with bases ['test.py:633:0:class']
+Added class test.py:789:0:class with bases ['test.py:64:0:class']
+Added class test.py:800:0:class with bases ['test.py:64:0:class']
+Added class test.py:833:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=256, calls=64
+Added call edge: [] --[test.py:1:0:call#0]--> [test.py:1:0:call#0]:__main__._find_exceptions
+Added call edge: [] --[test.py:884:20:call#0]--> [test.py:884:20:call#0]:__main__.Aborter
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 211, 'constraints_processed': 277, 'calls_processed': 71}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.HTTPException
+Successfully analyzed scope: __main__.BadRequest
+Successfully analyzed scope: __main__.BadRequestKeyError
+Successfully analyzed scope: __main__.ClientDisconnected
+Successfully analyzed scope: __main__.SecurityError
+Successfully analyzed scope: __main__.BadHost
+Successfully analyzed scope: __main__.Unauthorized
+Successfully analyzed scope: __main__.Forbidden
+Successfully analyzed scope: __main__.NotFound
+Successfully analyzed scope: __main__.MethodNotAllowed
+Successfully analyzed scope: __main__.NotAcceptable
+Successfully analyzed scope: __main__.RequestTimeout
+Successfully analyzed scope: __main__.Conflict
+Successfully analyzed scope: __main__.Gone
+Successfully analyzed scope: __main__.LengthRequired
+Successfully analyzed scope: __main__.PreconditionFailed
+Successfully analyzed scope: __main__.RequestEntityTooLarge
+Successfully analyzed scope: __main__.RequestURITooLarge
+Successfully analyzed scope: __main__.UnsupportedMediaType
+Successfully analyzed scope: __main__.RequestedRangeNotSatisfiable
+Successfully analyzed scope: __main__.ExpectationFailed
+Successfully analyzed scope: __main__.ImATeapot
+Successfully analyzed scope: __main__.UnprocessableEntity
+Successfully analyzed scope: __main__.Locked
+Successfully analyzed scope: __main__.FailedDependency
+Successfully analyzed scope: __main__.PreconditionRequired
+Successfully analyzed scope: __main__._RetryAfter
+Successfully analyzed scope: __main__.TooManyRequests
+Successfully analyzed scope: __main__.RequestHeaderFieldsTooLarge
+Successfully analyzed scope: __main__.UnavailableForLegalReasons
+Successfully analyzed scope: __main__.InternalServerError
+Successfully analyzed scope: __main__.NotImplemented
+Successfully analyzed scope: __main__.BadGateway
+Successfully analyzed scope: __main__.ServiceUnavailable
+Successfully analyzed scope: __main__.GatewayTimeout
+Successfully analyzed scope: __main__.HTTPVersionNotSupported
+Successfully analyzed scope: __main__._find_exceptions
+Successfully analyzed scope: __main__.Aborter
+Successfully analyzed scope: __main__.abort
+Successfully analyzed scope: __main__.HTTPException.__init__
+Successfully analyzed scope: __main__.HTTPException.name
+Successfully analyzed scope: __main__.HTTPException.get_description
+Successfully analyzed scope: __main__.HTTPException.get_body
+Successfully analyzed scope: __main__.HTTPException.get_headers
+Successfully analyzed scope: __main__.HTTPException.get_response
+Successfully analyzed scope: __main__.HTTPException.__call__
+Successfully analyzed scope: __main__.HTTPException.__str__
+Successfully analyzed scope: __main__.HTTPException.__repr__
+Successfully analyzed scope: __main__.BadRequestKeyError.__init__
+Successfully analyzed scope: __main__.BadRequestKeyError.description
+Successfully analyzed scope: __main__.BadRequestKeyError.description
+Successfully analyzed scope: __main__.Unauthorized.__init__
+Successfully analyzed scope: __main__.Unauthorized.get_headers
+Successfully analyzed scope: __main__.MethodNotAllowed.__init__
+Successfully analyzed scope: __main__.MethodNotAllowed.get_headers
+Successfully analyzed scope: __main__.RequestedRangeNotSatisfiable.__init__
+Successfully analyzed scope: __main__.RequestedRangeNotSatisfiable.get_headers
+Successfully analyzed scope: __main__._RetryAfter.__init__
+Successfully analyzed scope: __main__._RetryAfter.get_headers
+Successfully analyzed scope: __main__.InternalServerError.__init__
+Successfully analyzed scope: __main__.Aborter.__init__
+Successfully analyzed scope: __main__.Aborter.__call__
+✓
+[10/40]   Analyzing: formparser.py... Generate CFG for __main__
+Analyzing 22 scopes in module __main__
+Setting up unified analysis for 22 scopes
+Planned analysis for 22 functions
+Added class test.py:38:4:class with bases ['te.Protocol']
+Added class test.py:156:0:class with bases []
+Added class test.py:346:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=232, calls=68
+Added call edge: [] --[test.py:74:0:call#0]--> [test.py:74:0:call#0]:__main__.FormDataParser
+Added call edge: [] --[test.py:252:8:call#0]--> [test.py:252:8:call#0]:__main__._exhaust
+Added call edge: [] --[test.py:283:17:call#0]--> [test.py:283:17:call#0]:__main__.MultiPartParser
+Added call edge: [] --[test.py:307:8:call#0]--> [test.py:307:8:call#0]:__main__._exhaust
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 87, 'constraints_processed': 240, 'calls_processed': 72}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.TStreamFactory
+Successfully analyzed scope: __main__._exhaust
+Successfully analyzed scope: __main__.default_stream_factory
+Successfully analyzed scope: __main__.parse_form_data
+Successfully analyzed scope: __main__.exhaust_stream
+Successfully analyzed scope: __main__.FormDataParser
+Successfully analyzed scope: __main__._line_parse
+Successfully analyzed scope: __main__.MultiPartParser
+Successfully analyzed scope: __main__.TStreamFactory.__call__
+Successfully analyzed scope: __main__.exhaust_stream.wrapper
+Successfully analyzed scope: __main__.FormDataParser.__init__
+Successfully analyzed scope: __main__.FormDataParser.get_parse_func
+Successfully analyzed scope: __main__.FormDataParser.parse_from_environ
+Successfully analyzed scope: __main__.FormDataParser.parse
+Successfully analyzed scope: __main__.FormDataParser._parse_multipart
+Successfully analyzed scope: __main__.FormDataParser._parse_urlencoded
+Successfully analyzed scope: __main__.MultiPartParser.__init__
+Successfully analyzed scope: __main__.MultiPartParser.fail
+Successfully analyzed scope: __main__.MultiPartParser.get_part_charset
+Successfully analyzed scope: __main__.MultiPartParser.start_file_streaming
+Successfully analyzed scope: __main__.MultiPartParser.parse
+✓
+[11/40]   Analyzing: http.py... Generate CFG for __main__
+Analyzing 44 scopes in module __main__
+Setting up unified analysis for 44 scopes
+Planned analysis for 38 functions
+Added class test.py:178:0:class with bases ['Enum']
+Added class test.py:185:0:class with bases ['Enum']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=647, calls=274
+Added call edge: [] --[test.py:264:8:call#0]--> [test.py:264:8:call#0]:__main__._is_extended_parameter
+Added call edge: [] --[test.py:266:8:call#0]--> [test.py:266:8:call#0]:__main__.quote_header_value
+Added call edge: [] --[test.py:294:12:call#0]--> [test.py:294:12:call#0]:__main__._is_extended_parameter
+Added call edge: [] --[test.py:296:12:call#0]--> [test.py:296:12:call#0]:__main__.quote_header_value
+Added call edge: [] --[test.py:303:16:call#0]--> [test.py:303:16:call#0]:__main__.quote_header_value
+Added call edge: [] --[test.py:307:0:call#0]--> [test.py:307:0:call#0]:__main__.dump_csp_header.$func_0
+Added call edge: [] --[test.py:345:19:call#0]--> [test.py:345:19:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:385:20:call#0]--> [test.py:385:20:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:430:8:call#0]--> [test.py:430:8:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:448:31:call#0]--> [test.py:448:31:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:537:0:call#0]--> [test.py:537:0:call#0]:__main__.parse_dict_header
+Added call edge: [] --[test.py:621:0:call#0]--> [test.py:621:0:call#0]:__main__.parse_list_header
+Added call edge: [] --[test.py:689:19:call#0]--> [test.py:689:19:call#0]:__main__.parse_dict_header
+Added call edge: [] --[test.py:700:0:call#0]--> [test.py:700:0:call#0]:__main__.parse_dict_header
+Added call edge: [] --[test.py:734:11:call#0]--> [test.py:734:11:call#0]:__main__.parse_date
+Added call edge: [] --[test.py:723:0:call#0]--> [test.py:723:0:call#0]:__main__.unquote_etag
+Added call edge: [] --[test.py:833:4:call#0]--> [test.py:833:4:call#0]:__main__.is_byte_range_valid
+Added call edge: [] --[test.py:800:0:call#0]--> [test.py:800:0:call#0]:__main__.is_byte_range_valid
+Added call edge: [] --[test.py:1089:17:call#0]--> [test.py:1089:17:call#0]:__main__.is_entity_header
+Added call edge: [] --[test.py:1106:17:call#0]--> [test.py:1106:17:call#0]:__main__.is_hop_by_hop_header
+Added call edge: [] --[test.py:1243:22:call#0]--> [test.py:1243:22:call#0]:__main__.http_date
+Added call edge: [] --[test.py:1245:18:call#0]--> [test.py:1245:18:call#0]:__main__.http_date
+Added call edge: [] --[test.py:385:20:call#0]--> [test.py:385:20:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:345:19:call#0]--> [test.py:345:19:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:385:20:call#0]--> [test.py:385:20:call#0]:__main__.unquote_header_value
+Added call edge: [] --[test.py:385:20:call#0]--> [test.py:385:20:call#0]:__main__.unquote_header_value
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 401, 'constraints_processed': 951, 'calls_processed': 371}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.COEP
+Successfully analyzed scope: __main__.COOP
+Successfully analyzed scope: __main__._is_extended_parameter
+Successfully analyzed scope: __main__.quote_header_value
+Successfully analyzed scope: __main__.unquote_header_value
+Successfully analyzed scope: __main__.dump_options_header
+Successfully analyzed scope: __main__.dump_header
+Successfully analyzed scope: __main__.dump_csp_header
+Successfully analyzed scope: __main__.parse_list_header
+Successfully analyzed scope: __main__.parse_dict_header
+Successfully analyzed scope: __main__.parse_options_header
+Successfully analyzed scope: __main__.parse_accept_header
+Successfully analyzed scope: __main__.parse_accept_header
+Successfully analyzed scope: __main__.parse_accept_header
+Successfully analyzed scope: __main__.parse_cache_control_header
+Successfully analyzed scope: __main__.parse_cache_control_header
+Successfully analyzed scope: __main__.parse_cache_control_header
+Successfully analyzed scope: __main__.parse_csp_header
+Successfully analyzed scope: __main__.parse_csp_header
+Successfully analyzed scope: __main__.parse_csp_header
+Successfully analyzed scope: __main__.parse_set_header
+Successfully analyzed scope: __main__.parse_authorization_header
+Successfully analyzed scope: __main__.parse_www_authenticate_header
+Successfully analyzed scope: __main__.parse_if_range_header
+Successfully analyzed scope: __main__.parse_range_header
+Successfully analyzed scope: __main__.parse_content_range_header
+Successfully analyzed scope: __main__.quote_etag
+Successfully analyzed scope: __main__.unquote_etag
+Successfully analyzed scope: __main__.parse_etags
+Successfully analyzed scope: __main__.generate_etag
+Successfully analyzed scope: __main__.parse_date
+Successfully analyzed scope: __main__.http_date
+Successfully analyzed scope: __main__.parse_age
+Successfully analyzed scope: __main__.dump_age
+Successfully analyzed scope: __main__.is_resource_modified
+Successfully analyzed scope: __main__.remove_entity_headers
+Successfully analyzed scope: __main__.remove_hop_by_hop_headers
+Successfully analyzed scope: __main__.is_entity_header
+Successfully analyzed scope: __main__.is_hop_by_hop_header
+Successfully analyzed scope: __main__.parse_cookie
+Successfully analyzed scope: __main__.dump_cookie
+Successfully analyzed scope: __main__.is_byte_range_valid
+Successfully analyzed scope: __main__.dump_csp_header.$func_0
+✓
+[12/40]   Analyzing: local.py... Generate CFG for __main__
+Analyzing 45 scopes in module __main__
+Setting up unified analysis for 45 scopes
+Planned analysis for 45 functions
+Added class test.py:33:0:class with bases []
+Added class test.py:106:0:class with bases []
+Added class test.py:186:0:class with bases []
+Added class test.py:257:0:class with bases []
+Added class test.py:347:0:class with bases ['test.py:257:0:class']
+Added class test.py:382:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=351, calls=173
+Added call edge: [] --[test.py:528:14:call#0]--> [test.py:528:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:531:18:call#0]--> [test.py:531:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:535:15:call#0]--> [test.py:535:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:538:14:call#0]--> [test.py:538:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:539:16:call#0]--> [test.py:539:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:540:17:call#0]--> [test.py:540:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:541:13:call#0]--> [test.py:541:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:542:13:call#0]--> [test.py:542:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:543:13:call#0]--> [test.py:543:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:544:13:call#0]--> [test.py:544:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:545:13:call#0]--> [test.py:545:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:546:13:call#0]--> [test.py:546:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:547:15:call#0]--> [test.py:547:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:548:15:call#0]--> [test.py:548:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:549:18:call#0]--> [test.py:549:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:551:18:call#0]--> [test.py:551:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:552:18:call#0]--> [test.py:552:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:553:14:call#0]--> [test.py:553:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:564:16:call#0]--> [test.py:564:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:567:24:call#0]--> [test.py:567:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:568:24:call#0]--> [test.py:568:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:570:15:call#0]--> [test.py:570:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:571:14:call#0]--> [test.py:571:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:572:22:call#0]--> [test.py:572:22:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:573:18:call#0]--> [test.py:573:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:574:18:call#0]--> [test.py:574:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:575:18:call#0]--> [test.py:575:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:577:15:call#0]--> [test.py:577:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:578:15:call#0]--> [test.py:578:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:579:19:call#0]--> [test.py:579:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:580:19:call#0]--> [test.py:580:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:581:14:call#0]--> [test.py:581:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:582:14:call#0]--> [test.py:582:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:583:14:call#0]--> [test.py:583:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:584:17:call#0]--> [test.py:584:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:585:18:call#0]--> [test.py:585:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:586:19:call#0]--> [test.py:586:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:587:14:call#0]--> [test.py:587:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:588:17:call#0]--> [test.py:588:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:589:14:call#0]--> [test.py:589:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:590:17:call#0]--> [test.py:590:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:591:17:call#0]--> [test.py:591:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:592:14:call#0]--> [test.py:592:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:593:14:call#0]--> [test.py:593:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:594:13:call#0]--> [test.py:594:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:595:15:call#0]--> [test.py:595:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:596:15:call#0]--> [test.py:596:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:597:15:call#0]--> [test.py:597:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:598:18:call#0]--> [test.py:598:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:599:19:call#0]--> [test.py:599:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:600:20:call#0]--> [test.py:600:20:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:601:15:call#0]--> [test.py:601:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:602:18:call#0]--> [test.py:602:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:603:15:call#0]--> [test.py:603:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:604:18:call#0]--> [test.py:604:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:605:18:call#0]--> [test.py:605:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:606:15:call#0]--> [test.py:606:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:607:15:call#0]--> [test.py:607:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:608:14:call#0]--> [test.py:608:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:609:15:call#0]--> [test.py:609:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:610:15:call#0]--> [test.py:610:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:611:15:call#0]--> [test.py:611:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:612:18:call#0]--> [test.py:612:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:613:19:call#0]--> [test.py:613:19:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:614:20:call#0]--> [test.py:614:20:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:615:15:call#0]--> [test.py:615:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:616:15:call#0]--> [test.py:616:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:617:18:call#0]--> [test.py:617:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:618:18:call#0]--> [test.py:618:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:619:15:call#0]--> [test.py:619:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:620:15:call#0]--> [test.py:620:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:621:14:call#0]--> [test.py:621:14:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:622:14:call#0]--> [test.py:622:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:623:14:call#0]--> [test.py:623:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:624:14:call#0]--> [test.py:624:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:625:17:call#0]--> [test.py:625:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:626:18:call#0]--> [test.py:626:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:627:14:call#0]--> [test.py:627:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:628:16:call#0]--> [test.py:628:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:629:16:call#0]--> [test.py:629:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:630:16:call#0]--> [test.py:630:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:631:16:call#0]--> [test.py:631:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:632:16:call#0]--> [test.py:632:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:633:15:call#0]--> [test.py:633:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:634:16:call#0]--> [test.py:634:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:635:15:call#0]--> [test.py:635:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:636:16:call#0]--> [test.py:636:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:637:16:call#0]--> [test.py:637:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:638:16:call#0]--> [test.py:638:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:639:17:call#0]--> [test.py:639:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:640:16:call#0]--> [test.py:640:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:641:15:call#0]--> [test.py:641:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:642:19:call#0]--> [test.py:642:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:67:4:call#0]--> [test.py:67:4:call#0]:__main__.LocalProxy
+Added call edge: [] --[test.py:172:4:call#0]--> [test.py:172:4:call#0]:__main__.LocalProxy
+Added call edge: [] --[test.py:226:8:call#0]--> [test.py:226:8:call#0]:__main__.release_local
+Added call edge: [] --[test.py:528:14:call#0]--> [test.py:528:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:531:18:call#0]--> [test.py:531:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:535:15:call#0]--> [test.py:535:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:538:14:call#0]--> [test.py:538:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:539:16:call#0]--> [test.py:539:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:540:17:call#0]--> [test.py:540:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:541:13:call#0]--> [test.py:541:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:542:13:call#0]--> [test.py:542:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:543:13:call#0]--> [test.py:543:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:544:13:call#0]--> [test.py:544:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:545:13:call#0]--> [test.py:545:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:546:13:call#0]--> [test.py:546:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:547:15:call#0]--> [test.py:547:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:548:15:call#0]--> [test.py:548:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:549:18:call#0]--> [test.py:549:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:551:18:call#0]--> [test.py:551:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:552:18:call#0]--> [test.py:552:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:553:14:call#0]--> [test.py:553:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:564:16:call#0]--> [test.py:564:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:567:24:call#0]--> [test.py:567:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:568:24:call#0]--> [test.py:568:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:570:15:call#0]--> [test.py:570:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:571:14:call#0]--> [test.py:571:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:572:22:call#0]--> [test.py:572:22:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:573:18:call#0]--> [test.py:573:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:574:18:call#0]--> [test.py:574:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:575:18:call#0]--> [test.py:575:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:577:15:call#0]--> [test.py:577:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:578:15:call#0]--> [test.py:578:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:579:19:call#0]--> [test.py:579:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:580:19:call#0]--> [test.py:580:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:581:14:call#0]--> [test.py:581:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:582:14:call#0]--> [test.py:582:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:583:14:call#0]--> [test.py:583:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:584:17:call#0]--> [test.py:584:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:585:18:call#0]--> [test.py:585:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:586:19:call#0]--> [test.py:586:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:587:14:call#0]--> [test.py:587:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:588:17:call#0]--> [test.py:588:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:589:14:call#0]--> [test.py:589:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:590:17:call#0]--> [test.py:590:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:591:17:call#0]--> [test.py:591:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:592:14:call#0]--> [test.py:592:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:593:14:call#0]--> [test.py:593:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:594:13:call#0]--> [test.py:594:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:595:15:call#0]--> [test.py:595:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:596:15:call#0]--> [test.py:596:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:597:15:call#0]--> [test.py:597:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:598:18:call#0]--> [test.py:598:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:599:19:call#0]--> [test.py:599:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:600:20:call#0]--> [test.py:600:20:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:601:15:call#0]--> [test.py:601:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:602:18:call#0]--> [test.py:602:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:603:15:call#0]--> [test.py:603:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:604:18:call#0]--> [test.py:604:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:605:18:call#0]--> [test.py:605:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:606:15:call#0]--> [test.py:606:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:607:15:call#0]--> [test.py:607:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:608:14:call#0]--> [test.py:608:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:609:15:call#0]--> [test.py:609:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:610:15:call#0]--> [test.py:610:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:611:15:call#0]--> [test.py:611:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:612:18:call#0]--> [test.py:612:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:613:19:call#0]--> [test.py:613:19:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:614:20:call#0]--> [test.py:614:20:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:615:15:call#0]--> [test.py:615:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:616:15:call#0]--> [test.py:616:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:617:18:call#0]--> [test.py:617:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:618:18:call#0]--> [test.py:618:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:619:15:call#0]--> [test.py:619:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:620:15:call#0]--> [test.py:620:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:621:14:call#0]--> [test.py:621:14:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:622:14:call#0]--> [test.py:622:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:623:14:call#0]--> [test.py:623:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:624:14:call#0]--> [test.py:624:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:625:17:call#0]--> [test.py:625:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:626:18:call#0]--> [test.py:626:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:627:14:call#0]--> [test.py:627:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:628:16:call#0]--> [test.py:628:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:629:16:call#0]--> [test.py:629:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:630:16:call#0]--> [test.py:630:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:631:16:call#0]--> [test.py:631:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:632:16:call#0]--> [test.py:632:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:633:15:call#0]--> [test.py:633:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:634:16:call#0]--> [test.py:634:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:635:15:call#0]--> [test.py:635:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:636:16:call#0]--> [test.py:636:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:637:16:call#0]--> [test.py:637:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:638:16:call#0]--> [test.py:638:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:639:17:call#0]--> [test.py:639:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:640:16:call#0]--> [test.py:640:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:641:15:call#0]--> [test.py:641:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:642:19:call#0]--> [test.py:642:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:528:14:call#0]--> [test.py:528:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:531:18:call#0]--> [test.py:531:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:535:15:call#0]--> [test.py:535:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:538:14:call#0]--> [test.py:538:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:539:16:call#0]--> [test.py:539:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:540:17:call#0]--> [test.py:540:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:541:13:call#0]--> [test.py:541:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:542:13:call#0]--> [test.py:542:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:543:13:call#0]--> [test.py:543:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:544:13:call#0]--> [test.py:544:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:545:13:call#0]--> [test.py:545:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:546:13:call#0]--> [test.py:546:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:547:15:call#0]--> [test.py:547:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:548:15:call#0]--> [test.py:548:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:549:18:call#0]--> [test.py:549:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:551:18:call#0]--> [test.py:551:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:552:18:call#0]--> [test.py:552:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:553:14:call#0]--> [test.py:553:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:564:16:call#0]--> [test.py:564:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:567:24:call#0]--> [test.py:567:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:568:24:call#0]--> [test.py:568:24:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:570:15:call#0]--> [test.py:570:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:571:14:call#0]--> [test.py:571:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:572:22:call#0]--> [test.py:572:22:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:573:18:call#0]--> [test.py:573:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:574:18:call#0]--> [test.py:574:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:575:18:call#0]--> [test.py:575:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:577:15:call#0]--> [test.py:577:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:578:15:call#0]--> [test.py:578:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:579:19:call#0]--> [test.py:579:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:580:19:call#0]--> [test.py:580:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:581:14:call#0]--> [test.py:581:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:582:14:call#0]--> [test.py:582:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:583:14:call#0]--> [test.py:583:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:584:17:call#0]--> [test.py:584:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:585:18:call#0]--> [test.py:585:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:586:19:call#0]--> [test.py:586:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:587:14:call#0]--> [test.py:587:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:588:17:call#0]--> [test.py:588:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:589:14:call#0]--> [test.py:589:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:590:17:call#0]--> [test.py:590:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:591:17:call#0]--> [test.py:591:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:592:14:call#0]--> [test.py:592:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:593:14:call#0]--> [test.py:593:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:594:13:call#0]--> [test.py:594:13:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:595:15:call#0]--> [test.py:595:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:596:15:call#0]--> [test.py:596:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:597:15:call#0]--> [test.py:597:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:598:18:call#0]--> [test.py:598:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:599:19:call#0]--> [test.py:599:19:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:600:20:call#0]--> [test.py:600:20:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:601:15:call#0]--> [test.py:601:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:602:18:call#0]--> [test.py:602:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:603:15:call#0]--> [test.py:603:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:604:18:call#0]--> [test.py:604:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:605:18:call#0]--> [test.py:605:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:606:15:call#0]--> [test.py:606:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:607:15:call#0]--> [test.py:607:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:382:0:call#0]--> [test.py:382:0:call#0]:__main__._l_to_r_op
+Added call edge: [] --[test.py:608:14:call#0]--> [test.py:608:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:609:15:call#0]--> [test.py:609:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:610:15:call#0]--> [test.py:610:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:611:15:call#0]--> [test.py:611:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:612:18:call#0]--> [test.py:612:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:613:19:call#0]--> [test.py:613:19:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:614:20:call#0]--> [test.py:614:20:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:615:15:call#0]--> [test.py:615:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:616:15:call#0]--> [test.py:616:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:617:18:call#0]--> [test.py:617:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:618:18:call#0]--> [test.py:618:18:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:619:15:call#0]--> [test.py:619:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:620:15:call#0]--> [test.py:620:15:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:621:14:call#0]--> [test.py:621:14:call#0]:__main__._ProxyIOp
+Added call edge: [] --[test.py:622:14:call#0]--> [test.py:622:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:623:14:call#0]--> [test.py:623:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:624:14:call#0]--> [test.py:624:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:625:17:call#0]--> [test.py:625:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:626:18:call#0]--> [test.py:626:18:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:627:14:call#0]--> [test.py:627:14:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:628:16:call#0]--> [test.py:628:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:629:16:call#0]--> [test.py:629:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:630:16:call#0]--> [test.py:630:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:631:16:call#0]--> [test.py:631:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:632:16:call#0]--> [test.py:632:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:633:15:call#0]--> [test.py:633:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:634:16:call#0]--> [test.py:634:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:635:15:call#0]--> [test.py:635:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:636:16:call#0]--> [test.py:636:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:637:16:call#0]--> [test.py:637:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:638:16:call#0]--> [test.py:638:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:639:17:call#0]--> [test.py:639:17:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:640:16:call#0]--> [test.py:640:16:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:641:15:call#0]--> [test.py:641:15:call#0]:__main__._ProxyLookup
+Added call edge: [] --[test.py:642:19:call#0]--> [test.py:642:19:call#0]:__main__._ProxyLookup
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 219, 'constraints_processed': 683, 'calls_processed': 389}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.release_local
+Successfully analyzed scope: __main__.Local
+Successfully analyzed scope: __main__.LocalStack
+Successfully analyzed scope: __main__.LocalManager
+Successfully analyzed scope: __main__._ProxyLookup
+Successfully analyzed scope: __main__._ProxyIOp
+Successfully analyzed scope: __main__._l_to_r_op
+Successfully analyzed scope: __main__._identity
+Successfully analyzed scope: __main__.LocalProxy
+Successfully analyzed scope: __main__.Local.__init__
+Successfully analyzed scope: __main__.Local.__iter__
+Successfully analyzed scope: __main__.Local.__call__
+Successfully analyzed scope: __main__.Local.__release_local__
+Successfully analyzed scope: __main__.Local.__getattr__
+Successfully analyzed scope: __main__.Local.__setattr__
+Successfully analyzed scope: __main__.Local.__delattr__
+Successfully analyzed scope: __main__.LocalStack.__init__
+Successfully analyzed scope: __main__.LocalStack.__release_local__
+Successfully analyzed scope: __main__.LocalStack.push
+Successfully analyzed scope: __main__.LocalStack.pop
+Successfully analyzed scope: __main__.LocalStack.top
+Successfully analyzed scope: __main__.LocalStack.__call__
+Successfully analyzed scope: __main__.LocalManager.__init__
+Successfully analyzed scope: __main__.LocalManager.cleanup
+Successfully analyzed scope: __main__.LocalManager.make_middleware
+Successfully analyzed scope: __main__.LocalManager.middleware
+Successfully analyzed scope: __main__.LocalManager.__repr__
+Successfully analyzed scope: __main__._ProxyLookup.__init__
+Successfully analyzed scope: __main__._ProxyLookup.__set_name__
+Successfully analyzed scope: __main__._ProxyLookup.__get__
+Successfully analyzed scope: __main__._ProxyLookup.__repr__
+Successfully analyzed scope: __main__._ProxyLookup.__call__
+Successfully analyzed scope: __main__._ProxyIOp.__init__
+Successfully analyzed scope: __main__._l_to_r_op.r_op
+Successfully analyzed scope: __main__.LocalProxy.__init__
+Successfully analyzed scope: __main__.LocalProxy.$func_0
+Successfully analyzed scope: __main__.LocalProxy.$func_1
+Successfully analyzed scope: __main__.LocalProxy.$func_2
+Successfully analyzed scope: __main__.LocalProxy.$func_3
+Successfully analyzed scope: __main__.LocalProxy.$func_4
+Successfully analyzed scope: __main__.LocalProxy.$func_5
+Successfully analyzed scope: __main__.LocalProxy.$func_6
+Successfully analyzed scope: __main__.LocalProxy.$func_7
+Successfully analyzed scope: __main__.LocalProxy.$func_8
+✓
+[13/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 1 scopes in module __main__
+Setting up unified analysis for 1 scopes
+Planned analysis for 1 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=0, calls=0
+Analysis converged after 1 iterations
+Statistics: {'objects_created': 1, 'constraints_processed': 0, 'calls_processed': 0}
+Successfully analyzed scope: __main__
+✓
+[14/40]   Analyzing: dispatcher.py... Generate CFG for __main__
+Analyzing 4 scopes in module __main__
+Setting up unified analysis for 4 scopes
+Planned analysis for 4 functions
+Added class test.py:41:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=27, calls=6
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 14, 'constraints_processed': 27, 'calls_processed': 6}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.DispatcherMiddleware
+Successfully analyzed scope: __main__.DispatcherMiddleware.__init__
+Successfully analyzed scope: __main__.DispatcherMiddleware.__call__
+✓
+[15/40]   Analyzing: http_proxy.py... Generate CFG for __main__
+Analyzing 5 scopes in module __main__
+Setting up unified analysis for 5 scopes
+Planned analysis for 5 functions
+Added class test.py:25:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=37, calls=17
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 47, 'constraints_processed': 37, 'calls_processed': 17}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.ProxyMiddleware
+Successfully analyzed scope: __main__.ProxyMiddleware.__init__
+Successfully analyzed scope: __main__.ProxyMiddleware.proxy_to
+Successfully analyzed scope: __main__.ProxyMiddleware.__call__
+✓
+[16/40]   Analyzing: lint.py... Generate CFG for __main__
+Analyzing 32 scopes in module __main__
+Setting up unified analysis for 32 scopes
+Planned analysis for 32 functions
+Added class test.py:30:0:class with bases ['Warning']
+Added class test.py:34:0:class with bases ['Warning']
+Added class test.py:47:0:class with bases []
+Added class test.py:99:0:class with bases []
+Added class test.py:119:0:class with bases []
+Added class test.py:130:0:class with bases []
+Added class test.py:210:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=274, calls=110
+Added call edge: [] --[test.py:103:4:call#0]--> [test.py:103:4:call#0]:__main__.check_type
+Added call edge: [] --[test.py:124:4:call#0]--> [test.py:124:4:call#0]:__main__.check_type
+Added call edge: [] --[test.py:146:4:call#0]--> [test.py:146:4:call#0]:__main__.check_type
+Added call edge: [] --[test.py:280:4:call#0]--> [test.py:280:4:call#0]:__main__.check_type
+Added call edge: [] --[test.py:384:32:call#0]--> [test.py:384:32:call#0]:__main__.InputStream
+Added call edge: [] --[test.py:385:33:call#0]--> [test.py:385:33:call#0]:__main__.ErrorStream
+Added call edge: [] --[test.py:371:4:call#0]--> [test.py:371:4:call#0]:__main__.GuardedIterator
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 137, 'constraints_processed': 302, 'calls_processed': 122}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.WSGIWarning
+Successfully analyzed scope: __main__.HTTPWarning
+Successfully analyzed scope: __main__.check_type
+Successfully analyzed scope: __main__.InputStream
+Successfully analyzed scope: __main__.ErrorStream
+Successfully analyzed scope: __main__.GuardedWrite
+Successfully analyzed scope: __main__.GuardedIterator
+Successfully analyzed scope: __main__.LintMiddleware
+Successfully analyzed scope: __main__.InputStream.__init__
+Successfully analyzed scope: __main__.InputStream.read
+Successfully analyzed scope: __main__.InputStream.readline
+Successfully analyzed scope: __main__.InputStream.__iter__
+Successfully analyzed scope: __main__.InputStream.close
+Successfully analyzed scope: __main__.ErrorStream.__init__
+Successfully analyzed scope: __main__.ErrorStream.write
+Successfully analyzed scope: __main__.ErrorStream.flush
+Successfully analyzed scope: __main__.ErrorStream.writelines
+Successfully analyzed scope: __main__.ErrorStream.close
+Successfully analyzed scope: __main__.GuardedWrite.__init__
+Successfully analyzed scope: __main__.GuardedWrite.__call__
+Successfully analyzed scope: __main__.GuardedIterator.__init__
+Successfully analyzed scope: __main__.GuardedIterator.__iter__
+Successfully analyzed scope: __main__.GuardedIterator.__next__
+Successfully analyzed scope: __main__.GuardedIterator.close
+Successfully analyzed scope: __main__.GuardedIterator.__del__
+Successfully analyzed scope: __main__.LintMiddleware.__init__
+Successfully analyzed scope: __main__.LintMiddleware.check_environ
+Successfully analyzed scope: __main__.LintMiddleware.check_start_response
+Successfully analyzed scope: __main__.LintMiddleware.check_headers
+Successfully analyzed scope: __main__.LintMiddleware.check_iterator
+Successfully analyzed scope: __main__.LintMiddleware.__call__
+✓
+[17/40]   Analyzing: profiler.py... Generate CFG for __main__
+Analyzing 4 scopes in module __main__
+Setting up unified analysis for 4 scopes
+Planned analysis for 4 functions
+Added class test.py:31:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=68, calls=20
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 31, 'constraints_processed': 68, 'calls_processed': 20}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.ProfilerMiddleware
+Successfully analyzed scope: __main__.ProfilerMiddleware.__init__
+Successfully analyzed scope: __main__.ProfilerMiddleware.__call__
+✓
+[18/40]   Analyzing: proxy_fix.py... Generate CFG for __main__
+Analyzing 5 scopes in module __main__
+Setting up unified analysis for 5 scopes
+Planned analysis for 5 functions
+Added class test.py:34:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=95, calls=26
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 28, 'constraints_processed': 95, 'calls_processed': 26}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.ProxyFix
+Successfully analyzed scope: __main__.ProxyFix.__init__
+Successfully analyzed scope: __main__.ProxyFix._get_real_value
+Successfully analyzed scope: __main__.ProxyFix.__call__
+✓
+[19/40]   Analyzing: shared_data.py... Generate CFG for __main__
+Analyzing 10 scopes in module __main__
+Setting up unified analysis for 10 scopes
+Planned analysis for 10 functions
+Added class test.py:38:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=131, calls=49
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 70, 'constraints_processed': 131, 'calls_processed': 49}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.SharedDataMiddleware
+Successfully analyzed scope: __main__.SharedDataMiddleware.__init__
+Successfully analyzed scope: __main__.SharedDataMiddleware.is_allowed
+Successfully analyzed scope: __main__.SharedDataMiddleware._opener
+Successfully analyzed scope: __main__.SharedDataMiddleware.get_file_loader
+Successfully analyzed scope: __main__.SharedDataMiddleware.get_package_loader
+Successfully analyzed scope: __main__.SharedDataMiddleware.get_directory_loader
+Successfully analyzed scope: __main__.SharedDataMiddleware.generate_etag
+Successfully analyzed scope: __main__.SharedDataMiddleware.__call__
+✓
+[20/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 1 scopes in module __main__
+Setting up unified analysis for 1 scopes
+Planned analysis for 1 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=0, calls=0
+Analysis converged after 1 iterations
+Statistics: {'objects_created': 1, 'constraints_processed': 0, 'calls_processed': 0}
+Successfully analyzed scope: __main__
+✓
+[21/40]   Analyzing: converters.py... Generate CFG for __main__
+Analyzing 23 scopes in module __main__
+Setting up unified analysis for 23 scopes
+Planned analysis for 23 functions
+Added class test.py:11:0:class with bases ['ValueError']
+Added class test.py:17:0:class with bases []
+Added class test.py:36:0:class with bases ['test.py:17:0:class']
+Added class test.py:75:0:class with bases ['test.py:17:0:class']
+Added class test.py:104:0:class with bases ['test.py:17:0:class']
+Added class test.py:119:0:class with bases ['test.py:17:0:class']
+Added class test.py:166:0:class with bases ['test.py:119:0:class']
+Added class test.py:192:0:class with bases ['test.py:119:0:class']
+Added class test.py:225:0:class with bases ['test.py:17:0:class']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=118, calls=34
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 74, 'constraints_processed': 118, 'calls_processed': 34}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.ValidationError
+Successfully analyzed scope: __main__.BaseConverter
+Successfully analyzed scope: __main__.UnicodeConverter
+Successfully analyzed scope: __main__.AnyConverter
+Successfully analyzed scope: __main__.PathConverter
+Successfully analyzed scope: __main__.NumberConverter
+Successfully analyzed scope: __main__.IntegerConverter
+Successfully analyzed scope: __main__.FloatConverter
+Successfully analyzed scope: __main__.UUIDConverter
+Successfully analyzed scope: __main__.BaseConverter.__init__
+Successfully analyzed scope: __main__.BaseConverter.to_python
+Successfully analyzed scope: __main__.BaseConverter.to_url
+Successfully analyzed scope: __main__.UnicodeConverter.__init__
+Successfully analyzed scope: __main__.AnyConverter.__init__
+Successfully analyzed scope: __main__.AnyConverter.to_url
+Successfully analyzed scope: __main__.NumberConverter.__init__
+Successfully analyzed scope: __main__.NumberConverter.to_python
+Successfully analyzed scope: __main__.NumberConverter.to_url
+Successfully analyzed scope: __main__.NumberConverter.signed_regex
+Successfully analyzed scope: __main__.FloatConverter.__init__
+Successfully analyzed scope: __main__.UUIDConverter.to_python
+Successfully analyzed scope: __main__.UUIDConverter.to_url
+✓
+[22/40]   Analyzing: exceptions.py... Generate CFG for __main__
+Analyzing 17 scopes in module __main__
+Setting up unified analysis for 17 scopes
+Planned analysis for 17 functions
+Added class test.py:17:0:class with bases ['Exception']
+Added class test.py:25:0:class with bases ['HTTPException', 'test.py:17:0:class']
+Added class test.py:46:0:class with bases ['test.py:17:0:class']
+Added class test.py:56:0:class with bases ['test.py:17:0:class']
+Added class test.py:65:0:class with bases ['test.py:17:0:class', 'LookupError']
+Added class test.py:135:0:class with bases ['BadRequest']
+Added class test.py:141:0:class with bases ['Exception']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=108, calls=25
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 47, 'constraints_processed': 108, 'calls_processed': 25}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.RoutingException
+Successfully analyzed scope: __main__.RequestRedirect
+Successfully analyzed scope: __main__.RequestPath
+Successfully analyzed scope: __main__.RequestAliasRedirect
+Successfully analyzed scope: __main__.BuildError
+Successfully analyzed scope: __main__.WebsocketMismatch
+Successfully analyzed scope: __main__.NoMatch
+Successfully analyzed scope: __main__.RequestRedirect.__init__
+Successfully analyzed scope: __main__.RequestRedirect.get_response
+Successfully analyzed scope: __main__.RequestPath.__init__
+Successfully analyzed scope: __main__.RequestAliasRedirect.__init__
+Successfully analyzed scope: __main__.BuildError.__init__
+Successfully analyzed scope: __main__.BuildError.suggested
+Successfully analyzed scope: __main__.BuildError.closest_rule
+Successfully analyzed scope: __main__.BuildError.__str__
+Successfully analyzed scope: __main__.NoMatch.__init__
+✓
+[23/40]   Analyzing: map.py... Generate CFG for __main__
+Analyzing 26 scopes in module __main__
+Setting up unified analysis for 26 scopes
+Planned analysis for 24 functions
+Added class test.py:41:0:class with bases []
+Added class test.py:376:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=423, calls=129
+Added call edge: [] --[test.py:180:4:call#0]--> [test.py:180:4:call#0]:__main__.MapAdapter
+Added call edge: [] --[test.py:246:4:call#0]--> [test.py:246:4:call#0]:__main__.MapAdapter.get_host
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 121, 'constraints_processed': 433, 'calls_processed': 131}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.Map
+Successfully analyzed scope: __main__.MapAdapter
+Successfully analyzed scope: __main__.Map.__init__
+Successfully analyzed scope: __main__.Map.is_endpoint_expecting
+Successfully analyzed scope: __main__.Map._rules
+Successfully analyzed scope: __main__.Map.iter_rules
+Successfully analyzed scope: __main__.Map.add
+Successfully analyzed scope: __main__.Map.bind
+Successfully analyzed scope: __main__.Map.bind_to_environ
+Successfully analyzed scope: __main__.Map.update
+Successfully analyzed scope: __main__.Map.__repr__
+Successfully analyzed scope: __main__.MapAdapter.__init__
+Successfully analyzed scope: __main__.MapAdapter.dispatch
+Successfully analyzed scope: __main__.MapAdapter.match
+Successfully analyzed scope: __main__.MapAdapter.match
+Successfully analyzed scope: __main__.MapAdapter.match
+Successfully analyzed scope: __main__.MapAdapter.test
+Successfully analyzed scope: __main__.MapAdapter.allowed_methods
+Successfully analyzed scope: __main__.MapAdapter.get_host
+Successfully analyzed scope: __main__.MapAdapter.get_default_redirect
+Successfully analyzed scope: __main__.MapAdapter.encode_query_args
+Successfully analyzed scope: __main__.MapAdapter.make_redirect_url
+Successfully analyzed scope: __main__.MapAdapter.make_alias_redirect_url
+Successfully analyzed scope: __main__.MapAdapter._partial_build
+Successfully analyzed scope: __main__.MapAdapter.build
+✓
+[24/40]   Analyzing: matcher.py... Generate CFG for __main__
+Analyzing 8 scopes in module __main__
+Setting up unified analysis for 8 scopes
+Planned analysis for 8 functions
+Added class test.py:14:0:class with bases ['Exception']
+Added class test.py:19:0:class with bases []
+Added class test.py:31:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=77, calls=30
+Added call edge: [] --[test.py:33:21:call#0]--> [test.py:33:21:call#0]:__main__.State
+Added call edge: [] --[test.py:39:12:call#0]--> [test.py:39:12:call#0]:__main__.State
+Added call edge: [] --[test.py:48:32:call#0]--> [test.py:48:32:call#0]:__main__.State
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 32, 'constraints_processed': 86, 'calls_processed': 39}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.SlashRequired
+Successfully analyzed scope: __main__.State
+Successfully analyzed scope: __main__.StateMachineMatcher
+Successfully analyzed scope: __main__.StateMachineMatcher.__init__
+Successfully analyzed scope: __main__.StateMachineMatcher.add
+Successfully analyzed scope: __main__.StateMachineMatcher.update
+Successfully analyzed scope: __main__.StateMachineMatcher.match
+✓
+[25/40]   Analyzing: rules.py... Generate CFG for __main__
+Analyzing 44 scopes in module __main__
+Setting up unified analysis for 44 scopes
+Planned analysis for 44 functions
+Added class test.py:18:0:class with bases ['t.NamedTuple']
+Added class test.py:26:0:class with bases []
+Added class test.py:128:0:class with bases []
+Added class test.py:140:0:class with bases ['test.py:128:0:class']
+Added class test.py:171:0:class with bases ['test.py:128:0:class']
+Added class test.py:197:0:class with bases ['test.py:128:0:class']
+Added class test.py:222:0:class with bases []
+Added class test.py:248:0:class with bases ['test.py:128:0:class']
+Added class test.py:310:0:class with bases ['test.py:128:0:class']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=676, calls=201
+Added call edge: [] --[test.py:306:28:call#0]--> [test.py:306:28:call#0]:__main__._prefix_names
+Added call edge: [] --[test.py:1:0:call#0]--> [test.py:1:0:call#0]:__main__._prefix_names
+Added call edge: [] --[test.py:1:0:call#0]--> [test.py:1:0:call#0]:__main__._prefix_names
+Added call edge: [] --[test.py:118:16:call#0]--> [test.py:118:16:call#0]:__main__._pythonize
+Added call edge: [] --[test.py:244:4:call#0]--> [test.py:244:4:call#0]:__main__.RuleTemplateFactory
+Added call edge: [] --[test.py:263:12:call#0]--> [test.py:263:12:call#0]:__main__.Rule
+Added call edge: [] --[test.py:609:35:call#0]--> [test.py:609:35:call#0]:__main__.parse_converter_args
+Added call edge: [] --[test.py:628:29:call#0]--> [test.py:628:29:call#0]:__main__.Weighting
+Added call edge: [] --[test.py:623:16:call#0]--> [test.py:623:16:call#0]:__main__.RulePart
+Added call edge: [] --[test.py:657:17:call#0]--> [test.py:657:17:call#0]:__main__.Weighting
+Added call edge: [] --[test.py:585:4:call#0]--> [test.py:585:4:call#0]:__main__.RulePart
+Added call edge: [] --[test.py:670:8:call#0]--> [test.py:670:8:call#0]:__main__.RulePart
+Added call edge: [] --[test.py:686:8:call#0]--> [test.py:686:8:call#0]:__main__.Weighting
+Added call edge: [] --[test.py:686:8:call#0]--> [test.py:686:8:call#0]:__main__.RulePart
+Added call edge: [] --[test.py:785:36:call#0]--> [test.py:785:36:call#0]:__main__._prefix_names
+Added call edge: [] --[test.py:813:15:call#0]--> [test.py:813:15:call#0]:__main__.Rule.compile
+Added call edge: [] --[test.py:118:16:call#0]--> [test.py:118:16:call#0]:__main__._pythonize
+Added call edge: [] --[test.py:686:8:call#0]--> [test.py:686:8:call#0]:__main__.Weighting
+Added call edge: [] --[test.py:686:8:call#0]--> [test.py:686:8:call#0]:__main__.RulePart
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 207, 'constraints_processed': 807, 'calls_processed': 246}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.Weighting
+Successfully analyzed scope: __main__.RulePart
+Successfully analyzed scope: __main__._find
+Successfully analyzed scope: __main__._pythonize
+Successfully analyzed scope: __main__.parse_converter_args
+Successfully analyzed scope: __main__.RuleFactory
+Successfully analyzed scope: __main__.Subdomain
+Successfully analyzed scope: __main__.Submount
+Successfully analyzed scope: __main__.EndpointPrefix
+Successfully analyzed scope: __main__.RuleTemplate
+Successfully analyzed scope: __main__.RuleTemplateFactory
+Successfully analyzed scope: __main__._prefix_names
+Successfully analyzed scope: __main__.Rule
+Successfully analyzed scope: __main__.RuleFactory.get_rules
+Successfully analyzed scope: __main__.Subdomain.__init__
+Successfully analyzed scope: __main__.Subdomain.get_rules
+Successfully analyzed scope: __main__.Submount.__init__
+Successfully analyzed scope: __main__.Submount.get_rules
+Successfully analyzed scope: __main__.EndpointPrefix.__init__
+Successfully analyzed scope: __main__.EndpointPrefix.get_rules
+Successfully analyzed scope: __main__.RuleTemplate.__init__
+Successfully analyzed scope: __main__.RuleTemplate.__call__
+Successfully analyzed scope: __main__.RuleTemplateFactory.__init__
+Successfully analyzed scope: __main__.RuleTemplateFactory.get_rules
+Successfully analyzed scope: __main__.Rule.__init__
+Successfully analyzed scope: __main__.Rule.empty
+Successfully analyzed scope: __main__.Rule.get_empty_kwargs
+Successfully analyzed scope: __main__.Rule.get_rules
+Successfully analyzed scope: __main__.Rule.refresh
+Successfully analyzed scope: __main__.Rule.bind
+Successfully analyzed scope: __main__.Rule.get_converter
+Successfully analyzed scope: __main__.Rule._encode_query_vars
+Successfully analyzed scope: __main__.Rule._parse_rule
+Successfully analyzed scope: __main__.Rule.compile
+Successfully analyzed scope: __main__.Rule._get_func_code
+Successfully analyzed scope: __main__.Rule._compile_builder
+Successfully analyzed scope: __main__.Rule.build
+Successfully analyzed scope: __main__.Rule.provides_defaults_for
+Successfully analyzed scope: __main__.Rule.suitable_for
+Successfully analyzed scope: __main__.Rule.build_compare_key
+Successfully analyzed scope: __main__.Rule.__eq__
+Successfully analyzed scope: __main__.Rule.__str__
+Successfully analyzed scope: __main__.Rule.__repr__
+✓
+[26/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 1 scopes in module __main__
+Setting up unified analysis for 1 scopes
+Planned analysis for 1 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=0, calls=0
+Analysis converged after 1 iterations
+Statistics: {'objects_created': 0, 'constraints_processed': 0, 'calls_processed': 0}
+Successfully analyzed scope: __main__
+✓
+[27/40]   Analyzing: http.py... Generate CFG for __main__
+Analyzing 4 scopes in module __main__
+Setting up unified analysis for 4 scopes
+Planned analysis for 4 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=65, calls=27
+Added call edge: [] --[test.py:97:0:call#0]--> [test.py:97:0:call#0]:__main__.parse_cookie._parse_pairs
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 17, 'constraints_processed': 71, 'calls_processed': 33}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.is_resource_modified
+Successfully analyzed scope: __main__.parse_cookie
+Successfully analyzed scope: __main__.parse_cookie._parse_pairs
+✓
+[28/40]   Analyzing: multipart.py... Generate CFG for __main__
+Analyzing 18 scopes in module __main__
+Setting up unified analysis for 18 scopes
+Planned analysis for 18 functions
+Added class test.py:17:0:class with bases []
+Added class test.py:22:0:class with bases ['test.py:17:0:class']
+Added class test.py:27:0:class with bases ['test.py:17:0:class']
+Added class test.py:33:0:class with bases ['test.py:17:0:class']
+Added class test.py:40:0:class with bases ['test.py:17:0:class']
+Added class test.py:46:0:class with bases ['test.py:17:0:class']
+Added class test.py:50:0:class with bases ['test.py:17:0:class']
+Added class test.py:57:0:class with bases ['Enum']
+Added class test.py:79:0:class with bases []
+Added class test.py:256:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=314, calls=84
+Added call edge: [] --[test.py:54:12:call#0]--> [test.py:54:12:call#0]:__main__.NeedData
+Added call edge: [] --[test.py:161:24:call#0]--> [test.py:161:24:call#0]:__main__.Preamble
+Added call edge: [] --[test.py:186:28:call#0]--> [test.py:186:28:call#0]:__main__.File
+Added call edge: [] --[test.py:192:28:call#0]--> [test.py:192:28:call#0]:__main__.Field
+Added call edge: [] --[test.py:232:24:call#0]--> [test.py:232:24:call#0]:__main__.Data
+Added call edge: [] --[test.py:235:20:call#0]--> [test.py:235:20:call#0]:__main__.Epilogue
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 68, 'constraints_processed': 314, 'calls_processed': 84}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.Event
+Successfully analyzed scope: __main__.Preamble
+Successfully analyzed scope: __main__.Field
+Successfully analyzed scope: __main__.File
+Successfully analyzed scope: __main__.Data
+Successfully analyzed scope: __main__.Epilogue
+Successfully analyzed scope: __main__.NeedData
+Successfully analyzed scope: __main__.State
+Successfully analyzed scope: __main__.MultipartDecoder
+Successfully analyzed scope: __main__.MultipartEncoder
+Successfully analyzed scope: __main__.MultipartDecoder.__init__
+Successfully analyzed scope: __main__.MultipartDecoder.last_newline
+Successfully analyzed scope: __main__.MultipartDecoder.receive_data
+Successfully analyzed scope: __main__.MultipartDecoder.next_event
+Successfully analyzed scope: __main__.MultipartDecoder._parse_headers
+Successfully analyzed scope: __main__.MultipartEncoder.__init__
+Successfully analyzed scope: __main__.MultipartEncoder.send_event
+✓
+[29/40]   Analyzing: request.py... Generate CFG for __main__
+Analyzing 34 scopes in module __main__
+Setting up unified analysis for 34 scopes
+Planned analysis for 34 functions
+Added class test.py:38:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=215, calls=68
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 127, 'constraints_processed': 215, 'calls_processed': 68}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.Request
+Successfully analyzed scope: __main__.Request.__init__
+Successfully analyzed scope: __main__.Request.__repr__
+Successfully analyzed scope: __main__.Request.url_charset
+Successfully analyzed scope: __main__.Request.args
+Successfully analyzed scope: __main__.Request.access_route
+Successfully analyzed scope: __main__.Request.full_path
+Successfully analyzed scope: __main__.Request.is_secure
+Successfully analyzed scope: __main__.Request.url
+Successfully analyzed scope: __main__.Request.base_url
+Successfully analyzed scope: __main__.Request.root_url
+Successfully analyzed scope: __main__.Request.host_url
+Successfully analyzed scope: __main__.Request.host
+Successfully analyzed scope: __main__.Request.cookies
+Successfully analyzed scope: __main__.Request.content_length
+Successfully analyzed scope: __main__.Request._parse_content_type
+Successfully analyzed scope: __main__.Request.mimetype
+Successfully analyzed scope: __main__.Request.mimetype_params
+Successfully analyzed scope: __main__.Request.pragma
+Successfully analyzed scope: __main__.Request.accept_mimetypes
+Successfully analyzed scope: __main__.Request.accept_charsets
+Successfully analyzed scope: __main__.Request.accept_encodings
+Successfully analyzed scope: __main__.Request.accept_languages
+Successfully analyzed scope: __main__.Request.cache_control
+Successfully analyzed scope: __main__.Request.if_match
+Successfully analyzed scope: __main__.Request.if_none_match
+Successfully analyzed scope: __main__.Request.if_modified_since
+Successfully analyzed scope: __main__.Request.if_unmodified_since
+Successfully analyzed scope: __main__.Request.if_range
+Successfully analyzed scope: __main__.Request.range
+Successfully analyzed scope: __main__.Request.user_agent
+Successfully analyzed scope: __main__.Request.authorization
+Successfully analyzed scope: __main__.Request.is_json
+✓
+[30/40]   Analyzing: response.py... Generate CFG for __main__
+Analyzing 36 scopes in module __main__
+Setting up unified analysis for 36 scopes
+Planned analysis for 28 functions
+Added class test.py:63:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=210, calls=70
+Added call edge: [] --[test.py:457:11:call#0]--> [test.py:457:11:call#0]:__main__._set_property
+Added call edge: [] --[test.py:464:23:call#0]--> [test.py:464:23:call#0]:__main__._set_property
+Added call edge: [] --[test.py:471:12:call#0]--> [test.py:471:12:call#0]:__main__._set_property
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 149, 'constraints_processed': 213, 'calls_processed': 73}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._set_property
+Successfully analyzed scope: __main__.Response
+Successfully analyzed scope: __main__._set_property.fget
+Successfully analyzed scope: __main__._set_property.fset
+Successfully analyzed scope: __main__.Response.__init__
+Successfully analyzed scope: __main__.Response.__repr__
+Successfully analyzed scope: __main__.Response.status_code
+Successfully analyzed scope: __main__.Response.status_code
+Successfully analyzed scope: __main__.Response.status
+Successfully analyzed scope: __main__.Response.status
+Successfully analyzed scope: __main__.Response._clean_status
+Successfully analyzed scope: __main__.Response.set_cookie
+Successfully analyzed scope: __main__.Response.delete_cookie
+Successfully analyzed scope: __main__.Response.is_json
+Successfully analyzed scope: __main__.Response.mimetype
+Successfully analyzed scope: __main__.Response.mimetype
+Successfully analyzed scope: __main__.Response.mimetype_params
+Successfully analyzed scope: __main__.Response.retry_after
+Successfully analyzed scope: __main__.Response.retry_after
+Successfully analyzed scope: __main__.Response.cache_control
+Successfully analyzed scope: __main__.Response.set_etag
+Successfully analyzed scope: __main__.Response.get_etag
+Successfully analyzed scope: __main__.Response.content_range
+Successfully analyzed scope: __main__.Response.content_range
+Successfully analyzed scope: __main__.Response.www_authenticate
+Successfully analyzed scope: __main__.Response.content_security_policy
+Successfully analyzed scope: __main__.Response.content_security_policy
+Successfully analyzed scope: __main__.Response.content_security_policy_report_only
+Successfully analyzed scope: __main__.Response.content_security_policy_report_only
+Successfully analyzed scope: __main__.Response.access_control_allow_credentials
+Successfully analyzed scope: __main__.Response.access_control_allow_credentials
+Successfully analyzed scope: __main__.Response.$func_0
+Successfully analyzed scope: __main__.Response.$func_1
+Successfully analyzed scope: __main__.Response.$func_2
+Successfully analyzed scope: __main__.Response.$func_3
+✓
+[31/40]   Analyzing: utils.py... Generate CFG for __main__
+Analyzing 6 scopes in module __main__
+Setting up unified analysis for 6 scopes
+Planned analysis for 6 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=85, calls=31
+Added call edge: [] --[test.py:31:25:call#0]--> [test.py:31:25:call#0]:__main__.host_is_trusted._normalize
+Added call edge: [] --[test.py:43:24:call#0]--> [test.py:43:24:call#0]:__main__.host_is_trusted._normalize
+Added call edge: [] --[test.py:97:4:call#0]--> [test.py:97:4:call#0]:__main__.host_is_trusted
+Added call edge: [] --[test.py:31:25:call#0]--> [test.py:31:25:call#0]:__main__.host_is_trusted._normalize
+Added call edge: [] --[test.py:43:24:call#0]--> [test.py:43:24:call#0]:__main__.host_is_trusted._normalize
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 37, 'constraints_processed': 109, 'calls_processed': 42}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.host_is_trusted
+Successfully analyzed scope: __main__.get_host
+Successfully analyzed scope: __main__.get_current_url
+Successfully analyzed scope: __main__.get_content_length
+Successfully analyzed scope: __main__.host_is_trusted._normalize
+✓
+[32/40]   Analyzing: security.py... Generate CFG for __main__
+Analyzing 9 scopes in module __main__
+Setting up unified analysis for 9 scopes
+Planned analysis for 9 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=156, calls=45
+Added call edge: [] --[test.py:14:32:call#0]--> [test.py:14:32:call#0]:__main__.$func_0
+Added call edge: [] --[test.py:19:0:call#0]--> [test.py:19:0:call#0]:__main__.gen_salt.$func_1
+Added call edge: [] --[test.py:87:11:call#0]--> [test.py:87:11:call#0]:__main__.gen_salt
+Added call edge: [] --[test.py:88:23:call#0]--> [test.py:88:23:call#0]:__main__._hash_internal
+Added call edge: [] --[test.py:92:0:call#0]--> [test.py:92:0:call#0]:__main__._hash_internal
+Added call edge: [] --[test.py:126:4:call#0]--> [test.py:126:4:call#0]:__main__.safe_join.$func_2
+Added call edge: [] --[test.py:19:0:call#0]--> [test.py:19:0:call#0]:__main__.gen_salt.$func_1
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 47, 'constraints_processed': 309, 'calls_processed': 84}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.$func_0
+Successfully analyzed scope: __main__.gen_salt
+Successfully analyzed scope: __main__._hash_internal
+Successfully analyzed scope: __main__.generate_password_hash
+Successfully analyzed scope: __main__.check_password_hash
+Successfully analyzed scope: __main__.safe_join
+Successfully analyzed scope: __main__.gen_salt.$func_1
+Successfully analyzed scope: __main__.safe_join.$func_2
+✓
+[33/40]   Analyzing: serving.py... Generate CFG for __main__
+Analyzing 43 scopes in module __main__
+Setting up unified analysis for 43 scopes
+Planned analysis for 43 functions
+Added class test.py:38:4:class with bases []
+Added class test.py:61:4:class with bases []
+Added class test.py:86:0:class with bases ['io.RawIOBase']
+Added class test.py:148:0:class with bases ['BaseHTTPRequestHandler']
+Added class test.py:651:0:class with bases ['HTTPServer']
+Added class test.py:815:0:class with bases ['socketserver.ThreadingMixIn', 'test.py:651:0:class']
+Added class test.py:826:0:class with bases ['test.py:61:4:class', 'test.py:651:0:class']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=774, calls=195
+Added call edge: [] --[test.py:45:10:call#0]--> [test.py:45:10:call#0]:__main__._SslDummy
+Added call edge: [] --[test.py:528:17:call#0]--> [test.py:528:17:call#0]:__main__.generate_adhoc_ssl_pair
+Added call edge: [] --[test.py:554:17:call#0]--> [test.py:554:17:call#0]:__main__.generate_adhoc_ssl_pair
+Added call edge: [] --[test.py:575:10:call#0]--> [test.py:575:10:call#0]:__main__.load_ssl_context
+Added call edge: [] --[test.py:876:4:call#0]--> [test.py:876:4:call#0]:__main__.ThreadedWSGIServer
+Added call edge: [] --[test.py:881:4:call#0]--> [test.py:881:4:call#0]:__main__.ForkingWSGIServer
+Added call edge: [] --[test.py:853:0:call#0]--> [test.py:853:0:call#0]:__main__.BaseWSGIServer
+Added call edge: [] --[test.py:907:0:call#0]--> [test.py:907:0:call#0]:__main__.is_running_from_reloader
+Added call edge: [] --[test.py:1037:10:call#0]--> [test.py:1037:10:call#0]:__main__.make_server
+Added call edge: [] --[test.py:907:0:call#0]--> [test.py:907:0:call#0]:__main__.is_running_from_reloader
+Added call edge: [] --[test.py:1051:4:call#0]--> [test.py:1051:4:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:214:36:call#0]--> [test.py:214:36:call#0]:__main__.DechunkedInput
+Added call edge: [] --[test.py:364:8:call#0]--> [test.py:364:8:call#0]:__main__.is_ssl_error
+Added call edge: [] --[test.py:410:18:call#0]--> [test.py:410:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:414:18:call#0]--> [test.py:414:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:416:18:call#0]--> [test.py:416:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:418:18:call#0]--> [test.py:418:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:420:18:call#0]--> [test.py:420:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:422:18:call#0]--> [test.py:422:18:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:688:47:call#0]--> [test.py:688:47:call#0]:__main__.select_address_family
+Added call edge: [] --[test.py:689:25:call#0]--> [test.py:689:25:call#0]:__main__.get_sockaddr
+Added call edge: [] --[test.py:752:30:call#0]--> [test.py:752:30:call#0]:__main__.load_ssl_context
+Added call edge: [] --[test.py:754:30:call#0]--> [test.py:754:30:call#0]:__main__.generate_adhoc_ssl_context
+Added call edge: [] --[test.py:786:22:call#0]--> [test.py:786:22:call#0]:__main__._ansi_style
+Added call edge: [] --[test.py:800:39:call#0]--> [test.py:800:39:call#0]:__main__.get_interface_ip
+Added call edge: [] --[test.py:803:39:call#0]--> [test.py:803:39:call#0]:__main__.get_interface_ip
+Added call edge: [] --[test.py:876:4:call#0]--> [test.py:876:4:call#0]:__main__.ThreadedWSGIServer
+Added call edge: [] --[test.py:881:4:call#0]--> [test.py:881:4:call#0]:__main__.ForkingWSGIServer
+Added call edge: [] --[test.py:853:0:call#0]--> [test.py:853:0:call#0]:__main__.BaseWSGIServer
+Added call edge: [] --[test.py:554:17:call#0]--> [test.py:554:17:call#0]:__main__.generate_adhoc_ssl_pair
+Added call edge: [] --[test.py:575:10:call#0]--> [test.py:575:10:call#0]:__main__.load_ssl_context
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 257, 'constraints_processed': 1280, 'calls_processed': 294}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._SslDummy
+Successfully analyzed scope: __main__.ForkingMixIn
+Successfully analyzed scope: __main__.DechunkedInput
+Successfully analyzed scope: __main__.WSGIRequestHandler
+Successfully analyzed scope: __main__._ansi_style
+Successfully analyzed scope: __main__.generate_adhoc_ssl_pair
+Successfully analyzed scope: __main__.make_ssl_devcert
+Successfully analyzed scope: __main__.generate_adhoc_ssl_context
+Successfully analyzed scope: __main__.load_ssl_context
+Successfully analyzed scope: __main__.is_ssl_error
+Successfully analyzed scope: __main__.select_address_family
+Successfully analyzed scope: __main__.get_sockaddr
+Successfully analyzed scope: __main__.get_interface_ip
+Successfully analyzed scope: __main__.BaseWSGIServer
+Successfully analyzed scope: __main__.ThreadedWSGIServer
+Successfully analyzed scope: __main__.ForkingWSGIServer
+Successfully analyzed scope: __main__.make_server
+Successfully analyzed scope: __main__.is_running_from_reloader
+Successfully analyzed scope: __main__.run_simple
+Successfully analyzed scope: __main__._SslDummy.__getattr__
+Successfully analyzed scope: __main__.DechunkedInput.__init__
+Successfully analyzed scope: __main__.DechunkedInput.readable
+Successfully analyzed scope: __main__.DechunkedInput.read_chunk_len
+Successfully analyzed scope: __main__.DechunkedInput.readinto
+Successfully analyzed scope: __main__.WSGIRequestHandler.server_version
+Successfully analyzed scope: __main__.WSGIRequestHandler.make_environ
+Successfully analyzed scope: __main__.WSGIRequestHandler.run_wsgi
+Successfully analyzed scope: __main__.WSGIRequestHandler.handle
+Successfully analyzed scope: __main__.WSGIRequestHandler.connection_dropped
+Successfully analyzed scope: __main__.WSGIRequestHandler.__getattr__
+Successfully analyzed scope: __main__.WSGIRequestHandler.address_string
+Successfully analyzed scope: __main__.WSGIRequestHandler.port_integer
+Successfully analyzed scope: __main__.WSGIRequestHandler.log_request
+Successfully analyzed scope: __main__.WSGIRequestHandler.log_error
+Successfully analyzed scope: __main__.WSGIRequestHandler.log_message
+Successfully analyzed scope: __main__.WSGIRequestHandler.log
+Successfully analyzed scope: __main__.BaseWSGIServer.__init__
+Successfully analyzed scope: __main__.BaseWSGIServer.log
+Successfully analyzed scope: __main__.BaseWSGIServer.serve_forever
+Successfully analyzed scope: __main__.BaseWSGIServer.handle_error
+Successfully analyzed scope: __main__.BaseWSGIServer.log_startup
+Successfully analyzed scope: __main__.ForkingWSGIServer.__init__
+✓
+[34/40]   Analyzing: urls.py... Generate CFG for __main__
+Analyzing 53 scopes in module __main__
+Setting up unified analysis for 53 scopes
+Planned analysis for 53 functions
+Added class test.py:43:0:class with bases ['t.NamedTuple']
+Added class test.py:51:0:class with bases ['test.py:43:0:class']
+Added class test.py:330:0:class with bases ['test.py:51:0:class']
+Added class test.py:355:0:class with bases ['test.py:51:0:class']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=805, calls=331
+Added call edge: [] --[test.py:539:18:call#0]--> [test.py:539:18:call#0]:__main__._make_fast_url_quote
+Added call edge: [] --[test.py:540:19:call#0]--> [test.py:540:19:call#0]:__main__._make_fast_url_quote
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:451:4:call#0]--> [test.py:451:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:453:4:call#0]--> [test.py:453:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:582:0:call#0]--> [test.py:582:0:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:647:0:call#0]--> [test.py:647:0:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:691:10:call#0]--> [test.py:691:10:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:692:11:call#0]--> [test.py:692:11:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:693:9:call#0]--> [test.py:693:9:call#0]:__main__.url_quote_plus
+Added call edge: [] --[test.py:694:13:call#0]--> [test.py:694:13:call#0]:__main__.url_quote_plus
+Added call edge: [] --[test.py:668:0:call#0]--> [test.py:668:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:740:14:call#0]--> [test.py:740:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:742:10:call#0]--> [test.py:742:10:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:743:11:call#0]--> [test.py:743:11:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:744:12:call#0]--> [test.py:744:12:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:745:15:call#0]--> [test.py:745:15:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:715:0:call#0]--> [test.py:715:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:797:14:call#0]--> [test.py:797:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:812:10:call#0]--> [test.py:812:10:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:813:11:call#0]--> [test.py:813:11:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:814:12:call#0]--> [test.py:814:12:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:815:15:call#0]--> [test.py:815:15:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:753:0:call#0]--> [test.py:753:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:819:0:call#0]--> [test.py:819:0:call#0]:__main__._url_decode_impl
+Added call edge: [] --[test.py:900:14:call#0]--> [test.py:900:14:call#0]:__main__._url_decode_impl
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:931:0:call#0]--> [test.py:931:0:call#0]:__main__._url_encode_impl
+Added call edge: [] --[test.py:989:10:call#0]--> [test.py:989:10:call#0]:__main__._url_encode_impl
+Added call edge: [] --[test.py:1012:15:call#0]--> [test.py:1012:15:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:1014:14:call#0]--> [test.py:1014:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:1024:49:call#0]--> [test.py:1024:49:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:1027:44:call#0]--> [test.py:1027:44:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:1030:4:call#0]--> [test.py:1030:4:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:999:0:call#0]--> [test.py:999:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:117:8:call#0]--> [test.py:117:8:call#0]:__main__._url_unquote_legacy
+Added call edge: [] --[test.py:134:8:call#0]--> [test.py:134:8:call#0]:__main__._url_unquote_legacy
+Added call edge: [] --[test.py:145:4:call#0]--> [test.py:145:4:call#0]:__main__.url_decode
+Added call edge: [] --[test.py:152:4:call#0]--> [test.py:152:4:call#0]:__main__.url_join
+Added call edge: [] --[test.py:152:4:call#0]--> [test.py:152:4:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:159:4:call#0]--> [test.py:159:4:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:166:4:call#0]--> [test.py:166:4:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:166:4:call#0]--> [test.py:166:4:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:187:4:call#0]--> [test.py:187:4:call#0]:__main__._url_unquote_legacy
+Added call edge: [] --[test.py:187:4:call#0]--> [test.py:187:4:call#0]:__main__._url_unquote_legacy
+Added call edge: [] --[test.py:209:4:call#0]--> [test.py:209:4:call#0]:__main__.iri_to_uri
+Added call edge: [] --[test.py:209:4:call#0]--> [test.py:209:4:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:219:4:call#0]--> [test.py:219:4:call#0]:__main__.uri_to_iri
+Added call edge: [] --[test.py:219:4:call#0]--> [test.py:219:4:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:253:15:call#0]--> [test.py:253:15:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:342:4:call#0]--> [test.py:342:4:call#0]:__main__.BytesURL
+Added call edge: [] --[test.py:371:4:call#0]--> [test.py:371:4:call#0]:__main__.URL
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:582:0:call#0]--> [test.py:582:0:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:582:0:call#0]--> [test.py:582:0:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:913:4:call#0]--> [test.py:913:4:call#0]:__main__.url_unquote_plus
+Added call edge: [] --[test.py:647:0:call#0]--> [test.py:647:0:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:433:4:call#0]--> [test.py:433:4:call#0]:__main__._fast_url_quote_plus
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:451:4:call#0]--> [test.py:451:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:453:4:call#0]--> [test.py:453:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:451:4:call#0]--> [test.py:451:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:453:4:call#0]--> [test.py:453:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:819:0:call#0]--> [test.py:819:0:call#0]:__main__._url_decode_impl
+Added call edge: [] --[test.py:1012:15:call#0]--> [test.py:1012:15:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:1014:14:call#0]--> [test.py:1014:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:1024:49:call#0]--> [test.py:1024:49:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:1027:44:call#0]--> [test.py:1027:44:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:1030:4:call#0]--> [test.py:1030:4:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:999:0:call#0]--> [test.py:999:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:451:4:call#0]--> [test.py:451:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:453:4:call#0]--> [test.py:453:4:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:797:14:call#0]--> [test.py:797:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:812:10:call#0]--> [test.py:812:10:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:813:11:call#0]--> [test.py:813:11:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:814:12:call#0]--> [test.py:814:12:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:815:15:call#0]--> [test.py:815:15:call#0]:__main__.url_quote
+Added call edge: [] --[test.py:753:0:call#0]--> [test.py:753:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:740:14:call#0]--> [test.py:740:14:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:742:10:call#0]--> [test.py:742:10:call#0]:__main__.url_parse
+Added call edge: [] --[test.py:743:11:call#0]--> [test.py:743:11:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:744:12:call#0]--> [test.py:744:12:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:745:15:call#0]--> [test.py:745:15:call#0]:__main__.url_unquote
+Added call edge: [] --[test.py:715:0:call#0]--> [test.py:715:0:call#0]:__main__.url_unparse
+Added call edge: [] --[test.py:479:4:call#0]--> [test.py:479:4:call#0]:__main__.url_parse.$func_0
+Added call edge: [] --[test.py:641:9:call#0]--> [test.py:641:9:call#0]:__main__._unquote_to_bytes
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 252, 'constraints_processed': 2405, 'calls_processed': 1025}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._URLTuple
+Successfully analyzed scope: __main__.BaseURL
+Successfully analyzed scope: __main__.URL
+Successfully analyzed scope: __main__.BytesURL
+Successfully analyzed scope: __main__._unquote_to_bytes
+Successfully analyzed scope: __main__._url_encode_impl
+Successfully analyzed scope: __main__._url_unquote_legacy
+Successfully analyzed scope: __main__.url_parse
+Successfully analyzed scope: __main__._make_fast_url_quote
+Successfully analyzed scope: __main__._fast_url_quote_plus
+Successfully analyzed scope: __main__.url_quote
+Successfully analyzed scope: __main__.url_quote_plus
+Successfully analyzed scope: __main__.url_unparse
+Successfully analyzed scope: __main__.url_unquote
+Successfully analyzed scope: __main__.url_unquote_plus
+Successfully analyzed scope: __main__.url_fix
+Successfully analyzed scope: __main__._codec_error_url_quote
+Successfully analyzed scope: __main__.uri_to_iri
+Successfully analyzed scope: __main__.iri_to_uri
+Successfully analyzed scope: __main__.url_decode
+Successfully analyzed scope: __main__.url_decode_stream
+Successfully analyzed scope: __main__._url_decode_impl
+Successfully analyzed scope: __main__.url_encode
+Successfully analyzed scope: __main__.url_encode_stream
+Successfully analyzed scope: __main__.url_join
+Successfully analyzed scope: __main__.BaseURL.__str__
+Successfully analyzed scope: __main__.BaseURL.replace
+Successfully analyzed scope: __main__.BaseURL.host
+Successfully analyzed scope: __main__.BaseURL.ascii_host
+Successfully analyzed scope: __main__.BaseURL.port
+Successfully analyzed scope: __main__.BaseURL.auth
+Successfully analyzed scope: __main__.BaseURL.username
+Successfully analyzed scope: __main__.BaseURL.raw_username
+Successfully analyzed scope: __main__.BaseURL.password
+Successfully analyzed scope: __main__.BaseURL.raw_password
+Successfully analyzed scope: __main__.BaseURL.decode_query
+Successfully analyzed scope: __main__.BaseURL.join
+Successfully analyzed scope: __main__.BaseURL.to_url
+Successfully analyzed scope: __main__.BaseURL.encode_netloc
+Successfully analyzed scope: __main__.BaseURL.decode_netloc
+Successfully analyzed scope: __main__.BaseURL.to_uri_tuple
+Successfully analyzed scope: __main__.BaseURL.to_iri_tuple
+Successfully analyzed scope: __main__.BaseURL.get_file_location
+Successfully analyzed scope: __main__.BaseURL._split_netloc
+Successfully analyzed scope: __main__.BaseURL._split_auth
+Successfully analyzed scope: __main__.BaseURL._split_host
+Successfully analyzed scope: __main__.URL.encode
+Successfully analyzed scope: __main__.BytesURL.__str__
+Successfully analyzed scope: __main__.BytesURL.encode_netloc
+Successfully analyzed scope: __main__.BytesURL.decode
+Successfully analyzed scope: __main__.url_parse.$func_0
+Successfully analyzed scope: __main__._make_fast_url_quote.quote
+✓
+[35/40]   Analyzing: user_agent.py... Generate CFG for __main__
+Analyzing 7 scopes in module __main__
+Setting up unified analysis for 7 scopes
+Planned analysis for 7 functions
+Added class test.py:4:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=13, calls=2
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 19, 'constraints_processed': 13, 'calls_processed': 2}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.UserAgent
+Successfully analyzed scope: __main__.UserAgent.__init__
+Successfully analyzed scope: __main__.UserAgent.__repr__
+Successfully analyzed scope: __main__.UserAgent.__str__
+Successfully analyzed scope: __main__.UserAgent.__bool__
+Successfully analyzed scope: __main__.UserAgent.to_header
+✓
+[36/40]   Analyzing: utils.py... Generate CFG for __main__
+Analyzing 21 scopes in module __main__
+Setting up unified analysis for 21 scopes
+Planned analysis for 21 functions
+Added class test.py:49:0:class with bases ['property']
+Added class test.py:125:0:class with bases []
+Added class test.py:152:0:class with bases []
+Added class test.py:667:0:class with bases ['ImportError']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=341, calls=111
+Added call edge: [] --[test.py:292:0:call#0]--> [test.py:292:0:call#0]:__main__.redirect
+Added call edge: [] --[test.py:549:0:call#0]--> [test.py:549:0:call#0]:__main__.send_file
+Added call edge: [] --[test.py:651:13:call#0]--> [test.py:651:13:call#0]:__main__.import_string
+Added call edge: [] --[test.py:661:12:call#0]--> [test.py:661:12:call#0]:__main__.find_modules
+Added call edge: [] --[test.py:683:23:call#0]--> [test.py:683:23:call#0]:__main__.import_string
+Added call edge: [] --[test.py:651:13:call#0]--> [test.py:651:13:call#0]:__main__.import_string
+Added call edge: [] --[test.py:661:12:call#0]--> [test.py:661:12:call#0]:__main__.find_modules
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 137, 'constraints_processed': 524, 'calls_processed': 174}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.cached_property
+Successfully analyzed scope: __main__.environ_property
+Successfully analyzed scope: __main__.header_property
+Successfully analyzed scope: __main__.get_content_type
+Successfully analyzed scope: __main__.secure_filename
+Successfully analyzed scope: __main__.redirect
+Successfully analyzed scope: __main__.append_slash_redirect
+Successfully analyzed scope: __main__.send_file
+Successfully analyzed scope: __main__.send_from_directory
+Successfully analyzed scope: __main__.import_string
+Successfully analyzed scope: __main__.find_modules
+Successfully analyzed scope: __main__.ImportStringError
+Successfully analyzed scope: __main__.cached_property.__init__
+Successfully analyzed scope: __main__.cached_property.__set__
+Successfully analyzed scope: __main__.cached_property.__get__
+Successfully analyzed scope: __main__.cached_property.__delete__
+Successfully analyzed scope: __main__.environ_property.lookup
+Successfully analyzed scope: __main__.header_property.lookup
+Successfully analyzed scope: __main__.ImportStringError.__init__
+Successfully analyzed scope: __main__.ImportStringError.__repr__
+✓
+[37/40]   Analyzing: __init__.py... Generate CFG for __main__
+Analyzing 1 scopes in module __main__
+Setting up unified analysis for 1 scopes
+Planned analysis for 1 functions
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=0, calls=0
+Analysis converged after 1 iterations
+Statistics: {'objects_created': 0, 'constraints_processed': 0, 'calls_processed': 0}
+Successfully analyzed scope: __main__
+✓
+[38/40]   Analyzing: request.py... Generate CFG for __main__
+Analyzing 28 scopes in module __main__
+Setting up unified analysis for 28 scopes
+Planned analysis for 24 functions
+Added class test.py:29:0:class with bases ['_SansIORequest']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=212, calls=64
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 104, 'constraints_processed': 212, 'calls_processed': 64}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.Request
+Successfully analyzed scope: __main__.Request.__init__
+Successfully analyzed scope: __main__.Request.from_values
+Successfully analyzed scope: __main__.Request.application
+Successfully analyzed scope: __main__.Request._get_file_stream
+Successfully analyzed scope: __main__.Request.want_form_data_parsed
+Successfully analyzed scope: __main__.Request.make_form_data_parser
+Successfully analyzed scope: __main__.Request._load_form_data
+Successfully analyzed scope: __main__.Request._get_stream_for_parsing
+Successfully analyzed scope: __main__.Request.close
+Successfully analyzed scope: __main__.Request.__enter__
+Successfully analyzed scope: __main__.Request.__exit__
+Successfully analyzed scope: __main__.Request.stream
+Successfully analyzed scope: __main__.Request.data
+Successfully analyzed scope: __main__.Request.get_data
+Successfully analyzed scope: __main__.Request.get_data
+Successfully analyzed scope: __main__.Request.get_data
+Successfully analyzed scope: __main__.Request.form
+Successfully analyzed scope: __main__.Request.values
+Successfully analyzed scope: __main__.Request.files
+Successfully analyzed scope: __main__.Request.script_root
+Successfully analyzed scope: __main__.Request.url_root
+Successfully analyzed scope: __main__.Request.json
+Successfully analyzed scope: __main__.Request.get_json
+Successfully analyzed scope: __main__.Request.get_json
+Successfully analyzed scope: __main__.Request.get_json
+Successfully analyzed scope: __main__.Request.on_json_loading_failed
+✓
+[39/40]   Analyzing: response.py... Generate CFG for __main__
+Analyzing 47 scopes in module __main__
+Setting up unified analysis for 47 scopes
+Planned analysis for 43 functions
+Added class test.py:67:0:class with bases ['_SansIOResponse']
+Added class test.py:843:0:class with bases []
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=383, calls=121
+Added call edge: [] --[test.py:268:23:call#0]--> [test.py:268:23:call#0]:__main__.Response
+Added call edge: [] --[test.py:401:8:call#0]--> [test.py:401:8:call#0]:__main__._warn_if_string
+Added call edge: [] --[test.py:395:4:call#0]--> [test.py:395:4:call#0]:__main__._iter_encoded
+Added call edge: [] --[test.py:593:12:call#0]--> [test.py:593:12:call#0]:__main__._warn_if_string
+Added call edge: [] --[test.py:685:4:call#0]--> [test.py:685:4:call#0]:__main__.ResponseStream
+Added call edge: [] --[test.py:811:28:call#0]--> [test.py:811:28:call#0]:__main__._clean_accept_ranges
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 151, 'constraints_processed': 406, 'calls_processed': 131}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__._warn_if_string
+Successfully analyzed scope: __main__._iter_encoded
+Successfully analyzed scope: __main__._clean_accept_ranges
+Successfully analyzed scope: __main__.Response
+Successfully analyzed scope: __main__.ResponseStream
+Successfully analyzed scope: __main__.Response.__init__
+Successfully analyzed scope: __main__.Response.call_on_close
+Successfully analyzed scope: __main__.Response.__repr__
+Successfully analyzed scope: __main__.Response.force_type
+Successfully analyzed scope: __main__.Response.from_app
+Successfully analyzed scope: __main__.Response.get_data
+Successfully analyzed scope: __main__.Response.get_data
+Successfully analyzed scope: __main__.Response.get_data
+Successfully analyzed scope: __main__.Response.set_data
+Successfully analyzed scope: __main__.Response.calculate_content_length
+Successfully analyzed scope: __main__.Response._ensure_sequence
+Successfully analyzed scope: __main__.Response.make_sequence
+Successfully analyzed scope: __main__.Response.iter_encoded
+Successfully analyzed scope: __main__.Response.is_streamed
+Successfully analyzed scope: __main__.Response.is_sequence
+Successfully analyzed scope: __main__.Response.close
+Successfully analyzed scope: __main__.Response.__enter__
+Successfully analyzed scope: __main__.Response.__exit__
+Successfully analyzed scope: __main__.Response.freeze
+Successfully analyzed scope: __main__.Response.get_wsgi_headers
+Successfully analyzed scope: __main__.Response.get_app_iter
+Successfully analyzed scope: __main__.Response.get_wsgi_response
+Successfully analyzed scope: __main__.Response.__call__
+Successfully analyzed scope: __main__.Response.json
+Successfully analyzed scope: __main__.Response.get_json
+Successfully analyzed scope: __main__.Response.get_json
+Successfully analyzed scope: __main__.Response.get_json
+Successfully analyzed scope: __main__.Response.stream
+Successfully analyzed scope: __main__.Response._wrap_range_response
+Successfully analyzed scope: __main__.Response._is_range_request_processable
+Successfully analyzed scope: __main__.Response._process_range_request
+Successfully analyzed scope: __main__.Response.make_conditional
+Successfully analyzed scope: __main__.Response.add_etag
+Successfully analyzed scope: __main__.ResponseStream.__init__
+Successfully analyzed scope: __main__.ResponseStream.write
+Successfully analyzed scope: __main__.ResponseStream.writelines
+Successfully analyzed scope: __main__.ResponseStream.close
+Successfully analyzed scope: __main__.ResponseStream.flush
+Successfully analyzed scope: __main__.ResponseStream.isatty
+Successfully analyzed scope: __main__.ResponseStream.tell
+Successfully analyzed scope: __main__.ResponseStream.encoding
+✓
+[40/40]   Analyzing: wsgi.py... Generate CFG for __main__
+Analyzing 55 scopes in module __main__
+Setting up unified analysis for 55 scopes
+Planned analysis for 55 functions
+Added class test.py:454:0:class with bases []
+Added class test.py:530:0:class with bases []
+Added class test.py:582:0:class with bases []
+Added class test.py:864:0:class with bases ['io.IOBase']
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=571, calls=201
+Added call edge: [] --[test.py:38:0:call#0]--> [test.py:38:0:call#0]:__main__.get_host
+Added call edge: [] --[test.py:93:0:call#0]--> [test.py:93:0:call#0]:__main__._get_server
+Added call edge: [] --[test.py:156:21:call#0]--> [test.py:156:21:call#0]:__main__.get_content_length
+Added call edge: [] --[test.py:136:0:call#0]--> [test.py:136:0:call#0]:__main__.LimitedStream
+Added call edge: [] --[test.py:424:29:call#0]--> [test.py:424:29:call#0]:__main__.get_current_url
+Added call edge: [] --[test.py:430:18:call#0]--> [test.py:430:18:call#0]:__main__.extract_path_info._normalize_netloc
+Added call edge: [] --[test.py:431:17:call#0]--> [test.py:431:17:call#0]:__main__.extract_path_info._normalize_netloc
+Added call edge: [] --[test.py:685:4:call#0]--> [test.py:685:4:call#0]:__main__.LimitedStream
+Added call edge: [] --[test.py:732:12:call#0]--> [test.py:732:12:call#0]:__main__._make_chunk_iter
+Added call edge: [] --[test.py:695:0:call#0]--> [test.py:695:0:call#0]:__main__.make_line_iter._iter_basic_lines
+Added call edge: [] --[test.py:818:12:call#0]--> [test.py:818:12:call#0]:__main__._make_chunk_iter
+Added call edge: [] --[test.py:93:0:call#0]--> [test.py:93:0:call#0]:__main__._get_server
+Added call edge: [] --[test.py:38:0:call#0]--> [test.py:38:0:call#0]:__main__.get_host
+Added call edge: [] --[test.py:685:4:call#0]--> [test.py:685:4:call#0]:__main__.LimitedStream
+Added call edge: [] --[test.py:685:4:call#0]--> [test.py:685:4:call#0]:__main__.LimitedStream
+Analysis converged after 2 iterations
+Statistics: {'objects_created': 178, 'constraints_processed': 744, 'calls_processed': 254}
+Successfully analyzed scope: __main__
+Successfully analyzed scope: __main__.responder
+Successfully analyzed scope: __main__.get_current_url
+Successfully analyzed scope: __main__._get_server
+Successfully analyzed scope: __main__.get_host
+Successfully analyzed scope: __main__.get_content_length
+Successfully analyzed scope: __main__.get_input_stream
+Successfully analyzed scope: __main__.get_query_string
+Successfully analyzed scope: __main__.get_path_info
+Successfully analyzed scope: __main__.get_script_name
+Successfully analyzed scope: __main__.pop_path_info
+Successfully analyzed scope: __main__.peek_path_info
+Successfully analyzed scope: __main__.extract_path_info
+Successfully analyzed scope: __main__.ClosingIterator
+Successfully analyzed scope: __main__.wrap_file
+Successfully analyzed scope: __main__.FileWrapper
+Successfully analyzed scope: __main__._RangeWrapper
+Successfully analyzed scope: __main__._make_chunk_iter
+Successfully analyzed scope: __main__.make_line_iter
+Successfully analyzed scope: __main__.make_chunk_iter
+Successfully analyzed scope: __main__.LimitedStream
+Successfully analyzed scope: __main__.responder.$func_0
+Successfully analyzed scope: __main__.extract_path_info._normalize_netloc
+Successfully analyzed scope: __main__.ClosingIterator.__init__
+Successfully analyzed scope: __main__.ClosingIterator.__iter__
+Successfully analyzed scope: __main__.ClosingIterator.__next__
+Successfully analyzed scope: __main__.ClosingIterator.close
+Successfully analyzed scope: __main__.FileWrapper.__init__
+Successfully analyzed scope: __main__.FileWrapper.close
+Successfully analyzed scope: __main__.FileWrapper.seekable
+Successfully analyzed scope: __main__.FileWrapper.seek
+Successfully analyzed scope: __main__.FileWrapper.tell
+Successfully analyzed scope: __main__.FileWrapper.__iter__
+Successfully analyzed scope: __main__.FileWrapper.__next__
+Successfully analyzed scope: __main__._RangeWrapper.__init__
+Successfully analyzed scope: __main__._RangeWrapper.__iter__
+Successfully analyzed scope: __main__._RangeWrapper._next_chunk
+Successfully analyzed scope: __main__._RangeWrapper._first_iteration
+Successfully analyzed scope: __main__._RangeWrapper._next
+Successfully analyzed scope: __main__._RangeWrapper.__next__
+Successfully analyzed scope: __main__._RangeWrapper.close
+Successfully analyzed scope: __main__.make_line_iter._iter_basic_lines
+Successfully analyzed scope: __main__.LimitedStream.__init__
+Successfully analyzed scope: __main__.LimitedStream.__iter__
+Successfully analyzed scope: __main__.LimitedStream.is_exhausted
+Successfully analyzed scope: __main__.LimitedStream.on_exhausted
+Successfully analyzed scope: __main__.LimitedStream.on_disconnect
+Successfully analyzed scope: __main__.LimitedStream._exhaust_chunks
+Successfully analyzed scope: __main__.LimitedStream.exhaust
+Successfully analyzed scope: __main__.LimitedStream.read
+Successfully analyzed scope: __main__.LimitedStream.readline
+Successfully analyzed scope: __main__.LimitedStream.readlines
+Successfully analyzed scope: __main__.LimitedStream.tell
+Successfully analyzed scope: __main__.LimitedStream.__next__
+Successfully analyzed scope: __main__.LimitedStream.readable
+✓
+
+======================================================================
+ANALYSIS COMPLETE
+======================================================================
+Duration: 3.89 seconds
+Modules analyzed: 40
+Modules failed: 0
+Success rate: 100.0%
+
+Report saved to: /mnt/data_fast/code/PythonStAn/benchmark/reports/werkzeug_analysis_report.json
+Markdown report saved to: /mnt/data_fast/code/PythonStAn/benchmark/reports/werkzeug_analysis_report.md

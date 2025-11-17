@@ -1,0 +1,145 @@
+{
+  "project_name": "werkzeug",
+  "timestamp": "2025-10-17T21:52:55.647103",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 10,
+  "modules_succeeded": 10,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.0006387233734130859,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 5,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "_internal.py",
+      "success": true,
+      "duration": 46.67576003074646,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 417,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "_reloader.py",
+      "success": true,
+      "duration": 45.284910678863525,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 312,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "datastructures.py",
+      "success": true,
+      "duration": 45.67373323440552,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2371,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "debug/__init__.py",
+      "success": true,
+      "duration": 46.44811820983887,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 410,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "debug/console.py",
+      "success": true,
+      "duration": 46.353416442871094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 165,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "debug/repr.py",
+      "success": true,
+      "duration": 51.04776859283447,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 244,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "debug/tbtools.py",
+      "success": true,
+      "duration": 49.343382358551025,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 355,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "exceptions.py",
+      "success": true,
+      "duration": 46.50883460044861,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 652,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "formparser.py",
+      "success": true,
+      "duration": 46.1022675037384,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 383,
+      "functions_analyzed": 5
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 423.4388303756714,
+    "analysis_time": 423.4388303756714,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 12.549628467671385
+  },
+  "points_to_metrics": {
+    "total_variables": 102,
+    "total_points_to_sets": 102,
+    "singleton_sets": 81,
+    "empty_sets": 0,
+    "avg_set_size": 1.2156862745098038,
+    "max_set_size": 3,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 81,
+      "2-5": 21
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 56,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

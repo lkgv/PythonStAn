@@ -1,0 +1,6815 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-26T10:53:45.763684",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 22,
+  "modules_succeeded": 22,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.04893851280212402,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0026094913482666016,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 1.7655296325683594,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 78
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 0.6561291217803955,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 28
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 1.1832234859466553,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 31
+    },
+    {
+      "module_name": "config.py",
+      "success": true,
+      "duration": 0.255601167678833,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 262,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "ctx.py",
+      "success": true,
+      "duration": 0.2760152816772461,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 324,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "debughelpers.py",
+      "success": true,
+      "duration": 0.22920799255371094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 129,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "globals.py",
+      "success": true,
+      "duration": 0.06281924247741699,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 87,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "helpers.py",
+      "success": true,
+      "duration": 0.355755090713501,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 532,
+      "functions_analyzed": 21
+    },
+    {
+      "module_name": "json/__init__.py",
+      "success": true,
+      "duration": 0.1890418529510498,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 259,
+      "functions_analyzed": 10
+    },
+    {
+      "module_name": "json/provider.py",
+      "success": true,
+      "duration": 0.23634886741638184,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 240,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "json/tag.py",
+      "success": true,
+      "duration": 0.24770140647888184,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 219,
+      "functions_analyzed": 33
+    },
+    {
+      "module_name": "logging.py",
+      "success": true,
+      "duration": 0.06662654876708984,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 50,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "scaffold.py",
+      "success": true,
+      "duration": 0.46149253845214844,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 620,
+      "functions_analyzed": 36
+    },
+    {
+      "module_name": "sessions.py",
+      "success": true,
+      "duration": 0.21670746803283691,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 294,
+      "functions_analyzed": 22
+    },
+    {
+      "module_name": "signals.py",
+      "success": true,
+      "duration": 0.030776023864746094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 40,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "templating.py",
+      "success": true,
+      "duration": 0.31055378913879395,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 166,
+      "functions_analyzed": 14
+    },
+    {
+      "module_name": "testing.py",
+      "success": true,
+      "duration": 0.23192524909973145,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 235,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "typing.py",
+      "success": true,
+      "duration": 0.06260991096496582,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 56,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "views.py",
+      "success": true,
+      "duration": 0.12049436569213867,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "wrappers.py",
+      "success": true,
+      "duration": 0.06290602684020996,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 109,
+      "functions_analyzed": 7
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 7.073013067245483,
+    "analysis_time": 7.073013067245483,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 34.239200592041016,
+    "peak_memory_current_mb": 31.217134475708008,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 989.2530854216157,
+    "per_module_time": {
+      "__init__.py": 0.04904508590698242,
+      "__main__.py": 0.0026895999908447266,
+      "app.py": 1.7667393684387207,
+      "blueprints.py": 0.656653881072998,
+      "cli.py": 1.1838221549987793,
+      "config.py": 0.2558572292327881,
+      "ctx.py": 0.2762782573699951,
+      "debughelpers.py": 0.2293555736541748,
+      "globals.py": 0.06293940544128418,
+      "helpers.py": 0.35614562034606934,
+      "json/__init__.py": 0.1893019676208496,
+      "json/provider.py": 0.23657655715942383,
+      "json/tag.py": 0.24791979789733887,
+      "logging.py": 0.06672954559326172,
+      "scaffold.py": 0.46201086044311523,
+      "sessions.py": 0.21706342697143555,
+      "signals.py": 0.030887603759765625,
+      "templating.py": 0.31073760986328125,
+      "testing.py": 0.23215627670288086,
+      "typing.py": 0.06273317337036133,
+      "views.py": 0.12063789367675781,
+      "wrappers.py": 0.06304764747619629
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 742,
+    "total_points_to_sets": 742,
+    "singleton_sets": 630,
+    "empty_sets": 0,
+    "avg_set_size": 1.2681940700808625,
+    "max_set_size": 14,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 630,
+      "2-5": 105,
+      "6-10": 6,
+      "11-20": 1
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 606,
+    "total_call_sites": 48,
+    "total_edges": 48,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 52,
+    "classes_with_mro": 52,
+    "diamond_patterns": 0,
+    "max_mro_length": 3,
+    "avg_mro_length": 3.0
+  },
+  "object_metrics": {
+    "total_objects_created": 721,
+    "avg_objects_per_variable": 1.2681940700808625,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 630,
+    "vars_with_multiple": 112,
+    "object_types": {
+      "class": 369,
+      "alloc": 323,
+      "func": 29
+    }
+  },
+  "function_metrics": {
+    "__getattr__": {
+      "function_name": "__getattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.__getattr__": {
+      "function_name": "__main__.__getattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.iscoroutinefunction": {
+      "function_name": "__main__.iscoroutinefunction",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._make_timedelta": {
+      "function_name": "__main__._make_timedelta",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.session_cookie_name": {
+      "function_name": "__main__.Flask.session_cookie_name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.send_file_max_age_default": {
+      "function_name": "__main__.Flask.send_file_max_age_default",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.use_x_sendfile": {
+      "function_name": "__main__.Flask.use_x_sendfile",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.json_encoder": {
+      "function_name": "__main__.Flask.json_encoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.json_decoder": {
+      "function_name": "__main__.Flask.json_decoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.__init__": {
+      "function_name": "__main__.Flask.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask._check_setup_finished": {
+      "function_name": "__main__.Flask._check_setup_finished",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.name": {
+      "function_name": "__main__.Flask.name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.propagate_exceptions": {
+      "function_name": "__main__.Flask.propagate_exceptions",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.logger": {
+      "function_name": "__main__.Flask.logger",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.jinja_env": {
+      "function_name": "__main__.Flask.jinja_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.got_first_request": {
+      "function_name": "__main__.Flask.got_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.make_config": {
+      "function_name": "__main__.Flask.make_config",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.make_aborter": {
+      "function_name": "__main__.Flask.make_aborter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.auto_find_instance_path": {
+      "function_name": "__main__.Flask.auto_find_instance_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.open_instance_resource": {
+      "function_name": "__main__.Flask.open_instance_resource",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.templates_auto_reload": {
+      "function_name": "__main__.Flask.templates_auto_reload",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.create_jinja_environment": {
+      "function_name": "__main__.Flask.create_jinja_environment",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.create_global_jinja_loader": {
+      "function_name": "__main__.Flask.create_global_jinja_loader",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.select_jinja_autoescape": {
+      "function_name": "__main__.Flask.select_jinja_autoescape",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.update_template_context": {
+      "function_name": "__main__.Flask.update_template_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.make_shell_context": {
+      "function_name": "__main__.Flask.make_shell_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.env": {
+      "function_name": "__main__.Flask.env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.debug": {
+      "function_name": "__main__.Flask.debug",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.run": {
+      "function_name": "__main__.Flask.run",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.test_client": {
+      "function_name": "__main__.Flask.test_client",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.test_cli_runner": {
+      "function_name": "__main__.Flask.test_cli_runner",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.register_blueprint": {
+      "function_name": "__main__.Flask.register_blueprint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.iter_blueprints": {
+      "function_name": "__main__.Flask.iter_blueprints",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.add_url_rule": {
+      "function_name": "__main__.Flask.add_url_rule",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.template_filter": {
+      "function_name": "__main__.Flask.template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.add_template_filter": {
+      "function_name": "__main__.Flask.add_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.template_test": {
+      "function_name": "__main__.Flask.template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.add_template_test": {
+      "function_name": "__main__.Flask.add_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.template_global": {
+      "function_name": "__main__.Flask.template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.add_template_global": {
+      "function_name": "__main__.Flask.add_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.before_first_request": {
+      "function_name": "__main__.Flask.before_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.teardown_appcontext": {
+      "function_name": "__main__.Flask.teardown_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.shell_context_processor": {
+      "function_name": "__main__.Flask.shell_context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask._find_error_handler": {
+      "function_name": "__main__.Flask._find_error_handler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.handle_http_exception": {
+      "function_name": "__main__.Flask.handle_http_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.trap_http_exception": {
+      "function_name": "__main__.Flask.trap_http_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.handle_user_exception": {
+      "function_name": "__main__.Flask.handle_user_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.handle_exception": {
+      "function_name": "__main__.Flask.handle_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.log_exception": {
+      "function_name": "__main__.Flask.log_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.raise_routing_exception": {
+      "function_name": "__main__.Flask.raise_routing_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.dispatch_request": {
+      "function_name": "__main__.Flask.dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.full_dispatch_request": {
+      "function_name": "__main__.Flask.full_dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.finalize_request": {
+      "function_name": "__main__.Flask.finalize_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.make_default_options_response": {
+      "function_name": "__main__.Flask.make_default_options_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.should_ignore_error": {
+      "function_name": "__main__.Flask.should_ignore_error",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.ensure_sync": {
+      "function_name": "__main__.Flask.ensure_sync",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.async_to_sync": {
+      "function_name": "__main__.Flask.async_to_sync",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.url_for": {
+      "function_name": "__main__.Flask.url_for",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.redirect": {
+      "function_name": "__main__.Flask.redirect",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.make_response": {
+      "function_name": "__main__.Flask.make_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.create_url_adapter": {
+      "function_name": "__main__.Flask.create_url_adapter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.inject_url_defaults": {
+      "function_name": "__main__.Flask.inject_url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.handle_url_build_error": {
+      "function_name": "__main__.Flask.handle_url_build_error",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.preprocess_request": {
+      "function_name": "__main__.Flask.preprocess_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.process_response": {
+      "function_name": "__main__.Flask.process_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.do_teardown_request": {
+      "function_name": "__main__.Flask.do_teardown_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.do_teardown_appcontext": {
+      "function_name": "__main__.Flask.do_teardown_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.app_context": {
+      "function_name": "__main__.Flask.app_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.request_context": {
+      "function_name": "__main__.Flask.request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.test_request_context": {
+      "function_name": "__main__.Flask.test_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.wsgi_app": {
+      "function_name": "__main__.Flask.wsgi_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Flask.__call__": {
+      "function_name": "__main__.Flask.__call__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.BlueprintSetupState.__init__": {
+      "function_name": "__main__.BlueprintSetupState.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.BlueprintSetupState.add_url_rule": {
+      "function_name": "__main__.BlueprintSetupState.add_url_rule",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.json_encoder": {
+      "function_name": "__main__.Blueprint.json_encoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.json_decoder": {
+      "function_name": "__main__.Blueprint.json_decoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.__init__": {
+      "function_name": "__main__.Blueprint.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint._check_setup_finished": {
+      "function_name": "__main__.Blueprint._check_setup_finished",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.record": {
+      "function_name": "__main__.Blueprint.record",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.record_once": {
+      "function_name": "__main__.Blueprint.record_once",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.make_setup_state": {
+      "function_name": "__main__.Blueprint.make_setup_state",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.register_blueprint": {
+      "function_name": "__main__.Blueprint.register_blueprint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.register": {
+      "function_name": "__main__.Blueprint.register",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.add_url_rule": {
+      "function_name": "__main__.Blueprint.add_url_rule",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_template_filter": {
+      "function_name": "__main__.Blueprint.app_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.add_app_template_filter": {
+      "function_name": "__main__.Blueprint.add_app_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_template_test": {
+      "function_name": "__main__.Blueprint.app_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.add_app_template_test": {
+      "function_name": "__main__.Blueprint.add_app_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_template_global": {
+      "function_name": "__main__.Blueprint.app_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.add_app_template_global": {
+      "function_name": "__main__.Blueprint.add_app_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.before_app_request": {
+      "function_name": "__main__.Blueprint.before_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.before_app_first_request": {
+      "function_name": "__main__.Blueprint.before_app_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.after_app_request": {
+      "function_name": "__main__.Blueprint.after_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.teardown_app_request": {
+      "function_name": "__main__.Blueprint.teardown_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_context_processor": {
+      "function_name": "__main__.Blueprint.app_context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_errorhandler": {
+      "function_name": "__main__.Blueprint.app_errorhandler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_url_value_preprocessor": {
+      "function_name": "__main__.Blueprint.app_url_value_preprocessor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Blueprint.app_url_defaults": {
+      "function_name": "__main__.Blueprint.app_url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.find_best_app": {
+      "function_name": "__main__.find_best_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._called_with_wrong_args": {
+      "function_name": "__main__._called_with_wrong_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.find_app_by_string": {
+      "function_name": "__main__.find_app_by_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.prepare_import": {
+      "function_name": "__main__.prepare_import",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.locate_app": {
+      "function_name": "__main__.locate_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_version": {
+      "function_name": "__main__.get_version",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.with_appcontext": {
+      "function_name": "__main__.with_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._set_app": {
+      "function_name": "__main__._set_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._set_debug": {
+      "function_name": "__main__._set_debug",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._env_file_callback": {
+      "function_name": "__main__._env_file_callback",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._path_is_ancestor": {
+      "function_name": "__main__._path_is_ancestor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.load_dotenv": {
+      "function_name": "__main__.load_dotenv",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.show_server_banner": {
+      "function_name": "__main__.show_server_banner",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._validate_key": {
+      "function_name": "__main__._validate_key",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.run_command": {
+      "function_name": "__main__.run_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.shell_command": {
+      "function_name": "__main__.shell_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.routes_command": {
+      "function_name": "__main__.routes_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.main": {
+      "function_name": "__main__.main",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.ScriptInfo.__init__": {
+      "function_name": "__main__.ScriptInfo.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.ScriptInfo.load_app": {
+      "function_name": "__main__.ScriptInfo.load_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppGroup.command": {
+      "function_name": "__main__.AppGroup.command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppGroup.group": {
+      "function_name": "__main__.AppGroup.group",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup.__init__": {
+      "function_name": "__main__.FlaskGroup.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup._load_plugin_commands": {
+      "function_name": "__main__.FlaskGroup._load_plugin_commands",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup.get_command": {
+      "function_name": "__main__.FlaskGroup.get_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup.list_commands": {
+      "function_name": "__main__.FlaskGroup.list_commands",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup.make_context": {
+      "function_name": "__main__.FlaskGroup.make_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskGroup.parse_args": {
+      "function_name": "__main__.FlaskGroup.parse_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.CertParamType.__init__": {
+      "function_name": "__main__.CertParamType.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.CertParamType.convert": {
+      "function_name": "__main__.CertParamType.convert",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SeparatedPathType.convert": {
+      "function_name": "__main__.SeparatedPathType.convert",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.ConfigAttribute.__init__": {
+      "function_name": "__main__.ConfigAttribute.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.ConfigAttribute.__get__": {
+      "function_name": "__main__.ConfigAttribute.__get__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.ConfigAttribute.__set__": {
+      "function_name": "__main__.ConfigAttribute.__set__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.__init__": {
+      "function_name": "__main__.Config.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_envvar": {
+      "function_name": "__main__.Config.from_envvar",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_prefixed_env": {
+      "function_name": "__main__.Config.from_prefixed_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_pyfile": {
+      "function_name": "__main__.Config.from_pyfile",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_object": {
+      "function_name": "__main__.Config.from_object",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_file": {
+      "function_name": "__main__.Config.from_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.from_mapping": {
+      "function_name": "__main__.Config.from_mapping",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.get_namespace": {
+      "function_name": "__main__.Config.get_namespace",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Config.__repr__": {
+      "function_name": "__main__.Config.__repr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.after_this_request": {
+      "function_name": "__main__.after_this_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.copy_current_request_context": {
+      "function_name": "__main__.copy_current_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.has_request_context": {
+      "function_name": "__main__.has_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.has_app_context": {
+      "function_name": "__main__.has_app_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__getattr__": {
+      "function_name": "__main__._AppCtxGlobals.__getattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__setattr__": {
+      "function_name": "__main__._AppCtxGlobals.__setattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__delattr__": {
+      "function_name": "__main__._AppCtxGlobals.__delattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.get": {
+      "function_name": "__main__._AppCtxGlobals.get",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.pop": {
+      "function_name": "__main__._AppCtxGlobals.pop",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.setdefault": {
+      "function_name": "__main__._AppCtxGlobals.setdefault",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__contains__": {
+      "function_name": "__main__._AppCtxGlobals.__contains__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__iter__": {
+      "function_name": "__main__._AppCtxGlobals.__iter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._AppCtxGlobals.__repr__": {
+      "function_name": "__main__._AppCtxGlobals.__repr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppContext.__init__": {
+      "function_name": "__main__.AppContext.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppContext.push": {
+      "function_name": "__main__.AppContext.push",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppContext.pop": {
+      "function_name": "__main__.AppContext.pop",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppContext.__enter__": {
+      "function_name": "__main__.AppContext.__enter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.AppContext.__exit__": {
+      "function_name": "__main__.AppContext.__exit__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.__init__": {
+      "function_name": "__main__.RequestContext.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.copy": {
+      "function_name": "__main__.RequestContext.copy",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.RequestContext.match_request": {
+      "function_name": "__main__.RequestContext.match_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.push": {
+      "function_name": "__main__.RequestContext.push",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.pop": {
+      "function_name": "__main__.RequestContext.pop",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.__enter__": {
+      "function_name": "__main__.RequestContext.__enter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.__exit__": {
+      "function_name": "__main__.RequestContext.__exit__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.RequestContext.__repr__": {
+      "function_name": "__main__.RequestContext.__repr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.attach_enctype_error_multidict": {
+      "function_name": "__main__.attach_enctype_error_multidict",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "class": 1
+      },
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__._dump_loader_info": {
+      "function_name": "__main__._dump_loader_info",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 6,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.explain_template_loading_attempts": {
+      "function_name": "__main__.explain_template_loading_attempts",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 18,
+      "objects_by_type": {
+        "obj": 18
+      },
+      "variables_tracked": 22,
+      "precision": 63.63636363636363,
+      "contexts_seen": 2
+    },
+    "__main__.DebugFilesKeyError.__init__": {
+      "function_name": "__main__.DebugFilesKeyError.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DebugFilesKeyError.__str__": {
+      "function_name": "__main__.DebugFilesKeyError.__str__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FormDataRoutingRedirect.__init__": {
+      "function_name": "__main__.FormDataRoutingRedirect.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeStack.__init__": {
+      "function_name": "__main__._FakeStack.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeStack._warn": {
+      "function_name": "__main__._FakeStack._warn",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeStack.push": {
+      "function_name": "__main__._FakeStack.push",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeStack.pop": {
+      "function_name": "__main__._FakeStack.pop",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeStack.top": {
+      "function_name": "__main__._FakeStack.top",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_env": {
+      "function_name": "__main__.get_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_debug_flag": {
+      "function_name": "__main__.get_debug_flag",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "__main__.get_load_dotenv": {
+      "function_name": "__main__.get_load_dotenv",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "__main__.stream_with_context": {
+      "function_name": "__main__.stream_with_context",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 10,
+      "objects_by_type": {
+        "obj": 7,
+        "func": 3
+      },
+      "variables_tracked": 16,
+      "precision": 100.0,
+      "contexts_seen": 6
+    },
+    "__main__.make_response": {
+      "function_name": "__main__.make_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.url_for": {
+      "function_name": "__main__.url_for",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.redirect": {
+      "function_name": "__main__.redirect",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.abort": {
+      "function_name": "__main__.abort",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_template_attribute": {
+      "function_name": "__main__.get_template_attribute",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.flash": {
+      "function_name": "__main__.flash",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_flashed_messages": {
+      "function_name": "__main__.get_flashed_messages",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._prepare_send_file_kwargs": {
+      "function_name": "__main__._prepare_send_file_kwargs",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.send_file": {
+      "function_name": "__main__.send_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.send_from_directory": {
+      "function_name": "__main__.send_from_directory",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.get_root_path": {
+      "function_name": "__main__.get_root_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.is_ip": {
+      "function_name": "__main__.is_ip",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._split_blueprint_path": {
+      "function_name": "__main__._split_blueprint_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "objects_by_type": {
+        "obj": 3
+      },
+      "variables_tracked": 6,
+      "precision": 100.0,
+      "contexts_seen": 4
+    },
+    "__main__.locked_cached_property.__init__": {
+      "function_name": "__main__.locked_cached_property.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.locked_cached_property.__get__": {
+      "function_name": "__main__.locked_cached_property.__get__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.locked_cached_property.__set__": {
+      "function_name": "__main__.locked_cached_property.__set__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.locked_cached_property.__delete__": {
+      "function_name": "__main__.locked_cached_property.__delete__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.dumps": {
+      "function_name": "__main__.dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.dump": {
+      "function_name": "__main__.dump",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.loads": {
+      "function_name": "__main__.loads",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.load": {
+      "function_name": "__main__.load",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.htmlsafe_dumps": {
+      "function_name": "__main__.htmlsafe_dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.htmlsafe_dump": {
+      "function_name": "__main__.htmlsafe_dump",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.jsonify": {
+      "function_name": "__main__.jsonify",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONEncoder.__init__": {
+      "function_name": "__main__.JSONEncoder.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONEncoder.default": {
+      "function_name": "__main__.JSONEncoder.default",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONDecoder.__init__": {
+      "function_name": "__main__.JSONDecoder.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._default": {
+      "function_name": "__main__._default",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.JSONProvider.__init__": {
+      "function_name": "__main__.JSONProvider.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider.dumps": {
+      "function_name": "__main__.JSONProvider.dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider.dump": {
+      "function_name": "__main__.JSONProvider.dump",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider.loads": {
+      "function_name": "__main__.JSONProvider.loads",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider.load": {
+      "function_name": "__main__.JSONProvider.load",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider._prepare_response_obj": {
+      "function_name": "__main__.JSONProvider._prepare_response_obj",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONProvider.response": {
+      "function_name": "__main__.JSONProvider.response",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.DefaultJSONProvider.dumps": {
+      "function_name": "__main__.DefaultJSONProvider.dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DefaultJSONProvider.loads": {
+      "function_name": "__main__.DefaultJSONProvider.loads",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DefaultJSONProvider.response": {
+      "function_name": "__main__.DefaultJSONProvider.response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONTag.__init__": {
+      "function_name": "__main__.JSONTag.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONTag.check": {
+      "function_name": "__main__.JSONTag.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONTag.to_json": {
+      "function_name": "__main__.JSONTag.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONTag.to_python": {
+      "function_name": "__main__.JSONTag.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.JSONTag.tag": {
+      "function_name": "__main__.JSONTag.tag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDict.check": {
+      "function_name": "__main__.TagDict.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDict.to_json": {
+      "function_name": "__main__.TagDict.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDict.to_python": {
+      "function_name": "__main__.TagDict.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.PassDict.check": {
+      "function_name": "__main__.PassDict.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.PassDict.to_json": {
+      "function_name": "__main__.PassDict.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagTuple.check": {
+      "function_name": "__main__.TagTuple.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagTuple.to_json": {
+      "function_name": "__main__.TagTuple.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagTuple.to_python": {
+      "function_name": "__main__.TagTuple.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.PassList.check": {
+      "function_name": "__main__.PassList.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.PassList.to_json": {
+      "function_name": "__main__.PassList.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagBytes.check": {
+      "function_name": "__main__.TagBytes.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagBytes.to_json": {
+      "function_name": "__main__.TagBytes.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagBytes.to_python": {
+      "function_name": "__main__.TagBytes.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagMarkup.check": {
+      "function_name": "__main__.TagMarkup.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagMarkup.to_json": {
+      "function_name": "__main__.TagMarkup.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagMarkup.to_python": {
+      "function_name": "__main__.TagMarkup.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagUUID.check": {
+      "function_name": "__main__.TagUUID.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagUUID.to_json": {
+      "function_name": "__main__.TagUUID.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagUUID.to_python": {
+      "function_name": "__main__.TagUUID.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDateTime.check": {
+      "function_name": "__main__.TagDateTime.check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDateTime.to_json": {
+      "function_name": "__main__.TagDateTime.to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TagDateTime.to_python": {
+      "function_name": "__main__.TagDateTime.to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.__init__": {
+      "function_name": "__main__.TaggedJSONSerializer.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.register": {
+      "function_name": "__main__.TaggedJSONSerializer.register",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.tag": {
+      "function_name": "__main__.TaggedJSONSerializer.tag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.untag": {
+      "function_name": "__main__.TaggedJSONSerializer.untag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.dumps": {
+      "function_name": "__main__.TaggedJSONSerializer.dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.TaggedJSONSerializer.loads": {
+      "function_name": "__main__.TaggedJSONSerializer.loads",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.wsgi_errors_stream": {
+      "function_name": "__main__.wsgi_errors_stream",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.has_level_handler": {
+      "function_name": "__main__.has_level_handler",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "objects_by_type": {
+        "func": 1,
+        "obj": 1
+      },
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.create_logger": {
+      "function_name": "__main__.create_logger",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "__main__.setupmethod": {
+      "function_name": "__main__.setupmethod",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._endpoint_from_view_func": {
+      "function_name": "__main__._endpoint_from_view_func",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "__main__._matching_loader_thinks_module_is_package": {
+      "function_name": "__main__._matching_loader_thinks_module_is_package",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._path_is_relative_to": {
+      "function_name": "__main__._path_is_relative_to",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "__main__._find_package_path": {
+      "function_name": "__main__._find_package_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "objects_by_type": {
+        "obj": 3
+      },
+      "variables_tracked": 2,
+      "precision": 50.0,
+      "contexts_seen": 2
+    },
+    "__main__.find_package": {
+      "function_name": "__main__.find_package",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "__main__.Scaffold.__init__": {
+      "function_name": "__main__.Scaffold.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.__repr__": {
+      "function_name": "__main__.Scaffold.__repr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold._check_setup_finished": {
+      "function_name": "__main__.Scaffold._check_setup_finished",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.static_folder": {
+      "function_name": "__main__.Scaffold.static_folder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.has_static_folder": {
+      "function_name": "__main__.Scaffold.has_static_folder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.static_url_path": {
+      "function_name": "__main__.Scaffold.static_url_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.get_send_file_max_age": {
+      "function_name": "__main__.Scaffold.get_send_file_max_age",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.send_static_file": {
+      "function_name": "__main__.Scaffold.send_static_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.jinja_loader": {
+      "function_name": "__main__.Scaffold.jinja_loader",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.open_resource": {
+      "function_name": "__main__.Scaffold.open_resource",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold._method_route": {
+      "function_name": "__main__.Scaffold._method_route",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.get": {
+      "function_name": "__main__.Scaffold.get",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.post": {
+      "function_name": "__main__.Scaffold.post",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.put": {
+      "function_name": "__main__.Scaffold.put",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.delete": {
+      "function_name": "__main__.Scaffold.delete",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.patch": {
+      "function_name": "__main__.Scaffold.patch",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.route": {
+      "function_name": "__main__.Scaffold.route",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.add_url_rule": {
+      "function_name": "__main__.Scaffold.add_url_rule",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.endpoint": {
+      "function_name": "__main__.Scaffold.endpoint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.before_request": {
+      "function_name": "__main__.Scaffold.before_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.after_request": {
+      "function_name": "__main__.Scaffold.after_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.teardown_request": {
+      "function_name": "__main__.Scaffold.teardown_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.context_processor": {
+      "function_name": "__main__.Scaffold.context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.url_value_preprocessor": {
+      "function_name": "__main__.Scaffold.url_value_preprocessor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.url_defaults": {
+      "function_name": "__main__.Scaffold.url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.errorhandler": {
+      "function_name": "__main__.Scaffold.errorhandler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold.register_error_handler": {
+      "function_name": "__main__.Scaffold.register_error_handler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Scaffold._get_exc_class_and_code": {
+      "function_name": "__main__.Scaffold._get_exc_class_and_code",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionMixin.permanent": {
+      "function_name": "__main__.SessionMixin.permanent",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSession.__init__": {
+      "function_name": "__main__.SecureCookieSession.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSession.__getitem__": {
+      "function_name": "__main__.SecureCookieSession.__getitem__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSession.get": {
+      "function_name": "__main__.SecureCookieSession.get",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSession.setdefault": {
+      "function_name": "__main__.SecureCookieSession.setdefault",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.NullSession._fail": {
+      "function_name": "__main__.NullSession._fail",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.make_null_session": {
+      "function_name": "__main__.SessionInterface.make_null_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.is_null_session": {
+      "function_name": "__main__.SessionInterface.is_null_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_name": {
+      "function_name": "__main__.SessionInterface.get_cookie_name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_domain": {
+      "function_name": "__main__.SessionInterface.get_cookie_domain",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_path": {
+      "function_name": "__main__.SessionInterface.get_cookie_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_httponly": {
+      "function_name": "__main__.SessionInterface.get_cookie_httponly",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_secure": {
+      "function_name": "__main__.SessionInterface.get_cookie_secure",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_cookie_samesite": {
+      "function_name": "__main__.SessionInterface.get_cookie_samesite",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.get_expiration_time": {
+      "function_name": "__main__.SessionInterface.get_expiration_time",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.should_set_cookie": {
+      "function_name": "__main__.SessionInterface.should_set_cookie",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.open_session": {
+      "function_name": "__main__.SessionInterface.open_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SessionInterface.save_session": {
+      "function_name": "__main__.SessionInterface.save_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSessionInterface.get_signing_serializer": {
+      "function_name": "__main__.SecureCookieSessionInterface.get_signing_serializer",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSessionInterface.open_session": {
+      "function_name": "__main__.SecureCookieSessionInterface.open_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.SecureCookieSessionInterface.save_session": {
+      "function_name": "__main__.SecureCookieSessionInterface.save_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Namespace.signal": {
+      "function_name": "__main__.Namespace.signal",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeSignal.__init__": {
+      "function_name": "__main__._FakeSignal.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeSignal.send": {
+      "function_name": "__main__._FakeSignal.send",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._FakeSignal._fail": {
+      "function_name": "__main__._FakeSignal._fail",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._default_template_ctx_processor": {
+      "function_name": "__main__._default_template_ctx_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._render": {
+      "function_name": "__main__._render",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.render_template": {
+      "function_name": "__main__.render_template",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.render_template_string": {
+      "function_name": "__main__.render_template_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__._stream": {
+      "function_name": "__main__._stream",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.stream_template": {
+      "function_name": "__main__.stream_template",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.stream_template_string": {
+      "function_name": "__main__.stream_template_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Environment.__init__": {
+      "function_name": "__main__.Environment.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader.__init__": {
+      "function_name": "__main__.DispatchingJinjaLoader.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader.get_source": {
+      "function_name": "__main__.DispatchingJinjaLoader.get_source",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader._get_source_explained": {
+      "function_name": "__main__.DispatchingJinjaLoader._get_source_explained",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader._get_source_fast": {
+      "function_name": "__main__.DispatchingJinjaLoader._get_source_fast",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader._iter_loaders": {
+      "function_name": "__main__.DispatchingJinjaLoader._iter_loaders",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.DispatchingJinjaLoader.list_templates": {
+      "function_name": "__main__.DispatchingJinjaLoader.list_templates",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.EnvironBuilder.__init__": {
+      "function_name": "__main__.EnvironBuilder.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.EnvironBuilder.json_dumps": {
+      "function_name": "__main__.EnvironBuilder.json_dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient.__init__": {
+      "function_name": "__main__.FlaskClient.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient.session_transaction": {
+      "function_name": "__main__.FlaskClient.session_transaction",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient._copy_environ": {
+      "function_name": "__main__.FlaskClient._copy_environ",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient._request_from_builder_args": {
+      "function_name": "__main__.FlaskClient._request_from_builder_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient.open": {
+      "function_name": "__main__.FlaskClient.open",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient.__enter__": {
+      "function_name": "__main__.FlaskClient.__enter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskClient.__exit__": {
+      "function_name": "__main__.FlaskClient.__exit__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskCliRunner.__init__": {
+      "function_name": "__main__.FlaskCliRunner.__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.FlaskCliRunner.invoke": {
+      "function_name": "__main__.FlaskCliRunner.invoke",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.View.dispatch_request": {
+      "function_name": "__main__.View.dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.View.as_view": {
+      "function_name": "__main__.View.as_view",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.MethodView.__init_subclass__": {
+      "function_name": "__main__.MethodView.__init_subclass__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.MethodView.dispatch_request": {
+      "function_name": "__main__.MethodView.dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request.max_content_length": {
+      "function_name": "__main__.Request.max_content_length",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request.endpoint": {
+      "function_name": "__main__.Request.endpoint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request.blueprint": {
+      "function_name": "__main__.Request.blueprint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request.blueprints": {
+      "function_name": "__main__.Request.blueprints",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request._load_form_data": {
+      "function_name": "__main__.Request._load_form_data",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Request.on_json_loading_failed": {
+      "function_name": "__main__.Request.on_json_loading_failed",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.Response.max_cookie_size": {
+      "function_name": "__main__.Response.max_cookie_size",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__": {
+      "function_name": "__main__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "iscoroutinefunction": {
+      "function_name": "iscoroutinefunction",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_make_timedelta": {
+      "function_name": "_make_timedelta",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "session_cookie_name": {
+      "function_name": "session_cookie_name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "send_file_max_age_default": {
+      "function_name": "send_file_max_age_default",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "use_x_sendfile": {
+      "function_name": "use_x_sendfile",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "json_encoder": {
+      "function_name": "json_encoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "json_decoder": {
+      "function_name": "json_decoder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__init__": {
+      "function_name": "__init__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_check_setup_finished": {
+      "function_name": "_check_setup_finished",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "name": {
+      "function_name": "name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "propagate_exceptions": {
+      "function_name": "propagate_exceptions",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "logger": {
+      "function_name": "logger",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "jinja_env": {
+      "function_name": "jinja_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "got_first_request": {
+      "function_name": "got_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_config": {
+      "function_name": "make_config",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_aborter": {
+      "function_name": "make_aborter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "auto_find_instance_path": {
+      "function_name": "auto_find_instance_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "open_instance_resource": {
+      "function_name": "open_instance_resource",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "templates_auto_reload": {
+      "function_name": "templates_auto_reload",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "create_jinja_environment": {
+      "function_name": "create_jinja_environment",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "create_global_jinja_loader": {
+      "function_name": "create_global_jinja_loader",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "select_jinja_autoescape": {
+      "function_name": "select_jinja_autoescape",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "update_template_context": {
+      "function_name": "update_template_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_shell_context": {
+      "function_name": "make_shell_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "env": {
+      "function_name": "env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "debug": {
+      "function_name": "debug",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "run": {
+      "function_name": "run",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "test_client": {
+      "function_name": "test_client",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "test_cli_runner": {
+      "function_name": "test_cli_runner",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "register_blueprint": {
+      "function_name": "register_blueprint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "iter_blueprints": {
+      "function_name": "iter_blueprints",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_url_rule": {
+      "function_name": "add_url_rule",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "template_filter": {
+      "function_name": "template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_template_filter": {
+      "function_name": "add_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "template_test": {
+      "function_name": "template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_template_test": {
+      "function_name": "add_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "template_global": {
+      "function_name": "template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_template_global": {
+      "function_name": "add_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "before_first_request": {
+      "function_name": "before_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "teardown_appcontext": {
+      "function_name": "teardown_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "shell_context_processor": {
+      "function_name": "shell_context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_find_error_handler": {
+      "function_name": "_find_error_handler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "handle_http_exception": {
+      "function_name": "handle_http_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "trap_http_exception": {
+      "function_name": "trap_http_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "handle_user_exception": {
+      "function_name": "handle_user_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "handle_exception": {
+      "function_name": "handle_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "log_exception": {
+      "function_name": "log_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "raise_routing_exception": {
+      "function_name": "raise_routing_exception",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "dispatch_request": {
+      "function_name": "dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "full_dispatch_request": {
+      "function_name": "full_dispatch_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "finalize_request": {
+      "function_name": "finalize_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_default_options_response": {
+      "function_name": "make_default_options_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "should_ignore_error": {
+      "function_name": "should_ignore_error",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "ensure_sync": {
+      "function_name": "ensure_sync",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "async_to_sync": {
+      "function_name": "async_to_sync",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "url_for": {
+      "function_name": "url_for",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "redirect": {
+      "function_name": "redirect",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_response": {
+      "function_name": "make_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "create_url_adapter": {
+      "function_name": "create_url_adapter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "inject_url_defaults": {
+      "function_name": "inject_url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "handle_url_build_error": {
+      "function_name": "handle_url_build_error",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "preprocess_request": {
+      "function_name": "preprocess_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "process_response": {
+      "function_name": "process_response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "do_teardown_request": {
+      "function_name": "do_teardown_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "do_teardown_appcontext": {
+      "function_name": "do_teardown_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_context": {
+      "function_name": "app_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "request_context": {
+      "function_name": "request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "test_request_context": {
+      "function_name": "test_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "wsgi_app": {
+      "function_name": "wsgi_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__call__": {
+      "function_name": "__call__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "record": {
+      "function_name": "record",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "record_once": {
+      "function_name": "record_once",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_setup_state": {
+      "function_name": "make_setup_state",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "register": {
+      "function_name": "register",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_template_filter": {
+      "function_name": "app_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_app_template_filter": {
+      "function_name": "add_app_template_filter",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_template_test": {
+      "function_name": "app_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_app_template_test": {
+      "function_name": "add_app_template_test",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_template_global": {
+      "function_name": "app_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "add_app_template_global": {
+      "function_name": "add_app_template_global",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "before_app_request": {
+      "function_name": "before_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "before_app_first_request": {
+      "function_name": "before_app_first_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "after_app_request": {
+      "function_name": "after_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "teardown_app_request": {
+      "function_name": "teardown_app_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_context_processor": {
+      "function_name": "app_context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_errorhandler": {
+      "function_name": "app_errorhandler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_url_value_preprocessor": {
+      "function_name": "app_url_value_preprocessor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "app_url_defaults": {
+      "function_name": "app_url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "find_best_app": {
+      "function_name": "find_best_app",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 9,
+      "objects_by_type": {
+        "obj": 9
+      },
+      "variables_tracked": 19,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_called_with_wrong_args": {
+      "function_name": "_called_with_wrong_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "find_app_by_string": {
+      "function_name": "find_app_by_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "prepare_import": {
+      "function_name": "prepare_import",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "locate_app": {
+      "function_name": "locate_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_version": {
+      "function_name": "get_version",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "with_appcontext": {
+      "function_name": "with_appcontext",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_set_app": {
+      "function_name": "_set_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_set_debug": {
+      "function_name": "_set_debug",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_env_file_callback": {
+      "function_name": "_env_file_callback",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_path_is_ancestor": {
+      "function_name": "_path_is_ancestor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "load_dotenv": {
+      "function_name": "load_dotenv",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "show_server_banner": {
+      "function_name": "show_server_banner",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_validate_key": {
+      "function_name": "_validate_key",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "run_command": {
+      "function_name": "run_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "shell_command": {
+      "function_name": "shell_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "routes_command": {
+      "function_name": "routes_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "main": {
+      "function_name": "main",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "load_app": {
+      "function_name": "load_app",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "command": {
+      "function_name": "command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "group": {
+      "function_name": "group",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_load_plugin_commands": {
+      "function_name": "_load_plugin_commands",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_command": {
+      "function_name": "get_command",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "list_commands": {
+      "function_name": "list_commands",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_context": {
+      "function_name": "make_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "parse_args": {
+      "function_name": "parse_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "convert": {
+      "function_name": "convert",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__get__": {
+      "function_name": "__get__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__set__": {
+      "function_name": "__set__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_envvar": {
+      "function_name": "from_envvar",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_prefixed_env": {
+      "function_name": "from_prefixed_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_pyfile": {
+      "function_name": "from_pyfile",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_object": {
+      "function_name": "from_object",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_file": {
+      "function_name": "from_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "from_mapping": {
+      "function_name": "from_mapping",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_namespace": {
+      "function_name": "get_namespace",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__repr__": {
+      "function_name": "__repr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "after_this_request": {
+      "function_name": "after_this_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "copy_current_request_context": {
+      "function_name": "copy_current_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "has_request_context": {
+      "function_name": "has_request_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "has_app_context": {
+      "function_name": "has_app_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__setattr__": {
+      "function_name": "__setattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__delattr__": {
+      "function_name": "__delattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get": {
+      "function_name": "get",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "pop": {
+      "function_name": "pop",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "setdefault": {
+      "function_name": "setdefault",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__contains__": {
+      "function_name": "__contains__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__iter__": {
+      "function_name": "__iter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "push": {
+      "function_name": "push",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__enter__": {
+      "function_name": "__enter__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__exit__": {
+      "function_name": "__exit__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "copy": {
+      "function_name": "copy",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "match_request": {
+      "function_name": "match_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "attach_enctype_error_multidict": {
+      "function_name": "attach_enctype_error_multidict",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_dump_loader_info": {
+      "function_name": "_dump_loader_info",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "objects_by_type": {
+        "obj": 1
+      },
+      "variables_tracked": 6,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "explain_template_loading_attempts": {
+      "function_name": "explain_template_loading_attempts",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__str__": {
+      "function_name": "__str__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_warn": {
+      "function_name": "_warn",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "top": {
+      "function_name": "top",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_env": {
+      "function_name": "get_env",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_debug_flag": {
+      "function_name": "get_debug_flag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_load_dotenv": {
+      "function_name": "get_load_dotenv",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "stream_with_context": {
+      "function_name": "stream_with_context",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "abort": {
+      "function_name": "abort",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_template_attribute": {
+      "function_name": "get_template_attribute",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "flash": {
+      "function_name": "flash",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_flashed_messages": {
+      "function_name": "get_flashed_messages",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_prepare_send_file_kwargs": {
+      "function_name": "_prepare_send_file_kwargs",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "send_file": {
+      "function_name": "send_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "send_from_directory": {
+      "function_name": "send_from_directory",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_root_path": {
+      "function_name": "get_root_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "is_ip": {
+      "function_name": "is_ip",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_split_blueprint_path": {
+      "function_name": "_split_blueprint_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "objects_by_type": {
+        "obj": 2
+      },
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "__delete__": {
+      "function_name": "__delete__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "dumps": {
+      "function_name": "dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "objects_by_type": {
+        "obj": 5
+      },
+      "variables_tracked": 10,
+      "precision": 90.0,
+      "contexts_seen": 3
+    },
+    "dump": {
+      "function_name": "dump",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "loads": {
+      "function_name": "loads",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "objects_by_type": {
+        "obj": 3
+      },
+      "variables_tracked": 8,
+      "precision": 87.5,
+      "contexts_seen": 3
+    },
+    "load": {
+      "function_name": "load",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "htmlsafe_dumps": {
+      "function_name": "htmlsafe_dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "htmlsafe_dump": {
+      "function_name": "htmlsafe_dump",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "jsonify": {
+      "function_name": "jsonify",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "default": {
+      "function_name": "default",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_default": {
+      "function_name": "_default",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_prepare_response_obj": {
+      "function_name": "_prepare_response_obj",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "response": {
+      "function_name": "response",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "check": {
+      "function_name": "check",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "to_json": {
+      "function_name": "to_json",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "to_python": {
+      "function_name": "to_python",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "tag": {
+      "function_name": "tag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "untag": {
+      "function_name": "untag",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "wsgi_errors_stream": {
+      "function_name": "wsgi_errors_stream",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "has_level_handler": {
+      "function_name": "has_level_handler",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "objects_by_type": {
+        "func": 1,
+        "obj": 1
+      },
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "create_logger": {
+      "function_name": "create_logger",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "setupmethod": {
+      "function_name": "setupmethod",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_endpoint_from_view_func": {
+      "function_name": "_endpoint_from_view_func",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_matching_loader_thinks_module_is_package": {
+      "function_name": "_matching_loader_thinks_module_is_package",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_path_is_relative_to": {
+      "function_name": "_path_is_relative_to",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_find_package_path": {
+      "function_name": "_find_package_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "objects_by_type": {
+        "obj": 3
+      },
+      "variables_tracked": 2,
+      "precision": 50.0,
+      "contexts_seen": 2
+    },
+    "find_package": {
+      "function_name": "find_package",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "static_folder": {
+      "function_name": "static_folder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "has_static_folder": {
+      "function_name": "has_static_folder",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "static_url_path": {
+      "function_name": "static_url_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_send_file_max_age": {
+      "function_name": "get_send_file_max_age",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "send_static_file": {
+      "function_name": "send_static_file",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "jinja_loader": {
+      "function_name": "jinja_loader",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "open_resource": {
+      "function_name": "open_resource",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_method_route": {
+      "function_name": "_method_route",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "post": {
+      "function_name": "post",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "put": {
+      "function_name": "put",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "delete": {
+      "function_name": "delete",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "patch": {
+      "function_name": "patch",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "route": {
+      "function_name": "route",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "endpoint": {
+      "function_name": "endpoint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "before_request": {
+      "function_name": "before_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "after_request": {
+      "function_name": "after_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "teardown_request": {
+      "function_name": "teardown_request",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "context_processor": {
+      "function_name": "context_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "url_value_preprocessor": {
+      "function_name": "url_value_preprocessor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "url_defaults": {
+      "function_name": "url_defaults",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "errorhandler": {
+      "function_name": "errorhandler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "register_error_handler": {
+      "function_name": "register_error_handler",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_get_exc_class_and_code": {
+      "function_name": "_get_exc_class_and_code",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "permanent": {
+      "function_name": "permanent",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__getitem__": {
+      "function_name": "__getitem__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_fail": {
+      "function_name": "_fail",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "make_null_session": {
+      "function_name": "make_null_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "is_null_session": {
+      "function_name": "is_null_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_name": {
+      "function_name": "get_cookie_name",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_domain": {
+      "function_name": "get_cookie_domain",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_path": {
+      "function_name": "get_cookie_path",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_httponly": {
+      "function_name": "get_cookie_httponly",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_secure": {
+      "function_name": "get_cookie_secure",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_cookie_samesite": {
+      "function_name": "get_cookie_samesite",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_expiration_time": {
+      "function_name": "get_expiration_time",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "should_set_cookie": {
+      "function_name": "should_set_cookie",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "open_session": {
+      "function_name": "open_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "save_session": {
+      "function_name": "save_session",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_signing_serializer": {
+      "function_name": "get_signing_serializer",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "signal": {
+      "function_name": "signal",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "send": {
+      "function_name": "send",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_default_template_ctx_processor": {
+      "function_name": "_default_template_ctx_processor",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_render": {
+      "function_name": "_render",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "render_template": {
+      "function_name": "render_template",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "render_template_string": {
+      "function_name": "render_template_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_stream": {
+      "function_name": "_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "objects_by_type": {
+        "func": 2
+      },
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "stream_template": {
+      "function_name": "stream_template",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "stream_template_string": {
+      "function_name": "stream_template_string",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "get_source": {
+      "function_name": "get_source",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_get_source_explained": {
+      "function_name": "_get_source_explained",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_get_source_fast": {
+      "function_name": "_get_source_fast",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_iter_loaders": {
+      "function_name": "_iter_loaders",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "list_templates": {
+      "function_name": "list_templates",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "json_dumps": {
+      "function_name": "json_dumps",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "session_transaction": {
+      "function_name": "session_transaction",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_copy_environ": {
+      "function_name": "_copy_environ",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_request_from_builder_args": {
+      "function_name": "_request_from_builder_args",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "open": {
+      "function_name": "open",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "invoke": {
+      "function_name": "invoke",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "as_view": {
+      "function_name": "as_view",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__init_subclass__": {
+      "function_name": "__init_subclass__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "max_content_length": {
+      "function_name": "max_content_length",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "blueprint": {
+      "function_name": "blueprint",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "blueprints": {
+      "function_name": "blueprints",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "_load_form_data": {
+      "function_name": "_load_form_data",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "on_json_loading_failed": {
+      "function_name": "on_json_loading_failed",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "max_cookie_size": {
+      "function_name": "max_cookie_size",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    }
+  },
+  "object_call_correlation": {
+    "correlation_coefficient": 0.5045641168784889,
+    "data_points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "stats": {
+      "functions_with_no_calls": 573,
+      "functions_with_no_objects": 584,
+      "avg_objects": 0.1188118811881188,
+      "avg_calls": 0.10891089108910891,
+      "max_objects": 18,
+      "max_calls": 2
+    }
+  }
+}

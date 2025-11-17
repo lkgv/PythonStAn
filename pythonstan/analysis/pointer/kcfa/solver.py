@@ -102,19 +102,22 @@ class PointerSolver:
         max_iter = self.config.max_iterations
         max_iter = 1000000
         
+        # INTERLEAVED CONSTRAINT PROCESSING FIX
+        # Process static and dynamic constraints in a balanced way to ensure
+        # objects flow to variables early, triggering CallConstraints sooner
+        
         while ((not self.state._worklist.empty()) or self.state._static_constraints) and self._iteration < max_iter:
             self._iteration += 1
-            # Log progress periodically
+            # Log progress periodically with call edge count
             if self._iteration % 1000 == 0:
                 logger.info(f"Iteration {self._iteration}, worklist size {len(self.state._worklist)}, objs: {len(self.state._heap.objects)}, "
                             f"call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
             
-            if self.state._static_constraints:
-                scope, ctx, constraint = self.state._static_constraints.pop()
-                self._apply_static(scope, scope.context, constraint)
-
-            # if not self.state._worklist.empty():
-            else:                
+            # OPTION 1: Process worklist when it's large enough (preferred for responsiveness)
+            # This ensures object propagation happens promptly after allocations
+            # Threshold of 10 balances between allocation and propagation
+            if not self.state._worklist.empty() and (len(self.state._worklist) > 10 or not self.state._static_constraints):
+                # Process worklist item - propagate objects through PFG
                 scope, node, pts = self.state._worklist.pop()
                 if isinstance(node, NormalNode):
                     assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
@@ -130,10 +133,28 @@ class PointerSolver:
                     for succ, succ_pts in self.state.pointer_flow_graph.propagate(node, diff):
                         succ_scope = succ.var.scope if isinstance(succ, NormalNode) else None
                         self.state._worklist.add((succ_scope, succ, succ_pts))
+            
+            elif self.state._static_constraints:
+                # Process static constraint - allocate objects or copy variables
+                scope, ctx, constraint = self.state._static_constraints.pop()
+                self._apply_static(scope, scope.context, constraint)
+            
+            else:
+                # Worklist is small but not empty - process it
+                scope, node, pts = self.state._worklist.pop()
+                if isinstance(node, NormalNode):
+                    assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
+                diff = pts - self.state.get_points_to(node)
+                if not diff.is_empty():
+                    self.state.set_points_to(node, diff)
 
-            # else:
-            #     scope, ctx, constraint = self.state._static_constraints.pop()
-            #     self._apply_static(scope, ctx, constraint)
+                    if isinstance(node, NormalNode):
+                        for constraint in self.state.constraints.get_by_variable(node.var):
+                            self._apply_constraint(scope, node.var, constraint, diff)
+                    
+                    for succ, succ_pts in self.state.pointer_flow_graph.propagate(node, diff):
+                        succ_scope = succ.var.scope if isinstance(succ, NormalNode) else None
+                        self.state._worklist.add((succ_scope, succ, succ_pts))
         
         if self._iteration >= max_iter:
             logger.warning(f"Reached max iterations {max_iter}")

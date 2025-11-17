@@ -1,0 +1,1047 @@
+{
+  "project_name": "werkzeug",
+  "timestamp": "2025-10-25T23:31:24.830845",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 44,
+  "modules_succeeded": 44,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "site-packages/markupsafe/__init__.py",
+      "success": true,
+      "duration": 0.6509585380554199,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 213,
+      "functions_analyzed": 29
+    },
+    {
+      "module_name": "site-packages/markupsafe/_native.py",
+      "success": true,
+      "duration": 0.11942243576049805,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 49,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.00624847412109375,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 5,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "_internal.py",
+      "success": true,
+      "duration": 0.6555016040802002,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 417,
+      "functions_analyzed": 37
+    },
+    {
+      "module_name": "_reloader.py",
+      "success": true,
+      "duration": 1.0328562259674072,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 312,
+      "functions_analyzed": 24
+    },
+    {
+      "module_name": "datastructures.py",
+      "success": true,
+      "duration": 3.480586051940918,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2371,
+      "functions_analyzed": 302
+    },
+    {
+      "module_name": "debug/__init__.py",
+      "success": true,
+      "duration": 0.6969819068908691,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 410,
+      "functions_analyzed": 18
+    },
+    {
+      "module_name": "debug/console.py",
+      "success": true,
+      "duration": 0.3315410614013672,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 165,
+      "functions_analyzed": 28
+    },
+    {
+      "module_name": "debug/repr.py",
+      "success": true,
+      "duration": 0.5739221572875977,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 244,
+      "functions_analyzed": 17
+    },
+    {
+      "module_name": "debug/tbtools.py",
+      "success": true,
+      "duration": 0.8345019817352295,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 355,
+      "functions_analyzed": 15
+    },
+    {
+      "module_name": "exceptions.py",
+      "success": true,
+      "duration": 0.5634796619415283,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 652,
+      "functions_analyzed": 25
+    },
+    {
+      "module_name": "formparser.py",
+      "success": true,
+      "duration": 0.5283782482147217,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 383,
+      "functions_analyzed": 17
+    },
+    {
+      "module_name": "http.py",
+      "success": true,
+      "duration": 1.010925054550171,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1063,
+      "functions_analyzed": 40
+    },
+    {
+      "module_name": "local.py",
+      "success": true,
+      "duration": 0.5106601715087891,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 476,
+      "functions_analyzed": 37
+    },
+    {
+      "module_name": "middleware/__init__.py",
+      "success": true,
+      "duration": 0.010270118713378906,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 18,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/dispatcher.py",
+      "success": true,
+      "duration": 0.0837409496307373,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 62,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "middleware/http_proxy.py",
+      "success": true,
+      "duration": 0.4129660129547119,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 186,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "middleware/lint.py",
+      "success": true,
+      "duration": 0.630692720413208,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 340,
+      "functions_analyzed": 24
+    },
+    {
+      "module_name": "middleware/profiler.py",
+      "success": true,
+      "duration": 0.14416861534118652,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 113,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "middleware/proxy_fix.py",
+      "success": true,
+      "duration": 0.15104413032531738,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 151,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "middleware/shared_data.py",
+      "success": true,
+      "duration": 0.3403656482696533,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 221,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "routing/__init__.py",
+      "success": true,
+      "duration": 0.01285696029663086,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 102,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/converters.py",
+      "success": true,
+      "duration": 0.19802570343017578,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 189,
+      "functions_analyzed": 13
+    },
+    {
+      "module_name": "routing/exceptions.py",
+      "success": true,
+      "duration": 0.23935365676879883,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 9
+    },
+    {
+      "module_name": "routing/map.py",
+      "success": true,
+      "duration": 0.7831549644470215,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 787,
+      "functions_analyzed": 23
+    },
+    {
+      "module_name": "routing/matcher.py",
+      "success": true,
+      "duration": 0.34049105644226074,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 138,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "routing/rules.py",
+      "success": true,
+      "duration": 1.2803668975830078,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 733,
+      "functions_analyzed": 34
+    },
+    {
+      "module_name": "sansio/__init__.py",
+      "success": true,
+      "duration": 0.014470100402832031,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 0,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "sansio/http.py",
+      "success": true,
+      "duration": 0.1423330307006836,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 98,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "sansio/multipart.py",
+      "success": true,
+      "duration": 0.31250834465026855,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 211,
+      "functions_analyzed": 7
+    },
+    {
+      "module_name": "sansio/request.py",
+      "success": true,
+      "duration": 0.28375768661499023,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 419,
+      "functions_analyzed": 32
+    },
+    {
+      "module_name": "sansio/response.py",
+      "success": true,
+      "duration": 0.40366530418395996,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 586,
+      "functions_analyzed": 32
+    },
+    {
+      "module_name": "sansio/utils.py",
+      "success": true,
+      "duration": 0.1159515380859375,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 125,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "security.py",
+      "success": true,
+      "duration": 0.2418663501739502,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 102,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "serving.py",
+      "success": true,
+      "duration": 1.7951085567474365,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 820,
+      "functions_analyzed": 35
+    },
+    {
+      "module_name": "test.py",
+      "success": true,
+      "duration": 1.1033809185028076,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1086,
+      "functions_analyzed": 60
+    },
+    {
+      "module_name": "testapp.py",
+      "success": true,
+      "duration": 0.51641845703125,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 213,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "urls.py",
+      "success": true,
+      "duration": 1.816298007965088,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 848,
+      "functions_analyzed": 46
+    },
+    {
+      "module_name": "user_agent.py",
+      "success": true,
+      "duration": 0.08124232292175293,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 33,
+      "functions_analyzed": 5
+    },
+    {
+      "module_name": "utils.py",
+      "success": true,
+      "duration": 0.4373025894165039,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 550,
+      "functions_analyzed": 16
+    },
+    {
+      "module_name": "wrappers/__init__.py",
+      "success": true,
+      "duration": 0.011171817779541016,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 3,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "wrappers/request.py",
+      "success": true,
+      "duration": 0.4260232448577881,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 484,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "wrappers/response.py",
+      "success": true,
+      "duration": 0.9161274433135986,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 670,
+      "functions_analyzed": 44
+    },
+    {
+      "module_name": "wsgi.py",
+      "success": true,
+      "duration": 0.633331298828125,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 828,
+      "functions_analyzed": 47
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 24.874418020248413,
+    "analysis_time": 24.874418020248413,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 98.14799785614014,
+    "peak_memory_current_mb": 89.57976818084717,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 697.3429483206365,
+    "per_module_time": {
+      "site-packages/markupsafe/__init__.py": 0.6513214111328125,
+      "site-packages/markupsafe/_native.py": 0.11970138549804688,
+      "__init__.py": 0.006361484527587891,
+      "_internal.py": 0.6559133529663086,
+      "_reloader.py": 1.033278226852417,
+      "datastructures.py": 3.483110189437866,
+      "debug/__init__.py": 0.6974639892578125,
+      "debug/console.py": 0.33186793327331543,
+      "debug/repr.py": 0.5742700099945068,
+      "debug/tbtools.py": 0.8350100517272949,
+      "exceptions.py": 0.5642251968383789,
+      "formparser.py": 0.5288753509521484,
+      "http.py": 1.0120484828948975,
+      "local.py": 0.5111701488494873,
+      "middleware/__init__.py": 0.010393142700195312,
+      "middleware/dispatcher.py": 0.08388137817382812,
+      "middleware/http_proxy.py": 0.41321754455566406,
+      "middleware/lint.py": 0.6311373710632324,
+      "middleware/profiler.py": 0.14436841011047363,
+      "middleware/proxy_fix.py": 0.15127253532409668,
+      "middleware/shared_data.py": 0.34064316749572754,
+      "routing/__init__.py": 0.013038873672485352,
+      "routing/converters.py": 0.19826626777648926,
+      "routing/exceptions.py": 0.2395615577697754,
+      "routing/map.py": 0.7838995456695557,
+      "routing/matcher.py": 0.3407323360443115,
+      "routing/rules.py": 1.2811245918273926,
+      "sansio/__init__.py": 0.014606952667236328,
+      "sansio/http.py": 0.142533540725708,
+      "sansio/multipart.py": 0.31286096572875977,
+      "sansio/request.py": 0.28424715995788574,
+      "sansio/response.py": 0.4043128490447998,
+      "sansio/utils.py": 0.11615848541259766,
+      "security.py": 0.24207162857055664,
+      "serving.py": 1.795994520187378,
+      "test.py": 1.1044352054595947,
+      "testapp.py": 0.5166881084442139,
+      "urls.py": 1.8172006607055664,
+      "user_agent.py": 0.08139324188232422,
+      "utils.py": 0.43789243698120117,
+      "wrappers/__init__.py": 0.011284351348876953,
+      "wrappers/request.py": 0.42655396461486816,
+      "wrappers/response.py": 0.9168262481689453,
+      "wsgi.py": 0.6341269016265869
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 1990,
+    "total_points_to_sets": 1990,
+    "singleton_sets": 1640,
+    "empty_sets": 0,
+    "avg_set_size": 1.314070351758794,
+    "max_set_size": 36,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 1640,
+      "2-5": 330,
+      "6-10": 17,
+      "11-20": 2,
+      "21-50": 1
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 756,
+    "total_call_sites": 0,
+    "total_edges": 160,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 190,
+    "classes_with_mro": 190,
+    "diamond_patterns": 0,
+    "max_mro_length": 3,
+    "avg_mro_length": 2.25
+  },
+  "object_metrics": {
+    "total_objects_created": 1283,
+    "avg_objects_per_variable": 1.314070351758794,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 1640,
+    "vars_with_multiple": 350,
+    "object_types": {
+      "alloc": 1052,
+      "class": 170,
+      "func": 61
+    }
+  },
+  "function_metrics": {
+    "escape": {
+      "function_name": "escape",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 5
+    },
+    "unescape": {
+      "function_name": "unescape",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 14,
+      "precision": 92.85714285714286,
+      "contexts_seen": 3
+    },
+    "_has_level_handler": {
+      "function_name": "_has_level_handler",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 4,
+      "variables_tracked": 2,
+      "precision": 50.0,
+      "contexts_seen": 2
+    },
+    "_get_args_for_reloading": {
+      "function_name": "_get_args_for_reloading",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_find_watchdog_paths": {
+      "function_name": "_find_watchdog_paths",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 6,
+      "variables_tracked": 7,
+      "precision": 28.571428571428573,
+      "contexts_seen": 2
+    },
+    "_iter_module_paths": {
+      "function_name": "_iter_module_paths",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 5
+    },
+    "_find_common_roots": {
+      "function_name": "_find_common_roots",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 18,
+      "variables_tracked": 21,
+      "precision": 85.71428571428571,
+      "contexts_seen": 4
+    },
+    "ensure_echo_on": {
+      "function_name": "ensure_echo_on",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_remove_by_pattern": {
+      "function_name": "_remove_by_pattern",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 9,
+      "variables_tracked": 13,
+      "precision": 100.0,
+      "contexts_seen": 5
+    },
+    "is_immutable": {
+      "function_name": "is_immutable",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 13,
+      "variables_tracked": 13,
+      "precision": 100.0,
+      "contexts_seen": 14
+    },
+    "deepcopy": {
+      "function_name": "deepcopy",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 8,
+      "precision": 87.5,
+      "contexts_seen": 3
+    },
+    "get_pin_and_cookie_name": {
+      "function_name": "get_pin_and_cookie_name",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 5,
+      "precision": 40.0,
+      "contexts_seen": 2
+    },
+    "hash_pin": {
+      "function_name": "hash_pin",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_add_subclass_info": {
+      "function_name": "_add_subclass_info",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 7,
+      "variables_tracked": 9,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "repr": {
+      "function_name": "repr",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 12,
+      "variables_tracked": 15,
+      "precision": 80.0,
+      "contexts_seen": 4
+    },
+    "_process_traceback": {
+      "function_name": "_process_traceback",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 72,
+      "variables_tracked": 66,
+      "precision": 36.36363636363637,
+      "contexts_seen": 7
+    },
+    "_exhaust": {
+      "function_name": "_exhaust",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "is_hop_by_hop_header": {
+      "function_name": "is_hop_by_hop_header",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "unquote_header_value": {
+      "function_name": "unquote_header_value",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "http_date": {
+      "function_name": "http_date",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "is_entity_header": {
+      "function_name": "is_entity_header",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "release_local": {
+      "function_name": "release_local",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "check_type": {
+      "function_name": "check_type",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "get_host": {
+      "function_name": "get_host",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 4
+    },
+    "_prefix_names": {
+      "function_name": "_prefix_names",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "compile": {
+      "function_name": "compile",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_pythonize": {
+      "function_name": "_pythonize",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "host_is_trusted": {
+      "function_name": "host_is_trusted",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_hash_internal": {
+      "function_name": "_hash_internal",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "gen_salt": {
+      "function_name": "gen_salt",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "load_ssl_context": {
+      "function_name": "load_ssl_context",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "generate_adhoc_ssl_pair": {
+      "function_name": "generate_adhoc_ssl_pair",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 10,
+      "variables_tracked": 14,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "_ansi_style": {
+      "function_name": "_ansi_style",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "_iter_data": {
+      "function_name": "_iter_data",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "stream_encode_multipart": {
+      "function_name": "stream_encode_multipart",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 14,
+      "variables_tracked": 29,
+      "precision": 86.20689655172414,
+      "contexts_seen": 2
+    },
+    "run_wsgi_app": {
+      "function_name": "run_wsgi_app",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 8,
+      "precision": 87.5,
+      "contexts_seen": 3
+    },
+    "iter_sys_path": {
+      "function_name": "iter_sys_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "url_quote": {
+      "function_name": "url_quote",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 20,
+      "variables_tracked": 96,
+      "precision": 100.0,
+      "contexts_seen": 7
+    },
+    "_unquote_to_bytes": {
+      "function_name": "_unquote_to_bytes",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 30,
+      "variables_tracked": 72,
+      "precision": 100.0,
+      "contexts_seen": 18
+    },
+    "url_quote_plus": {
+      "function_name": "url_quote_plus",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "url_parse": {
+      "function_name": "url_parse",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 15,
+      "variables_tracked": 21,
+      "precision": 100.0,
+      "contexts_seen": 7
+    },
+    "uri_to_iri": {
+      "function_name": "uri_to_iri",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "url_join": {
+      "function_name": "url_join",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_url_decode_impl": {
+      "function_name": "_url_decode_impl",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 5
+    },
+    "_url_encode_impl": {
+      "function_name": "_url_encode_impl",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 6,
+      "variables_tracked": 4,
+      "precision": 50.0,
+      "contexts_seen": 3
+    },
+    "iri_to_uri": {
+      "function_name": "iri_to_uri",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "url_unquote": {
+      "function_name": "url_unquote",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 16
+    },
+    "_url_unquote_legacy": {
+      "function_name": "_url_unquote_legacy",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "url_decode": {
+      "function_name": "url_decode",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "url_unparse": {
+      "function_name": "url_unparse",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 27,
+      "variables_tracked": 15,
+      "precision": 20.0,
+      "contexts_seen": 16
+    },
+    "redirect": {
+      "function_name": "redirect",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "import_string": {
+      "function_name": "import_string",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "_warn_if_string": {
+      "function_name": "_warn_if_string",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_clean_accept_ranges": {
+      "function_name": "_clean_accept_ranges",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_iter_encoded": {
+      "function_name": "_iter_encoded",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "get_content_length": {
+      "function_name": "get_content_length",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "get_current_url": {
+      "function_name": "get_current_url",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_make_chunk_iter": {
+      "function_name": "_make_chunk_iter",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "_get_server": {
+      "function_name": "_get_server",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 5
+    }
+  }
+}

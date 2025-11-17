@@ -1,0 +1,1625 @@
+
+Found 22 Python modules in flask
+
+======================================================================
+PASS 1: Collecting function signatures from 5 modules...
+======================================================================
+
+[1/5] Scanning __init__.py... Generate CFG for __main__
+✓ (1 functions)
+[2/5] Scanning __main__.py... Generate CFG for __main__
+✓ (0 functions)
+[3/5] Scanning app.py... Generate CFG for __main__
+✓ (78 functions)
+[4/5] Scanning blueprints.py... Generate CFG for __main__
+✓ (28 functions)
+[5/5] Scanning cli.py... Generate CFG for __main__
+✓ (31 functions)
+
+======================================================================
+PASS 1 COMPLETE: Collected 128 unique functions
+======================================================================
+
+DEBUG: Sample of collected functions:
+    1. __main__.__getattr__
+    2. __main__.iscoroutinefunction
+    3. __main__._make_timedelta
+    4. __main__.Flask.session_cookie_name
+    5. __main__.Flask.send_file_max_age_default
+    6. __main__.Flask.use_x_sendfile
+    7. __main__.Flask.json_encoder
+    8. __main__.Flask.json_decoder
+    9. __main__.Flask.__init__
+   10. __main__.Flask._check_setup_finished
+   11. __main__.Flask.name
+   12. __main__.Flask.propagate_exceptions
+   13. __main__.Flask.logger
+   14. __main__.Flask.jinja_env
+   15. __main__.Flask.got_first_request
+   16. __main__.Flask.make_config
+   17. __main__.Flask.make_aborter
+   18. __main__.Flask.auto_find_instance_path
+   19. __main__.Flask.open_instance_resource
+   20. __main__.Flask.templates_auto_reload
+  ... and 108 more
+
+Function breakdown:
+  Module-level functions: 0
+  Class methods: 128
+  Total: 128
+======================================================================
+
+
+======================================================================
+PASS 2: Analyzing flask
+Total modules to analyze: 5
+Configuration: k=2, obj_depth=2
+Two-pass mode: ENABLED (cross-module resolution)
+======================================================================
+
+[1/5] Analyzing __init__.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module __init__
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 1
+Module-level functions found: 1
+Classes found: 0
+Class methods found: 0
+Total functions (with methods): 1
+  Function 1: __getattr__ (__main__.__getattr__)
+  Found cfg for __getattr__
+
+Starting pointer analysis with 1 functions...
+Planned analysis for 1 functions
+Planned module-level analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 1 local functions
+    Unified functions with CFG: 128/128
+    After injection: 129 functions (+128 from other modules)
+    Sample functions: ['__getattr__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name', '__main__.Flask.send_file_max_age_default', '__main__.Flask.use_x_sendfile', '__main__.Flask.json_encoder']
+Functions with events: 129/129
+Total events extracted: 1479
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:575:28:call#0]--> [test.py:575:28:call#0]:__main__.Flask.auto_find_instance_path
+Added call edge: [] --[test.py:598:23:call#0]--> [test.py:598:23:call#0]:__main__.Flask.make_aborter
+Added call edge: [] --[test.py:799:4:call#0]--> [test.py:799:4:call#0]:__main__.Flask.create_jinja_environment
+Added call edge: [] --[test.py:1668:8:call#0]--> [test.py:1668:8:call#0]:__main__.Flask.handle_http_exception
+Added call edge: [] --[test.py:1646:4:call#0]--> [test.py:1646:4:call#0]:__main__.Flask.trap_http_exception
+Added call edge: [] --[test.py:1792:8:call#0]--> [test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [] --[test.py:1787:8:call#0]--> [test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [] --[test.py:1823:21:call#0]--> [test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [] --[test.py:1821:17:call#0]--> [test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [] --[test.py:1801:4:call#0]--> [test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [] --[test.py:1847:23:call#0]--> [test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [] --[test.py:1845:19:call#0]--> [test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [] --[test.py:1889:8:call#0]--> [test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:2313:25:call#0]--> [test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2341:31:call#0]--> [test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2336:23:call#0]--> [test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2376:16:call#0]--> [test.py:2376:16:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2401:8:call#0]--> [test.py:2401:8:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2494:8:call#0]--> [test.py:2494:8:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2524:14:call#0]--> [test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2529:27:call#0]--> [test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [] --[test.py:2547:4:call#0]--> [test.py:2547:4:call#0]:__main__.Flask.wsgi_app
+Added call edge: [] --[test.py:521:4:call#0]--> [test.py:521:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:557:4:call#0]--> [test.py:557:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:595:4:call#0]--> [test.py:595:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:614:4:call#0]--> [test.py:614:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:647:4:call#0]--> [test.py:647:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:657:4:call#0]--> [test.py:657:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:693:4:call#0]--> [test.py:693:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:705:4:call#0]--> [test.py:705:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:564:4:call#0]--> [test.py:564:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:591:4:call#0]--> [test.py:591:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0] --[test.py:1889:8:call#0]--> [test.py:2376:16:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2376:16:call#0] --[test.py:1880:4:call#0]--> [test.py:2376:16:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0] --[test.py:1889:8:call#0]--> [test.py:2401:8:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2401:8:call#0] --[test.py:1880:4:call#0]--> [test.py:2401:8:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:2547:4:call#0] --[test.py:2524:14:call#0]--> [test.py:2547:4:call#0 → test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [test.py:2547:4:call#0] --[test.py:2529:27:call#0]--> [test.py:2547:4:call#0 → test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [test.py:521:4:call#0] --[test.py:310:4:call#0]--> [test.py:521:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:557:4:call#0] --[test.py:310:4:call#0]--> [test.py:557:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:595:4:call#0] --[test.py:310:4:call#0]--> [test.py:595:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:614:4:call#0] --[test.py:310:4:call#0]--> [test.py:614:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:647:4:call#0] --[test.py:310:4:call#0]--> [test.py:647:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:657:4:call#0] --[test.py:310:4:call#0]--> [test.py:657:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:693:4:call#0] --[test.py:310:4:call#0]--> [test.py:693:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:705:4:call#0] --[test.py:310:4:call#0]--> [test.py:705:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:626:8:call#0] --[test.py:696:8:call#0]--> [test.py:626:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1880:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:2529:27:call#0 → test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:626:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:93:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:696:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Analysis converged after 7 iterations
+Statistics: {'objects_created': 136, 'constraints_processed': 9006, 'calls_processed': 508}
+
+======================================================================
+DIAGNOSTIC REPORT
+======================================================================
+
+❌ UNRESOLVED CALLS: 33 unique callees
+   Total unresolved call attempts: 70
+
+   Top unresolved callees:
+     1. update_wrapper                                     (  10 attempts)
+     2. asgiref_async_to_sync                              (   7 attempts)
+     3. chain                                              (   6 attempts)
+     4. RequestContext                                     (   4 attempts)
+     5. is_running_from_reloader                           (   3 attempts)
+     6. $tmp_1043                                          (   3 attempts)
+     7. url_func                                           (   3 attempts)
+     8. $tmp_1074                                          (   3 attempts)
+     9. $tmp_1054                                          (   3 attempts)
+    10. get_debug_flag                                     (   2 attempts)
+    11. find_package                                       (   2 attempts)
+    12. _endpoint_from_view_func                           (   2 attempts)
+    13. response                                           (   2 attempts)
+    14. Lock                                               (   1 attempts)
+    15. $tmp_167                                           (   1 attempts)
+    16. create_logger                                      (   1 attempts)
+    17. DispatchingJinjaLoader                             (   1 attempts)
+    18. processor                                          (   1 attempts)
+    19. _wz_redirect                                       (   1 attempts)
+    20. _split_blueprint_path                              (   1 attempts)
+
+   By category:
+     Temporary variables ($tmp_XXX): 6 (12 calls)
+     Module-level functions: 27 (58 calls)
+     Method calls (Class.method): 0 (0 calls)
+
+✓ METHOD REFERENCES TRACKED: 510
+   Successfully resolved: 267
+   Resolution rate: 52.4%
+   Fallback resolutions (context-based): 49
+   Conservative resolutions (self/cls): 32
+
+   ⚠ Method refs with empty receiver points-to sets: 46
+   Sample (first 10):
+     $tmp_2 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_26 = functools.partial  (receiver 'functools' has 0 objects)
+     $tmp_29 = inspect.iscoroutinefunction  (receiver 'inspect' has 0 objects)
+     $tmp_23 = inspect.ismethod  (receiver 'inspect' has 0 objects)
+     $tmp_50 = self.config  (receiver 'self' has 0 objects)
+     $tmp_47 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_60 = $tmp_59.get  (receiver '$tmp_59' has 0 objects)
+     $tmp_64 = f.__code__  (receiver 'f' has 0 objects)
+     $tmp_71 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_74 = self.url_defaults  (receiver 'self' has 0 objects)
+
+📊 POINTS-TO SET DISTRIBUTION:
+   Total variables: 448
+   Empty sets (0 objects): 0
+   Singleton sets (1 object): 328
+   Multi sets (2+ objects): 120
+   Average set size: 1.57
+
+📞 CALL GRAPH ANALYSIS:
+   Total functions: 129
+   Functions WITH outgoing calls: 25
+   Functions WITHOUT outgoing calls: 104
+   Coverage: 19.4%
+
+   Sample functions with 0 outgoing calls:
+       1. __getattr__
+       2. __main__.AppGroup.command
+       3. __main__.AppGroup.group
+       4. __main__.Blueprint.__init__
+       5. __main__.Blueprint._check_setup_finished
+       6. __main__.Blueprint.add_app_template_filter
+       7. __main__.Blueprint.add_app_template_global
+       8. __main__.Blueprint.add_app_template_test
+       9. __main__.Blueprint.add_url_rule
+      10. __main__.Blueprint.after_app_request
+      11. __main__.Blueprint.app_context_processor
+      12. __main__.Blueprint.app_errorhandler
+      13. __main__.Blueprint.app_template_filter
+      14. __main__.Blueprint.app_template_global
+      15. __main__.Blueprint.app_template_test
+      16. __main__.Blueprint.app_url_defaults
+      17. __main__.Blueprint.app_url_value_preprocessor
+      18. __main__.Blueprint.before_app_first_request
+      19. __main__.Blueprint.before_app_request
+      20. __main__.Blueprint.json_decoder
+
+🏗️  OBJECT ALLOCATION SUMMARY:
+   Total heap entries: 10
+   Unique objects: 10
+   By type:
+     unknown: 4
+     2245: 1
+     2303: 1
+     2338: 1
+     2374: 1
+     829: 1
+     110: 1
+
+📝 Detailed diagnostic data saved to: /mnt/data_fast/code/PythonStAn/kcfa_diagnostic_output.json
+======================================================================
+
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 129
+  Function names: ['__getattr__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name']
+Env entries: 448
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), '$tmp_158'), (CallStringContext(call_sites=(), k=2), '$const_30'), (CallStringContext(call_sites=(), k=2), '$tmp_164')]
+Heap entries: 10
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:2245:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2303:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2338:46:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None))]
+Contexts: 72
+Statistics: {'objects_created': 136, 'constraints_processed': 9006, 'calls_processed': 508}
+Call graph stats: {'total_cs_edges': 94, 'unique_call_sites': 94, 'unique_functions': 25, 'contexts_with_calls': 39, 'registered_functions': 1}
+Class hierarchy bases: 0
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. update_wrapper (10 call sites)
+   2. asgiref_async_to_sync (7 call sites)
+   3. chain (6 call sites)
+   4. RequestContext (4 call sites)
+   5. is_running_from_reloader (3 call sites)
+   6. $tmp_1043 (3 call sites)
+   7. url_func (3 call sites)
+   8. $tmp_1074 (3 call sites)
+   9. $tmp_1054 (3 call sites)
+  10. get_debug_flag (2 call sites)
+  11. find_package (2 call sites)
+  12. _endpoint_from_view_func (2 call sites)
+  13. response (2 call sites)
+  14. Lock (1 call sites)
+  15. $tmp_167 (1 call sites)
+  16. create_logger (1 call sites)
+  17. DispatchingJinjaLoader (1 call sites)
+  18. processor (1 call sites)
+  19. _wz_redirect (1 call sites)
+  20. _split_blueprint_path (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 510
+  Method refs successfully resolved: 267
+  Resolution rate: 52.4%
+============================================================
+
+✓ (3.15s, 1 funcs)
+[2/5] Analyzing __main__.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module __main__
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 0
+Module-level functions found: 0
+Classes found: 0
+Class methods found: 0
+Total functions (with methods): 0
+
+Starting pointer analysis with 0 functions...
+WARNING: No functions with IR, trying module directly
+Planned analysis for 1 functions
+Planned module-level analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 1 local functions
+    Unified functions with CFG: 128/128
+    After injection: 129 functions (+128 from other modules)
+    Sample functions: ['__main__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name', '__main__.Flask.send_file_max_age_default', '__main__.Flask.use_x_sendfile', '__main__.Flask.json_encoder']
+Functions with events: 128/129
+Total events extracted: 1474
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:575:28:call#0]--> [test.py:575:28:call#0]:__main__.Flask.auto_find_instance_path
+Added call edge: [] --[test.py:598:23:call#0]--> [test.py:598:23:call#0]:__main__.Flask.make_aborter
+Added call edge: [] --[test.py:799:4:call#0]--> [test.py:799:4:call#0]:__main__.Flask.create_jinja_environment
+Added call edge: [] --[test.py:1668:8:call#0]--> [test.py:1668:8:call#0]:__main__.Flask.handle_http_exception
+Added call edge: [] --[test.py:1646:4:call#0]--> [test.py:1646:4:call#0]:__main__.Flask.trap_http_exception
+Added call edge: [] --[test.py:1792:8:call#0]--> [test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [] --[test.py:1787:8:call#0]--> [test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [] --[test.py:1823:21:call#0]--> [test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [] --[test.py:1821:17:call#0]--> [test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [] --[test.py:1801:4:call#0]--> [test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [] --[test.py:1847:23:call#0]--> [test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [] --[test.py:1845:19:call#0]--> [test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [] --[test.py:1889:8:call#0]--> [test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:2313:25:call#0]--> [test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2341:31:call#0]--> [test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2336:23:call#0]--> [test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2376:16:call#0]--> [test.py:2376:16:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2401:8:call#0]--> [test.py:2401:8:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2494:8:call#0]--> [test.py:2494:8:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2524:14:call#0]--> [test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2529:27:call#0]--> [test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [] --[test.py:2547:4:call#0]--> [test.py:2547:4:call#0]:__main__.Flask.wsgi_app
+Added call edge: [] --[test.py:521:4:call#0]--> [test.py:521:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:557:4:call#0]--> [test.py:557:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:595:4:call#0]--> [test.py:595:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:614:4:call#0]--> [test.py:614:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:647:4:call#0]--> [test.py:647:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:657:4:call#0]--> [test.py:657:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:693:4:call#0]--> [test.py:693:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:705:4:call#0]--> [test.py:705:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:564:4:call#0]--> [test.py:564:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:591:4:call#0]--> [test.py:591:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0] --[test.py:1889:8:call#0]--> [test.py:2376:16:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2376:16:call#0] --[test.py:1880:4:call#0]--> [test.py:2376:16:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0] --[test.py:1889:8:call#0]--> [test.py:2401:8:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2401:8:call#0] --[test.py:1880:4:call#0]--> [test.py:2401:8:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:2547:4:call#0] --[test.py:2524:14:call#0]--> [test.py:2547:4:call#0 → test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [test.py:2547:4:call#0] --[test.py:2529:27:call#0]--> [test.py:2547:4:call#0 → test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [test.py:521:4:call#0] --[test.py:310:4:call#0]--> [test.py:521:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:557:4:call#0] --[test.py:310:4:call#0]--> [test.py:557:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:595:4:call#0] --[test.py:310:4:call#0]--> [test.py:595:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:614:4:call#0] --[test.py:310:4:call#0]--> [test.py:614:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:647:4:call#0] --[test.py:310:4:call#0]--> [test.py:647:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:657:4:call#0] --[test.py:310:4:call#0]--> [test.py:657:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:693:4:call#0] --[test.py:310:4:call#0]--> [test.py:693:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:705:4:call#0] --[test.py:310:4:call#0]--> [test.py:705:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:626:8:call#0] --[test.py:696:8:call#0]--> [test.py:626:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1880:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:2529:27:call#0 → test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:626:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:93:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:696:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Analysis converged after 7 iterations
+Statistics: {'objects_created': 136, 'constraints_processed': 9006, 'calls_processed': 508}
+
+======================================================================
+DIAGNOSTIC REPORT
+======================================================================
+
+❌ UNRESOLVED CALLS: 33 unique callees
+   Total unresolved call attempts: 70
+
+   Top unresolved callees:
+     1. update_wrapper                                     (  10 attempts)
+     2. asgiref_async_to_sync                              (   7 attempts)
+     3. chain                                              (   6 attempts)
+     4. RequestContext                                     (   4 attempts)
+     5. is_running_from_reloader                           (   3 attempts)
+     6. $tmp_1043                                          (   3 attempts)
+     7. url_func                                           (   3 attempts)
+     8. $tmp_1074                                          (   3 attempts)
+     9. $tmp_1054                                          (   3 attempts)
+    10. get_debug_flag                                     (   2 attempts)
+    11. find_package                                       (   2 attempts)
+    12. _endpoint_from_view_func                           (   2 attempts)
+    13. response                                           (   2 attempts)
+    14. Lock                                               (   1 attempts)
+    15. $tmp_167                                           (   1 attempts)
+    16. create_logger                                      (   1 attempts)
+    17. DispatchingJinjaLoader                             (   1 attempts)
+    18. processor                                          (   1 attempts)
+    19. _wz_redirect                                       (   1 attempts)
+    20. _split_blueprint_path                              (   1 attempts)
+
+   By category:
+     Temporary variables ($tmp_XXX): 6 (12 calls)
+     Module-level functions: 27 (58 calls)
+     Method calls (Class.method): 0 (0 calls)
+
+✓ METHOD REFERENCES TRACKED: 510
+   Successfully resolved: 267
+   Resolution rate: 52.4%
+   Fallback resolutions (context-based): 49
+   Conservative resolutions (self/cls): 32
+
+   ⚠ Method refs with empty receiver points-to sets: 46
+   Sample (first 10):
+     $tmp_2 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_26 = functools.partial  (receiver 'functools' has 0 objects)
+     $tmp_29 = inspect.iscoroutinefunction  (receiver 'inspect' has 0 objects)
+     $tmp_23 = inspect.ismethod  (receiver 'inspect' has 0 objects)
+     $tmp_50 = self.config  (receiver 'self' has 0 objects)
+     $tmp_47 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_60 = $tmp_59.get  (receiver '$tmp_59' has 0 objects)
+     $tmp_64 = f.__code__  (receiver 'f' has 0 objects)
+     $tmp_71 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_74 = self.url_defaults  (receiver 'self' has 0 objects)
+
+📊 POINTS-TO SET DISTRIBUTION:
+   Total variables: 448
+   Empty sets (0 objects): 0
+   Singleton sets (1 object): 328
+   Multi sets (2+ objects): 120
+   Average set size: 1.57
+
+📞 CALL GRAPH ANALYSIS:
+   Total functions: 129
+   Functions WITH outgoing calls: 25
+   Functions WITHOUT outgoing calls: 104
+   Coverage: 19.4%
+
+   Sample functions with 0 outgoing calls:
+       1. __main__
+       2. __main__.AppGroup.command
+       3. __main__.AppGroup.group
+       4. __main__.Blueprint.__init__
+       5. __main__.Blueprint._check_setup_finished
+       6. __main__.Blueprint.add_app_template_filter
+       7. __main__.Blueprint.add_app_template_global
+       8. __main__.Blueprint.add_app_template_test
+       9. __main__.Blueprint.add_url_rule
+      10. __main__.Blueprint.after_app_request
+      11. __main__.Blueprint.app_context_processor
+      12. __main__.Blueprint.app_errorhandler
+      13. __main__.Blueprint.app_template_filter
+      14. __main__.Blueprint.app_template_global
+      15. __main__.Blueprint.app_template_test
+      16. __main__.Blueprint.app_url_defaults
+      17. __main__.Blueprint.app_url_value_preprocessor
+      18. __main__.Blueprint.before_app_first_request
+      19. __main__.Blueprint.before_app_request
+      20. __main__.Blueprint.json_decoder
+
+🏗️  OBJECT ALLOCATION SUMMARY:
+   Total heap entries: 10
+   Unique objects: 10
+   By type:
+     unknown: 4
+     2245: 1
+     2303: 1
+     2338: 1
+     2374: 1
+     829: 1
+     110: 1
+
+📝 Detailed diagnostic data saved to: /mnt/data_fast/code/PythonStAn/kcfa_diagnostic_output.json
+======================================================================
+
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 129
+  Function names: ['__main__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name']
+Env entries: 448
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), '$tmp_158'), (CallStringContext(call_sites=(), k=2), '$const_30'), (CallStringContext(call_sites=(), k=2), '$tmp_164')]
+Heap entries: 10
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:2245:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2303:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2338:46:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None))]
+Contexts: 72
+Statistics: {'objects_created': 136, 'constraints_processed': 9006, 'calls_processed': 508}
+Call graph stats: {'total_cs_edges': 94, 'unique_call_sites': 94, 'unique_functions': 25, 'contexts_with_calls': 39, 'registered_functions': 1}
+Class hierarchy bases: 0
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. update_wrapper (10 call sites)
+   2. asgiref_async_to_sync (7 call sites)
+   3. chain (6 call sites)
+   4. RequestContext (4 call sites)
+   5. is_running_from_reloader (3 call sites)
+   6. $tmp_1043 (3 call sites)
+   7. url_func (3 call sites)
+   8. $tmp_1074 (3 call sites)
+   9. $tmp_1054 (3 call sites)
+  10. get_debug_flag (2 call sites)
+  11. find_package (2 call sites)
+  12. _endpoint_from_view_func (2 call sites)
+  13. response (2 call sites)
+  14. Lock (1 call sites)
+  15. $tmp_167 (1 call sites)
+  16. create_logger (1 call sites)
+  17. DispatchingJinjaLoader (1 call sites)
+  18. processor (1 call sites)
+  19. _wz_redirect (1 call sites)
+  20. _split_blueprint_path (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 510
+  Method refs successfully resolved: 267
+  Resolution rate: 52.4%
+============================================================
+
+✓ (3.11s, 0 funcs)
+[3/5] Analyzing app.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module app
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 3
+Module-level functions found: 2
+Classes found: 1
+Class methods found: 76
+Total functions (with methods): 78
+  Function 1: iscoroutinefunction (__main__.iscoroutinefunction)
+  Function 2: _make_timedelta (__main__._make_timedelta)
+  Class 1: Flask (__main__.Flask)
+    Method 1: session_cookie_name (__main__.Flask.session_cookie_name)
+    Method 2: session_cookie_name (__main__.Flask.session_cookie_name)
+    ... and 74 more methods
+  Found cfg for iscoroutinefunction
+  Found cfg for _make_timedelta
+  Found cfg for session_cookie_name
+  Found cfg for session_cookie_name
+  Found cfg for send_file_max_age_default
+  Found cfg for send_file_max_age_default
+  Found cfg for use_x_sendfile
+  Found cfg for use_x_sendfile
+  Found cfg for json_encoder
+  Found cfg for json_encoder
+  Found cfg for json_decoder
+  Found cfg for json_decoder
+  Found cfg for __init__
+  Found cfg for _check_setup_finished
+  Found cfg for name
+  Found cfg for propagate_exceptions
+  Found cfg for logger
+  Found cfg for jinja_env
+  Found cfg for got_first_request
+  Found cfg for make_config
+  Found cfg for make_aborter
+  Found cfg for auto_find_instance_path
+  Found cfg for open_instance_resource
+  Found cfg for templates_auto_reload
+  Found cfg for templates_auto_reload
+  Found cfg for create_jinja_environment
+  Found cfg for create_global_jinja_loader
+  Found cfg for select_jinja_autoescape
+  Found cfg for update_template_context
+  Found cfg for make_shell_context
+  Found cfg for env
+  Found cfg for env
+  Found cfg for debug
+  Found cfg for debug
+  Found cfg for run
+  Found cfg for test_client
+  Found cfg for test_cli_runner
+  Found cfg for register_blueprint
+  Found cfg for iter_blueprints
+  Found cfg for add_url_rule
+  Found cfg for template_filter
+  Found cfg for add_template_filter
+  Found cfg for template_test
+  Found cfg for add_template_test
+  Found cfg for template_global
+  Found cfg for add_template_global
+  Found cfg for before_first_request
+  Found cfg for teardown_appcontext
+  Found cfg for shell_context_processor
+  Found cfg for _find_error_handler
+  Found cfg for handle_http_exception
+  Found cfg for trap_http_exception
+  Found cfg for handle_user_exception
+  Found cfg for handle_exception
+  Found cfg for log_exception
+  Found cfg for raise_routing_exception
+  Found cfg for dispatch_request
+  Found cfg for full_dispatch_request
+  Found cfg for finalize_request
+  Found cfg for make_default_options_response
+  Found cfg for should_ignore_error
+  Found cfg for ensure_sync
+  Found cfg for async_to_sync
+  Found cfg for url_for
+  Found cfg for redirect
+  Found cfg for make_response
+  Found cfg for create_url_adapter
+  Found cfg for inject_url_defaults
+  Found cfg for handle_url_build_error
+  Found cfg for preprocess_request
+  Found cfg for process_response
+  Found cfg for do_teardown_request
+  Found cfg for do_teardown_appcontext
+  Found cfg for app_context
+  Found cfg for request_context
+  Found cfg for test_request_context
+  Found cfg for wsgi_app
+  Found cfg for __call__
+
+Starting pointer analysis with 78 functions...
+Planned analysis for 70 functions
+Planned module-level analysis
+Planned 1 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 70 local functions
+    Unified functions with CFG: 128/128
+    After injection: 198 functions (+128 from other modules)
+    Sample functions: ['iscoroutinefunction', '_make_timedelta', 'session_cookie_name', 'send_file_max_age_default', 'use_x_sendfile', 'json_encoder', 'json_decoder', '__init__']
+Added class test.py:110:0:class with bases ['Scaffold']
+Added 1 class allocation events
+Functions with events: 198/198
+Total events extracted: 2268
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:_make_timedelta
+Added call edge: [] --[test.py:575:28:call#0]--> [test.py:575:28:call#0]:__main__.Flask.auto_find_instance_path
+Added call edge: [] --[test.py:598:23:call#0]--> [test.py:598:23:call#0]:__main__.Flask.make_aborter
+Added call edge: [] --[test.py:799:4:call#0]--> [test.py:799:4:call#0]:__main__.Flask.create_jinja_environment
+Added call edge: [] --[test.py:1646:4:call#0]--> [test.py:1646:4:call#0]:__main__.Flask.trap_http_exception
+Added call edge: [] --[test.py:1668:8:call#0]--> [test.py:1668:8:call#0]:__main__.Flask.handle_http_exception
+Added call edge: [] --[test.py:1792:8:call#0]--> [test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [] --[test.py:1787:8:call#0]--> [test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [] --[test.py:1823:21:call#0]--> [test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [] --[test.py:1821:17:call#0]--> [test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [] --[test.py:1801:4:call#0]--> [test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [] --[test.py:1845:19:call#0]--> [test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [] --[test.py:1847:23:call#0]--> [test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [] --[test.py:1889:8:call#0]--> [test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [] --[test.py:2313:25:call#0]--> [test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2341:31:call#0]--> [test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2336:23:call#0]--> [test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2376:16:call#0]--> [test.py:2376:16:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2401:8:call#0]--> [test.py:2401:8:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2494:8:call#0]--> [test.py:2494:8:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2524:14:call#0]--> [test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2529:27:call#0]--> [test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [] --[test.py:2547:4:call#0]--> [test.py:2547:4:call#0]:__main__.Flask.wsgi_app
+Added call edge: [] --[test.py:521:4:call#0]--> [test.py:521:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:557:4:call#0]--> [test.py:557:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:595:4:call#0]--> [test.py:595:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:614:4:call#0]--> [test.py:614:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:647:4:call#0]--> [test.py:647:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:657:4:call#0]--> [test.py:657:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:693:4:call#0]--> [test.py:693:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:705:4:call#0]--> [test.py:705:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:564:4:call#0]--> [test.py:564:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:591:4:call#0]--> [test.py:591:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0] --[test.py:1889:8:call#0]--> [test.py:2376:16:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2376:16:call#0] --[test.py:1880:4:call#0]--> [test.py:2376:16:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0] --[test.py:1889:8:call#0]--> [test.py:2401:8:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2401:8:call#0] --[test.py:1880:4:call#0]--> [test.py:2401:8:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:2547:4:call#0] --[test.py:2524:14:call#0]--> [test.py:2547:4:call#0 → test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [test.py:2547:4:call#0] --[test.py:2529:27:call#0]--> [test.py:2547:4:call#0 → test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [test.py:521:4:call#0] --[test.py:310:4:call#0]--> [test.py:521:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:557:4:call#0] --[test.py:310:4:call#0]--> [test.py:557:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:595:4:call#0] --[test.py:310:4:call#0]--> [test.py:595:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:614:4:call#0] --[test.py:310:4:call#0]--> [test.py:614:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:647:4:call#0] --[test.py:310:4:call#0]--> [test.py:647:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:657:4:call#0] --[test.py:310:4:call#0]--> [test.py:657:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:693:4:call#0] --[test.py:310:4:call#0]--> [test.py:693:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:705:4:call#0] --[test.py:310:4:call#0]--> [test.py:705:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:626:8:call#0] --[test.py:696:8:call#0]--> [test.py:626:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:2529:27:call#0 → test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:626:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:696:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Analysis converged after 7 iterations
+Statistics: {'objects_created': 255, 'constraints_processed': 8898, 'calls_processed': 502}
+
+======================================================================
+DIAGNOSTIC REPORT
+======================================================================
+
+❌ UNRESOLVED CALLS: 33 unique callees
+   Total unresolved call attempts: 70
+
+   Top unresolved callees:
+     1. update_wrapper                                     (  10 attempts)
+     2. asgiref_async_to_sync                              (   7 attempts)
+     3. chain                                              (   6 attempts)
+     4. RequestContext                                     (   4 attempts)
+     5. is_running_from_reloader                           (   3 attempts)
+     6. url_func                                           (   3 attempts)
+     7. $tmp_1043                                          (   3 attempts)
+     8. $tmp_1074                                          (   3 attempts)
+     9. $tmp_1054                                          (   3 attempts)
+    10. get_debug_flag                                     (   2 attempts)
+    11. find_package                                       (   2 attempts)
+    12. _endpoint_from_view_func                           (   2 attempts)
+    13. response                                           (   2 attempts)
+    14. $tmp_167                                           (   1 attempts)
+    15. Lock                                               (   1 attempts)
+    16. create_logger                                      (   1 attempts)
+    17. DispatchingJinjaLoader                             (   1 attempts)
+    18. processor                                          (   1 attempts)
+    19. _wz_redirect                                       (   1 attempts)
+    20. _split_blueprint_path                              (   1 attempts)
+
+   By category:
+     Temporary variables ($tmp_XXX): 6 (12 calls)
+     Module-level functions: 27 (58 calls)
+     Method calls (Class.method): 0 (0 calls)
+
+✓ METHOD REFERENCES TRACKED: 502
+   Successfully resolved: 263
+   Resolution rate: 52.4%
+   Fallback resolutions (context-based): 41
+   Conservative resolutions (self/cls): 32
+
+   ⚠ Method refs with empty receiver points-to sets: 46
+   Sample (first 10):
+     $tmp_23 = inspect.ismethod  (receiver 'inspect' has 0 objects)
+     $tmp_29 = inspect.iscoroutinefunction  (receiver 'inspect' has 0 objects)
+     $tmp_26 = functools.partial  (receiver 'functools' has 0 objects)
+     $tmp_50 = self.config  (receiver 'self' has 0 objects)
+     $tmp_47 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_60 = $tmp_59.get  (receiver '$tmp_59' has 0 objects)
+     $tmp_64 = f.__code__  (receiver 'f' has 0 objects)
+     $tmp_71 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_74 = self.url_defaults  (receiver 'self' has 0 objects)
+     $tmp_84 = warnings.warn  (receiver 'warnings' has 0 objects)
+
+📊 POINTS-TO SET DISTRIBUTION:
+   Total variables: 445
+   Empty sets (0 objects): 0
+   Singleton sets (1 object): 325
+   Multi sets (2+ objects): 120
+   Average set size: 1.60
+
+📞 CALL GRAPH ANALYSIS:
+   Total functions: 198
+   Functions WITH outgoing calls: 25
+   Functions WITHOUT outgoing calls: 173
+   Coverage: 12.6%
+
+   Sample functions with 0 outgoing calls:
+       1. __call__
+       2. __init__
+       3. __main__.AppGroup.command
+       4. __main__.AppGroup.group
+       5. __main__.Blueprint.__init__
+       6. __main__.Blueprint._check_setup_finished
+       7. __main__.Blueprint.add_app_template_filter
+       8. __main__.Blueprint.add_app_template_global
+       9. __main__.Blueprint.add_app_template_test
+      10. __main__.Blueprint.add_url_rule
+      11. __main__.Blueprint.after_app_request
+      12. __main__.Blueprint.app_context_processor
+      13. __main__.Blueprint.app_errorhandler
+      14. __main__.Blueprint.app_template_filter
+      15. __main__.Blueprint.app_template_global
+      16. __main__.Blueprint.app_template_test
+      17. __main__.Blueprint.app_url_defaults
+      18. __main__.Blueprint.app_url_value_preprocessor
+      19. __main__.Blueprint.before_app_first_request
+      20. __main__.Blueprint.before_app_request
+
+🏗️  OBJECT ALLOCATION SUMMARY:
+   Total heap entries: 87
+   Unique objects: 15
+   By type:
+     110: 74
+     unknown: 5
+     2245: 1
+     2303: 1
+     2338: 1
+     2374: 1
+     984: 1
+     1562: 1
+     1560: 1
+     829: 1
+
+📝 Detailed diagnostic data saved to: /mnt/data_fast/code/PythonStAn/kcfa_diagnostic_output.json
+======================================================================
+
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 198
+  Function names: ['iscoroutinefunction', '_make_timedelta', 'session_cookie_name', 'send_file_max_age_default', 'use_x_sendfile']
+Env entries: 445
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'Flask'), (CallStringContext(call_sites=(), k=2), '$tmp_164'), (CallStringContext(call_sites=(), k=2), '$const_30')]
+Heap entries: 87
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='session_cookie_name')), (AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='send_file_max_age_default')), (AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='use_x_sendfile'))]
+Contexts: 70
+Statistics: {'objects_created': 255, 'constraints_processed': 8898, 'calls_processed': 502}
+Call graph stats: {'total_cs_edges': 86, 'unique_call_sites': 86, 'unique_functions': 25, 'contexts_with_calls': 31, 'registered_functions': 70}
+Class hierarchy bases: 1
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. update_wrapper (10 call sites)
+   2. asgiref_async_to_sync (7 call sites)
+   3. chain (6 call sites)
+   4. RequestContext (4 call sites)
+   5. is_running_from_reloader (3 call sites)
+   6. url_func (3 call sites)
+   7. $tmp_1043 (3 call sites)
+   8. $tmp_1074 (3 call sites)
+   9. $tmp_1054 (3 call sites)
+  10. get_debug_flag (2 call sites)
+  11. find_package (2 call sites)
+  12. _endpoint_from_view_func (2 call sites)
+  13. response (2 call sites)
+  14. $tmp_167 (1 call sites)
+  15. Lock (1 call sites)
+  16. create_logger (1 call sites)
+  17. DispatchingJinjaLoader (1 call sites)
+  18. processor (1 call sites)
+  19. _wz_redirect (1 call sites)
+  20. _split_blueprint_path (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 502
+  Method refs successfully resolved: 263
+  Resolution rate: 52.4%
+============================================================
+
+✓ (4.31s, 78 funcs)
+[4/5] Analyzing blueprints.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module blueprints
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 2
+Module-level functions found: 0
+Classes found: 2
+Class methods found: 28
+Total functions (with methods): 28
+  Class 1: BlueprintSetupState (__main__.BlueprintSetupState)
+    Method 1: __init__ (__main__.BlueprintSetupState.__init__)
+    Method 2: add_url_rule (__main__.BlueprintSetupState.add_url_rule)
+  Class 2: Blueprint (__main__.Blueprint)
+    Method 1: __init__ (__main__.BlueprintSetupState.__init__)
+    Method 2: add_url_rule (__main__.BlueprintSetupState.add_url_rule)
+    ... and 26 more methods
+  Found cfg for __init__
+  Found cfg for add_url_rule
+  Found cfg for json_encoder
+  Found cfg for json_encoder
+  Found cfg for json_decoder
+  Found cfg for json_decoder
+  Found cfg for __init__
+  Found cfg for _check_setup_finished
+  Found cfg for record
+  Found cfg for record_once
+  Found cfg for make_setup_state
+  Found cfg for register_blueprint
+  Found cfg for register
+  Found cfg for add_url_rule
+  Found cfg for app_template_filter
+  Found cfg for add_app_template_filter
+  Found cfg for app_template_test
+  Found cfg for add_app_template_test
+  Found cfg for app_template_global
+  Found cfg for add_app_template_global
+  Found cfg for before_app_request
+  Found cfg for before_app_first_request
+  Found cfg for after_app_request
+  Found cfg for teardown_app_request
+  Found cfg for app_context_processor
+  Found cfg for app_errorhandler
+  Found cfg for app_url_value_preprocessor
+  Found cfg for app_url_defaults
+
+Starting pointer analysis with 28 functions...
+Planned analysis for 24 functions
+Planned module-level analysis
+Planned 2 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 24 local functions
+    Unified functions with CFG: 128/128
+    After injection: 152 functions (+128 from other modules)
+    Sample functions: ['__init__', 'add_url_rule', 'json_encoder', 'json_decoder', '_check_setup_finished', 'record', 'record_once', 'make_setup_state']
+Added class test.py:36:0:class with bases []
+Added class test.py:121:0:class with bases ['Scaffold']
+Added 2 class allocation events
+Functions with events: 152/152
+Total events extracted: 1594
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:521:4:call#0]--> [test.py:521:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:557:4:call#0]--> [test.py:557:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:595:4:call#0]--> [test.py:595:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:614:4:call#0]--> [test.py:614:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:647:4:call#0]--> [test.py:647:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:657:4:call#0]--> [test.py:657:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:693:4:call#0]--> [test.py:693:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:705:4:call#0]--> [test.py:705:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:575:28:call#0]--> [test.py:575:28:call#0]:__main__.Flask.auto_find_instance_path
+Added call edge: [] --[test.py:598:23:call#0]--> [test.py:598:23:call#0]:__main__.Flask.make_aborter
+Added call edge: [] --[test.py:799:4:call#0]--> [test.py:799:4:call#0]:__main__.Flask.create_jinja_environment
+Added call edge: [] --[test.py:1668:8:call#0]--> [test.py:1668:8:call#0]:__main__.Flask.handle_http_exception
+Added call edge: [] --[test.py:1646:4:call#0]--> [test.py:1646:4:call#0]:__main__.Flask.trap_http_exception
+Added call edge: [] --[test.py:1792:8:call#0]--> [test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [] --[test.py:1787:8:call#0]--> [test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [] --[test.py:1823:21:call#0]--> [test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [] --[test.py:1821:17:call#0]--> [test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [] --[test.py:1801:4:call#0]--> [test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [] --[test.py:1847:23:call#0]--> [test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [] --[test.py:1845:19:call#0]--> [test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [] --[test.py:1889:8:call#0]--> [test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:2313:25:call#0]--> [test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2341:31:call#0]--> [test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2336:23:call#0]--> [test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2376:16:call#0]--> [test.py:2376:16:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2401:8:call#0]--> [test.py:2401:8:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2494:8:call#0]--> [test.py:2494:8:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2524:14:call#0]--> [test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2529:27:call#0]--> [test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [] --[test.py:2547:4:call#0]--> [test.py:2547:4:call#0]:__main__.Flask.wsgi_app
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:564:4:call#0]--> [test.py:564:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:591:4:call#0]--> [test.py:591:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:521:4:call#0] --[test.py:310:4:call#0]--> [test.py:521:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:557:4:call#0] --[test.py:310:4:call#0]--> [test.py:557:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:595:4:call#0] --[test.py:310:4:call#0]--> [test.py:595:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:614:4:call#0] --[test.py:310:4:call#0]--> [test.py:614:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:647:4:call#0] --[test.py:310:4:call#0]--> [test.py:647:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:657:4:call#0] --[test.py:310:4:call#0]--> [test.py:657:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:693:4:call#0] --[test.py:310:4:call#0]--> [test.py:693:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:705:4:call#0] --[test.py:310:4:call#0]--> [test.py:705:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0] --[test.py:1889:8:call#0]--> [test.py:2376:16:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2376:16:call#0] --[test.py:1880:4:call#0]--> [test.py:2376:16:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0] --[test.py:1889:8:call#0]--> [test.py:2401:8:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2401:8:call#0] --[test.py:1880:4:call#0]--> [test.py:2401:8:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:2547:4:call#0] --[test.py:2524:14:call#0]--> [test.py:2547:4:call#0 → test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [test.py:2547:4:call#0] --[test.py:2529:27:call#0]--> [test.py:2547:4:call#0 → test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [test.py:626:8:call#0] --[test.py:696:8:call#0]--> [test.py:626:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1880:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:2529:27:call#0 → test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:626:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Added call edge: [test.py:93:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:696:8:call#0 → test.py:696:8:call#0] --[test.py:696:8:call#0]--> [test.py:696:8:call#0 → test.py:696:8:call#0]:__main__.load_dotenv
+Analysis converged after 7 iterations
+Statistics: {'objects_created': 183, 'constraints_processed': 9006, 'calls_processed': 508}
+
+======================================================================
+DIAGNOSTIC REPORT
+======================================================================
+
+❌ UNRESOLVED CALLS: 33 unique callees
+   Total unresolved call attempts: 70
+
+   Top unresolved callees:
+     1. update_wrapper                                     (  10 attempts)
+     2. asgiref_async_to_sync                              (   7 attempts)
+     3. chain                                              (   6 attempts)
+     4. RequestContext                                     (   4 attempts)
+     5. is_running_from_reloader                           (   3 attempts)
+     6. $tmp_1043                                          (   3 attempts)
+     7. url_func                                           (   3 attempts)
+     8. $tmp_1074                                          (   3 attempts)
+     9. $tmp_1054                                          (   3 attempts)
+    10. get_debug_flag                                     (   2 attempts)
+    11. find_package                                       (   2 attempts)
+    12. _endpoint_from_view_func                           (   2 attempts)
+    13. response                                           (   2 attempts)
+    14. BlueprintSetupState                                (   1 attempts)
+    15. Lock                                               (   1 attempts)
+    16. $tmp_167                                           (   1 attempts)
+    17. create_logger                                      (   1 attempts)
+    18. DispatchingJinjaLoader                             (   1 attempts)
+    19. processor                                          (   1 attempts)
+    20. _wz_redirect                                       (   1 attempts)
+
+   By category:
+     Temporary variables ($tmp_XXX): 6 (12 calls)
+     Module-level functions: 27 (58 calls)
+     Method calls (Class.method): 0 (0 calls)
+
+✓ METHOD REFERENCES TRACKED: 510
+   Successfully resolved: 267
+   Resolution rate: 52.4%
+   Fallback resolutions (context-based): 49
+   Conservative resolutions (self/cls): 32
+
+   ⚠ Method refs with empty receiver points-to sets: 43
+   Sample (first 10):
+     $tmp_129 = inspect.isfunction  (receiver 'inspect' has 0 objects)
+     $tmp_137 = warnings.warn  (receiver 'warnings' has 0 objects)
+     $tmp_166 = $tmp_165.dirname  (receiver '$tmp_165' has 0 objects)
+     $tmp_165 = os.path  (receiver 'os' has 0 objects)
+     $tmp_172 = $tmp_171.append  (receiver '$tmp_171' has 0 objects)
+     $tmp_171 = self.deferred_functions  (receiver 'self' has 0 objects)
+     $tmp_178 = $tmp_177.exists  (receiver '$tmp_177' has 0 objects)
+     $tmp_203 = $tmp_202.lstrip  (receiver '$tmp_202' has 0 objects)
+     $tmp_199 = $const_26.join  (receiver '$const_26' has 0 objects)
+     $tmp_196 = $tmp_195.insert  (receiver '$tmp_195' has 0 objects)
+
+📊 POINTS-TO SET DISTRIBUTION:
+   Total variables: 450
+   Empty sets (0 objects): 0
+   Singleton sets (1 object): 330
+   Multi sets (2+ objects): 120
+   Average set size: 1.57
+
+📞 CALL GRAPH ANALYSIS:
+   Total functions: 152
+   Functions WITH outgoing calls: 25
+   Functions WITHOUT outgoing calls: 127
+   Coverage: 16.4%
+
+   Sample functions with 0 outgoing calls:
+       1. __init__
+       2. __main__.AppGroup.command
+       3. __main__.AppGroup.group
+       4. __main__.Blueprint.__init__
+       5. __main__.Blueprint._check_setup_finished
+       6. __main__.Blueprint.add_app_template_filter
+       7. __main__.Blueprint.add_app_template_global
+       8. __main__.Blueprint.add_app_template_test
+       9. __main__.Blueprint.add_url_rule
+      10. __main__.Blueprint.after_app_request
+      11. __main__.Blueprint.app_context_processor
+      12. __main__.Blueprint.app_errorhandler
+      13. __main__.Blueprint.app_template_filter
+      14. __main__.Blueprint.app_template_global
+      15. __main__.Blueprint.app_template_test
+      16. __main__.Blueprint.app_url_defaults
+      17. __main__.Blueprint.app_url_value_preprocessor
+      18. __main__.Blueprint.before_app_first_request
+      19. __main__.Blueprint.before_app_request
+      20. __main__.Blueprint.json_decoder
+
+🏗️  OBJECT ALLOCATION SUMMARY:
+   Total heap entries: 36
+   Unique objects: 12
+   By type:
+     121: 24
+     unknown: 4
+     36: 2
+     2245: 1
+     2303: 1
+     2338: 1
+     2374: 1
+     829: 1
+     110: 1
+
+📝 Detailed diagnostic data saved to: /mnt/data_fast/code/PythonStAn/kcfa_diagnostic_output.json
+======================================================================
+
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 152
+  Function names: ['__init__', 'add_url_rule', 'json_encoder', 'json_decoder', '_check_setup_finished']
+Env entries: 450
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'BlueprintSetupState'), (CallStringContext(call_sites=(), k=2), 'Blueprint'), (CallStringContext(call_sites=(), k=2), 'wrapper')]
+Heap entries: 36
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:36:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__')), (AbstractObject(alloc_id='test.py:36:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='add_url_rule')), (AbstractObject(alloc_id='test.py:121:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__'))]
+Contexts: 72
+Statistics: {'objects_created': 183, 'constraints_processed': 9006, 'calls_processed': 508}
+Call graph stats: {'total_cs_edges': 94, 'unique_call_sites': 94, 'unique_functions': 25, 'contexts_with_calls': 39, 'registered_functions': 24}
+Class hierarchy bases: 2
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. update_wrapper (10 call sites)
+   2. asgiref_async_to_sync (7 call sites)
+   3. chain (6 call sites)
+   4. RequestContext (4 call sites)
+   5. is_running_from_reloader (3 call sites)
+   6. $tmp_1043 (3 call sites)
+   7. url_func (3 call sites)
+   8. $tmp_1074 (3 call sites)
+   9. $tmp_1054 (3 call sites)
+  10. get_debug_flag (2 call sites)
+  11. find_package (2 call sites)
+  12. _endpoint_from_view_func (2 call sites)
+  13. response (2 call sites)
+  14. BlueprintSetupState (1 call sites)
+  15. Lock (1 call sites)
+  16. $tmp_167 (1 call sites)
+  17. create_logger (1 call sites)
+  18. DispatchingJinjaLoader (1 call sites)
+  19. processor (1 call sites)
+  20. _wz_redirect (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 510
+  Method refs successfully resolved: 267
+  Resolution rate: 52.4%
+============================================================
+
+✓ (3.57s, 28 funcs)
+[5/5] Analyzing cli.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module cli
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 24
+Module-level functions found: 18
+Classes found: 6
+Class methods found: 13
+Total functions (with methods): 31
+  Function 1: find_best_app (__main__.find_best_app)
+  Function 2: _called_with_wrong_args (__main__._called_with_wrong_args)
+  Function 3: find_app_by_string (__main__.find_app_by_string)
+  ... and 15 more module functions
+  Class 1: NoAppException (__main__.NoAppException)
+  Class 2: ScriptInfo (__main__.ScriptInfo)
+    Method 1: __init__ (__main__.ScriptInfo.__init__)
+    Method 2: load_app (__main__.ScriptInfo.load_app)
+  Class 3: AppGroup (__main__.AppGroup)
+    Method 1: command (__main__.AppGroup.command)
+    Method 2: group (__main__.AppGroup.group)
+  ... and 3 more classes
+  Found cfg for find_best_app
+  Found cfg for _called_with_wrong_args
+  Found cfg for find_app_by_string
+  Found cfg for prepare_import
+  Found cfg for locate_app
+  Found cfg for get_version
+  Found cfg for with_appcontext
+  Found cfg for _set_app
+  Found cfg for _set_debug
+  Found cfg for _env_file_callback
+  Found cfg for _path_is_ancestor
+  Found cfg for load_dotenv
+  Found cfg for show_server_banner
+  Found cfg for _validate_key
+  Found cfg for run_command
+  Found cfg for shell_command
+  Found cfg for routes_command
+  Found cfg for main
+  Found cfg for __init__
+  Found cfg for load_app
+  Found cfg for command
+  Found cfg for group
+  Found cfg for __init__
+  Found cfg for _load_plugin_commands
+  Found cfg for get_command
+  Found cfg for list_commands
+  Found cfg for make_context
+  Found cfg for parse_args
+  Found cfg for __init__
+  Found cfg for convert
+  Found cfg for convert
+
+Starting pointer analysis with 31 functions...
+Planned analysis for 28 functions
+Planned module-level analysis
+Planned 6 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 28 local functions
+    Unified functions with CFG: 128/128
+    After injection: 156 functions (+128 from other modules)
+    Sample functions: ['find_best_app', '_called_with_wrong_args', 'find_app_by_string', 'prepare_import', 'locate_app', 'get_version', 'with_appcontext', '_set_app']
+Added class test.py:28:0:class with bases ['click.UsageError']
+Added class test.py:266:0:class with bases []
+Added class test.py:362:0:class with bases ['click.Group']
+Added class test.py:481:0:class with bases ['test.py:362:0:class']
+Added class test.py:729:0:class with bases ['click.ParamType']
+Added class test.py:812:0:class with bases ['click.Path']
+Added 6 class allocation events
+Functions with events: 156/156
+Total events extracted: 1873
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:show_server_banner
+Added call edge: [] --[test.py:564:4:call#0]--> [test.py:564:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:591:4:call#0]--> [test.py:591:4:call#0]:__main__.FlaskGroup._load_plugin_commands
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:load_dotenv
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:575:28:call#0]--> [test.py:575:28:call#0]:__main__.Flask.auto_find_instance_path
+Added call edge: [] --[test.py:598:23:call#0]--> [test.py:598:23:call#0]:__main__.Flask.make_aborter
+Added call edge: [] --[test.py:799:4:call#0]--> [test.py:799:4:call#0]:__main__.Flask.create_jinja_environment
+Added call edge: [] --[test.py:1668:8:call#0]--> [test.py:1668:8:call#0]:__main__.Flask.handle_http_exception
+Added call edge: [] --[test.py:1646:4:call#0]--> [test.py:1646:4:call#0]:__main__.Flask.trap_http_exception
+Added call edge: [] --[test.py:1792:8:call#0]--> [test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [] --[test.py:1787:8:call#0]--> [test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [] --[test.py:1823:21:call#0]--> [test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [] --[test.py:1821:17:call#0]--> [test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [] --[test.py:1801:4:call#0]--> [test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [] --[test.py:1847:23:call#0]--> [test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [] --[test.py:1845:19:call#0]--> [test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [] --[test.py:1889:8:call#0]--> [test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:2313:25:call#0]--> [test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2341:31:call#0]--> [test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2336:23:call#0]--> [test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2376:16:call#0]--> [test.py:2376:16:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2401:8:call#0]--> [test.py:2401:8:call#0]:__main__.Flask.ensure_sync
+Added call edge: [] --[test.py:2494:8:call#0]--> [test.py:2494:8:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2524:14:call#0]--> [test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [] --[test.py:2529:27:call#0]--> [test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [] --[test.py:2547:4:call#0]--> [test.py:2547:4:call#0]:__main__.Flask.wsgi_app
+Added call edge: [] --[test.py:521:4:call#0]--> [test.py:521:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:557:4:call#0]--> [test.py:557:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:595:4:call#0]--> [test.py:595:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:614:4:call#0]--> [test.py:614:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:647:4:call#0]--> [test.py:647:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:657:4:call#0]--> [test.py:657:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:693:4:call#0]--> [test.py:693:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [] --[test.py:705:4:call#0]--> [test.py:705:4:call#0]:__main__.Blueprint.record_once
+Added call edge: [test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0] --[test.py:1889:8:call#0]--> [test.py:2376:16:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2376:16:call#0] --[test.py:1880:4:call#0]--> [test.py:2376:16:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0] --[test.py:1889:8:call#0]--> [test.py:2401:8:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:2401:8:call#0] --[test.py:1880:4:call#0]--> [test.py:2401:8:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:2547:4:call#0] --[test.py:2524:14:call#0]--> [test.py:2547:4:call#0 → test.py:2524:14:call#0]:__main__.Flask.request_context
+Added call edge: [test.py:2547:4:call#0] --[test.py:2529:27:call#0]--> [test.py:2547:4:call#0 → test.py:2529:27:call#0]:__main__.Flask.full_dispatch_request
+Added call edge: [test.py:521:4:call#0] --[test.py:310:4:call#0]--> [test.py:521:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:557:4:call#0] --[test.py:310:4:call#0]--> [test.py:557:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:595:4:call#0] --[test.py:310:4:call#0]--> [test.py:595:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:614:4:call#0] --[test.py:310:4:call#0]--> [test.py:614:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:647:4:call#0] --[test.py:310:4:call#0]--> [test.py:647:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:657:4:call#0] --[test.py:310:4:call#0]--> [test.py:657:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:693:4:call#0] --[test.py:310:4:call#0]--> [test.py:693:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:705:4:call#0] --[test.py:310:4:call#0]--> [test.py:705:4:call#0 → test.py:310:4:call#0]:__main__.Blueprint.record
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1889:8:call#0]--> [test.py:2313:25:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1821:17:call#0 → test.py:2313:25:call#0] --[test.py:1880:4:call#0]--> [test.py:2313:25:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2341:31:call#0]--> [test.py:1847:23:call#0 → test.py:2341:31:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1801:4:call#0 → test.py:1847:23:call#0] --[test.py:2336:23:call#0]--> [test.py:1847:23:call#0 → test.py:2336:23:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1889:8:call#0]--> [test.py:2341:31:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2341:31:call#0] --[test.py:1880:4:call#0]--> [test.py:2341:31:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1889:8:call#0]--> [test.py:2336:23:call#0 → test.py:1889:8:call#0]:__main__.Flask.async_to_sync
+Added call edge: [test.py:1847:23:call#0 → test.py:2336:23:call#0] --[test.py:1880:4:call#0]--> [test.py:2336:23:call#0 → test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:1880:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2313:25:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2341:31:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2336:23:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2376:16:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2401:8:call#0 → test.py:1880:4:call#0] --[test.py:93:4:call#0]--> [test.py:1880:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1792:8:call#0]--> [test.py:1823:21:call#0 → test.py:1792:8:call#0]:__main__.Flask.make_default_options_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1823:21:call#0] --[test.py:1787:8:call#0]--> [test.py:1823:21:call#0 → test.py:1787:8:call#0]:__main__.Flask.raise_routing_exception
+Added call edge: [test.py:2529:27:call#0 → test.py:1821:17:call#0] --[test.py:2313:25:call#0]--> [test.py:1821:17:call#0 → test.py:2313:25:call#0]:__main__.Flask.ensure_sync
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1847:23:call#0]--> [test.py:1801:4:call#0 → test.py:1847:23:call#0]:__main__.Flask.process_response
+Added call edge: [test.py:2529:27:call#0 → test.py:1801:4:call#0] --[test.py:1845:19:call#0]--> [test.py:1801:4:call#0 → test.py:1845:19:call#0]:__main__.Flask.make_response
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1823:21:call#0]--> [test.py:2529:27:call#0 → test.py:1823:21:call#0]:__main__.Flask.dispatch_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1821:17:call#0]--> [test.py:2529:27:call#0 → test.py:1821:17:call#0]:__main__.Flask.preprocess_request
+Added call edge: [test.py:2547:4:call#0 → test.py:2529:27:call#0] --[test.py:1801:4:call#0]--> [test.py:2529:27:call#0 → test.py:1801:4:call#0]:__main__.Flask.finalize_request
+Added call edge: [test.py:93:4:call#0 → test.py:93:4:call#0] --[test.py:93:4:call#0]--> [test.py:93:4:call#0 → test.py:93:4:call#0]:__main__.iscoroutinefunction
+Analysis converged after 7 iterations
+Statistics: {'objects_created': 176, 'constraints_processed': 8922, 'calls_processed': 504}
+
+======================================================================
+DIAGNOSTIC REPORT
+======================================================================
+
+❌ UNRESOLVED CALLS: 33 unique callees
+   Total unresolved call attempts: 70
+
+   Top unresolved callees:
+     1. update_wrapper                                     (  10 attempts)
+     2. asgiref_async_to_sync                              (   7 attempts)
+     3. chain                                              (   6 attempts)
+     4. RequestContext                                     (   4 attempts)
+     5. is_running_from_reloader                           (   3 attempts)
+     6. $tmp_1043                                          (   3 attempts)
+     7. url_func                                           (   3 attempts)
+     8. $tmp_1074                                          (   3 attempts)
+     9. $tmp_1054                                          (   3 attempts)
+    10. get_debug_flag                                     (   2 attempts)
+    11. find_package                                       (   2 attempts)
+    12. _endpoint_from_view_func                           (   2 attempts)
+    13. response                                           (   2 attempts)
+    14. attr                                               (   1 attempts)
+    15. __import__                                         (   1 attempts)
+    16. run_simple                                         (   1 attempts)
+    17. interactive_hook                                   (   1 attempts)
+    18. Completer                                          (   1 attempts)
+    19. get_load_dotenv                                    (   1 attempts)
+    20. ScriptInfo                                         (   1 attempts)
+
+   By category:
+     Temporary variables ($tmp_XXX): 6 (12 calls)
+     Module-level functions: 27 (58 calls)
+     Method calls (Class.method): 0 (0 calls)
+
+✓ METHOD REFERENCES TRACKED: 504
+   Successfully resolved: 263
+   Resolution rate: 52.2%
+   Fallback resolutions (context-based): 46
+   Conservative resolutions (self/cls): 32
+
+   ⚠ Method refs with empty receiver points-to sets: 39
+   Sample (first 10):
+     $tmp_10 = module.__dict__  (receiver 'module' has 0 objects)
+     $tmp_11 = $tmp_10.values  (receiver '$tmp_10' has 0 objects)
+     $tmp_57 = sys.exc_info  (receiver 'sys' has 0 objects)
+     $tmp_63 = $tmp_62.f_code  (receiver '$tmp_62' has 0 objects)
+     $tmp_64 = f.__code__  (receiver 'f' has 0 objects)
+     $tmp_62 = tb.tb_frame  (receiver 'tb' has 0 objects)
+     $tmp_129 = inspect.isfunction  (receiver 'inspect' has 0 objects)
+     name = expr.id  (receiver 'expr' has 0 objects)
+     $tmp_77 = ast.Name  (receiver 'ast' has 0 objects)
+     $tmp_68 = app_name.strip  (receiver 'app_name' has 0 objects)
+
+📊 POINTS-TO SET DISTRIBUTION:
+   Total variables: 454
+   Empty sets (0 objects): 0
+   Singleton sets (1 object): 334
+   Multi sets (2+ objects): 120
+   Average set size: 1.56
+
+📞 CALL GRAPH ANALYSIS:
+   Total functions: 156
+   Functions WITH outgoing calls: 25
+   Functions WITHOUT outgoing calls: 131
+   Coverage: 16.0%
+
+   Sample functions with 0 outgoing calls:
+       1. __init__
+       2. __main__.AppGroup.command
+       3. __main__.AppGroup.group
+       4. __main__.Blueprint.__init__
+       5. __main__.Blueprint._check_setup_finished
+       6. __main__.Blueprint.add_app_template_filter
+       7. __main__.Blueprint.add_app_template_global
+       8. __main__.Blueprint.add_app_template_test
+       9. __main__.Blueprint.add_url_rule
+      10. __main__.Blueprint.after_app_request
+      11. __main__.Blueprint.app_context_processor
+      12. __main__.Blueprint.app_errorhandler
+      13. __main__.Blueprint.app_template_filter
+      14. __main__.Blueprint.app_template_global
+      15. __main__.Blueprint.app_template_test
+      16. __main__.Blueprint.app_url_defaults
+      17. __main__.Blueprint.app_url_value_preprocessor
+      18. __main__.Blueprint.before_app_first_request
+      19. __main__.Blueprint.before_app_request
+      20. __main__.Blueprint.json_decoder
+
+🏗️  OBJECT ALLOCATION SUMMARY:
+   Total heap entries: 24
+   Unique objects: 15
+   By type:
+     481: 7
+     unknown: 4
+     266: 2
+     362: 2
+     729: 2
+     812: 1
+     2245: 1
+     2303: 1
+     2338: 1
+     2374: 1
+
+📝 Detailed diagnostic data saved to: /mnt/data_fast/code/PythonStAn/kcfa_diagnostic_output.json
+======================================================================
+
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 156
+  Function names: ['find_best_app', '_called_with_wrong_args', 'find_app_by_string', 'prepare_import', 'locate_app']
+Env entries: 454
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'NoAppException'), (CallStringContext(call_sites=(), k=2), 'ScriptInfo'), (CallStringContext(call_sites=(), k=2), 'AppGroup')]
+Heap entries: 24
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:266:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__')), (AbstractObject(alloc_id='test.py:266:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='load_app')), (AbstractObject(alloc_id='test.py:362:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='command'))]
+Contexts: 70
+Statistics: {'objects_created': 176, 'constraints_processed': 8922, 'calls_processed': 504}
+Call graph stats: {'total_cs_edges': 91, 'unique_call_sites': 91, 'unique_functions': 25, 'contexts_with_calls': 36, 'registered_functions': 28}
+Class hierarchy bases: 6
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. update_wrapper (10 call sites)
+   2. asgiref_async_to_sync (7 call sites)
+   3. chain (6 call sites)
+   4. RequestContext (4 call sites)
+   5. is_running_from_reloader (3 call sites)
+   6. $tmp_1043 (3 call sites)
+   7. url_func (3 call sites)
+   8. $tmp_1074 (3 call sites)
+   9. $tmp_1054 (3 call sites)
+  10. get_debug_flag (2 call sites)
+  11. find_package (2 call sites)
+  12. _endpoint_from_view_func (2 call sites)
+  13. response (2 call sites)
+  14. attr (1 call sites)
+  15. __import__ (1 call sites)
+  16. run_simple (1 call sites)
+  17. interactive_hook (1 call sites)
+  18. Completer (1 call sites)
+  19. get_load_dotenv (1 call sites)
+  20. ScriptInfo (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 504
+  Method refs successfully resolved: 263
+  Resolution rate: 52.2%
+============================================================
+
+✓ (3.99s, 31 funcs)
+
+Markdown report saved to: benchmark/reports/fix_test/flask_analysis_report_20251026_110904.md
+JSON report saved to: benchmark/reports/fix_test/flask_analysis_report_20251026_110904.json
+
+======================================================================
+Analysis of flask complete!
+Success rate: 100.0%
+======================================================================
+

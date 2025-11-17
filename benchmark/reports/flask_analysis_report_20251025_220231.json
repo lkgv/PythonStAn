@@ -1,0 +1,82 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-25T22:02:30.835619",
+  "config": {
+    "k": 0,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 3,
+  "modules_succeeded": 3,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.008146286010742188,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0007390975952148438,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 0.32071590423583984,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 78
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.3296012878417969,
+    "analysis_time": 0.3296012878417969,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 5831.287895096235
+  },
+  "points_to_metrics": {
+    "total_variables": 77,
+    "total_points_to_sets": 77,
+    "singleton_sets": 68,
+    "empty_sets": 0,
+    "avg_set_size": 1.155844155844156,
+    "max_set_size": 4,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 68,
+      "2-5": 9
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 72,
+    "total_call_sites": 0,
+    "total_edges": 2,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 1,
+    "classes_with_mro": 1,
+    "diamond_patterns": 0,
+    "max_mro_length": 3,
+    "avg_mro_length": 3.0
+  }
+}

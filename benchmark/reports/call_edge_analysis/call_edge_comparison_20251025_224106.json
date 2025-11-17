@@ -1,0 +1,390 @@
+{
+  "0-cfa": {
+    "policy": "0-cfa",
+    "timestamp": "2025-10-25T22:41:06.544281",
+    "total_functions": 4,
+    "total_call_sites": 6,
+    "total_call_edges": 6,
+    "total_contexts": 1,
+    "resolved_call_sites": 6,
+    "unresolved_call_sites": 0,
+    "polymorphic_call_sites": 0,
+    "resolution_rate": 100.0,
+    "functions_with_outgoing_calls": 3,
+    "functions_with_incoming_calls": 3,
+    "unreachable_functions": 1,
+    "avg_out_degree": 0.75,
+    "max_out_degree": 1,
+    "avg_in_degree": 0.75,
+    "max_in_degree": 1,
+    "out_degree_distribution": {
+      "0": 1,
+      "1": 3
+    },
+    "polymorphic_rate": 0.0,
+    "avg_targets_per_polymorphic_site": 0.0,
+    "max_targets_at_site": 0,
+    "function_metrics": {
+      "identity": {
+        "function_name": "identity",
+        "total_call_sites": 4,
+        "resolved_call_sites": 4,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 4,
+        "unique_callees": [
+          "identity"
+        ],
+        "out_degree": 1,
+        "num_callers": 4,
+        "caller_functions": [
+          "identity"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[]"
+        ]
+      },
+      "process1": {
+        "function_name": "process1",
+        "total_call_sites": 1,
+        "resolved_call_sites": 1,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 1,
+        "unique_callees": [
+          "process1"
+        ],
+        "out_degree": 1,
+        "num_callers": 1,
+        "caller_functions": [
+          "process1"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[]"
+        ]
+      },
+      "process2": {
+        "function_name": "process2",
+        "total_call_sites": 1,
+        "resolved_call_sites": 1,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 1,
+        "unique_callees": [
+          "process2"
+        ],
+        "out_degree": 1,
+        "num_callers": 1,
+        "caller_functions": [
+          "process2"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[]"
+        ]
+      },
+      "main": {
+        "function_name": "main",
+        "total_call_sites": 0,
+        "resolved_call_sites": 0,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 0,
+        "unique_callees": [],
+        "out_degree": 0,
+        "num_callers": 0,
+        "caller_functions": [],
+        "in_degree": 0,
+        "contexts_seen": []
+      }
+    },
+    "call_sites": [
+      {
+        "call_id": "test.py:9:13:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:14:13:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:23:9:call",
+        "caller_function": "process1",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "process1"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:26:9:call",
+        "caller_function": "process2",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "process2"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:29:9:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:30:9:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      }
+    ],
+    "analysis_duration": 0.00442194938659668
+  },
+  "2-cfa": {
+    "policy": "2-cfa",
+    "timestamp": "2025-10-25T22:41:06.548785",
+    "total_functions": 4,
+    "total_call_sites": 8,
+    "total_call_edges": 8,
+    "total_contexts": 9,
+    "resolved_call_sites": 8,
+    "unresolved_call_sites": 0,
+    "polymorphic_call_sites": 0,
+    "resolution_rate": 100.0,
+    "functions_with_outgoing_calls": 3,
+    "functions_with_incoming_calls": 3,
+    "unreachable_functions": 1,
+    "avg_out_degree": 0.75,
+    "max_out_degree": 1,
+    "avg_in_degree": 0.75,
+    "max_in_degree": 1,
+    "out_degree_distribution": {
+      "0": 1,
+      "1": 3
+    },
+    "polymorphic_rate": 0.0,
+    "avg_targets_per_polymorphic_site": 0.0,
+    "max_targets_at_site": 0,
+    "function_metrics": {
+      "identity": {
+        "function_name": "identity",
+        "total_call_sites": 6,
+        "resolved_call_sites": 6,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 6,
+        "unique_callees": [
+          "identity"
+        ],
+        "out_degree": 1,
+        "num_callers": 6,
+        "caller_functions": [
+          "identity"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[test.py:23:9:call#0 \u2192 test.py:9:13:call#0]",
+          "[test.py:30:9:call#0]",
+          "[test.py:26:9:call#0 \u2192 test.py:14:13:call#0]",
+          "[test.py:14:13:call#0]",
+          "[test.py:29:9:call#0]",
+          "[test.py:23:9:call#0]",
+          "[]",
+          "[test.py:26:9:call#0]",
+          "[test.py:9:13:call#0]"
+        ]
+      },
+      "process1": {
+        "function_name": "process1",
+        "total_call_sites": 1,
+        "resolved_call_sites": 1,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 1,
+        "unique_callees": [
+          "process1"
+        ],
+        "out_degree": 1,
+        "num_callers": 1,
+        "caller_functions": [
+          "process1"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[test.py:23:9:call#0]",
+          "[]"
+        ]
+      },
+      "process2": {
+        "function_name": "process2",
+        "total_call_sites": 1,
+        "resolved_call_sites": 1,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 1,
+        "unique_callees": [
+          "process2"
+        ],
+        "out_degree": 1,
+        "num_callers": 1,
+        "caller_functions": [
+          "process2"
+        ],
+        "in_degree": 1,
+        "contexts_seen": [
+          "[]",
+          "[test.py:26:9:call#0]"
+        ]
+      },
+      "main": {
+        "function_name": "main",
+        "total_call_sites": 0,
+        "resolved_call_sites": 0,
+        "unresolved_call_sites": 0,
+        "polymorphic_call_sites": 0,
+        "total_callees": 0,
+        "unique_callees": [],
+        "out_degree": 0,
+        "num_callers": 0,
+        "caller_functions": [],
+        "in_degree": 0,
+        "contexts_seen": []
+      }
+    },
+    "call_sites": [
+      {
+        "call_id": "test.py:9:13:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:14:13:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:23:9:call",
+        "caller_function": "process1",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "process1"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:26:9:call",
+        "caller_function": "process2",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "process2"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:29:9:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:30:9:call",
+        "caller_function": "identity",
+        "caller_context": "[]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:9:13:call",
+        "caller_function": "identity",
+        "caller_context": "[test.py:23:9:call#0]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      },
+      {
+        "call_id": "test.py:14:13:call",
+        "caller_function": "identity",
+        "caller_context": "[test.py:26:9:call#0]",
+        "line_number": null,
+        "call_type": "direct",
+        "num_targets": 1,
+        "target_functions": [
+          "identity"
+        ],
+        "resolved": true
+      }
+    ],
+    "analysis_duration": 0.004108905792236328
+  }
+}

@@ -1,0 +1,675 @@
+
+Found 22 Python modules in flask
+
+======================================================================
+PASS 1: Collecting function signatures from 5 modules...
+======================================================================
+
+[1/5] Scanning __init__.py... Generate CFG for __main__
+✓ (1 functions)
+[2/5] Scanning __main__.py... Generate CFG for __main__
+✓ (0 functions)
+[3/5] Scanning app.py... Generate CFG for __main__
+✓ (78 functions)
+[4/5] Scanning blueprints.py... Generate CFG for __main__
+✓ (28 functions)
+[5/5] Scanning cli.py... Generate CFG for __main__
+✓ (31 functions)
+
+======================================================================
+PASS 1 COMPLETE: Collected 128 unique functions
+======================================================================
+
+DEBUG: Sample of collected functions:
+    1. __main__.__getattr__
+    2. __main__.iscoroutinefunction
+    3. __main__._make_timedelta
+    4. __main__.Flask.session_cookie_name
+    5. __main__.Flask.send_file_max_age_default
+    6. __main__.Flask.use_x_sendfile
+    7. __main__.Flask.json_encoder
+    8. __main__.Flask.json_decoder
+    9. __main__.Flask.__init__
+   10. __main__.Flask._check_setup_finished
+   11. __main__.Flask.name
+   12. __main__.Flask.propagate_exceptions
+   13. __main__.Flask.logger
+   14. __main__.Flask.jinja_env
+   15. __main__.Flask.got_first_request
+   16. __main__.Flask.make_config
+   17. __main__.Flask.make_aborter
+   18. __main__.Flask.auto_find_instance_path
+   19. __main__.Flask.open_instance_resource
+   20. __main__.Flask.templates_auto_reload
+  ... and 108 more
+
+Function breakdown:
+  Module-level functions: 0
+  Class methods: 128
+  Total: 128
+======================================================================
+
+
+======================================================================
+PASS 2: Analyzing flask
+Total modules to analyze: 5
+Configuration: k=2, obj_depth=2
+Two-pass mode: ENABLED (cross-module resolution)
+======================================================================
+
+[1/5] Analyzing __init__.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module __init__
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 1
+Module-level functions found: 1
+Classes found: 0
+Class methods found: 0
+Total functions (with methods): 1
+  Function 1: __getattr__ (__main__.__getattr__)
+  Found cfg for __getattr__
+
+Starting pointer analysis with 1 functions...
+Planned analysis for 1 functions
+Planned module-level analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 1 local functions
+    Unified functions with CFG: 128/128
+    After injection: 129 functions (+128 from other modules)
+    Sample functions: ['__getattr__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name', '__main__.Flask.send_file_max_age_default', '__main__.Flask.use_x_sendfile', '__main__.Flask.json_encoder']
+Functions with events: 129/129
+Total events extracted: 1479
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Analysis converged after 5 iterations
+Statistics: {'objects_created': 95, 'constraints_processed': 5210, 'calls_processed': 335}
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 129
+  Function names: ['__getattr__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name']
+Env entries: 314
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), '$tmp_158'), (CallStringContext(call_sites=(), k=2), '$tmp_164'), (CallStringContext(call_sites=(), k=2), '$const_30')]
+Heap entries: 10
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:2245:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2303:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2338:46:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None))]
+Contexts: 6
+Statistics: {'objects_created': 95, 'constraints_processed': 5210, 'calls_processed': 335}
+Call graph stats: {'total_cs_edges': 5, 'unique_call_sites': 5, 'unique_functions': 5, 'contexts_with_calls': 1, 'registered_functions': 1}
+Class hierarchy bases: 0
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. chain (4 call sites)
+   2. is_running_from_reloader (3 call sites)
+   3. get_debug_flag (2 call sites)
+   4. _endpoint_from_view_func (2 call sites)
+   5. update_wrapper (2 call sites)
+   6. Lock (1 call sites)
+   7. $tmp_167 (1 call sites)
+   8. create_logger (1 call sites)
+   9. find_package (1 call sites)
+  10. DispatchingJinjaLoader (1 call sites)
+  11. processor (1 call sites)
+  12. asgiref_async_to_sync (1 call sites)
+  13. _wz_redirect (1 call sites)
+  14. _split_blueprint_path (1 call sites)
+  15. handler (1 call sites)
+  16. url_func (1 call sites)
+  17. $tmp_1043 (1 call sites)
+  18. $tmp_1054 (1 call sites)
+  19. $tmp_1074 (1 call sites)
+  20. $tmp_1113 (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 329
+  Method refs successfully resolved: 182
+  Resolution rate: 55.3%
+============================================================
+
+✓ (0.87s, 1 funcs)
+[2/5] Analyzing __main__.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module __main__
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 0
+Module-level functions found: 0
+Classes found: 0
+Class methods found: 0
+Total functions (with methods): 0
+
+Starting pointer analysis with 0 functions...
+WARNING: No functions with IR, trying module directly
+Planned analysis for 1 functions
+Planned module-level analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 1 local functions
+    Unified functions with CFG: 128/128
+    After injection: 129 functions (+128 from other modules)
+    Sample functions: ['__main__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name', '__main__.Flask.send_file_max_age_default', '__main__.Flask.use_x_sendfile', '__main__.Flask.json_encoder']
+Functions with events: 128/129
+Total events extracted: 1474
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Analysis converged after 5 iterations
+Statistics: {'objects_created': 95, 'constraints_processed': 5210, 'calls_processed': 335}
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 129
+  Function names: ['__main__', '__main__.__getattr__', '__main__.iscoroutinefunction', '__main__._make_timedelta', '__main__.Flask.session_cookie_name']
+Env entries: 314
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), '$tmp_158'), (CallStringContext(call_sites=(), k=2), '$tmp_164'), (CallStringContext(call_sites=(), k=2), '$const_30')]
+Heap entries: 10
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:2245:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2303:8:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None)), (AbstractObject(alloc_id='test.py:2338:46:alloc', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='elem', name=None))]
+Contexts: 6
+Statistics: {'objects_created': 95, 'constraints_processed': 5210, 'calls_processed': 335}
+Call graph stats: {'total_cs_edges': 5, 'unique_call_sites': 5, 'unique_functions': 5, 'contexts_with_calls': 1, 'registered_functions': 1}
+Class hierarchy bases: 0
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. chain (4 call sites)
+   2. is_running_from_reloader (3 call sites)
+   3. get_debug_flag (2 call sites)
+   4. _endpoint_from_view_func (2 call sites)
+   5. update_wrapper (2 call sites)
+   6. Lock (1 call sites)
+   7. $tmp_167 (1 call sites)
+   8. create_logger (1 call sites)
+   9. find_package (1 call sites)
+  10. DispatchingJinjaLoader (1 call sites)
+  11. processor (1 call sites)
+  12. asgiref_async_to_sync (1 call sites)
+  13. _wz_redirect (1 call sites)
+  14. _split_blueprint_path (1 call sites)
+  15. handler (1 call sites)
+  16. url_func (1 call sites)
+  17. $tmp_1043 (1 call sites)
+  18. $tmp_1054 (1 call sites)
+  19. $tmp_1074 (1 call sites)
+  20. $tmp_1113 (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 329
+  Method refs successfully resolved: 182
+  Resolution rate: 55.3%
+============================================================
+
+✓ (0.81s, 0 funcs)
+[3/5] Analyzing app.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module app
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 3
+Module-level functions found: 2
+Classes found: 1
+Class methods found: 76
+Total functions (with methods): 78
+  Function 1: iscoroutinefunction (__main__.iscoroutinefunction)
+  Function 2: _make_timedelta (__main__._make_timedelta)
+  Class 1: Flask (__main__.Flask)
+    Method 1: session_cookie_name (__main__.Flask.session_cookie_name)
+    Method 2: session_cookie_name (__main__.Flask.session_cookie_name)
+    ... and 74 more methods
+  Found cfg for iscoroutinefunction
+  Found cfg for _make_timedelta
+  Found cfg for session_cookie_name
+  Found cfg for session_cookie_name
+  Found cfg for send_file_max_age_default
+  Found cfg for send_file_max_age_default
+  Found cfg for use_x_sendfile
+  Found cfg for use_x_sendfile
+  Found cfg for json_encoder
+  Found cfg for json_encoder
+  Found cfg for json_decoder
+  Found cfg for json_decoder
+  Found cfg for __init__
+  Found cfg for _check_setup_finished
+  Found cfg for name
+  Found cfg for propagate_exceptions
+  Found cfg for logger
+  Found cfg for jinja_env
+  Found cfg for got_first_request
+  Found cfg for make_config
+  Found cfg for make_aborter
+  Found cfg for auto_find_instance_path
+  Found cfg for open_instance_resource
+  Found cfg for templates_auto_reload
+  Found cfg for templates_auto_reload
+  Found cfg for create_jinja_environment
+  Found cfg for create_global_jinja_loader
+  Found cfg for select_jinja_autoescape
+  Found cfg for update_template_context
+  Found cfg for make_shell_context
+  Found cfg for env
+  Found cfg for env
+  Found cfg for debug
+  Found cfg for debug
+  Found cfg for run
+  Found cfg for test_client
+  Found cfg for test_cli_runner
+  Found cfg for register_blueprint
+  Found cfg for iter_blueprints
+  Found cfg for add_url_rule
+  Found cfg for template_filter
+  Found cfg for add_template_filter
+  Found cfg for template_test
+  Found cfg for add_template_test
+  Found cfg for template_global
+  Found cfg for add_template_global
+  Found cfg for before_first_request
+  Found cfg for teardown_appcontext
+  Found cfg for shell_context_processor
+  Found cfg for _find_error_handler
+  Found cfg for handle_http_exception
+  Found cfg for trap_http_exception
+  Found cfg for handle_user_exception
+  Found cfg for handle_exception
+  Found cfg for log_exception
+  Found cfg for raise_routing_exception
+  Found cfg for dispatch_request
+  Found cfg for full_dispatch_request
+  Found cfg for finalize_request
+  Found cfg for make_default_options_response
+  Found cfg for should_ignore_error
+  Found cfg for ensure_sync
+  Found cfg for async_to_sync
+  Found cfg for url_for
+  Found cfg for redirect
+  Found cfg for make_response
+  Found cfg for create_url_adapter
+  Found cfg for inject_url_defaults
+  Found cfg for handle_url_build_error
+  Found cfg for preprocess_request
+  Found cfg for process_response
+  Found cfg for do_teardown_request
+  Found cfg for do_teardown_appcontext
+  Found cfg for app_context
+  Found cfg for request_context
+  Found cfg for test_request_context
+  Found cfg for wsgi_app
+  Found cfg for __call__
+
+Starting pointer analysis with 78 functions...
+Planned analysis for 70 functions
+Planned module-level analysis
+Planned 1 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 70 local functions
+    Unified functions with CFG: 128/128
+    After injection: 198 functions (+128 from other modules)
+    Sample functions: ['iscoroutinefunction', '_make_timedelta', 'session_cookie_name', 'send_file_max_age_default', 'use_x_sendfile', 'json_encoder', 'json_decoder', '__init__']
+Added class test.py:110:0:class with bases ['Scaffold']
+Added 1 class allocation events
+Functions with events: 198/198
+Total events extracted: 2268
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:_make_timedelta
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:iscoroutinefunction
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Analysis converged after 5 iterations
+Statistics: {'objects_created': 214, 'constraints_processed': 5210, 'calls_processed': 335}
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 198
+  Function names: ['iscoroutinefunction', '_make_timedelta', 'session_cookie_name', 'send_file_max_age_default', 'use_x_sendfile']
+Env entries: 315
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'Flask'), (CallStringContext(call_sites=(), k=2), '$tmp_141'), (CallStringContext(call_sites=(), k=2), '$tmp_139')]
+Heap entries: 86
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='session_cookie_name')), (AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='send_file_max_age_default')), (AbstractObject(alloc_id='test.py:110:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='use_x_sendfile'))]
+Contexts: 6
+Statistics: {'objects_created': 214, 'constraints_processed': 5210, 'calls_processed': 335}
+Call graph stats: {'total_cs_edges': 5, 'unique_call_sites': 5, 'unique_functions': 5, 'contexts_with_calls': 1, 'registered_functions': 70}
+Class hierarchy bases: 1
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. chain (4 call sites)
+   2. is_running_from_reloader (3 call sites)
+   3. get_debug_flag (2 call sites)
+   4. _endpoint_from_view_func (2 call sites)
+   5. update_wrapper (2 call sites)
+   6. Lock (1 call sites)
+   7. $tmp_167 (1 call sites)
+   8. create_logger (1 call sites)
+   9. find_package (1 call sites)
+  10. DispatchingJinjaLoader (1 call sites)
+  11. processor (1 call sites)
+  12. asgiref_async_to_sync (1 call sites)
+  13. _wz_redirect (1 call sites)
+  14. _split_blueprint_path (1 call sites)
+  15. handler (1 call sites)
+  16. $tmp_1043 (1 call sites)
+  17. url_func (1 call sites)
+  18. $tmp_1054 (1 call sites)
+  19. $tmp_1074 (1 call sites)
+  20. $tmp_1113 (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 329
+  Method refs successfully resolved: 182
+  Resolution rate: 55.3%
+============================================================
+
+✓ (2.21s, 78 funcs)
+[4/5] Analyzing blueprints.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module blueprints
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 2
+Module-level functions found: 0
+Classes found: 2
+Class methods found: 28
+Total functions (with methods): 28
+  Class 1: BlueprintSetupState (__main__.BlueprintSetupState)
+    Method 1: __init__ (__main__.BlueprintSetupState.__init__)
+    Method 2: add_url_rule (__main__.BlueprintSetupState.add_url_rule)
+  Class 2: Blueprint (__main__.Blueprint)
+    Method 1: __init__ (__main__.BlueprintSetupState.__init__)
+    Method 2: add_url_rule (__main__.BlueprintSetupState.add_url_rule)
+    ... and 26 more methods
+  Found cfg for __init__
+  Found cfg for add_url_rule
+  Found cfg for json_encoder
+  Found cfg for json_encoder
+  Found cfg for json_decoder
+  Found cfg for json_decoder
+  Found cfg for __init__
+  Found cfg for _check_setup_finished
+  Found cfg for record
+  Found cfg for record_once
+  Found cfg for make_setup_state
+  Found cfg for register_blueprint
+  Found cfg for register
+  Found cfg for add_url_rule
+  Found cfg for app_template_filter
+  Found cfg for add_app_template_filter
+  Found cfg for app_template_test
+  Found cfg for add_app_template_test
+  Found cfg for app_template_global
+  Found cfg for add_app_template_global
+  Found cfg for before_app_request
+  Found cfg for before_app_first_request
+  Found cfg for after_app_request
+  Found cfg for teardown_app_request
+  Found cfg for app_context_processor
+  Found cfg for app_errorhandler
+  Found cfg for app_url_value_preprocessor
+  Found cfg for app_url_defaults
+
+Starting pointer analysis with 28 functions...
+Planned analysis for 24 functions
+Planned module-level analysis
+Planned 2 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 24 local functions
+    Unified functions with CFG: 128/128
+    After injection: 152 functions (+128 from other modules)
+    Sample functions: ['__init__', 'add_url_rule', 'json_encoder', 'json_decoder', '_check_setup_finished', 'record', 'record_once', 'make_setup_state']
+Added class test.py:36:0:class with bases []
+Added class test.py:121:0:class with bases ['Scaffold']
+Added 2 class allocation events
+Functions with events: 152/152
+Total events extracted: 1594
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:__main__.find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:__main__.show_server_banner
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:__main__.load_dotenv
+Analysis converged after 5 iterations
+Statistics: {'objects_created': 142, 'constraints_processed': 5210, 'calls_processed': 335}
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 152
+  Function names: ['__init__', 'add_url_rule', 'json_encoder', 'json_decoder', '_check_setup_finished']
+Env entries: 316
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'BlueprintSetupState'), (CallStringContext(call_sites=(), k=2), 'Blueprint'), (CallStringContext(call_sites=(), k=2), 'wrapper')]
+Heap entries: 36
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:36:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__')), (AbstractObject(alloc_id='test.py:36:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='add_url_rule')), (AbstractObject(alloc_id='test.py:121:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__'))]
+Contexts: 6
+Statistics: {'objects_created': 142, 'constraints_processed': 5210, 'calls_processed': 335}
+Call graph stats: {'total_cs_edges': 5, 'unique_call_sites': 5, 'unique_functions': 5, 'contexts_with_calls': 1, 'registered_functions': 24}
+Class hierarchy bases: 2
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. chain (4 call sites)
+   2. is_running_from_reloader (3 call sites)
+   3. update_wrapper (2 call sites)
+   4. get_debug_flag (2 call sites)
+   5. _endpoint_from_view_func (2 call sites)
+   6. BlueprintSetupState (1 call sites)
+   7. Lock (1 call sites)
+   8. $tmp_167 (1 call sites)
+   9. create_logger (1 call sites)
+  10. find_package (1 call sites)
+  11. DispatchingJinjaLoader (1 call sites)
+  12. processor (1 call sites)
+  13. asgiref_async_to_sync (1 call sites)
+  14. _wz_redirect (1 call sites)
+  15. _split_blueprint_path (1 call sites)
+  16. handler (1 call sites)
+  17. url_func (1 call sites)
+  18. $tmp_1043 (1 call sites)
+  19. $tmp_1054 (1 call sites)
+  20. $tmp_1074 (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 329
+  Method refs successfully resolved: 182
+  Resolution rate: 55.3%
+============================================================
+
+✓ (1.37s, 28 funcs)
+[5/5] Analyzing cli.py... Generate CFG for __main__
+
+============================================================
+DEBUG: Module cli
+============================================================
+IR module type: <class 'pythonstan.ir.ir_statements.IRModule'>
+IR module name: __main__
+IR module qualname: __main__
+Subscopes found: 24
+Module-level functions found: 18
+Classes found: 6
+Class methods found: 13
+Total functions (with methods): 31
+  Function 1: find_best_app (__main__.find_best_app)
+  Function 2: _called_with_wrong_args (__main__._called_with_wrong_args)
+  Function 3: find_app_by_string (__main__.find_app_by_string)
+  ... and 15 more module functions
+  Class 1: NoAppException (__main__.NoAppException)
+  Class 2: ScriptInfo (__main__.ScriptInfo)
+    Method 1: __init__ (__main__.ScriptInfo.__init__)
+    Method 2: load_app (__main__.ScriptInfo.load_app)
+  Class 3: AppGroup (__main__.AppGroup)
+    Method 1: command (__main__.AppGroup.command)
+    Method 2: group (__main__.AppGroup.group)
+  ... and 3 more classes
+  Found cfg for find_best_app
+  Found cfg for _called_with_wrong_args
+  Found cfg for find_app_by_string
+  Found cfg for prepare_import
+  Found cfg for locate_app
+  Found cfg for get_version
+  Found cfg for with_appcontext
+  Found cfg for _set_app
+  Found cfg for _set_debug
+  Found cfg for _env_file_callback
+  Found cfg for _path_is_ancestor
+  Found cfg for load_dotenv
+  Found cfg for show_server_banner
+  Found cfg for _validate_key
+  Found cfg for run_command
+  Found cfg for shell_command
+  Found cfg for routes_command
+  Found cfg for main
+  Found cfg for __init__
+  Found cfg for load_app
+  Found cfg for command
+  Found cfg for group
+  Found cfg for __init__
+  Found cfg for _load_plugin_commands
+  Found cfg for get_command
+  Found cfg for list_commands
+  Found cfg for make_context
+  Found cfg for parse_args
+  Found cfg for __init__
+  Found cfg for convert
+  Found cfg for convert
+
+Starting pointer analysis with 31 functions...
+Planned analysis for 28 functions
+Planned module-level analysis
+Planned 6 classes for analysis
+
+  DEBUG: Function table injection (AFTER planning):
+    Unified table size: 128 functions
+    Before injection: 28 local functions
+    Unified functions with CFG: 128/128
+    After injection: 156 functions (+128 from other modules)
+    Sample functions: ['find_best_app', '_called_with_wrong_args', 'find_app_by_string', 'prepare_import', 'locate_app', 'get_version', 'with_appcontext', '_set_app']
+Added class test.py:28:0:class with bases ['click.UsageError']
+Added class test.py:266:0:class with bases []
+Added class test.py:362:0:class with bases ['click.Group']
+Added class test.py:481:0:class with bases ['test.py:362:0:class']
+Added class test.py:729:0:class with bases ['click.ParamType']
+Added class test.py:812:0:class with bases ['click.Path']
+Added 6 class allocation events
+Functions with events: 156/156
+Total events extracted: 1873
+Initialized analysis with 1 contexts
+Initial worklist size: constraints=1003, calls=317
+Added call edge: [] --[test.py:234:4:call#0]--> [test.py:234:4:call#0]:find_best_app
+Added call edge: [] --[test.py:877:0:call#0]--> [test.py:877:0:call#0]:show_server_banner
+Added call edge: [] --[test.py:626:8:call#0]--> [test.py:626:8:call#0]:load_dotenv
+Added call edge: [] --[test.py:351:51:call#0]--> [test.py:351:51:call#0]:__main__._make_timedelta
+Added call edge: [] --[test.py:1880:4:call#0]--> [test.py:1880:4:call#0]:__main__.iscoroutinefunction
+Analysis converged after 5 iterations
+Statistics: {'objects_created': 135, 'constraints_processed': 5210, 'calls_processed': 335}
+
+============================================================
+ANALYSIS RESULTS DEBUG
+============================================================
+Analysis complete: True
+Functions registered: 156
+  Function names: ['find_best_app', '_called_with_wrong_args', 'find_app_by_string', 'prepare_import', 'locate_app']
+Env entries: 320
+  Sample env keys: [(CallStringContext(call_sites=(), k=2), 'NoAppException'), (CallStringContext(call_sites=(), k=2), 'ScriptInfo'), (CallStringContext(call_sites=(), k=2), 'AppGroup')]
+Heap entries: 24
+  Sample heap keys: [(AbstractObject(alloc_id='test.py:266:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='__init__')), (AbstractObject(alloc_id='test.py:266:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='load_app')), (AbstractObject(alloc_id='test.py:362:0:class', alloc_ctx=CallStringContext(call_sites=(), k=2), recv_ctx_fingerprint=None), FieldKey(kind='attr', name='command'))]
+Contexts: 6
+Statistics: {'objects_created': 135, 'constraints_processed': 5210, 'calls_processed': 335}
+Call graph stats: {'total_cs_edges': 5, 'unique_call_sites': 5, 'unique_functions': 5, 'contexts_with_calls': 1, 'registered_functions': 28}
+Class hierarchy bases: 6
+Class hierarchy MRO cache: 0
+
+Unresolved calls: 33 unique callees
+Top unresolved callees:
+   1. chain (4 call sites)
+   2. is_running_from_reloader (3 call sites)
+   3. update_wrapper (2 call sites)
+   4. get_debug_flag (2 call sites)
+   5. _endpoint_from_view_func (2 call sites)
+   6. attr (1 call sites)
+   7. __import__ (1 call sites)
+   8. run_simple (1 call sites)
+   9. interactive_hook (1 call sites)
+  10. Completer (1 call sites)
+  11. get_load_dotenv (1 call sites)
+  12. ScriptInfo (1 call sites)
+  13. Lock (1 call sites)
+  14. $tmp_167 (1 call sites)
+  15. create_logger (1 call sites)
+  16. find_package (1 call sites)
+  17. DispatchingJinjaLoader (1 call sites)
+  18. processor (1 call sites)
+  19. asgiref_async_to_sync (1 call sites)
+  20. _wz_redirect (1 call sites)
+  ... and 13 more
+
+Method reference tracking:
+  Total method refs tracked: 329
+  Method refs successfully resolved: 182
+  Resolution rate: 55.3%
+============================================================
+
+✓ (1.83s, 31 funcs)
+
+======================================================================
+DIAGNOSTIC OUTPUT
+======================================================================
+
+Diagnostic output saved to: benchmark/reports/test_fix/flask_diagnostics_20251026_144344.json
+Summary:
+  Total unresolved calls: 165
+  Total empty $tmp variables: 0
+  Method refs tracked: 1645
+  Method refs resolved: 910
+
+
+Markdown report saved to: benchmark/reports/test_fix/flask_analysis_report_20251026_144344.md
+JSON report saved to: benchmark/reports/test_fix/flask_analysis_report_20251026_144344.json
+
+======================================================================
+Analysis of flask complete!
+Success rate: 100.0%
+======================================================================
+

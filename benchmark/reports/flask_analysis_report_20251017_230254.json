@@ -1,0 +1,81 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-17T23:02:54.204026",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 3,
+  "modules_succeeded": 3,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.007391691207885742,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0007555484771728516,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 0.3057851791381836,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 2
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.3139324188232422,
+    "analysis_time": 0.3139324188232422,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 6122.336798488374
+  },
+  "points_to_metrics": {
+    "total_variables": 1,
+    "total_points_to_sets": 1,
+    "singleton_sets": 1,
+    "empty_sets": 0,
+    "avg_set_size": 1.0,
+    "max_set_size": 1,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 1
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 4,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

@@ -1,0 +1,1363 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-25T23:27:24.473194",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 65,
+  "modules_succeeded": 61,
+  "modules_failed": 4,
+  "module_results": [
+    {
+      "module_name": "site-packages/click/__init__.py",
+      "success": true,
+      "duration": 0.0074808597564697266,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 72,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/click/_compat.py",
+      "success": true,
+      "duration": 0.5633141994476318,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 460,
+      "functions_analyzed": 51
+    },
+    {
+      "module_name": "site-packages/click/_termui_impl.py",
+      "success": true,
+      "duration": 0.9963634014129639,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 533,
+      "functions_analyzed": 33
+    },
+    {
+      "module_name": "site-packages/click/_textwrap.py",
+      "success": true,
+      "duration": 0.08512496948242188,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 39,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "site-packages/click/_winconsole.py",
+      "success": true,
+      "duration": 0.1271653175354004,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 215,
+      "functions_analyzed": 20
+    },
+    {
+      "module_name": "site-packages/click/core.py",
+      "success": true,
+      "duration": 2.772345781326294,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2272,
+      "functions_analyzed": 131
+    },
+    {
+      "module_name": "site-packages/click/decorators.py",
+      "success": true,
+      "duration": 0.387561559677124,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 376,
+      "functions_analyzed": 18
+    },
+    {
+      "module_name": "site-packages/click/exceptions.py",
+      "success": true,
+      "duration": 0.28565120697021484,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 219,
+      "functions_analyzed": 18
+    },
+    {
+      "module_name": "site-packages/click/formatting.py",
+      "success": true,
+      "duration": 0.3458428382873535,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 246,
+      "functions_analyzed": 16
+    },
+    {
+      "module_name": "site-packages/click/globals.py",
+      "success": true,
+      "duration": 0.08489084243774414,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 47,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "site-packages/click/parser.py",
+      "success": true,
+      "duration": 0.6090075969696045,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 369,
+      "functions_analyzed": 20
+    },
+    {
+      "module_name": "site-packages/click/shell_completion.py",
+      "success": true,
+      "duration": 0.3413383960723877,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 438,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "site-packages/click/termui.py",
+      "success": true,
+      "duration": 0.46482181549072266,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 635,
+      "functions_analyzed": 17
+    },
+    {
+      "module_name": "site-packages/click/testing.py",
+      "success": true,
+      "duration": 0.4876410961151123,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 386,
+      "functions_analyzed": 25
+    },
+    {
+      "module_name": "site-packages/click/types.py",
+      "success": true,
+      "duration": 1.0292367935180664,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 796,
+      "functions_analyzed": 61
+    },
+    {
+      "module_name": "site-packages/click/utils.py",
+      "success": true,
+      "duration": 0.36900782585144043,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 436,
+      "functions_analyzed": 30
+    },
+    {
+      "module_name": "site-packages/jinja2/__init__.py",
+      "success": true,
+      "duration": 0.01373910903930664,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 36,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/_identifier.py",
+      "success": true,
+      "duration": 0.0060024261474609375,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 4,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/async_utils.py",
+      "success": false,
+      "duration": 0.015215873718261719,
+      "error": "The test variable of IfEdge should be ast.Name!",
+      "error_type": "AssertionError",
+      "lines_of_code": 53,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/bccache.py",
+      "success": true,
+      "duration": 0.3528099060058594,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 309,
+      "functions_analyzed": 24
+    },
+    {
+      "module_name": "site-packages/jinja2/compiler.py",
+      "success": true,
+      "duration": 3.3233437538146973,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1533,
+      "functions_analyzed": 111
+    },
+    {
+      "module_name": "site-packages/jinja2/constants.py",
+      "success": true,
+      "duration": 0.017963886260986328,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 19,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/debug.py",
+      "success": true,
+      "duration": 0.18328595161437988,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 133,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "site-packages/jinja2/defaults.py",
+      "success": true,
+      "duration": 0.0749208927154541,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 39,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/environment.py",
+      "success": false,
+      "duration": 0.30529212951660156,
+      "error": "The test variable of IfEdge should be ast.Name!",
+      "error_type": "AssertionError",
+      "lines_of_code": 1356,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/exceptions.py",
+      "success": true,
+      "duration": 0.121978759765625,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 112,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "site-packages/jinja2/ext.py",
+      "success": true,
+      "duration": 1.0455231666564941,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 668,
+      "functions_analyzed": 36
+    },
+    {
+      "module_name": "site-packages/jinja2/filters.py",
+      "success": false,
+      "duration": 0.2265176773071289,
+      "error": "The test variable of IfEdge should be ast.Name!",
+      "error_type": "AssertionError",
+      "lines_of_code": 1384,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/idtracking.py",
+      "success": true,
+      "duration": 0.5506858825683594,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 241,
+      "functions_analyzed": 39
+    },
+    {
+      "module_name": "site-packages/jinja2/lexer.py",
+      "success": true,
+      "duration": 0.8763618469238281,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 674,
+      "functions_analyzed": 33
+    },
+    {
+      "module_name": "site-packages/jinja2/loaders.py",
+      "success": true,
+      "duration": 0.7704629898071289,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 490,
+      "functions_analyzed": 28
+    },
+    {
+      "module_name": "site-packages/jinja2/meta.py",
+      "success": true,
+      "duration": 0.14745616912841797,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 80,
+      "functions_analyzed": 5
+    },
+    {
+      "module_name": "site-packages/jinja2/nativetypes.py",
+      "success": true,
+      "duration": 0.11296653747558594,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 98,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "site-packages/jinja2/nodes.py",
+      "success": true,
+      "duration": 1.0172789096832275,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 872,
+      "functions_analyzed": 48
+    },
+    {
+      "module_name": "site-packages/jinja2/optimizer.py",
+      "success": true,
+      "duration": 0.04895186424255371,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 35,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "site-packages/jinja2/parser.py",
+      "success": true,
+      "duration": 2.15385103225708,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 900,
+      "functions_analyzed": 53
+    },
+    {
+      "module_name": "site-packages/jinja2/runtime.py",
+      "success": false,
+      "duration": 0.1519763469696045,
+      "error": "The test variable of IfEdge should be ast.Name!",
+      "error_type": "AssertionError",
+      "lines_of_code": 810,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "site-packages/jinja2/sandbox.py",
+      "success": true,
+      "duration": 0.2678344249725342,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 322,
+      "functions_analyzed": 18
+    },
+    {
+      "module_name": "site-packages/jinja2/tests.py",
+      "success": true,
+      "duration": 0.10189676284790039,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 183,
+      "functions_analyzed": 23
+    },
+    {
+      "module_name": "site-packages/jinja2/utils.py",
+      "success": true,
+      "duration": 0.8663907051086426,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 568,
+      "functions_analyzed": 48
+    },
+    {
+      "module_name": "site-packages/jinja2/visitor.py",
+      "success": true,
+      "duration": 0.33290648460388184,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 74,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "site-packages/markupsafe/__init__.py",
+      "success": true,
+      "duration": 0.5798752307891846,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 213,
+      "functions_analyzed": 29
+    },
+    {
+      "module_name": "site-packages/markupsafe/_native.py",
+      "success": true,
+      "duration": 0.05385398864746094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 49,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.03130650520324707,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0034532546997070312,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 1.5148885250091553,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 78
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 0.7850878238677979,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 28
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 1.0715153217315674,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 31
+    },
+    {
+      "module_name": "config.py",
+      "success": true,
+      "duration": 0.2628793716430664,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 262,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "ctx.py",
+      "success": true,
+      "duration": 0.2615208625793457,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 324,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "debughelpers.py",
+      "success": true,
+      "duration": 0.21932363510131836,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 129,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "globals.py",
+      "success": true,
+      "duration": 0.2588071823120117,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 87,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "helpers.py",
+      "success": true,
+      "duration": 0.3276398181915283,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 532,
+      "functions_analyzed": 21
+    },
+    {
+      "module_name": "json/__init__.py",
+      "success": true,
+      "duration": 0.1663651466369629,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 259,
+      "functions_analyzed": 10
+    },
+    {
+      "module_name": "json/provider.py",
+      "success": true,
+      "duration": 0.27800464630126953,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 240,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "json/tag.py",
+      "success": true,
+      "duration": 0.24356746673583984,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 219,
+      "functions_analyzed": 33
+    },
+    {
+      "module_name": "logging.py",
+      "success": true,
+      "duration": 0.0657646656036377,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 50,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "scaffold.py",
+      "success": true,
+      "duration": 0.3703491687774658,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 620,
+      "functions_analyzed": 36
+    },
+    {
+      "module_name": "sessions.py",
+      "success": true,
+      "duration": 0.24532127380371094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 294,
+      "functions_analyzed": 22
+    },
+    {
+      "module_name": "signals.py",
+      "success": true,
+      "duration": 0.03347015380859375,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 40,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "templating.py",
+      "success": true,
+      "duration": 0.20554852485656738,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 166,
+      "functions_analyzed": 14
+    },
+    {
+      "module_name": "testing.py",
+      "success": true,
+      "duration": 0.21573948860168457,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 235,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "typing.py",
+      "success": true,
+      "duration": 0.06067085266113281,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 56,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "views.py",
+      "success": true,
+      "duration": 0.11548328399658203,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "wrappers.py",
+      "success": true,
+      "duration": 0.05846285820007324,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 109,
+      "functions_analyzed": 7
+    }
+  ],
+  "error_categories": {
+    "AssertionError": [
+      "site-packages/jinja2/async_utils.py",
+      "site-packages/jinja2/environment.py",
+      "site-packages/jinja2/filters.py",
+      "site-packages/jinja2/runtime.py"
+    ]
+  },
+  "performance_metrics": {
+    "total_duration": 29.471307039260864,
+    "analysis_time": 29.471307039260864,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 117.50239658355713,
+    "peak_memory_current_mb": 109.83496284484863,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 752.867864680781,
+    "per_module_time": {
+      "site-packages/click/__init__.py": 0.00769805908203125,
+      "site-packages/click/_compat.py": 0.5638725757598877,
+      "site-packages/click/_termui_impl.py": 0.997100830078125,
+      "site-packages/click/_textwrap.py": 0.08536124229431152,
+      "site-packages/click/_winconsole.py": 0.1275310516357422,
+      "site-packages/click/core.py": 2.7745909690856934,
+      "site-packages/click/decorators.py": 0.3880777359008789,
+      "site-packages/click/exceptions.py": 0.2860293388366699,
+      "site-packages/click/formatting.py": 0.34622931480407715,
+      "site-packages/click/globals.py": 0.08514595031738281,
+      "site-packages/click/parser.py": 0.6095716953277588,
+      "site-packages/click/shell_completion.py": 0.34193897247314453,
+      "site-packages/click/termui.py": 0.46572351455688477,
+      "site-packages/click/testing.py": 0.4881579875946045,
+      "site-packages/click/types.py": 1.0301313400268555,
+      "site-packages/click/utils.py": 0.369553804397583,
+      "site-packages/jinja2/__init__.py": 0.013967752456665039,
+      "site-packages/jinja2/_identifier.py": 0.006227254867553711,
+      "site-packages/jinja2/async_utils.py": 0.015479564666748047,
+      "site-packages/jinja2/bccache.py": 0.3532407283782959,
+      "site-packages/jinja2/compiler.py": 3.324880361557007,
+      "site-packages/jinja2/constants.py": 0.0182039737701416,
+      "site-packages/jinja2/debug.py": 0.1836097240447998,
+      "site-packages/jinja2/defaults.py": 0.0751645565032959,
+      "site-packages/jinja2/environment.py": 0.3067958354949951,
+      "site-packages/jinja2/exceptions.py": 0.12229728698730469,
+      "site-packages/jinja2/ext.py": 1.0463931560516357,
+      "site-packages/jinja2/filters.py": 0.22791647911071777,
+      "site-packages/jinja2/idtracking.py": 0.5510854721069336,
+      "site-packages/jinja2/lexer.py": 0.8772373199462891,
+      "site-packages/jinja2/loaders.py": 0.7711331844329834,
+      "site-packages/jinja2/meta.py": 0.1477360725402832,
+      "site-packages/jinja2/nativetypes.py": 0.11324548721313477,
+      "site-packages/jinja2/nodes.py": 1.0182373523712158,
+      "site-packages/jinja2/optimizer.py": 0.04919886589050293,
+      "site-packages/jinja2/parser.py": 2.1548264026641846,
+      "site-packages/jinja2/runtime.py": 0.1528918743133545,
+      "site-packages/jinja2/sandbox.py": 0.26831912994384766,
+      "site-packages/jinja2/tests.py": 0.10222506523132324,
+      "site-packages/jinja2/utils.py": 0.8670783042907715,
+      "site-packages/jinja2/visitor.py": 0.33318614959716797,
+      "site-packages/markupsafe/__init__.py": 0.5802719593048096,
+      "site-packages/markupsafe/_native.py": 0.054114580154418945,
+      "__init__.py": 0.03144955635070801,
+      "__main__.py": 0.003538370132446289,
+      "app.py": 1.5167944431304932,
+      "blueprints.py": 0.7856855392456055,
+      "cli.py": 1.0722458362579346,
+      "config.py": 0.26320838928222656,
+      "ctx.py": 0.2618601322174072,
+      "debughelpers.py": 0.21952390670776367,
+      "globals.py": 0.2589690685272217,
+      "helpers.py": 0.3282656669616699,
+      "json/__init__.py": 0.16665410995483398,
+      "json/provider.py": 0.2782871723175049,
+      "json/tag.py": 0.24382543563842773,
+      "logging.py": 0.06590437889099121,
+      "scaffold.py": 0.37102627754211426,
+      "sessions.py": 0.24564909934997559,
+      "signals.py": 0.03362536430358887,
+      "templating.py": 0.2057650089263916,
+      "testing.py": 0.21601629257202148,
+      "typing.py": 0.06081199645996094,
+      "views.py": 0.11568045616149902,
+      "wrappers.py": 0.058646440505981445
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 2099,
+    "total_points_to_sets": 2099,
+    "singleton_sets": 1708,
+    "empty_sets": 0,
+    "avg_set_size": 1.4244878513577894,
+    "max_set_size": 30,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 1708,
+      "2-5": 348,
+      "6-10": 23,
+      "11-20": 19,
+      "21-50": 1
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 1058,
+    "total_call_sites": 0,
+    "total_edges": 136,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 261,
+    "classes_with_mro": 261,
+    "diamond_patterns": 0,
+    "max_mro_length": 3,
+    "avg_mro_length": 3.0
+  },
+  "object_metrics": {
+    "total_objects_created": 1435,
+    "avg_objects_per_variable": 1.4244878513577894,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 1708,
+    "vars_with_multiple": 391,
+    "object_types": {
+      "alloc": 1123,
+      "class": 235,
+      "func": 77
+    }
+  },
+  "function_metrics": {
+    "_force_correct_text_stream": {
+      "function_name": "_force_correct_text_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "get_best_encoding": {
+      "function_name": "get_best_encoding",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 6
+    },
+    "_is_binary_writer": {
+      "function_name": "_is_binary_writer",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 7
+    },
+    "_make_text_stream": {
+      "function_name": "_make_text_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 6,
+      "precision": 100.0,
+      "contexts_seen": 6
+    },
+    "get_filesystem_encoding": {
+      "function_name": "get_filesystem_encoding",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_is_binary_reader": {
+      "function_name": "_is_binary_reader",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 4
+    },
+    "isatty": {
+      "function_name": "isatty",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_is_compat_stream_attr": {
+      "function_name": "_is_compat_stream_attr",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "strip_ansi": {
+      "function_name": "strip_ansi",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_get_windows_console_stream": {
+      "function_name": "_get_windows_console_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "_find_binary_reader": {
+      "function_name": "_find_binary_reader",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_is_jupyter_kernel_output": {
+      "function_name": "_is_jupyter_kernel_output",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "get_binary_stdout": {
+      "function_name": "get_binary_stdout",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_find_binary_writer": {
+      "function_name": "_find_binary_writer",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 5
+    },
+    "is_ascii_encoding": {
+      "function_name": "is_ascii_encoding",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 6
+    },
+    "raw_terminal": {
+      "function_name": "raw_terminal",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_nullpager": {
+      "function_name": "_nullpager",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_is_console": {
+      "function_name": "_is_console",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "augment_usage_errors": {
+      "function_name": "augment_usage_errors",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_check_multicommand": {
+      "function_name": "_check_multicommand",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "command": {
+      "function_name": "command",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 3,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "option": {
+      "function_name": "option",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 4,
+      "variables_tracked": 8,
+      "precision": 100.0,
+      "contexts_seen": 5
+    },
+    "wrap_text": {
+      "function_name": "wrap_text",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "measure_table": {
+      "function_name": "measure_table",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 9,
+      "variables_tracked": 10,
+      "precision": 60.0,
+      "contexts_seen": 2
+    },
+    "_unpack_args": {
+      "function_name": "_unpack_args",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 12,
+      "variables_tracked": 19,
+      "precision": 52.63157894736842,
+      "contexts_seen": 2
+    },
+    "normalize_opt": {
+      "function_name": "normalize_opt",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "_resolve_context": {
+      "function_name": "_resolve_context",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 3,
+      "precision": 66.66666666666667,
+      "contexts_seen": 2
+    },
+    "_start_of_option": {
+      "function_name": "_start_of_option",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 4
+    },
+    "get_completion_class": {
+      "function_name": "get_completion_class",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_resolve_incomplete": {
+      "function_name": "_resolve_incomplete",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "style": {
+      "function_name": "style",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 10,
+      "variables_tracked": 19,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_format_default": {
+      "function_name": "_format_default",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 4,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 8
+    },
+    "_build_prompt": {
+      "function_name": "_build_prompt",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 9,
+      "precision": 100.0,
+      "contexts_seen": 4
+    },
+    "_interpret_color": {
+      "function_name": "_interpret_color",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 6
+    },
+    "make_input_stream": {
+      "function_name": "make_input_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "convert_type": {
+      "function_name": "convert_type",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 8,
+      "variables_tracked": 12,
+      "precision": 75.0,
+      "contexts_seen": 2
+    },
+    "find_undeclared": {
+      "function_name": "find_undeclared",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 6,
+      "variables_tracked": 8,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "get_template_locals": {
+      "function_name": "get_template_locals",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 18,
+      "variables_tracked": 12,
+      "precision": 50.0,
+      "contexts_seen": 4
+    },
+    "fake_traceback": {
+      "function_name": "fake_traceback",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 6,
+      "precision": 83.33333333333333,
+      "contexts_seen": 2
+    },
+    "_make_new_ngettext": {
+      "function_name": "_make_new_ngettext",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_make_new_npgettext": {
+      "function_name": "_make_new_npgettext",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "extract_from_ast": {
+      "function_name": "extract_from_ast",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "_make_new_gettext": {
+      "function_name": "_make_new_gettext",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_make_new_pgettext": {
+      "function_name": "_make_new_pgettext",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 3,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "compile_rules": {
+      "function_name": "compile_rules",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 13,
+      "variables_tracked": 27,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "describe_token_expr": {
+      "function_name": "describe_token_expr",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 1,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "describe_token": {
+      "function_name": "describe_token",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "get_eval_context": {
+      "function_name": "get_eval_context",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "inspect_format_method": {
+      "function_name": "inspect_format_method",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "getattr": {
+      "function_name": "getattr",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 6,
+      "variables_tracked": 16,
+      "precision": 93.75,
+      "contexts_seen": 5
+    },
+    "next": {
+      "function_name": "next",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 17,
+      "variables_tracked": 27,
+      "precision": 100.0,
+      "contexts_seen": 10
+    },
+    "pformat": {
+      "function_name": "pformat",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "unescape": {
+      "function_name": "unescape",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 14,
+      "precision": 92.85714285714286,
+      "contexts_seen": 3
+    },
+    "escape": {
+      "function_name": "escape",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 5
+    },
+    "iscoroutinefunction": {
+      "function_name": "iscoroutinefunction",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_make_timedelta": {
+      "function_name": "_make_timedelta",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "show_server_banner": {
+      "function_name": "show_server_banner",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "find_best_app": {
+      "function_name": "find_best_app",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 8,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "load_dotenv": {
+      "function_name": "load_dotenv",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_dump_loader_info": {
+      "function_name": "_dump_loader_info",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_prepare_send_file_kwargs": {
+      "function_name": "_prepare_send_file_kwargs",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "_split_blueprint_path": {
+      "function_name": "_split_blueprint_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "htmlsafe_dumps": {
+      "function_name": "htmlsafe_dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "loads": {
+      "function_name": "loads",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 8,
+      "precision": 87.5,
+      "contexts_seen": 3
+    },
+    "dumps": {
+      "function_name": "dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 10,
+      "precision": 90.0,
+      "contexts_seen": 3
+    },
+    "has_level_handler": {
+      "function_name": "has_level_handler",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_path_is_relative_to": {
+      "function_name": "_path_is_relative_to",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_find_package_path": {
+      "function_name": "_find_package_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 2,
+      "precision": 50.0,
+      "contexts_seen": 2
+    },
+    "_render": {
+      "function_name": "_render",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "_stream": {
+      "function_name": "_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 3
+    }
+  }
+}

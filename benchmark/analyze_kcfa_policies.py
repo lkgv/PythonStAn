@@ -59,18 +59,23 @@ ALL_POLICIES = [
 # Project configurations
 PROJECT_CONFIGS = {
     "flask": {
-        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src/flask/__init__.py",
+        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src/flask/__main__.py",
         "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src",
+        "import_level": 10,
+        "time_count": True,
+        "max_iterations": 5000000,
         "library_paths": [
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.10/site-packages",
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.10",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9/site-packages",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9",
         ],
         "analysis": []  # No pipeline analyses needed
     },
     "werkzeug": {
         "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src/werkzeug/__init__.py",
         "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src",
-        "import_level": 2,
+        "import_level": 5,
+        "time_count": True,
+        "index_sensitive": True,
         "library_paths": [
             "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10/site-packages",
             "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10",
@@ -105,9 +110,11 @@ class PolicyBenchmark:
         print(f"Testing {len(self.policies)} policies")
         print(f"{'='*80}\n")
         
+        policies = ["0-cfa", "1-cfa", "1-obj", "1-param"]
         # for i, policy in enumerate(self.policies, 1):
+        # for i, policy in enumerate(policies, 1):
         for i in [2]:
-            policy = "2-cfa"
+            policy = "3-param"
             
             print(f"[{i}/{len(self.policies)}] Testing policy: {policy}")
             print("-" * 80)
@@ -123,6 +130,8 @@ class PolicyBenchmark:
                     print(f"  Iterations: {metrics.solver_iterations}")
                     print(f"  Variables: {metrics.num_variables}")
                     print(f"  Objects: {metrics.num_objects}")
+                    print(f"  Call edges: {metrics.call_edges}")
+                    print(f"  Heap locations: {metrics.num_heap_locations}")
                     print(f"  Unknowns: {metrics.total_unknowns}")
                 else:
                     print(f"✗ FAILED: {metrics.error_message}")
@@ -175,7 +184,7 @@ class PolicyBenchmark:
             
             pta_config = Config(
                 context_policy=policy,
-                max_iterations=10000,
+                max_iterations=5000000,
                 verbose=False,
                 log_level="INFO",  # Reduce noise
                 track_unknowns=True,
@@ -183,7 +192,8 @@ class PolicyBenchmark:
                 use_mro_resolution=True,
                 project_path=self.config['project_path'],
                 library_paths=self.config.get('library_paths', []),
-                max_import_depth=2
+                max_import_depth=self.config.get('import_level', 2),
+                index_sensitive=True
             )
             
             analyzer_config = {

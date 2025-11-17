@@ -14,3 +14,7 @@ __pypackages__/
 .env.production.local
 *.bak
 *.pyc
+debug_*
+logs
+docs
+examples

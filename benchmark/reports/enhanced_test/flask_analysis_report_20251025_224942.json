@@ -1,0 +1,85 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-25T22:49:42.064026",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 2,
+  "modules_succeeded": 2,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.03007364273071289,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0029768943786621094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.033050537109375,
+    "analysis_time": 0.033050537109375,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 3.0365982055664062,
+    "peak_memory_current_mb": 0.1932821273803711,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 1966.68513388735,
+    "per_module_time": {
+      "__init__.py": 0.030205488204956055,
+      "__main__.py": 0.0030541419982910156
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 0,
+    "total_points_to_sets": 0,
+    "singleton_sets": 0,
+    "empty_sets": 0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "median_set_size": 0.0,
+    "set_size_distribution": {}
+  },
+  "call_graph_metrics": {
+    "total_functions": 2,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  },
+  "object_metrics": {
+    "total_objects_created": 0,
+    "avg_objects_per_variable": 0.0,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 0,
+    "vars_with_multiple": 0,
+    "object_types": {}
+  },
+  "function_metrics": {}
+}

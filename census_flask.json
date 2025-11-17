@@ -1,0 +1,360 @@
+{
+  "project_name": "flask",
+  "modules_analyzed": 35,
+  "total_calls": 1356,
+  "direct_calls": 504,
+  "attribute_calls": 834,
+  "subscript_calls": 2,
+  "other_calls": 16,
+  "functions_defined": 413,
+  "classes_defined": 49,
+  "top_callees": {
+    "get": 56,
+    "isinstance": 45,
+    "warn": 44,
+    "append": 37,
+    "TypeVar": 27,
+    "setdefault": 27,
+    "super": 25,
+    "join": 18,
+    "getattr": 17,
+    "update": 17,
+    "<unknown>": 16,
+    "len": 16,
+    "pop": 15,
+    "ensure_sync": 14,
+    "NoAppException": 13,
+    "route": 13,
+    "send": 12,
+    "ValueError": 11,
+    "record_once": 11,
+    "option": 11,
+    "__init__": 10,
+    "type": 10,
+    "exc_info": 10,
+    "RuntimeError": 10,
+    "dirname": 10,
+    "signal": 10,
+    "TypeError": 9,
+    "set": 9,
+    "items": 9,
+    "extend": 9,
+    "defaultdict": 9,
+    "hasattr": 9,
+    "get_db": 9,
+    "echo": 8,
+    "lower": 8,
+    "url_for": 8,
+    "redirect": 8,
+    "dumps": 8,
+    "execute": 8,
+    "ProjectLink": 7,
+    "dict": 7,
+    "add": 7,
+    "_get_current_object": 7,
+    "add_command": 7,
+    "BadParameter": 7,
+    "sorted": 7,
+    "loads": 7,
+    "iter": 7,
+    "render_template": 7,
+    "add_url_rule": 6,
+    "reversed": 6,
+    "rstrip": 6,
+    "lstrip": 6,
+    "LocalProxy": 6,
+    "next": 6,
+    "tag": 6,
+    "AttributeError": 5,
+    "get_debug_flag": 5,
+    "open": 5,
+    "secho": 5,
+    "load_dotenv": 5,
+    "response_class": 5,
+    "update_wrapper": 5,
+    "split": 5,
+    "command": 5,
+    "_method_route": 5,
+    "AssertionError": 4,
+    "basename": 4,
+    "chain": 4,
+    "int": 4,
+    "cast": 4,
+    "push": 4,
+    "Option": 4,
+    "load_app": 4,
+    "ensure_object": 4,
+    "app_context": 4,
+    "Path": 4,
+    "list": 4,
+    "load": 4,
+    "isfile": 4,
+    "read": 4,
+    "max": 4,
+    "format": 4,
+    "abspath": 4,
+    "commit": 4,
+    "flash": 4,
+    "setup": 3,
+    "strip": 3,
+    "main": 3,
+    "ConfigAttribute": 3,
+    "bool": 3,
+    "copy": 3,
+    "func": 3,
+    "is_running_from_reloader": 3,
+    "partition": 3,
+    "cls": 3,
+    "register": 3,
+    "values": 3,
+    "_find_error_handler": 3,
+    "create_url_adapter": 3
+  },
+  "module_stats": {
+    "setup.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "docs/conf.py": {
+      "total_calls": 15,
+      "direct_calls": 10,
+      "attribute_calls": 5,
+      "functions_defined": 2,
+      "classes_defined": 0
+    },
+    "src/flask/__main__.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "src/flask/__init__.py": {
+      "total_calls": 3,
+      "direct_calls": 1,
+      "attribute_calls": 2,
+      "functions_defined": 1,
+      "classes_defined": 0
+    },
+    "src/flask/app.py": {
+      "total_calls": 259,
+      "direct_calls": 97,
+      "attribute_calls": 150,
+      "functions_defined": 81,
+      "classes_defined": 1
+    },
+    "src/flask/blueprints.py": {
+      "total_calls": 108,
+      "direct_calls": 22,
+      "attribute_calls": 85,
+      "functions_defined": 37,
+      "classes_defined": 2
+    },
+    "src/flask/cli.py": {
+      "total_calls": 232,
+      "direct_calls": 90,
+      "attribute_calls": 141,
+      "functions_defined": 34,
+      "classes_defined": 6
+    },
+    "src/flask/config.py": {
+      "total_calls": 37,
+      "direct_calls": 16,
+      "attribute_calls": 21,
+      "functions_defined": 12,
+      "classes_defined": 2
+    },
+    "src/flask/ctx.py": {
+      "total_calls": 61,
+      "direct_calls": 14,
+      "attribute_calls": 46,
+      "functions_defined": 27,
+      "classes_defined": 3
+    },
+    "src/flask/debughelpers.py": {
+      "total_calls": 39,
+      "direct_calls": 16,
+      "attribute_calls": 23,
+      "functions_defined": 7,
+      "classes_defined": 4
+    },
+    "src/flask/globals.py": {
+      "total_calls": 21,
+      "direct_calls": 11,
+      "attribute_calls": 10,
+      "functions_defined": 6,
+      "classes_defined": 1
+    },
+    "src/flask/helpers.py": {
+      "total_calls": 68,
+      "direct_calls": 29,
+      "attribute_calls": 39,
+      "functions_defined": 23,
+      "classes_defined": 1
+    },
+    "src/flask/logging.py": {
+      "total_calls": 9,
+      "direct_calls": 2,
+      "attribute_calls": 7,
+      "functions_defined": 3,
+      "classes_defined": 0
+    },
+    "src/flask/scaffold.py": {
+      "total_calls": 109,
+      "direct_calls": 41,
+      "attribute_calls": 68,
+      "functions_defined": 40,
+      "classes_defined": 1
+    },
+    "src/flask/sessions.py": {
+      "total_calls": 51,
+      "direct_calls": 16,
+      "attribute_calls": 35,
+      "functions_defined": 23,
+      "classes_defined": 5
+    },
+    "src/flask/signals.py": {
+      "total_calls": 13,
+      "direct_calls": 3,
+      "attribute_calls": 10,
+      "functions_defined": 4,
+      "classes_defined": 2
+    },
+    "src/flask/templating.py": {
+      "total_calls": 44,
+      "direct_calls": 11,
+      "attribute_calls": 33,
+      "functions_defined": 15,
+      "classes_defined": 2
+    },
+    "src/flask/typing.py": {
+      "total_calls": 1,
+      "direct_calls": 0,
+      "attribute_calls": 1,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "src/flask/views.py": {
+      "total_calls": 22,
+      "direct_calls": 10,
+      "attribute_calls": 9,
+      "functions_defined": 6,
+      "classes_defined": 2
+    },
+    "src/flask/wrappers.py": {
+      "total_calls": 9,
+      "direct_calls": 6,
+      "attribute_calls": 3,
+      "functions_defined": 7,
+      "classes_defined": 2
+    },
+    "src/flask/json/__init__.py": {
+      "total_calls": 27,
+      "direct_calls": 5,
+      "attribute_calls": 22,
+      "functions_defined": 10,
+      "classes_defined": 2
+    },
+    "src/flask/json/provider.py": {
+      "total_calls": 43,
+      "direct_calls": 11,
+      "attribute_calls": 32,
+      "functions_defined": 11,
+      "classes_defined": 2
+    },
+    "src/flask/json/tag.py": {
+      "total_calls": 46,
+      "direct_calls": 31,
+      "attribute_calls": 15,
+      "functions_defined": 33,
+      "classes_defined": 10
+    },
+    "examples/celery/make_celery.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "examples/javascript/setup.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "examples/tutorial/setup.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "examples/tutorial/flaskr/__init__.py": {
+      "total_calls": 11,
+      "direct_calls": 1,
+      "attribute_calls": 10,
+      "functions_defined": 2,
+      "classes_defined": 0
+    },
+    "examples/tutorial/flaskr/auth.py": {
+      "total_calls": 32,
+      "direct_calls": 19,
+      "attribute_calls": 13,
+      "functions_defined": 6,
+      "classes_defined": 0
+    },
+    "examples/tutorial/flaskr/blog.py": {
+      "total_calls": 35,
+      "direct_calls": 21,
+      "attribute_calls": 14,
+      "functions_defined": 5,
+      "classes_defined": 0
+    },
+    "examples/tutorial/flaskr/db.py": {
+      "total_calls": 13,
+      "direct_calls": 2,
+      "attribute_calls": 11,
+      "functions_defined": 5,
+      "classes_defined": 0
+    },
+    "examples/javascript/js_example/__init__.py": {
+      "total_calls": 1,
+      "direct_calls": 1,
+      "attribute_calls": 0,
+      "functions_defined": 0,
+      "classes_defined": 0
+    },
+    "examples/javascript/js_example/views.py": {
+      "total_calls": 7,
+      "direct_calls": 2,
+      "attribute_calls": 5,
+      "functions_defined": 2,
+      "classes_defined": 0
+    },
+    "examples/celery/src/task_app/__init__.py": {
+      "total_calls": 13,
+      "direct_calls": 5,
+      "attribute_calls": 8,
+      "functions_defined": 4,
+      "classes_defined": 1
+    },
+    "examples/celery/src/task_app/tasks.py": {
+      "total_calls": 7,
+      "direct_calls": 4,
+      "attribute_calls": 3,
+      "functions_defined": 3,
+      "classes_defined": 0
+    },
+    "examples/celery/src/task_app/views.py": {
+      "total_calls": 15,
+      "direct_calls": 2,
+      "attribute_calls": 13,
+      "functions_defined": 4,
+      "classes_defined": 0
+    }
+  }
+}

@@ -1,0 +1,357 @@
+{
+  "summary": {
+    "total_functions": 156,
+    "total_variables": 454,
+    "total_heap_entries": 24,
+    "total_contexts": 70,
+    "functions_with_calls": 25,
+    "functions_without_calls": 131
+  },
+  "unresolved_calls": {
+    "by_callee": {
+      "attr": 1,
+      "__import__": 1,
+      "update_wrapper": 10,
+      "is_running_from_reloader": 3,
+      "run_simple": 1,
+      "get_debug_flag": 2,
+      "interactive_hook": 1,
+      "Completer": 1,
+      "get_load_dotenv": 1,
+      "ScriptInfo": 1,
+      "Lock": 1,
+      "$tmp_167": 1,
+      "create_logger": 1,
+      "find_package": 2,
+      "DispatchingJinjaLoader": 1,
+      "chain": 6,
+      "processor": 1,
+      "_endpoint_from_view_func": 2,
+      "asgiref_async_to_sync": 7,
+      "_wz_redirect": 1,
+      "_split_blueprint_path": 1,
+      "handler": 1,
+      "$tmp_1043": 3,
+      "url_func": 3,
+      "$tmp_1074": 3,
+      "$tmp_1054": 3,
+      "$tmp_1113": 1,
+      "$tmp_1132": 1,
+      "AppContext": 1,
+      "RequestContext": 4,
+      "EnvironBuilder": 1,
+      "response": 2,
+      "BlueprintSetupState": 1
+    },
+    "temp_var_count": 6,
+    "method_count": 0
+  },
+  "method_refs": {
+    "total_tracked": 504,
+    "resolved": 263,
+    "empty_receiver_samples": [
+      {
+        "temp_var": "$tmp_10",
+        "receiver": "module",
+        "method": "__dict__"
+      },
+      {
+        "temp_var": "$tmp_11",
+        "receiver": "$tmp_10",
+        "method": "values"
+      },
+      {
+        "temp_var": "$tmp_57",
+        "receiver": "sys",
+        "method": "exc_info"
+      },
+      {
+        "temp_var": "$tmp_63",
+        "receiver": "$tmp_62",
+        "method": "f_code"
+      },
+      {
+        "temp_var": "$tmp_64",
+        "receiver": "f",
+        "method": "__code__"
+      },
+      {
+        "temp_var": "$tmp_62",
+        "receiver": "tb",
+        "method": "tb_frame"
+      },
+      {
+        "temp_var": "$tmp_129",
+        "receiver": "inspect",
+        "method": "isfunction"
+      },
+      {
+        "temp_var": "name",
+        "receiver": "expr",
+        "method": "id"
+      },
+      {
+        "temp_var": "$tmp_77",
+        "receiver": "ast",
+        "method": "Name"
+      },
+      {
+        "temp_var": "$tmp_68",
+        "receiver": "app_name",
+        "method": "strip"
+      },
+      {
+        "temp_var": "$tmp_67",
+        "receiver": "ast",
+        "method": "parse"
+      },
+      {
+        "temp_var": "$tmp_199",
+        "receiver": "$const_26",
+        "method": "join"
+      },
+      {
+        "temp_var": "$tmp_180",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_177",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_178",
+        "receiver": "$tmp_177",
+        "method": "exists"
+      },
+      {
+        "temp_var": "$tmp_157",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_166",
+        "receiver": "$tmp_165",
+        "method": "dirname"
+      },
+      {
+        "temp_var": "$tmp_165",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_146",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_195",
+        "receiver": "sys",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_196",
+        "receiver": "$tmp_195",
+        "method": "insert"
+      },
+      {
+        "temp_var": "$tmp_190",
+        "receiver": "sys",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_150",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_170",
+        "receiver": "$tmp_169",
+        "method": "split"
+      },
+      {
+        "temp_var": "$tmp_169",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_222",
+        "receiver": "sys",
+        "method": "modules"
+      },
+      {
+        "temp_var": "$tmp_338",
+        "receiver": "param",
+        "method": "name"
+      },
+      {
+        "temp_var": "$tmp_342",
+        "receiver": "ParameterSource",
+        "method": "DEFAULT_MAP"
+      },
+      {
+        "temp_var": "$tmp_341",
+        "receiver": "ParameterSource",
+        "method": "DEFAULT"
+      },
+      {
+        "temp_var": "$tmp_577",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_589",
+        "receiver": "os",
+        "method": "sep"
+      },
+      {
+        "temp_var": "$tmp_587",
+        "receiver": "$tmp_585",
+        "method": "lstrip"
+      },
+      {
+        "temp_var": "$tmp_622",
+        "receiver": "$tmp_621",
+        "method": "isfile"
+      },
+      {
+        "temp_var": "$tmp_625",
+        "receiver": "dotenv",
+        "method": "load_dotenv"
+      },
+      {
+        "temp_var": "$tmp_621",
+        "receiver": "os",
+        "method": "path"
+      },
+      {
+        "temp_var": "$tmp_683",
+        "receiver": "$tmp_682",
+        "method": "get"
+      },
+      {
+        "temp_var": "$tmp_686",
+        "receiver": "ssl",
+        "method": "SSLContext"
+      },
+      {
+        "temp_var": "$tmp_741",
+        "receiver": "info",
+        "method": "app_import_path"
+      },
+      {
+        "temp_var": "$tmp_729",
+        "receiver": "info",
+        "method": "load_app"
+      }
+    ]
+  },
+  "points_to_distribution": {
+    "empty_sets": 0,
+    "singleton_sets": 334,
+    "multi_sets": 120
+  },
+  "functions_without_calls_sample": [
+    "__init__",
+    "__main__.AppGroup.command",
+    "__main__.AppGroup.group",
+    "__main__.Blueprint.__init__",
+    "__main__.Blueprint._check_setup_finished",
+    "__main__.Blueprint.add_app_template_filter",
+    "__main__.Blueprint.add_app_template_global",
+    "__main__.Blueprint.add_app_template_test",
+    "__main__.Blueprint.add_url_rule",
+    "__main__.Blueprint.after_app_request",
+    "__main__.Blueprint.app_context_processor",
+    "__main__.Blueprint.app_errorhandler",
+    "__main__.Blueprint.app_template_filter",
+    "__main__.Blueprint.app_template_global",
+    "__main__.Blueprint.app_template_test",
+    "__main__.Blueprint.app_url_defaults",
+    "__main__.Blueprint.app_url_value_preprocessor",
+    "__main__.Blueprint.before_app_first_request",
+    "__main__.Blueprint.before_app_request",
+    "__main__.Blueprint.json_decoder",
+    "__main__.Blueprint.json_encoder",
+    "__main__.Blueprint.make_setup_state",
+    "__main__.Blueprint.register",
+    "__main__.Blueprint.register_blueprint",
+    "__main__.Blueprint.teardown_app_request",
+    "__main__.BlueprintSetupState.__init__",
+    "__main__.BlueprintSetupState.add_url_rule",
+    "__main__.CertParamType.__init__",
+    "__main__.CertParamType.convert",
+    "__main__.Flask.__call__",
+    "__main__.Flask.__init__",
+    "__main__.Flask._check_setup_finished",
+    "__main__.Flask._find_error_handler",
+    "__main__.Flask.add_template_filter",
+    "__main__.Flask.add_template_global",
+    "__main__.Flask.add_template_test",
+    "__main__.Flask.add_url_rule",
+    "__main__.Flask.app_context",
+    "__main__.Flask.before_first_request",
+    "__main__.Flask.create_global_jinja_loader",
+    "__main__.Flask.create_url_adapter",
+    "__main__.Flask.debug",
+    "__main__.Flask.do_teardown_appcontext",
+    "__main__.Flask.do_teardown_request",
+    "__main__.Flask.env",
+    "__main__.Flask.got_first_request",
+    "__main__.Flask.handle_exception",
+    "__main__.Flask.handle_url_build_error",
+    "__main__.Flask.handle_user_exception",
+    "__main__.Flask.inject_url_defaults",
+    "__main__.Flask.iter_blueprints",
+    "__main__.Flask.jinja_env",
+    "__main__.Flask.json_decoder",
+    "__main__.Flask.json_encoder",
+    "__main__.Flask.log_exception",
+    "__main__.Flask.logger",
+    "__main__.Flask.make_config",
+    "__main__.Flask.make_shell_context",
+    "__main__.Flask.name",
+    "__main__.Flask.open_instance_resource",
+    "__main__.Flask.propagate_exceptions",
+    "__main__.Flask.redirect",
+    "__main__.Flask.register_blueprint",
+    "__main__.Flask.run",
+    "__main__.Flask.select_jinja_autoescape",
+    "__main__.Flask.send_file_max_age_default",
+    "__main__.Flask.session_cookie_name",
+    "__main__.Flask.shell_context_processor",
+    "__main__.Flask.should_ignore_error",
+    "__main__.Flask.teardown_appcontext",
+    "__main__.Flask.template_filter",
+    "__main__.Flask.template_global",
+    "__main__.Flask.template_test",
+    "__main__.Flask.templates_auto_reload",
+    "__main__.Flask.test_cli_runner",
+    "__main__.Flask.test_client",
+    "__main__.Flask.test_request_context",
+    "__main__.Flask.update_template_context",
+    "__main__.Flask.url_for",
+    "__main__.Flask.use_x_sendfile",
+    "__main__.FlaskGroup.__init__",
+    "__main__.FlaskGroup.get_command",
+    "__main__.FlaskGroup.list_commands",
+    "__main__.FlaskGroup.make_context",
+    "__main__.FlaskGroup.parse_args",
+    "__main__.ScriptInfo.__init__",
+    "__main__.ScriptInfo.load_app",
+    "__main__.SeparatedPathType.convert",
+    "__main__.__getattr__",
+    "__main__._called_with_wrong_args",
+    "__main__._env_file_callback",
+    "__main__._path_is_ancestor",
+    "__main__._set_app",
+    "__main__._set_debug",
+    "__main__._validate_key",
+    "__main__.find_app_by_string",
+    "__main__.find_best_app",
+    "__main__.get_version",
+    "__main__.load_dotenv",
+    "__main__.locate_app"
+  ]
+}

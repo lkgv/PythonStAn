@@ -1,0 +1,253 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-17T22:43:41.540782",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 22,
+  "modules_succeeded": 22,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.00823354721069336,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0007724761962890625,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 0.3129239082336426,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 0.1345679759979248,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 0.21822762489318848,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 18
+    },
+    {
+      "module_name": "config.py",
+      "success": true,
+      "duration": 0.05059528350830078,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 262,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "ctx.py",
+      "success": true,
+      "duration": 0.05172872543334961,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 324,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "debughelpers.py",
+      "success": true,
+      "duration": 0.04210710525512695,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 129,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "globals.py",
+      "success": true,
+      "duration": 0.01643848419189453,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 87,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "helpers.py",
+      "success": true,
+      "duration": 0.06547307968139648,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 532,
+      "functions_analyzed": 17
+    },
+    {
+      "module_name": "json/__init__.py",
+      "success": true,
+      "duration": 0.0440976619720459,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 259,
+      "functions_analyzed": 7
+    },
+    {
+      "module_name": "json/provider.py",
+      "success": true,
+      "duration": 0.06121349334716797,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 240,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "json/tag.py",
+      "success": true,
+      "duration": 0.0494990348815918,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 219,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "logging.py",
+      "success": true,
+      "duration": 0.01316976547241211,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 50,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "scaffold.py",
+      "success": true,
+      "duration": 0.07619237899780273,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 620,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "sessions.py",
+      "success": true,
+      "duration": 0.050481319427490234,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 294,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "signals.py",
+      "success": true,
+      "duration": 0.00722050666809082,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 40,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "templating.py",
+      "success": true,
+      "duration": 0.03921651840209961,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 166,
+      "functions_analyzed": 7
+    },
+    {
+      "module_name": "testing.py",
+      "success": true,
+      "duration": 0.04712080955505371,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 235,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "typing.py",
+      "success": true,
+      "duration": 0.013410091400146484,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 56,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "views.py",
+      "success": true,
+      "duration": 0.02216196060180664,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "wrappers.py",
+      "success": true,
+      "duration": 0.011953115463256836,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 109,
+      "functions_analyzed": 0
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 1.3368048667907715,
+    "analysis_time": 1.3368048667907715,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 5234.122177305872
+  },
+  "points_to_metrics": {
+    "total_variables": 62,
+    "total_points_to_sets": 62,
+    "singleton_sets": 52,
+    "empty_sets": 0,
+    "avg_set_size": 1.1612903225806452,
+    "max_set_size": 2,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 52,
+      "2-5": 10
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 80,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

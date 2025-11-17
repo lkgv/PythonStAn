@@ -1,0 +1,48 @@
+{
+  "project_name": "werkzeug",
+  "timestamp": "2025-10-25T23:58:31.238168",
+  "k_value": 2,
+  "lazy_ir": true,
+  "dependencies_included": [],
+  "ast_stats": {
+    "total_calls": 4870,
+    "direct_calls": 2458,
+    "attribute_calls": 2372,
+    "subscript_calls": 30,
+    "functions_defined": 1288,
+    "classes_defined": 224,
+    "modules_analyzed": 82
+  },
+  "pipeline_funnel": {
+    "ast_calls": 4870,
+    "ir_calls": 0,
+    "call_events": 0,
+    "resolved_calls": 0,
+    "edges_created": 151
+  },
+  "conversion_rates": {
+    "ast_to_edges": 3.1006160164271046,
+    "estimated_loss": 96.89938398357289
+  },
+  "modules_analyzed": 42,
+  "functions_discovered": 727,
+  "call_edges_discovered": 151,
+  "bottleneck_stage": "call_resolution",
+  "primary_loss_reason": "Cross-module call resolution not implemented. Lazy IR construction analyzes each module independently, preventing resolution of calls to imported functions.",
+  "unresolved_callees_top_50": [],
+  "correlation_coefficient": 0.0,
+  "functions_with_no_calls": 0,
+  "functions_with_calls": 57,
+  "recommendations": [
+    "CRITICAL: Implement cross-module call resolution",
+    "Option 1: Two-pass analysis (collect all function signatures, then re-analyze)",
+    "Option 2: Build unified symbol table before analysis",
+    "Option 3: Use entry-point driven analysis",
+    "Estimated improvement: 3-5x more call edges"
+  ],
+  "estimated_improvements": {
+    "two_pass_analysis": "+300-400% call edges (expected 40-60% coverage)",
+    "unified_symbol_table": "+250-350% call edges",
+    "entry_point_driven": "+200-300% call edges (reachable code only)"
+  }
+}

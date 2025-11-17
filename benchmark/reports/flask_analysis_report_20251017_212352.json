@@ -1,0 +1,142 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-17T21:18:49.857279",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 10,
+  "modules_succeeded": 10,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 39.713908433914185,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.4840888977050781,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 49.938076972961426,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 42.26303005218506,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 44.525407552719116,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "config.py",
+      "success": true,
+      "duration": 41.874316930770874,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 262,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "ctx.py",
+      "success": true,
+      "duration": 0.5535192489624023,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 324,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "debughelpers.py",
+      "success": true,
+      "duration": 0.05322718620300293,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 129,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "globals.py",
+      "success": true,
+      "duration": 40.93570804595947,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 87,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "helpers.py",
+      "success": true,
+      "duration": 41.92694330215454,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 532,
+      "functions_analyzed": 0
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 302.26822662353516,
+    "analysis_time": 302.26822662353516,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 15.198421783582537
+  },
+  "points_to_metrics": {
+    "total_variables": 0,
+    "total_points_to_sets": 0,
+    "singleton_sets": 0,
+    "empty_sets": 0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "median_set_size": 0.0,
+    "set_size_distribution": {}
+  },
+  "call_graph_metrics": {
+    "total_functions": 10,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

@@ -1,0 +1,433 @@
+{
+  "project_name": "werkzeug",
+  "timestamp": "2025-10-17T22:44:01.572289",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 42,
+  "modules_succeeded": 42,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.0006277561187744141,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 5,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "_internal.py",
+      "success": true,
+      "duration": 0.12448573112487793,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 417,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "_reloader.py",
+      "success": true,
+      "duration": 0.17170071601867676,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 312,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "datastructures.py",
+      "success": true,
+      "duration": 0.6116414070129395,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2371,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "debug/__init__.py",
+      "success": true,
+      "duration": 0.12473750114440918,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 410,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "debug/console.py",
+      "success": true,
+      "duration": 0.0571744441986084,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 165,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "debug/repr.py",
+      "success": true,
+      "duration": 0.09641647338867188,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 244,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "debug/tbtools.py",
+      "success": true,
+      "duration": 0.11640334129333496,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 355,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "exceptions.py",
+      "success": true,
+      "duration": 0.09231257438659668,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 652,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "formparser.py",
+      "success": true,
+      "duration": 0.0889737606048584,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 383,
+      "functions_analyzed": 5
+    },
+    {
+      "module_name": "http.py",
+      "success": true,
+      "duration": 0.19297122955322266,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1063,
+      "functions_analyzed": 40
+    },
+    {
+      "module_name": "local.py",
+      "success": true,
+      "duration": 0.09338164329528809,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 476,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "middleware/__init__.py",
+      "success": true,
+      "duration": 0.0028228759765625,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 18,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/dispatcher.py",
+      "success": true,
+      "duration": 0.017601966857910156,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 62,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/http_proxy.py",
+      "success": true,
+      "duration": 0.07564210891723633,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 186,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/lint.py",
+      "success": true,
+      "duration": 0.10109496116638184,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 340,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "middleware/profiler.py",
+      "success": true,
+      "duration": 0.03107428550720215,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 113,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/proxy_fix.py",
+      "success": true,
+      "duration": 0.03162360191345215,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 151,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "middleware/shared_data.py",
+      "success": true,
+      "duration": 0.09540224075317383,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 221,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/__init__.py",
+      "success": true,
+      "duration": 0.004620790481567383,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 102,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/converters.py",
+      "success": true,
+      "duration": 0.043494462966918945,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 189,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/exceptions.py",
+      "success": true,
+      "duration": 0.051554203033447266,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/map.py",
+      "success": true,
+      "duration": 0.15211963653564453,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 787,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/matcher.py",
+      "success": true,
+      "duration": 0.06950998306274414,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 138,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "routing/rules.py",
+      "success": true,
+      "duration": 0.21947550773620605,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 733,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "sansio/__init__.py",
+      "success": true,
+      "duration": 0.0046253204345703125,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 0,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "sansio/http.py",
+      "success": true,
+      "duration": 0.044260501861572266,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 98,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "sansio/multipart.py",
+      "success": true,
+      "duration": 0.0541996955871582,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 211,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "sansio/request.py",
+      "success": true,
+      "duration": 0.05602598190307617,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 419,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "sansio/response.py",
+      "success": true,
+      "duration": 0.08107566833496094,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 586,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "sansio/utils.py",
+      "success": true,
+      "duration": 0.025029897689819336,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 125,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "security.py",
+      "success": true,
+      "duration": 0.04977917671203613,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 102,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "serving.py",
+      "success": true,
+      "duration": 0.3343234062194824,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 820,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "test.py",
+      "success": true,
+      "duration": 0.22742342948913574,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1086,
+      "functions_analyzed": 5
+    },
+    {
+      "module_name": "testapp.py",
+      "success": true,
+      "duration": 0.08886456489562988,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 213,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "urls.py",
+      "success": true,
+      "duration": 0.2833285331726074,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 848,
+      "functions_analyzed": 21
+    },
+    {
+      "module_name": "user_agent.py",
+      "success": true,
+      "duration": 0.019012928009033203,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 33,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "utils.py",
+      "success": true,
+      "duration": 0.09461498260498047,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 550,
+      "functions_analyzed": 8
+    },
+    {
+      "module_name": "wrappers/__init__.py",
+      "success": true,
+      "duration": 0.0030579566955566406,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 3,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "wrappers/request.py",
+      "success": true,
+      "duration": 0.09564614295959473,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 484,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "wrappers/response.py",
+      "success": true,
+      "duration": 0.15571880340576172,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 670,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "wsgi.py",
+      "success": true,
+      "duration": 0.20376110076904297,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 828,
+      "functions_analyzed": 16
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 4.487611293792725,
+    "analysis_time": 4.487611293792725,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 3806.9250836476485
+  },
+  "points_to_metrics": {
+    "total_variables": 326,
+    "total_points_to_sets": 326,
+    "singleton_sets": 275,
+    "empty_sets": 0,
+    "avg_set_size": 1.1625766871165644,
+    "max_set_size": 3,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 275,
+      "2-5": 51
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 196,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

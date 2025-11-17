@@ -1,0 +1,100 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-17T22:46:36.486283",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": false
+  },
+  "modules_analyzed": 5,
+  "modules_succeeded": 5,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.007947206497192383,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.0007381439208984375,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 0.3070855140686035,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 2
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 0.13261198997497559,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 0.21524596214294434,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 18
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.6636288166046143,
+    "analysis_time": 0.6636288166046143,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 0.0,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 4912.384631938439
+  },
+  "points_to_metrics": {
+    "total_variables": 28,
+    "total_points_to_sets": 28,
+    "singleton_sets": 24,
+    "empty_sets": 0,
+    "avg_set_size": 1.1428571428571428,
+    "max_set_size": 2,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 24,
+      "2-5": 4
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 23,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  }
+}

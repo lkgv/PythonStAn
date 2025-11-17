@@ -1,0 +1,20 @@
+[
+  {
+    "policy": "2-cfa",
+    "project": "flask",
+    "duration": 0.23585987091064453,
+    "throughput": 8148.906350958487,
+    "modules_analyzed": 0,
+    "total_variables": 0,
+    "singleton_sets": 0,
+    "singleton_ratio": 0.0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "total_contexts": 0,
+    "avg_vars_per_context": 0.0,
+    "total_functions": 0,
+    "total_classes": 0,
+    "success": true,
+    "error_message": null
+  }
+]

@@ -1,0 +1,117 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-26T11:46:40.999589",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": true
+  },
+  "modules_analyzed": 1,
+  "modules_succeeded": 1,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.020100116729736328,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 0.020100116729736328,
+    "analysis_time": 0.020100116729736328,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 2.3408203125,
+    "peak_memory_current_mb": 1.5161333084106445,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 3134.3101558607927,
+    "per_module_time": {
+      "__init__.py": 0.020194530487060547
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 0,
+    "total_points_to_sets": 0,
+    "singleton_sets": 0,
+    "empty_sets": 0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "median_set_size": 0.0,
+    "set_size_distribution": {}
+  },
+  "call_graph_metrics": {
+    "total_functions": 2,
+    "total_call_sites": 0,
+    "total_edges": 0,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 0,
+    "classes_with_mro": 0,
+    "diamond_patterns": 0,
+    "max_mro_length": 0,
+    "avg_mro_length": 0.0
+  },
+  "object_metrics": {
+    "total_objects_created": 0,
+    "avg_objects_per_variable": 0.0,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 0,
+    "vars_with_multiple": 0,
+    "object_types": {}
+  },
+  "function_metrics": {
+    "__getattr__": {
+      "function_name": "__getattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    },
+    "__main__.__getattr__": {
+      "function_name": "__main__.__getattr__",
+      "out_degree": 0,
+      "in_degree": 0,
+      "objects_in_scope": 0,
+      "objects_by_type": {},
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 0
+    }
+  },
+  "object_call_correlation": {
+    "correlation_coefficient": 0.0,
+    "data_points": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "stats": {
+      "functions_with_no_calls": 2,
+      "functions_with_no_objects": 2,
+      "avg_objects": 0.0,
+      "avg_calls": 0.0,
+      "max_objects": 0,
+      "max_calls": 0
+    }
+  }
+}

@@ -1,0 +1,438 @@
+{
+  "project_name": "flask",
+  "timestamp": "2025-10-25T23:01:18.452332",
+  "config": {
+    "k": 2,
+    "obj_depth": 2,
+    "field_sensitivity_mode": "attr-name",
+    "build_class_hierarchy": true,
+    "use_mro": true,
+    "verbose": true
+  },
+  "modules_analyzed": 22,
+  "modules_succeeded": 22,
+  "modules_failed": 0,
+  "module_results": [
+    {
+      "module_name": "__init__.py",
+      "success": true,
+      "duration": 0.030281543731689453,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 63,
+      "functions_analyzed": 1
+    },
+    {
+      "module_name": "__main__.py",
+      "success": true,
+      "duration": 0.003312826156616211,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 2,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "app.py",
+      "success": true,
+      "duration": 1.4765546321868896,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 1857,
+      "functions_analyzed": 78
+    },
+    {
+      "module_name": "blueprints.py",
+      "success": true,
+      "duration": 0.6438920497894287,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 578,
+      "functions_analyzed": 28
+    },
+    {
+      "module_name": "cli.py",
+      "success": true,
+      "duration": 1.0640537738800049,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 760,
+      "functions_analyzed": 31
+    },
+    {
+      "module_name": "config.py",
+      "success": true,
+      "duration": 0.25780439376831055,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 262,
+      "functions_analyzed": 12
+    },
+    {
+      "module_name": "ctx.py",
+      "success": true,
+      "duration": 0.2577388286590576,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 324,
+      "functions_analyzed": 26
+    },
+    {
+      "module_name": "debughelpers.py",
+      "success": true,
+      "duration": 0.2138063907623291,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 129,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "globals.py",
+      "success": true,
+      "duration": 0.07418084144592285,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 87,
+      "functions_analyzed": 6
+    },
+    {
+      "module_name": "helpers.py",
+      "success": true,
+      "duration": 0.31805992126464844,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 532,
+      "functions_analyzed": 21
+    },
+    {
+      "module_name": "json/__init__.py",
+      "success": true,
+      "duration": 0.17980384826660156,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 259,
+      "functions_analyzed": 10
+    },
+    {
+      "module_name": "json/provider.py",
+      "success": true,
+      "duration": 0.2787015438079834,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 240,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "json/tag.py",
+      "success": true,
+      "duration": 0.2543168067932129,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 219,
+      "functions_analyzed": 33
+    },
+    {
+      "module_name": "logging.py",
+      "success": true,
+      "duration": 0.0642998218536377,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 50,
+      "functions_analyzed": 3
+    },
+    {
+      "module_name": "scaffold.py",
+      "success": true,
+      "duration": 0.353670597076416,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 620,
+      "functions_analyzed": 36
+    },
+    {
+      "module_name": "sessions.py",
+      "success": true,
+      "duration": 0.2860140800476074,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 294,
+      "functions_analyzed": 22
+    },
+    {
+      "module_name": "signals.py",
+      "success": true,
+      "duration": 0.03719305992126465,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 40,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "templating.py",
+      "success": true,
+      "duration": 0.20022821426391602,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 166,
+      "functions_analyzed": 14
+    },
+    {
+      "module_name": "testing.py",
+      "success": true,
+      "duration": 0.20987701416015625,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 235,
+      "functions_analyzed": 11
+    },
+    {
+      "module_name": "typing.py",
+      "success": true,
+      "duration": 0.06093144416809082,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 56,
+      "functions_analyzed": 0
+    },
+    {
+      "module_name": "views.py",
+      "success": true,
+      "duration": 0.11586594581604004,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 115,
+      "functions_analyzed": 4
+    },
+    {
+      "module_name": "wrappers.py",
+      "success": true,
+      "duration": 0.05800151824951172,
+      "error": null,
+      "error_type": null,
+      "lines_of_code": 109,
+      "functions_analyzed": 7
+    }
+  ],
+  "error_categories": {},
+  "performance_metrics": {
+    "total_duration": 6.438589096069336,
+    "analysis_time": 6.438589096069336,
+    "ir_construction_time": 0.0,
+    "peak_memory_mb": 34.050825119018555,
+    "peak_memory_current_mb": 26.249147415161133,
+    "iterations_to_converge": 0,
+    "throughput_loc_per_sec": 1086.7287686166471,
+    "per_module_time": {
+      "__init__.py": 0.030407190322875977,
+      "__main__.py": 0.0033888816833496094,
+      "app.py": 1.4782147407531738,
+      "blueprints.py": 0.6444690227508545,
+      "cli.py": 1.0648834705352783,
+      "config.py": 0.25808167457580566,
+      "ctx.py": 0.25806593894958496,
+      "debughelpers.py": 0.21398162841796875,
+      "globals.py": 0.07432389259338379,
+      "helpers.py": 0.318570613861084,
+      "json/__init__.py": 0.18007373809814453,
+      "json/provider.py": 0.2789759635925293,
+      "json/tag.py": 0.2547760009765625,
+      "logging.py": 0.06443023681640625,
+      "scaffold.py": 0.35433292388916016,
+      "sessions.py": 0.28633975982666016,
+      "signals.py": 0.03735542297363281,
+      "templating.py": 0.20044350624084473,
+      "testing.py": 0.21013784408569336,
+      "typing.py": 0.061079978942871094,
+      "views.py": 0.11605286598205566,
+      "wrappers.py": 0.05819416046142578
+    }
+  },
+  "points_to_metrics": {
+    "total_variables": 390,
+    "total_points_to_sets": 390,
+    "singleton_sets": 320,
+    "empty_sets": 0,
+    "avg_set_size": 1.2974358974358975,
+    "max_set_size": 12,
+    "median_set_size": 1,
+    "set_size_distribution": {
+      "1-1": 320,
+      "2-5": 69,
+      "11-20": 1
+    }
+  },
+  "call_graph_metrics": {
+    "total_functions": 305,
+    "total_call_sites": 0,
+    "total_edges": 25,
+    "polymorphic_call_sites": 0,
+    "unreachable_functions": 0,
+    "avg_out_degree": 0.0,
+    "max_out_degree": 0,
+    "call_resolution_rate": 0.0
+  },
+  "class_hierarchy_metrics": {
+    "total_classes": 51,
+    "classes_with_mro": 51,
+    "diamond_patterns": 0,
+    "max_mro_length": 3,
+    "avg_mro_length": 3.0
+  },
+  "object_metrics": {
+    "total_objects_created": 285,
+    "avg_objects_per_variable": 1.2974358974358975,
+    "vars_with_no_objects": 0,
+    "vars_with_singleton": 320,
+    "vars_with_multiple": 70,
+    "object_types": {
+      "alloc": 212,
+      "class": 48,
+      "func": 25
+    }
+  },
+  "function_metrics": {
+    "_make_timedelta": {
+      "function_name": "_make_timedelta",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "iscoroutinefunction": {
+      "function_name": "iscoroutinefunction",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "show_server_banner": {
+      "function_name": "show_server_banner",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "find_best_app": {
+      "function_name": "find_best_app",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 8,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "load_dotenv": {
+      "function_name": "load_dotenv",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_dump_loader_info": {
+      "function_name": "_dump_loader_info",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_split_blueprint_path": {
+      "function_name": "_split_blueprint_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 4,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "_prepare_send_file_kwargs": {
+      "function_name": "_prepare_send_file_kwargs",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    },
+    "htmlsafe_dumps": {
+      "function_name": "htmlsafe_dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "loads": {
+      "function_name": "loads",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 8,
+      "precision": 87.5,
+      "contexts_seen": 3
+    },
+    "dumps": {
+      "function_name": "dumps",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 5,
+      "variables_tracked": 10,
+      "precision": 90.0,
+      "contexts_seen": 3
+    },
+    "has_level_handler": {
+      "function_name": "has_level_handler",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 1,
+      "variables_tracked": 1,
+      "precision": 100.0,
+      "contexts_seen": 2
+    },
+    "_find_package_path": {
+      "function_name": "_find_package_path",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 3,
+      "variables_tracked": 2,
+      "precision": 50.0,
+      "contexts_seen": 2
+    },
+    "_path_is_relative_to": {
+      "function_name": "_path_is_relative_to",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 2
+    },
+    "_stream": {
+      "function_name": "_stream",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 2,
+      "variables_tracked": 2,
+      "precision": 100.0,
+      "contexts_seen": 3
+    },
+    "_render": {
+      "function_name": "_render",
+      "out_degree": 1,
+      "in_degree": 1,
+      "objects_in_scope": 0,
+      "variables_tracked": 0,
+      "precision": 0.0,
+      "contexts_seen": 3
+    }
+  }
+}

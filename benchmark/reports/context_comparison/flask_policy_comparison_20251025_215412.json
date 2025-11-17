@@ -1,0 +1,38 @@
+[
+  {
+    "policy": "0-cfa",
+    "project": "flask",
+    "duration": 0.003393411636352539,
+    "throughput": 19154.764280193915,
+    "modules_analyzed": 2,
+    "total_variables": 0,
+    "singleton_sets": 0,
+    "singleton_ratio": 0.0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "total_contexts": 2,
+    "avg_vars_per_context": 0.0,
+    "total_functions": 1,
+    "total_classes": 0,
+    "success": true,
+    "error_message": null
+  },
+  {
+    "policy": "2-cfa",
+    "project": "flask",
+    "duration": 0.002825498580932617,
+    "throughput": 23004.7894692431,
+    "modules_analyzed": 2,
+    "total_variables": 0,
+    "singleton_sets": 0,
+    "singleton_ratio": 0.0,
+    "avg_set_size": 0.0,
+    "max_set_size": 0,
+    "total_contexts": 2,
+    "avg_vars_per_context": 0.0,
+    "total_functions": 1,
+    "total_classes": 0,
+    "success": true,
+    "error_message": null
+  }
+]

@@ -169,7 +169,7 @@ The main entrypoints to these transformations as defined in `docs/digests/transf
 
 #### Name: `IRCall` (Direct Function Call)
 - **Lowers from**: Python `res = func(arg1, arg2)` → TAC `res = func(arg1, arg2)`
-- **Reads**: Function name, argument variables
+- **Reads**: Function name, notice that func name can be $tmp (the intermediate variable, not the real func name, you should do pointer propagation), argument variables
 - **Writes**: Target variable (if any)
 - **Allocations**: None (but function execution may allocate)
 - **Control-flow**: Call edge to function entry, return edge back to caller
