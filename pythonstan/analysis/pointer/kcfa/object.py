@@ -28,6 +28,10 @@ class AllocKind(Enum):
     TUPLE = "tuple"
     DICT = "dict"
     SET = "set"
+    BOOLEAN = "bool"
+    INTEGER = "int"
+    FLOAT = "float"
+    STRING = "str"
     FUNCTION = "func"
     METHOD = "method"
     CLASS = "class"
@@ -60,16 +64,13 @@ class AllocSite:
     
     def __post_init__(self):
         from pythonstan.ir.ir_statements import IRStatement
-        assert isinstance(self.stmt, (str, IRStatement)), f"stmt must be an IRStatement or str, but got {type(self.stmt)}"
         assert isinstance(self.kind, AllocKind), f"kind must be an AllocKind, but got {type(self.kind)}"
-        # For user-defined functions/methods/classes, stmt should be IRStatement
-        # For builtin functions/methods/classes, stmt can be a string identifier
-        if self.kind == AllocKind.FUNCTION or self.kind == AllocKind.METHOD or self.kind == AllocKind.CLASS:
-            if not isinstance(self.stmt, str) or not self.stmt.startswith("<builtin"):
-                # Only enforce IRStatement for non-builtin objects
-                if not isinstance(self.stmt, str):
-                    assert isinstance(self.stmt, IRStatement), f"stmt must be an IRStatement for non-builtin, but got {type(self.stmt)}"
-    
+        # For user-defined objects, stmt should be IRStatement
+        # For builtin objects and instances, stmt can be a string identifier
+        # INSTANCE allocations use call site strings for context sensitivity
+        if self.kind in (AllocKind.CLASS, AllocKind.FUNCTION, AllocKind.METHOD):
+            assert isinstance(self.stmt, IRStatement), f"stmt must be an IRStatement, but got {type(self.stmt)}"
+            
     def __str__(self) -> str:
         from pythonstan.ir.ir_statements import IRStatement
 
@@ -101,7 +102,7 @@ class AllocSite:
         """
         
         from pythonstan.ir.ir_statements import IRStatement
-        assert isinstance(stmt, (str, IRStatement)), f"stmt must be an IRStatement, but got {type(stmt)}"
+        assert isinstance(stmt, (IRStatement,)), f"stmt must be an IRStatement, but got {type(stmt)}"
         assert isinstance(kind, AllocKind), f"kind must be an AllocKind, but got {type(kind)}"
         if kind == AllocKind.FUNCTION or kind == AllocKind.METHOD or kind == AllocKind.CLASS:
             assert isinstance(stmt, IRStatement), f"stmt must be an IRStatement, but got {type(stmt)}"
@@ -254,6 +255,7 @@ class BuiltinMethodObject(AbstractObject):
     """
     method_name: str  # Method name (e.g., "append", "get")
     receiver: 'AbstractObject'  # The object this method is bound to
+    receiver_var: Optional['Variable'] = None  # The variable holding the receiver (for constraint generation)
     
     def __str__(self) -> str:
         return f"<builtin_method '{self.method_name}' of {self.receiver}>"

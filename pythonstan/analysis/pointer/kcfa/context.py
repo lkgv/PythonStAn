@@ -6,7 +6,7 @@ policies including call-string, object, type, receiver, and hybrid contexts.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING
+from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING, Dict
 
 from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
 from pythonstan.ir.ir_statements import IRScope, IRModule
@@ -49,9 +49,19 @@ class CallSite:
         return f"{self.site_id}{bb_suffix}#{self.idx}"
 
 
+max_idx: int = 0
+context_pool: Dict['AbstractContext', int] = {}
+
+
 T = TypeVar('T', 'CallSite', 'AbstractObject', 'AllocSite')
 class AbstractContext(ABC, Generic[T]):
     """Base class for all context implementations."""
+    
+    def __post_init__(self):
+        global max_idx
+        if self not in context_pool:
+            context_pool[self] = max_idx
+            max_idx += 1
     
     @abstractmethod
     def to_string(self) -> str:
@@ -79,10 +89,10 @@ class AbstractContext(ABC, Generic[T]):
         pass
     
     def __str__(self) -> str:
-        return self.to_string()
+        return f"Ctx[{context_pool[self]}]"
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.to_string()})"
+        return f"Ctx[{context_pool[self]}]"
 
 
 @dataclass(frozen=True)
@@ -392,7 +402,7 @@ class Scope:
         return self.stmt == other.stmt and self.context == other.context and self.obj == other.obj
     
     def __str__(self) -> str:
-        return self.name
+        return f"Scope[{self.stmt}@{self.context}]"
 
     @classmethod
     def new(cls, obj: 'AbstractObject', module: 'Scope', context: 'AbstractContext', stmt: IRScope, parent: Optional['Scope'] = None) -> 'Scope':

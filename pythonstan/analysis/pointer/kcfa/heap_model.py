@@ -185,7 +185,14 @@ class HeapModel:
     
     def _get_var_key(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable'):
         if var.name.startswith("$"):
-            ctx_key = (scope, )  # (scope, context)
+            # For temporary variables, key by function object or statement (not scope)
+            # to share temporaries across all calls to the same function
+            func_obj = getattr(scope, "obj", None)
+            if func_obj is not None:
+                ctx_key = (func_obj,)
+            else:
+                # For module-level temporaries
+                ctx_key = (scope.module if scope.module else scope,)
         else:
             ctx_key = (context, scope.module)  # (scope, context)
         

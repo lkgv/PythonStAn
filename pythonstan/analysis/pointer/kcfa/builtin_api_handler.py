@@ -12,6 +12,8 @@ Design:
 from typing import List, Optional, Dict, Set, TYPE_CHECKING
 import logging
 
+from pythonstan.analysis.pointer.kcfa.constraints import CopyConstraint
+
 if TYPE_CHECKING:
     from .constraints import Constraint, CallConstraint, LoadConstraint, StoreConstraint
     from .variable import Variable, FieldAccess
@@ -176,7 +178,8 @@ class BuiltinAPIHandler:
             # Calling a builtin method
             handler = self._method_handlers.get(builtin_obj.method_name)
             if handler:
-                constraints = handler(scope, context, call, builtin_obj.receiver)
+                # Pass both the receiver object and the method object (which has receiver_var)
+                constraints = handler(scope, context, call, builtin_obj)
             else:
                 # Generic method
                 constraints = self._handle_generic_method(scope, context, call, builtin_obj)
@@ -206,7 +209,7 @@ class BuiltinAPIHandler:
             return constraints
         
         # Create allocation constraint for new list
-        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.LIST)
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.LIST)
         constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         # If iterable argument provided, copy elements
@@ -237,7 +240,7 @@ class BuiltinAPIHandler:
         if not call.target:
             return constraints
         
-        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.DICT)
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.DICT)
         constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         # TODO: Handle dict(**kwargs) and dict(iterable) properly
@@ -260,7 +263,7 @@ class BuiltinAPIHandler:
         if not call.target:
             return constraints
         
-        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.TUPLE)
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.TUPLE)
         constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         # If iterable provided, copy elements
@@ -290,7 +293,7 @@ class BuiltinAPIHandler:
         if not call.target:
             return constraints
         
-        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.SET)
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.SET)
         constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         # If iterable provided, copy elements
@@ -311,32 +314,41 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle list.append(x).
         
-        Stores x to list.elem() via constraint.
+        Stores x to list.elem() by directly setting up PFG edge and also adding
+        a StoreConstraint as a fallback for cases where the receiver's points-to
+        set is populated after this call.
         """
-        from .constraints import StoreConstraint, CopyConstraint
+        from .constraints import StoreConstraint
         from .heap_model import elem
-        from .variable import VariableFactory
         
         constraints = []
         
-        if len(call.args) > 0:
+        if len(call.args) > 0 and method_obj.receiver_var:
             # Get the first argument (the item to append)
             item_var = call.args[0]
             
-            # Create a temporary variable representing the receiver
-            # We need to find the variable that points to receiver
-            # For now, create a StoreConstraint that will be processed when
-            # the receiver variable is known
-            # This is a simplification - in practice we'd track the receiver variable
+            # Get contextualized variables
+            base_ctx_var = self.state.get_variable(scope, context, method_obj.receiver_var)
+            item_ctx_var = self.state.get_variable(scope, context, item_var)
             
-            # Add constraint to store item to receiver.elem()
-            # Note: This requires knowing which variable points to receiver
-            # For now, we'll handle this in the solver when applying the constraint
-            pass
+            # Directly set up the PFG edge from item to receiver.elem()
+            # This handles cases where the receiver already has objects
+            base_pts = self.state.get_points_to(base_ctx_var)
+            for base_obj in base_pts:
+                field_access = self.state.get_field(scope, context, base_obj, elem())
+                self.state._add_var_points_flow(item_ctx_var, field_access)
+            
+            # ALSO add a StoreConstraint as fallback for lazy resolution
+            # This ensures the store is captured even if the list object is created later
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=item_var
+            ))
         
         return constraints
     
@@ -345,7 +357,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle list.extend(iterable).
         
@@ -366,7 +378,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle list.insert(index, x).
         
@@ -386,7 +398,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle list.pop([index]).
         
@@ -411,7 +423,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle container.__getitem__(key).
         
@@ -435,7 +447,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle container.__setitem__(key, value).
         
@@ -458,7 +470,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle container.__iter__().
         
@@ -472,7 +484,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create iterator object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link iterator to container elements
@@ -488,7 +500,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.get(key, default=None).
         
@@ -510,7 +522,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.update(other)."""
         constraints = []
@@ -527,7 +539,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.setdefault(key, default)."""
         constraints = []
@@ -545,7 +557,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.keys()."""
         from .constraints import AllocConstraint
@@ -555,7 +567,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create dict_keys object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -565,7 +577,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.values()."""
         from .constraints import AllocConstraint
@@ -575,7 +587,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create dict_values object that yields dict values
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             # TODO: Link to dict values via elem()
         
@@ -586,7 +598,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.items()."""
         from .constraints import AllocConstraint
@@ -596,7 +608,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create dict_items object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             # TODO: Link to dict items (tuples of key-value pairs)
         
@@ -609,7 +621,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle set.add(x).
         
@@ -629,7 +641,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle set.discard(x)."""
         # No-op for pointer analysis
@@ -640,7 +652,7 @@ class BuiltinAPIHandler:
         scope: 'Scope',
         context: 'AbstractContext',
         call: 'CallConstraint',
-        receiver: 'AbstractObject'
+        method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle set.remove(x)."""
         # No-op for pointer analysis
@@ -656,27 +668,19 @@ class BuiltinAPIHandler:
     ) -> List['Constraint']:
         """Handle iter(iterable).
         
-        Creates iterator linked to iterable elements.
+        Simplified: directly copy iterable to iterator (soundness over precision).
+        The iterator's elem() will be accessed by next().
         """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
+        from .constraints import CopyConstraint
         
         constraints = []
         
         if call.target and len(call.args) > 0:
             iterable_var = call.args[0]
             
-            # Create iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
-            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            
-            # Link to iterable elements
-            constraints.append(LoadConstraint(
-                base=iterable_var,
-                field=elem(),
-                target=call.target
-            ))
+            # Simplified: just copy the iterable to the iterator variable
+            # This allows next() to load from iterator.elem() which is the same as iterable.elem()
+            constraints.append(CopyConstraint(source=iterable_var, target=call.target))
         
         return constraints
     
@@ -724,7 +728,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create enumerate iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             # TODO: Link to iterable elements and create tuples
         
@@ -744,7 +748,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create zip iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             # TODO: Link to all iterable elements and create tuples
         
@@ -764,7 +768,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create map iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             # TODO: Model function application on iterable elements
         
@@ -790,7 +794,7 @@ class BuiltinAPIHandler:
             iterable_var = call.args[1]
             
             # Create filter iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link to iterable elements
@@ -822,7 +826,7 @@ class BuiltinAPIHandler:
             sequence_var = call.args[0]
             
             # Create reverse iterator
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link to sequence elements
@@ -851,18 +855,7 @@ class BuiltinAPIHandler:
         constraints = []
         
         if call.target and len(call.args) > 0:
-            iterable_var = call.args[0]
-            
-            # Create list
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.LIST)
-            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            
-            # Copy elements from iterable
-            constraints.append(LoadConstraint(
-                base=iterable_var,
-                field=elem(),
-                target=call.target
-            ))
+            constraints.append(CopyConstraint(source=call.args[0], target=call.target))
         
         return constraints
     
@@ -880,7 +873,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create range object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -901,7 +894,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create int object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -920,7 +913,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             # Create bool object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -932,15 +925,19 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle type(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
+            from .object import InstanceObject
+            from .pointer_flow_graph import NormalNode
+            from .points_to_set import PointsToSet
+            
             # Create type object
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CLASS)
-            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+            # alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.CLASS)
+            # constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+            for obj in  self.state.get_points_to(call.target):
+                if isinstance(obj, InstanceObject):
+                    self.state._worklist.add((scope, NormalNode(call.target), PointsToSet.singleton(obj.class_obj)))
         
         return constraints
     
@@ -957,7 +954,7 @@ class BuiltinAPIHandler:
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -975,7 +972,7 @@ class BuiltinAPIHandler:
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -993,7 +990,7 @@ class BuiltinAPIHandler:
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -1011,7 +1008,7 @@ class BuiltinAPIHandler:
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.CONSTANT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -1053,7 +1050,7 @@ class BuiltinAPIHandler:
             return constraints
         
         # Create SuperObject allocation
-        alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
         constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         # Add SuperResolveConstraint to populate current_class and instance_obj
@@ -1097,7 +1094,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             logger.debug(f"Generic constructor: {builtin_name}")
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -1117,7 +1114,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             logger.debug(f"Generic builtin function: {function_name}")
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -1137,7 +1134,7 @@ class BuiltinAPIHandler:
         
         if call.target:
             logger.debug(f"Generic builtin method: {method_obj.method_name}")
-            alloc_site = AllocSite(stmt=call.call_site, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints

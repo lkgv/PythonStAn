@@ -5,7 +5,7 @@ the environment (variable points-to sets) and heap (object field points-to sets)
 """
 
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, TYPE_CHECKING
+from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, List, TYPE_CHECKING, Union
 from collections import defaultdict
 
 from pythonstan.ir.ir_statements import IRModule, IRStatement
@@ -43,31 +43,51 @@ class PointerCallGraph(AbstractCallGraph[Ctx[IRStatement], Scope]):
 
 
 class Worklist:
-    items: Dict[PointerFlowNode, Tuple[Scope, PointsToSet]]
+    """Deterministic worklist using list-based storage.
+    
+    Uses a list for deterministic ordering and a dict for fast lookup.
+    Items are processed in FIFO order for better determinism.
+    """
+    items_list: List[Tuple[Scope, PointerFlowNode, PointsToSet]]
+    items_dict: Dict[PointerFlowNode, int]  # Maps node to index in list
 
     def __init__(self):
-        self.items = {}
+        self.items_list = []
+        self.items_dict = {}
+        self._next_index = 0
 
     def add(self, content: Tuple[Scope, PointerFlowNode, PointsToSet]):
         scope, node, pts = content
         assert isinstance(node, PointerFlowNode), f"node must be a PFNode, but got {type(node)}"
         if isinstance(node, NormalNode):
             assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
-        if node in self.items:
-            _, orig_pts = self.items.pop(node)
-            self.items[node] = (scope, orig_pts.union(pts))
+        
+        # Check if node already in worklist
+        if node in self.items_dict:
+            idx = self.items_dict[node]
+            old_scope, old_node, old_pts = self.items_list[idx]
+            # Merge points-to sets
+            self.items_list[idx] = (scope, node, old_pts.union(pts))
         else:
-            self.items[node] = (scope, pts)
+            # Add new item
+            self.items_list.append((scope, node, pts))
+            self.items_dict[node] = len(self.items_list) - 1
     
     def pop(self) -> Tuple[Scope, PointerFlowNode, PointsToSet]:
-        node, (scope, pts) = self.items.popitem()
+        """Pop from the end (LIFO) for deterministic processing."""
+        if not self.items_list:
+            raise IndexError("pop from empty worklist")
+        
+        scope, node, pts = self.items_list.pop()
+        del self.items_dict[node]
+        
         return scope, node, pts
     
     def empty(self) -> bool:
-        return len(self.items) == 0
+        return len(self.items_list) == 0
     
     def __len__(self) -> int:
-        return len(self.items)
+        return len(self.items_list)
     
 
 class PointerAnalysisState:
@@ -77,8 +97,12 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
     
-    def __init__(self):
-        """Initialize empty analysis state."""
+    def __init__(self, debug_monitor=None):
+        """Initialize empty analysis state.
+        
+        Args:
+            debug_monitor: Optional DebugMonitor instance for tracking
+        """
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
         self._call_graph: 'AbstractCallGraph' = PointerCallGraph()
@@ -88,9 +112,12 @@ class PointerAnalysisState:
         self._field_accesses: Dict[Tuple['AbstractObject', 'Field'], FieldAccess] = {}
         self._variable_factory: VariableFactory = VariableFactory()
         self._worklist: Worklist = Worklist()
-        self._static_constraints: Set[Tuple['Scope', 'AbstractContext', 'Constraint']] = set()
+        self._static_constraints: List[Tuple['Scope', 'AbstractContext', 'Constraint']] = []
         self._internal_scope = {}
         self.obj_scope = {}
+        
+        # Debug monitoring
+        self._debug_monitor = debug_monitor
 
         # Note: scope_manager is set lazily when needed
         self._scope_manager = None
@@ -101,7 +128,7 @@ class PointerAnalysisState:
     def get_internal_scope(self, obj) -> Scope:
         return self._internal_scope.get(obj, None)
     
-    def get_points_to(self, var: 'Variable') -> PointsToSet:
+    def get_points_to(self, var: Union['Ctx[Any]', 'PointerFlowNode']) -> PointsToSet:
         """Get points-to set for variable.
         
         Args:
@@ -112,7 +139,7 @@ class PointerAnalysisState:
         """
         return self._env.get(var, PointsToSet.empty())
     
-    def set_points_to(self, var: 'Variable', pts: PointsToSet) -> bool:
+    def set_points_to(self, var: Union['Ctx[Any]', 'PointerFlowNode'], pts: PointsToSet) -> bool:
         """Set points-to set for variable.
         
         Performs union with existing points-to set.
@@ -129,6 +156,18 @@ class PointerAnalysisState:
         
         if new_pts != old_pts:
             self._env[var] = new_pts
+            
+            # Debug monitoring
+            if self._debug_monitor and self._debug_monitor.enabled:
+                diff = new_pts - old_pts
+                added_objs = [str(obj) for obj in diff]
+                self._debug_monitor.record_points_to_update(
+                    variable_str=str(var),
+                    old_size=len(old_pts),
+                    new_size=len(new_pts),
+                    added_objects=added_objs
+                )
+            
             return True
         return False
 
@@ -205,8 +244,36 @@ class PointerAnalysisState:
 
                     for idx, base in enumerate(bases):
                         base_var = self._variable_factory.make_variable(base.id)
+                        # Contextualize the base variable for constraint indexing
+                        base_ctx_var = self.get_variable(scope, scope.context, base_var)
                         inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
-                        self._constraints.add(scope, base_var, inherit_constraint)
+                        self._constraints.add(scope, base_ctx_var, inherit_constraint)
+                        # Debug logging
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        from pythonstan.analysis.pointer.kcfa.analysis import PointerAnalysis
+                        # Check if debug_inheritance is enabled (access through solver if possible)
+                        # For now, log at debug level
+                        logger.debug(f"[INHERIT] Created InheritanceConstraint for {obj.alloc_site.stmt.name}.{field} from base {base.id}")
+                        
+                        # CRITICAL FIX: If the base variable already has objects in its points-to set,
+                        # we need to immediately resolve the field from those objects.
+                        # Otherwise, the InheritanceConstraint won't fire because it only triggers on NEW objects.
+                        if base_ctx_var:
+                            base_pts = self.get_points_to(base_ctx_var)
+                            if len(base_pts) > 0:
+                                # Manually apply inheritance for existing base class objects
+                                for base_obj in base_pts:
+                                    if isinstance(base_obj, ClassObject):
+                                        # Get field from base class using its internal scope
+                                        base_internal_scope = self.get_internal_scope(base_obj)
+                                        if base_internal_scope:
+                                            base_field_access = self.get_field(base_internal_scope, base_obj.context, base_obj, field)
+                                            # Add PFG edge from base field to selector with proper index
+                                            base_edge = PointerFlowEdge(NormalNode(base_field_access), selector, PointerFlowKind.NORMAL)
+                                            selector.add_edge(base_edge, idx)  # Register edge with selector
+                                            self._add_points_flow_edge(base_edge)
+                                            logger.debug(f"[INHERIT] Immediately resolving field {field} from existing base {base.id}")
             
             # Handle builtin instance objects - create builtin method objects on-demand
             from .object import BuiltinInstanceObject, BuiltinMethodObject, SuperObject, ObjectFactory
@@ -261,13 +328,15 @@ class PointerAnalysisState:
                             # These constraints apply lazily when parent points-to sets are known
                             for idx, base in enumerate(bases):
                                 base_var = self._variable_factory.make_variable(base.id)
+                                # Contextualize the base variable for constraint indexing
+                                base_ctx_var = self.get_variable(current_scope, current_scope.context, base_var)
                                 inherit_constraint = InheritanceConstraint(
                                     base=base_var,
                                     field=field,
                                     target=selector,
                                     index=idx
                                 )
-                                self._constraints.add(current_scope, base_var, inherit_constraint)
+                                self._constraints.add(current_scope, base_ctx_var, inherit_constraint)
                             
                             # Methods from parent classes will flow through the PFG edges
                             # If obj.instance_obj is set, method binding happens during call handling
@@ -381,11 +450,46 @@ class PointerAnalysisState:
         return self._call_graph
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> 'Ctx[Variable]':
-        cvar = self._get_variable_direct(scope.module, scope.module.context, var.name, VariableKind.LOCAL)
+        owner_scope = scope
+        owner_context = context
+        var_kind = getattr(var, "kind", VariableKind.LOCAL)
+        
+        if var_kind == VariableKind.GLOBAL:
+            owner_scope = scope.module
+            owner_context = scope.module.context
+        elif var_kind == VariableKind.NONLOCAL:
+            owner_scope = scope.parent
+            owner_context = scope.parent.context
+        elif var_kind == VariableKind.CELL:
+            from .object import FunctionObject
+            # For closure-captured variables, first try to resolve from the
+            # function object's captured cell vars before falling back.
+            func_obj = getattr(scope, "obj", None)
+            if isinstance(func_obj, FunctionObject):
+                captured = self._heap.get_cell_vars(func_obj).get(var.name)
+                if captured is not None:
+                    return captured
+            owner_scope = scope.parent or scope
+            owner_context = owner_scope.context if owner_scope else context
+        elif var_kind == VariableKind.TEMPORARY:
+            # Temporary variables should be context-insensitive within a function.
+            # Use the function object's allocation context, not the caller's context.
+            owner_scope = scope
+            func_obj = getattr(scope, "obj", None)
+            if func_obj is not None and hasattr(func_obj, "context"):
+                # Use the function's allocation context for true context-insensitivity
+                owner_context = func_obj.context
+            else:
+                # Fallback for module-level temporaries
+                owner_context = scope.context
+        else:
+            owner_scope = scope
+            owner_context = context
+        
+        cvar = self._get_variable_direct(owner_scope, owner_context, var.name, var_kind)
         if cvar is None:
-            kind = VariableKind.GLOBAL if isinstance(scope, ModuleObject) else VariableKind.LOCAL
-            cvar = Ctx(scope.context, scope, self._variable_factory.make_variable(var.name, kind))
-            self.set_variable(scope, context, var, cvar)
+            cvar = Ctx(owner_context, owner_scope, self._variable_factory.make_variable(var.name, var_kind))
+            self.set_variable(owner_scope, owner_context, var, cvar)
         return cvar
     
     def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
@@ -462,6 +566,84 @@ class PointerAnalysisState:
             "num_variables": len(self._env),
             "num_objects": len(objects),
             "num_heap_locations": len(self._heap.objects),
-            "num_call_edges": self._call_graph.get_number_of_edges()
+            "num_call_edges": self._call_graph.num_plain_edges(),
+        }
+    
+    def get_detailed_statistics(self) -> Dict[str, Any]:
+        """Get detailed state statistics for debugging.
+        
+        Returns:
+            Dictionary with detailed statistics including:
+            - Points-to set size distribution
+            - Variables with empty/singleton/large sets
+            - Object type breakdown
+            - Call graph metrics
+        """
+        from collections import defaultdict
+        
+        # Collect points-to set sizes
+        pts_sizes = []
+        empty_vars = []
+        singleton_vars = []
+        large_vars = []  # > 10 objects
+        
+        for var, pts in self._env.items():
+            size = len(pts)
+            pts_sizes.append(size)
+            
+            if size == 0:
+                empty_vars.append(str(var))
+            elif size == 1:
+                singleton_vars.append(str(var))
+            elif size > 10:
+                large_vars.append(str(var))
+        
+        # Size distribution
+        size_dist = defaultdict(int)
+        for size in pts_sizes:
+            if size == 0:
+                bucket = "0"
+            elif size == 1:
+                bucket = "1"
+            elif size <= 5:
+                bucket = "2-5"
+            elif size <= 10:
+                bucket = "6-10"
+            elif size <= 50:
+                bucket = "11-50"
+            else:
+                bucket = "51+"
+            size_dist[bucket] += 1
+        
+        # Object type breakdown
+        obj_by_kind = defaultdict(int)
+        all_objects = set()
+        for pts in self._env.values():
+            for obj in pts:
+                all_objects.add(obj)
+                obj_by_kind[obj.kind.value] += 1
+        
+        return {
+            "num_variables": len(self._env),
+            "num_heap_locations": len(self._heap.objects),
+            "num_call_edges": self._call_graph.get_number_of_edges(),
+            "num_pfg_nodes": len(self._pointer_flow_graph.get_nodes()),
+            "num_pfg_edges": len(self._pointer_flow_graph.get_edges()),
+            "points_to": {
+                "avg_size": sum(pts_sizes) / len(pts_sizes) if pts_sizes else 0.0,
+                "max_size": max(pts_sizes) if pts_sizes else 0,
+                "min_size": min(pts_sizes) if pts_sizes else 0,
+                "empty_count": len(empty_vars),
+                "singleton_count": len(singleton_vars),
+                "large_count": len(large_vars),
+                "size_distribution": dict(size_dist),
+                "empty_variables": empty_vars[:20],  # Limit output
+                "singleton_variables": singleton_vars[:20],
+                "large_variables": large_vars[:20]
+            },
+            "objects": {
+                "total": len(all_objects),
+                "by_kind": dict(obj_by_kind)
+            }
         }
 

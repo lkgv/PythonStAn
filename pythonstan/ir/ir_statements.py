@@ -762,7 +762,7 @@ class IRCall(IRAbstractStmt):
             self.call = stmt.value
             self.target = stmt.targets[0].id
         else:
-            assert isinstance(stmt, ast.Call)
+            assert isinstance(stmt, ast.Call), f"stmt must be an ast.Call, but got {ast.dump(stmt, indent=4)}"
             self.call = stmt
             self.target = None
 
