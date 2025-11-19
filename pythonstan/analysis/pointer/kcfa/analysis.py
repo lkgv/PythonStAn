@@ -12,6 +12,7 @@ from pythonstan.ir import IRScope
 if TYPE_CHECKING:
     from .config import Config
     from .solver_interface import ISolverQuery
+    from .context import Scope, AbstractContext
 
 __all__ = ["PointerAnalysis", "AnalysisResult"]
 
@@ -36,6 +37,7 @@ class PointerAnalysis(AnalysisDriver):
         from .class_hierarchy import ClassHierarchyManager
         from .builtin_api_handler import BuiltinSummaryManager        
         from pythonstan.world import World
+        from .debug_monitor import DebugMonitor
         
         self.config = analysis_config
         if not hasattr(self.config, 'options'):
@@ -44,7 +46,26 @@ class PointerAnalysis(AnalysisDriver):
         self._setup_logging()
         self._result: Optional['AnalysisResult'] = None
         self.world = World()
-        self.state = PointerAnalysisState()
+        
+        # Initialize debug monitor if enabled
+        self.debug_monitor = None
+        if self.kcfa_config.enable_debug_monitor:
+            self.debug_monitor = DebugMonitor(
+                output_dir=self.kcfa_config.debug_output_dir,
+                log_interval=self.kcfa_config.debug_log_interval,
+                track_events=True,
+                track_object_flow=self.kcfa_config.track_object_flow,
+                track_pfg=self.kcfa_config.track_pfg_activation,
+                enabled=True
+            )
+            logger.info(f"Debug monitoring enabled, output to: {self.kcfa_config.debug_output_dir}")
+        
+        self.state = PointerAnalysisState(debug_monitor=self.debug_monitor)
+        
+        # Initialize PFG with debug monitor
+        from .pointer_flow_graph import PointerFlowGraph
+        self.state._pointer_flow_graph = PointerFlowGraph(debug_monitor=self.debug_monitor)
+        
         policy = parse_policy(self.kcfa_config.context_policy)
         self.context_selector = ContextSelector(policy=policy)
         self.translator = IRTranslator(self.kcfa_config)
@@ -57,7 +78,8 @@ class PointerAnalysis(AnalysisDriver):
             ir_translator=self.translator,
             context_selector=self.context_selector,
             class_hierarchy=self.class_hierarchy,
-            builtin_manager=self.builtin_manager
+            builtin_manager=self.builtin_manager,
+            debug_monitor=self.debug_monitor
         )
 
     def analyze(
@@ -90,7 +112,7 @@ class PointerAnalysis(AnalysisDriver):
         scope = self.world.get_entry_module()
         
         # Make scope with context
-        alloc_site = AllocSite.from_ir_node(None, AllocKind.MODULE)
+        alloc_site = AllocSite.from_ir_node(scope, AllocKind.MODULE)
         module_obj = ModuleObject(empty_context, alloc_site, entry_scope)
         ctx_scope = Scope(scope, None, empty_context, None, None)
         self.state.set_internal_scope(module_obj, ctx_scope)
@@ -111,8 +133,34 @@ class PointerAnalysis(AnalysisDriver):
         for constraint in constraints:
             self.solver.add_constraint(ctx_scope, empty_context, constraint)
         
+        # Initialize builtin functions (iter, next, len, etc.)
+        logger.info("Initializing builtin functions...")
+        self._initialize_builtins(ctx_scope, empty_context)
+        
+        # Create synthetic method contexts to enable method-to-method call resolution
+        logger.info("Creating synthetic method contexts...")
+        self._create_synthetic_method_contexts(ctx_scope, empty_context)
+        
         # Solve to fixpoint
         self.solver.solve_to_fixpoint()
+        
+        # Export debug data if enabled
+        if self.debug_monitor and self.kcfa_config.export_debug_data:
+            logger.info("Exporting debug data...")
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            project_name = self.kcfa_config.project_path.split('/')[-1] if self.kcfa_config.project_path else "unknown"
+            policy_name = self.kcfa_config.context_policy.replace("-", "_")
+            
+            # Compute final statistics
+            self.debug_monitor.compute_points_to_statistics(self.state)
+            self.debug_monitor.compute_pfg_statistics(self.state.pointer_flow_graph)
+            
+            # Export to files
+            self.debug_monitor.export_to_json(f"{project_name}_{policy_name}_{timestamp}_debug.json")
+            self.debug_monitor.generate_summary_report(f"{project_name}_{policy_name}_{timestamp}_summary.md")
+            
+            logger.info("Debug data exported")
         
         # Create and return result
         solver_query = self.solver.query()
@@ -121,6 +169,178 @@ class PointerAnalysis(AnalysisDriver):
         
         logger.info("Analysis complete")
         return result
+    
+    def _create_synthetic_method_contexts(self, module_scope: 'Scope', empty_context: 'AbstractContext') -> None:
+        """Create synthetic contexts for analyzing method bodies.
+        
+        This enables method-to-method call resolution by:
+        1. Creating synthetic 'self' instances for each method
+        2. Binding 'self' in method-specific contexts
+        3. Processing method bodies with bound 'self'
+        
+        Args:
+            module_scope: The module scope
+            empty_context: The empty context for module level
+        """
+        from .context import Scope, CallSite, CallStringContext
+        from .object import InstanceObject, AllocSite, AllocKind, ClassObject
+        from .variable import Variable, VariableKind
+        from pythonstan.ir import IRClass, IRFunc
+        
+        # Get all scopes from the scope manager
+        scope_manager = self.world.scope_manager
+        
+        method_count = 0
+        class_count = 0
+        
+        # Iterate through all scopes to find classes and their methods
+        for scope_ir in scope_manager.scopes:
+            if isinstance(scope_ir, IRClass):
+                class_count += 1
+                class_qualname = scope_ir.get_qualname()
+                
+                # Get subscopes (methods) of this class
+                methods = scope_manager.subscopes.get(scope_ir, [])
+                
+                for method_ir in methods:
+                    if not isinstance(method_ir, IRFunc):
+                        continue
+                    
+                    # Only process instance methods (not static or class methods)
+                    if not method_ir.is_instance_method:
+                        continue
+                    
+                    method_count += 1
+                    method_qualname = method_ir.get_qualname()
+                    
+                    # Create a method-specific synthetic context
+                    # Use a special marker to distinguish from regular call contexts
+                    synthetic_call_site = CallSite(
+                        site_id=f"synthetic_method:{method_qualname}",
+                        fn=method_qualname,
+                        idx=0
+                    )
+                    
+                    # Get k value from empty context
+                    if isinstance(empty_context, CallStringContext):
+                        k_value = empty_context.k
+                    else:
+                        k_value = 2  # Default to 2-CFA
+                    
+                    method_context = CallStringContext(
+                        call_sites=(synthetic_call_site,),
+                        k=k_value
+                    )
+                    
+                    # Map this instance to its class for method lookup
+                    # Find the class object allocation
+                    class_alloc_site = AllocSite.from_ir_node(scope_ir, AllocKind.CLASS)
+                    
+                    # ClassObject needs container_scope and ir parameters
+                    # We use module_scope as container since that's where the class is defined
+                    class_obj = ClassObject(
+                        context=empty_context,
+                        alloc_site=class_alloc_site,
+                        container_scope=module_scope,
+                        ir=scope_ir
+                    )
+                    
+                    # Create and register internal scope for the class
+                    # This is needed for field access resolution on instances
+                    class_internal_scope = Scope.new(
+                        obj=class_obj,
+                        module=module_scope,
+                        context=empty_context,
+                        stmt=scope_ir,
+                        parent=module_scope
+                    )
+                    self.state.set_internal_scope(class_obj, class_internal_scope)
+                    
+                    # Create a synthetic InstanceObject for 'self'
+                    from pythonstan.ir.ir_statements import IRCall
+                    import ast
+                    cls_name = scope_ir.get_qualname().split(".")[-1]
+                    synthetic_alloc_site = AllocSite(
+                        stmt=IRCall(ast.parse(f"{cls_name}()").body[0].value),
+                        kind=AllocKind.INSTANCE
+                    )
+                    
+                    # Create the synthetic instance object with the class object
+                    # The class_obj is stored in the InstanceObject itself
+                    self_instance = InstanceObject(
+                        context=method_context,
+                        alloc_site=synthetic_alloc_site,
+                        class_obj=class_obj
+                    )
+                    
+                    # Create a scope for this method analysis
+                    method_scope = Scope.new(
+                        obj=self_instance,  # Use the instance as the scope object
+                        module=module_scope,
+                        context=method_context,
+                        stmt=method_ir,
+                        parent=module_scope
+                    )
+                    self.state.set_internal_scope(self_instance, method_scope)
+                    
+                    # Bind 'self' variable to point to the synthetic instance
+                    self_var = self.solver.variable_factory.make_variable('self', VariableKind.LOCAL)
+                    from .points_to_set import PointsToSet
+                    from .pointer_flow_graph import NormalNode
+                    self_pts = PointsToSet.singleton(self_instance)
+                    
+                    # Get contextualized variable and add to worklist for propagation
+                    ctx_self_var = self.state.get_variable(method_scope, method_context, self_var)
+                    self.state._worklist.add((method_scope, NormalNode(ctx_self_var), self_pts))
+                    
+                    # Translate the method body and add constraints
+                    try:
+                        method_constraints = self.translator.translate_function(method_ir)
+                        for constraint in method_constraints:
+                            self.solver.add_constraint(method_scope, method_context, constraint)
+                    except Exception as e:
+                        logger.warning(f"Error translating method {method_qualname}: {e}")
+        
+        logger.info(f"Created synthetic contexts for {method_count} methods in {class_count} classes")
+    
+    def _initialize_builtins(self, module_scope: 'Scope', context: 'AbstractContext') -> None:
+        """Initialize common builtin functions in the global scope.
+        
+        Creates builtin function objects for commonly used Python builtins like
+        iter, next, len, etc., so they're available when referenced in code.
+        
+        Args:
+            module_scope: The module scope
+            context: The context to use for builtin allocations
+        """
+        from .object import ObjectFactory, BuiltinFunctionObject
+        from .constraints import AllocConstraint
+        from .variable import Variable, VariableKind
+        from .points_to_set import PointsToSet
+        from .pointer_flow_graph import NormalNode
+        
+        # List of common builtin functions to initialize
+        BUILTIN_FUNCTIONS = [
+            "iter", "next", "len", "enumerate", "zip", "map", "filter",
+            "range", "reversed", "sorted", "sum", "min", "max", "all", "any",
+            "list", "dict", "tuple", "set", "frozenset",
+            "str", "int", "float", "bool", "bytes",
+            "isinstance", "issubclass", "type", "hasattr", "getattr", "setattr",
+            "print", "input", "open"
+        ]
+        
+        for builtin_name in BUILTIN_FUNCTIONS:
+            # Create a builtin function object
+            builtin_obj = ObjectFactory.create_builtin_function(builtin_name, context)
+            
+            # Create a variable for this builtin in the module's global scope
+            builtin_var = Variable(name=builtin_name, kind=VariableKind.GLOBAL)
+            ctx_var = self.state.get_variable(module_scope, context, builtin_var)
+            
+            # Add the builtin object to the variable's points-to set
+            self.state._worklist.add((module_scope, NormalNode(ctx_var), PointsToSet.singleton(builtin_obj)))
+            
+        logger.debug(f"Initialized {len(BUILTIN_FUNCTIONS)} builtin functions")
     
     def query(self) -> 'ISolverQuery':
         """Get query interface for last analysis.

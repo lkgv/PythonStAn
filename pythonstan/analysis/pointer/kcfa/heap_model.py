@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .variable import Variable, FieldAccess, VariableKind
     from .context import AbstractContext, Ctx, Scope, AllocSite
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "key", "unknown", "HeapModel"]
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "value", "unknown", "HeapModel"]
 
 
 class FieldKind(Enum):
@@ -117,6 +117,21 @@ def elem() -> Field:
     return Field(FieldKind.ELEMENT, None, None)
 
 
+def value() -> Field:
+    """Create value field key for dictionaries.
+    
+    Used for dict values where we abstract over all keys.
+    
+    Returns:
+        Field for generic dictionary value access
+    
+    Example:
+        >>> value()
+        Field(kind=FieldKind.VALUE, name=None, index=None)
+    """
+    return Field(FieldKind.VALUE, None, None)
+
+
 def unknown() -> Field:
     """Create unknown field key for dynamic access.
     
@@ -154,17 +169,36 @@ class HeapModel:
         self.nonlocal_vars = {}
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> Optional['Ctx[Variable]']:
-        ctx_key = (context, )  # (scope, context)
+        ctx_key = self._get_var_key(scope, context, var)
+        
         registers = self.heap.get(ctx_key, {})
         return registers.get(var.name, None)
 
     def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
-        ctx_key = (context, )  # (scope, context)
+        ctx_key = self._get_var_key(scope, context, var)
+        
         registers = self.heap.get(ctx_key, None)
         if registers is None:
             registers = {}
             self.heap[ctx_key] = registers
         registers[var.name] = ctx_var  # TODO whether use context or scope.context?
+    
+    def _get_var_key(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable'):
+        if var.name.startswith("$"):
+            # For temporary variables, key by function object or statement (not scope)
+            # to share temporaries across all calls to the same function
+            func_obj = getattr(scope, "obj", None)
+            if func_obj is not None:
+                ctx_key = (func_obj,)
+            else:
+                # For module-level temporaries
+                ctx_key = (scope.module if scope.module else scope,)
+        else:
+            ctx_key = (context, scope.module)  # (scope, context)
+        
+        # ctx_key = (scope, context)
+        return ctx_key
+        
     
     def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'Ctx[FieldAccess]':
         ...

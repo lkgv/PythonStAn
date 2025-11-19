@@ -11,11 +11,12 @@ from collections import defaultdict
 
 if TYPE_CHECKING:
     from pythonstan.ir import IRCall
+    from pythonstan.ir.ir_statements import IRStatement
     from .variable import Variable, FieldAccess
     from .heap_model import Field
     from .pointer_flow_graph import SelectorNode
-    from .object import AllocSite, Scope
-    from .context import Ctx
+    from .object import AllocSite
+    from .context import Ctx, Scope
 
 __all__ = [
     "Constraint",
@@ -28,6 +29,7 @@ __all__ = [
     "StoreSubscrConstraint",
     "CallConstraint",
     "ReturnConstraint",
+    "SuperResolveConstraint",
     "ConstraintManager"
 ]
 
@@ -133,6 +135,45 @@ class InheritanceConstraint(Constraint):
 
 
 @dataclass(frozen=True)
+class SuperResolveConstraint(Constraint):
+    """Constraint to resolve super() arguments and populate SuperObject.
+    
+    This constraint is triggered when super() result's points-to set contains
+    a SuperObject allocation. It resolves the class and instance arguments:
+    
+    - Explicit: super(Class, obj) - resolve from provided variables
+    - Implicit: super() - resolve from __class__ cell var and first parameter
+    
+    Once resolved, updates the SuperObject with current_class and instance_obj.
+    
+    Attributes:
+        target: Variable pointing to SuperObject allocation
+        class_var: Variable for class argument (None for implicit)
+        instance_var: Variable for instance argument (None for implicit)
+        implicit: True if super() called without arguments
+    """
+    
+    target: 'Variable'
+    class_var: Optional['Variable']
+    instance_var: Optional['Variable']
+    implicit: bool = False
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.target}
+        if self.class_var:
+            vars.add(self.class_var)
+        if self.instance_var:
+            vars.add(self.instance_var)
+        return vars
+    
+    def __str__(self) -> str:
+        if self.implicit:
+            return f"SuperResolveConstraint: {self.target} = super() (implicit)"
+        return f"SuperResolveConstraint: {self.target} = super({self.class_var}, {self.instance_var})"
+
+
+@dataclass(frozen=True)
 class LoadSubscrConstraint(Constraint):
     """Load constraint: target = base.field or target = base[index].
     
@@ -229,6 +270,13 @@ class AllocConstraint(Constraint):
     target: 'Variable'
     alloc_site: 'AllocSite'
     
+    def __post_init__(self):
+        from .object import AllocSite
+        from pythonstan.ir.ir_statements import IRStatement
+        
+        assert isinstance(self.alloc_site, AllocSite), f"alloc_site must be an AllocSite, but got {type(self.alloc_site)}"
+        assert isinstance(self.alloc_site.stmt, IRStatement), f"alloc_site.stmt must be an IRStatement, but got {type(self.alloc_site.stmt)}"
+    
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
         return {self.target}
@@ -255,6 +303,7 @@ class CallConstraint(Constraint):
     args: Tuple['Variable', ...]
     kwargs: FrozenSet[Tuple[str, 'Variable']]
     target: Optional['Variable']
+    stmt: 'IRStatement'
     call_site: str
     
     def variables(self) -> Set['Variable']:
@@ -301,9 +350,9 @@ class ConstraintManager:
     
     def __init__(self):
         """Initialize empty constraint manager."""
-        self._constraints: Set[Tuple['Variable', Constraint]] = set()
-        self._by_variable: Dict['Variable', List[Constraint]] = defaultdict(list)
-        self._by_type: Dict[Type[Constraint], List[Constraint]] = defaultdict(list)
+        self._constraints: Set[Tuple['Scope', Constraint]] = set()
+        self._by_variable: Dict['Variable', List[Tuple['Scope', Constraint]]] = defaultdict(list)
+        self._by_type: Dict[Type[Constraint], List[Tuple['Scope', Constraint]]] = defaultdict(list)
     
     def add(self, scope, var, constraint: Constraint) -> bool:
         """Add constraint to manager.
@@ -318,7 +367,7 @@ class ConstraintManager:
             return False
    
         self._constraints.add((scope, constraint))
-        self._by_variable[var].append(constraint)
+        self._by_variable[var].append((scope, constraint))
         self._by_type[type(constraint)].append((scope, constraint))
 
         return True
@@ -338,15 +387,24 @@ class ConstraintManager:
         self._constraints.remove((scope, constraint))
         
         # Remove from variable index
-        for var in constraint.variables():
-            self._by_variable[var].discard(constraint)
+        for involved_var in constraint.variables():
+            scoped_list = self._by_variable.get(involved_var)
+            if not scoped_list:
+                continue
+            self._by_variable[involved_var] = [
+                (s, c) for (s, c) in scoped_list if not (s == scope and c == constraint)
+            ]
         
         # Remove from type index
-        self._by_type[type(constraint)].discard(constraint)
+        scoped_list = self._by_type.get(type(constraint))
+        if scoped_list:
+            self._by_type[type(constraint)] = [
+                (s, c) for (s, c) in scoped_list if not (s == scope and c == constraint)
+            ]
         
         return True
     
-    def get_by_variable(self, var: 'Variable') -> Set[Constraint]:
+    def get_by_variable(self, var: 'Variable') -> List[Constraint]:
         """Get all constraints involving variable.
         
         Args:
@@ -355,9 +413,13 @@ class ConstraintManager:
         Returns:
             Set of constraints (empty if none)
         """
-        return self._by_variable.get(var, list())
+        return [constraint for _, constraint in self._by_variable.get(var, list())]
     
-    def get_by_type(self, constraint_type: Type[Constraint]) -> Set[Constraint]:
+    def iter_scoped_by_variable(self, var: 'Variable') -> List[Tuple['Scope', Constraint]]:
+        """Iterate constraints with their defining scope for a variable."""
+        return list(self._by_variable.get(var, list()))
+    
+    def get_by_type(self, constraint_type: Type[Constraint]) -> List[Constraint]:
         """Get all constraints of given type.
         
         Args:
@@ -366,7 +428,7 @@ class ConstraintManager:
         Returns:
             Set of constraints of that type
         """
-        return self._by_type.get(constraint_type, list())
+        return [constraint for _, constraint in self._by_type.get(constraint_type, list())]
     
     def all(self) -> Set[Constraint]:
         """Get all constraints.

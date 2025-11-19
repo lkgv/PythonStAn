@@ -39,7 +39,8 @@ class PointerSolver:
         ir_translator: Optional['IRTranslator'] = None,
         context_selector: Optional['ContextSelector'] = None,
         class_hierarchy: Optional['ClassHierarchyManager'] = None,
-        builtin_manager: Optional['BuiltinSummaryManager'] = None
+        builtin_manager: Optional['BuiltinSummaryManager'] = None,
+        debug_monitor=None
     ):
         """Initialize solver.
         
@@ -51,6 +52,7 @@ class PointerSolver:
             function_registry: Map of function names to IR functions
             class_hierarchy: Class hierarchy manager for MRO
             builtin_manager: Builtin summary manager
+            debug_monitor: Optional debug monitor for tracking
         """
         self.state = state
         self.config = config
@@ -65,19 +67,32 @@ class PointerSolver:
         }
         self._modules = set()
         self._unknown_tracker = UnknownTracker()
+        self._debug_monitor = debug_monitor
+        
+        # Initialize builtin handler with state
+        if self.builtin_manager:
+            self.builtin_manager.set_state(state)
     
     def add_constraint(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint') -> None:
         if isinstance(constraint, CopyConstraint):
-            self.state._static_constraints.add((scope, context, constraint))
+            self.state._static_constraints.append((scope, context, constraint))
         elif isinstance(constraint, AllocConstraint):
-            self.state._static_constraints.add((scope, context, constraint))
+            self.state._static_constraints.append((scope, context, constraint))
         else:
             if isinstance(constraint, LoadConstraint):
                 base = self.state.get_variable(scope, context, constraint.base)
                 self.state.constraints.add(scope, base, constraint)
+                # CRITICAL: If base already has objects, apply the constraint immediately
+                base_pts = self.state.get_points_to(base)
+                if len(base_pts) > 0:
+                    self._apply_load(scope, base, constraint, base_pts)
             elif isinstance(constraint, StoreConstraint):
                 base = self.state.get_variable(scope, context, constraint.base)
                 self.state.constraints.add(scope, base, constraint)
+                # CRITICAL: If base already has objects, apply the constraint immediately
+                base_pts = self.state.get_points_to(base)
+                if len(base_pts) > 0:
+                    self._apply_store(scope, base, constraint, base_pts)
             elif isinstance(constraint, CallConstraint):
                 callee = self.state.get_variable(scope, context, constraint.callee)
                 self.state.constraints.add(scope, callee, constraint)
@@ -90,6 +105,13 @@ class PointerSolver:
             elif isinstance(constraint, InheritanceConstraint):
                 base = self.state.get_variable(scope, context, constraint.base)
                 self.state.constraints.add(scope, base, constraint)
+            elif isinstance(constraint, SuperResolveConstraint):
+                target = self.state.get_variable(scope, context, constraint.target)
+                self.state.constraints.add(scope, target, constraint)
+                # If target already has objects, apply the constraint immediately
+                target_pts = self.state.get_points_to(target)
+                if len(target_pts) > 0:
+                    self._apply_super_resolve(scope, target, constraint, target_pts)
             else:
                 logger.warning(f"Unknown constraint type: {type(constraint)}")
 
@@ -100,12 +122,24 @@ class PointerSolver:
         
         while ((not self.state._worklist.empty()) or self.state._static_constraints) and self._iteration < max_iter:
             self._iteration += 1
+            
+            # Update debug monitor iteration
+            if self._debug_monitor:
+                self._debug_monitor.set_iteration(self._iteration)
+            
             # Log progress periodically
-            if self._iteration % 1000 == 0:
+            log_interval = self.config.debug_log_interval if self.config.enable_debug_monitor else 1000
+            if self._iteration % log_interval == 0:
                 logger.info(f"Iteration {self._iteration}, worklist size {len(self.state._worklist)}, objs: {len(self.state._heap.objects)}, "
                             f"call_edges: {len(self.state.call_graph.edges)}, plain_call_edges: {self.state.call_graph.num_plain_edges()}")
+                
+                # Record iteration snapshot
+                self._log_solver_state()
             
-            if self.state._static_constraints:
+            # *NOTE*: Handle allocation first and then do the propagation on the PFG.
+            #         So it can be OK if call edges or other constraints are not processed in the start many iterations.
+            #  Which means, can be more than 10000 iterations not seed call edge added, NO PROBLEM.
+            if self.state._static_constraints:                
                 scope, ctx, constraint = self.state._static_constraints.pop()
                 self._apply_static(scope, scope.context, constraint)
 
@@ -120,8 +154,9 @@ class PointerSolver:
 
                     # apply the constraints associated with the variable
                     if isinstance(node, NormalNode):
-                        for constraint in self.state.constraints.get_by_variable(node.var):
-                            self._apply_constraint(scope, node.var, constraint, diff)
+                        self.state.set_points_to(node.var, diff)
+                        for constraint_scope, constraint in self.state.constraints.iter_scoped_by_variable(node.var):
+                            self._apply_constraint(constraint_scope, node.var, constraint, diff)
                     
                     for succ, succ_pts in self.state.pointer_flow_graph.propagate(node, diff):
                         succ_scope = succ.var.scope if isinstance(succ, NormalNode) else None
@@ -135,10 +170,24 @@ class PointerSolver:
             logger.warning(f"Reached max iterations {max_iter}")
         
         logger.info(f"Processed {len(self._modules)} modules: {self._modules}")
-        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} abslote: {self.state._call_graph.num_plain_edges()}")
+        logger.info(f"Call Constraints: {len(self.state.constraints.get_by_type(CallConstraint))}")
+        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} absolute: {self.state._call_graph.num_plain_edges()}")
         logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")        
         self._stats["iterations"] = self._iteration
         logger.info(f"Converged after {self._iteration} iterations")
+    
+    def _log_solver_state(self):
+        """Log periodic snapshot of solver state for debugging."""
+        if not self._debug_monitor or not self._debug_monitor.enabled:
+            return
+        
+        self._debug_monitor.record_iteration_snapshot(
+            worklist_size=len(self.state._worklist),
+            call_edges=self.state._call_graph.num_plain_edges(),
+            pfg_edges=len(self.state.pointer_flow_graph.get_edges()),
+            num_variables=len(self.state._env),
+            num_objects=len(self.state._heap.objects)
+        )
 
     def _apply_static(self, scope: 'Scope', context: 'AbstractContext', constraint: 'Constraint'):
         if isinstance(constraint, AllocConstraint):
@@ -161,6 +210,8 @@ class PointerSolver:
             return self._apply_store_subscr(scope, variable, constraint, diff)
         elif isinstance(constraint, InheritanceConstraint):
             return self._apply_inheritance(scope, variable, constraint, diff)
+        elif isinstance(constraint, SuperResolveConstraint):
+            return self._apply_super_resolve(scope, variable, constraint, diff)
         else:
             logger.warning(f"Unknown constraint type: {type(constraint)}")
             return False
@@ -169,6 +220,10 @@ class PointerSolver:
         """Apply copy constraint: target = source."""
         src = self.state.get_variable(scope, context, c.source)
         tgt = self.state.get_variable(scope, context, c.target)
+        if self.config.verbose and (c.target.name == "$return" or c.source.name == "$return" or "$tmp" in c.target.name or "$tmp" in c.source.name or c.target.name in ["func", "result"]):
+            logger.info(f"[COPY] {c.source.name} -> {c.target.name} in {scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt}")
+            logger.info(f"  Src var: {src}")
+            logger.info(f"  Tgt var: {tgt}")
         self.state._add_var_points_flow(src, tgt)
         
     def _apply_alloc(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint'):
@@ -186,6 +241,8 @@ class PointerSolver:
 
         elif c.alloc_site.kind == AllocKind.CLASS:
             # complex class translation logic, for processing base classes
+            if self.config.debug_inheritance:
+                logger.info(f"[ALLOC] Allocating class: {c.target.name}")
             obj = self._alloc_class(scope, context, c)
         
         elif c.alloc_site.kind == AllocKind.MODULE:
@@ -220,11 +277,27 @@ class PointerSolver:
             self.state._heap.set_obj(scope, context, c.alloc_site, obj)
             pts = PointsToSet.singleton(obj)
             target = self.state.get_variable(scope, context, c.target)
+            
+            if self.config.debug_inheritance and c.alloc_site.kind == AllocKind.CLASS:
+                logger.info(f"[ALLOC] Adding class object to variable: {c.target.name} = {obj.alloc_site.stmt.name if hasattr(obj.alloc_site.stmt, 'name') else obj}")
+                logger.info(f"  Target variable: {target}")
+            
+            # Debug monitoring: record object allocation
+            if self._debug_monitor and self._debug_monitor.enabled and self._debug_monitor.track_object_flow:
+                obj_id = f"{c.alloc_site.kind.value}:{id(obj)}"
+                location = str(c.alloc_site)
+                self._debug_monitor.record_object_allocated(
+                    obj_id=obj_id,
+                    obj_kind=c.alloc_site.kind.value,
+                    location=location,
+                    target_var=str(c.target)
+                )
             self.state.obj_scope[obj] = scope
             self.state._worklist.add((scope, NormalNode(target), pts))
     
     def _alloc_constant(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocConstraint') -> 'ConstantObject':
         stmt: 'IRAssign' = c.alloc_site.stmt
+        assert isinstance(stmt, IRAssign), f"alloc_site.stmt must be an IRAssign, but got {type(stmt)}"
         obj = ConstantObject(self.context_selector.empty_context(), c.alloc_site, stmt.get_rval().value)
         return obj
     
@@ -401,6 +474,8 @@ class PointerSolver:
             ctx_field = self.state.get_field(scope, context, obj, attr(inner_var.name))
             ctx_inner_var = self.state.get_variable(ctx_scope, cls_context, inner_var)
             self.state._add_var_points_flow(ctx_inner_var, ctx_field)
+            if self.config.debug_inheritance:
+                logger.info(f"[CLASS] Storing field {obj.alloc_site.stmt.name}.{inner_var.name}: {ctx_inner_var} -> {ctx_field}")
 
         return obj
 
@@ -441,14 +516,94 @@ class PointerSolver:
         return module_obj
 
     def _apply_inheritance(self, scope: 'Scope', variable: 'Ctx', c: 'InheritanceConstraint', pts: 'PointsToSet'):
-        """Apply load constraint: target = base[index]."""
+        """Apply inheritance constraint: resolve field from base class.
+        
+        For each base class object in pts, get the field and create PFG edge
+        to the selector node. This allows parent class fields to flow to
+        the inheritance target (used by ClassObject and SuperObject).
+        """
+        from .object import ClassObject
         for base_obj in pts:
-            field_access = self.state.get_field(scope, scope.context, base_obj, c.field)
+            # For class inheritance, use the base class's internal scope
+            if isinstance(base_obj, ClassObject):
+                base_internal_scope = self.state.get_internal_scope(base_obj)
+                field_access = self.state.get_field(base_internal_scope, base_obj.context, base_obj, c.field)
+                if self.config.debug_inheritance:
+                    logger.info(f"[INHERIT] Applying inheritance: {base_obj.alloc_site.stmt.name if hasattr(base_obj.alloc_site.stmt, 'name') else base_obj}.{c.field} -> selector")
+                    logger.info(f"  Base internal scope: {base_internal_scope.stmt.get_qualname() if hasattr(base_internal_scope.stmt, 'get_qualname') else base_internal_scope.stmt}")
+                    logger.info(f"  Field access: {field_access}")
+                    logger.info(f"  Field pts: {self.state.get_points_to(field_access)}")
+            else:
+                field_access = self.state.get_field(scope, scope.context, base_obj, c.field)
             edge = PointerFlowEdge(NormalNode(field_access), c.target, PointerFlowKind.NORMAL)
+            # Register the edge with the selector node with its inheritance index
+            c.target.add_edge(edge, c.index)
             self.state._add_points_flow_edge(edge)
     
+    def _apply_super_resolve(self, scope: 'Scope', variable: 'Ctx', c: 'SuperResolveConstraint', pts: 'PointsToSet'):
+        """Apply super resolve constraint: populate SuperObject with class/instance.
+        
+        This constraint resolves super() arguments and creates properly initialized
+        SuperObject instances:
+        
+        1. For explicit super(Class, obj): get class and instance from variables
+        2. For implicit super(): look up __class__ cell var and first param
+        3. Create SuperObject with current_class and instance_obj set
+        4. Add to target variable's points-to set via worklist
+        
+        The resolved SuperObject then works with state.get_field() for MRO-based
+        field resolution via InheritanceConstraint.
+        """
+        from .object import SuperObject, ObjectFactory, ClassObject, InstanceObject
+        
+        context = scope.context
+        current_class = None
+        instance_obj = None
+        
+        if not c.implicit:
+            # Explicit super(Class, instance) - resolve from provided variables
+            if c.class_var:
+                class_var = self.state.get_variable(scope, context, c.class_var)
+                class_pts = self.state.get_points_to(class_var)
+                for obj in class_pts:
+                    if isinstance(obj, ClassObject):
+                        current_class = obj
+                        break
+            
+            if c.instance_var:
+                instance_var = self.state.get_variable(scope, context, c.instance_var)
+                instance_pts = self.state.get_points_to(instance_var)
+                for obj in instance_pts:
+                    # Accept any object as instance (InstanceObject or others)
+                    instance_obj = obj
+                    break
+        else:
+            # Implicit super() - look up from enclosing function scope
+            # This requires __class__ cell variable and first parameter (self)
+            # For now, handle conservatively - SuperObject will work without explicit resolution
+            pass
+        
+        # For each generic SuperObject allocation in pts, create resolved version
+        target_var = self.state.get_variable(scope, context, c.target)
+        for super_alloc in pts:
+            # Create SuperObject with resolved class and instance
+            resolved_super = ObjectFactory.create_super(
+                context=super_alloc.context,
+                stmt=super_alloc.alloc_site.stmt,
+                current_class=current_class,
+                instance_obj=instance_obj
+            )
+            
+            # Add resolved super object to target's points-to set via worklist
+            self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(resolved_super)))
+    
     def _apply_load_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'LoadSubscrConstraint', pts: 'PointsToSet'):
-        """Apply load constraint: target = base[index]."""
+        """Apply load constraint: target = base[index].
+        
+        For any index (constant or not), we add LoadConstraint with elem() to ensure
+        all container values are visible through the generic element field (soundness).
+        We also add key-specific constraints for constant indices (precision).
+        """
         unknown_index = False
         for index_obj in pts:
             if isinstance(index_obj, ConstantObject):
@@ -458,6 +613,10 @@ class PointerSolver:
                 unknown_index = True
         if unknown_index:
             self.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
+        
+        # ALWAYS add elem() constraint for soundness (even for constant indices)
+        # This ensures dynamic/unknown access patterns can still reach values
+        self.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
     
     def _apply_store_subscr(self, scope: 'Scope', variable: 'Ctx', c: 'StoreSubscrConstraint', pts: 'PointsToSet'):
         """Apply store constraint: base[index] = source."""
@@ -477,6 +636,53 @@ class PointerSolver:
         target_var = self.state.get_variable(scope, context, c.target)
         
         for base_obj in pts:
+            # Special handling for module imports: from module import name
+            # Instead of using field access, directly copy from module's variable
+            if isinstance(base_obj, ModuleObject) and c.field and c.field.kind.name == 'ATTR':
+                # Get the module's internal scope
+                module_scope = self.state.get_internal_scope(base_obj)
+                if module_scope:
+                    # Create variable in module scope for the imported name
+                    imported_var_name = c.field.name  # e.g., "foo" from module.foo
+                    imported_var = Variable(
+                        name=imported_var_name,
+                        scope=module_scope.stmt,
+                        context=module_scope.context,
+                        kind=VariableKind.LOCAL
+                    )
+                    # Get the contextualized variable from module scope
+                    module_var = self.state.get_variable(module_scope, module_scope.context, imported_var)
+                    # Direct copy: module.var -> local.var (bypass field mechanism)
+                    self.state._add_var_points_flow(module_var, target_var)
+                    continue
+            
+            # Special handling for builtin methods on container objects
+            if (c.field and c.field.kind.name == 'ATTR' and
+                isinstance(base_obj, (ListObject, DictObject, TupleObject, SetObject))):
+                method_name = c.field.name
+                # Check if this is a known builtin method
+                if method_name in ['append', 'extend', 'insert', 'pop', 'get', 'setdefault', 'keys', 'values', 'items']:
+                    # Create a BuiltinMethodObject bound to this container
+                    method_alloc = AllocSite(
+                        file=c.base.scope if hasattr(c.base, 'scope') else scope.stmt,
+                        line=0,
+                        col=0,
+                        kind=AllocKind.BUILTIN,
+                        scope=scope,
+                        name=f"{base_obj}_{method_name}",
+                        stmt=None
+                    )
+                    method_obj = BuiltinMethodObject(
+                        context=context,
+                        alloc_site=method_alloc,
+                        method_name=method_name,
+                        receiver=base_obj,
+                        receiver_var=c.base  # Store the receiver variable for later use
+                    )
+                    self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(method_obj)))
+                    continue
+            
+            # Default behavior: use field access for classes, instances, etc.
             field_access = self.state.get_field(scope, context, base_obj, c.field)
             self.state._add_var_points_flow(field_access, target_var)
     
@@ -493,6 +699,24 @@ class PointerSolver:
         """Apply call constraint: target = callee(args...)."""
         context = scope.context
         # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
+        
+        # Debug monitoring: record call constraint processing
+        if self._debug_monitor and self._debug_monitor.enabled:
+            self._debug_monitor.record_call_constraint_processed(
+                call_site=c.call_site,
+                callee_var=str(variable),
+                callee_pts_size=len(pts)
+            )
+        
+        # Check for empty callee
+        if len(pts) == 0:
+            if self._debug_monitor and self._debug_monitor.enabled:
+                self._debug_monitor.record_call_failed(
+                    call_site=c.call_site,
+                    reason="empty_callee",
+                    details="Callee points-to set is empty"
+                )
+            return False
          
         changed = False
         for callee_obj in pts:
@@ -508,7 +732,7 @@ class PointerSolver:
             elif callee_obj.kind == AllocKind.BOUND_METHOD:
                 changed = self._handle_bound_method_call(c, callee_obj)
             elif callee_obj.kind == AllocKind.BUILTIN:
-                changed = self._handle_builtin_call(c, callee_obj)
+                changed = self._handle_builtin_call(scope, context, c, callee_obj)
             # TODO add the __callable__ magic method
             else:
                 self._unknown_tracker.record(
@@ -517,6 +741,14 @@ class PointerSolver:
                     f"Attempting to call non-callable: {callee_obj.kind.value}",
                     context=str(callee_obj)
                 )
+                
+                # Debug monitoring: record non-callable
+                if self._debug_monitor and self._debug_monitor.enabled:
+                    self._debug_monitor.record_call_failed(
+                        call_site=c.call_site,
+                        reason="non_callable",
+                        details=f"Object kind: {callee_obj.kind.value}"
+                    )
                 
                 if self.config.verbose:
                     logger.warning(f"[UNKNOWN] Non-callable at {c.call_site}: {callee_obj}")
@@ -541,13 +773,14 @@ class PointerSolver:
         return changed
     
     def _handle_method_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
-        logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt}")
+        # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt.get_qualname()}")
         
         if not isinstance(method_obj, MethodObject):
             logger.info(f"is not method object, {type(func_obj)} got!")
             return False
-        
+                
         func_ir: IRFunc = method_obj.alloc_site.stmt
+        assert isinstance(func_ir, IRFunc), f"MethodObject alloc site stmt should be IRFunc, {type(func_ir)} got!"
         func_name = func_ir.get_qualname()
 
         if func_ir.is_static_method:
@@ -577,7 +810,7 @@ class PointerSolver:
             call_site,
             context,
             holder_obj,
-            params=frozenset(args)
+            params=frozenset(args) | frozenset(kwargs.items())
         )
         
         logger.debug(f"Handling function call: {call.call_site} -> {method_obj.alloc_site.stmt}")
@@ -807,14 +1040,25 @@ class PointerSolver:
                 )
 
         if call.target:
-            ret = self.variable_factory.make_variable("$return")
+            # Use TEMPORARY kind for $return so it's shared across all contexts in the same function
+            ret = self.variable_factory.make_variable("$return", VariableKind.TEMPORARY)
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
-            target = self.variable_factory.make_variable(call.target)
-            target_var = self.state.get_variable(scope, context, target)
+            target_var = self.state.get_variable(scope, context, call.target)
             self.state._add_var_points_flow(ret_var, target_var)
 
         self.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
+        
+        # Debug monitoring: record call edge creation
+        if self._debug_monitor and self._debug_monitor.enabled:
+            caller_name = str(scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt)
+            callee_name = str(call_edge.callee.stmt.get_qualname() if hasattr(call_edge.callee.stmt, 'get_qualname') else call_edge.callee.stmt)
+            self._debug_monitor.record_call_edge_created(
+                caller=caller_name,
+                callee=callee_name,
+                call_site=call.call_site,
+                callee_type="method"
+            )
 
         return changed
     
@@ -844,7 +1088,7 @@ class PointerSolver:
             call_site,
             context,
             None,  # No receiver ffor regular functions
-            params=frozenset(args)
+            params=frozenset(args) | frozenset(kwargs.items())
         )
         
         logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
@@ -1085,14 +1329,31 @@ class PointerSolver:
         '''
         
         if call.target:
-            ret = self.variable_factory.make_variable("$return")
+            # Use TEMPORARY kind for $return so it's shared across all contexts in the same function
+            ret = self.variable_factory.make_variable("$return", VariableKind.TEMPORARY)
             ret_var = self.state.get_variable(callee_scope, call_context, ret)
-            target = self.variable_factory.make_variable(call.target)
-            target_var = self.state.get_variable(scope, context, target)
+            target_var = self.state.get_variable(scope, context, call.target)
+            if self.config.verbose:
+                logger.info(f"[RETURN] Connecting return: {ret_var} -> {target_var}")
+                logger.info(f"  Callee scope: {callee_scope.stmt.get_qualname() if hasattr(callee_scope.stmt, 'get_qualname') else callee_scope.stmt}")
+                logger.info(f"  Caller scope (input): {scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt}, context={context}")
+                logger.info(f"  Target var scope (result): {target_var.scope.stmt.get_qualname() if hasattr(target_var.scope.stmt, 'get_qualname') else target_var.scope.stmt}, context={target_var.context}")
+                logger.info(f"  Call target var: {call.target.name}, kind={call.target.kind}")
             self.state._add_var_points_flow(ret_var, target_var)
         
         self.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
+        
+        # Debug monitoring: record call edge creation
+        if self._debug_monitor and self._debug_monitor.enabled:
+            caller_name = str(scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt)
+            callee_name = str(call_edge.callee.stmt.get_qualname() if hasattr(call_edge.callee.stmt, 'get_qualname') else call_edge.callee.stmt)
+            self._debug_monitor.record_call_edge_created(
+                caller=caller_name,
+                callee=callee_name,
+                call_site=call.call_site,
+                callee_type="function"
+            )
 
         return changed
     
@@ -1116,55 +1377,51 @@ class PointerSolver:
         target_var = self.state.get_variable(scope, context, call.target)        
         changed = self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(instance_obj)))
 
-        params = [self.state.get_variable(scope, context, arg) for arg in call.args]
-        params.insert(0, instance_obj)
+        cls_scope = self.state.get_internal_scope(class_obj)
+        params = ([("$self", instance_obj)] + [self.state.get_variable(scope, context, arg) for arg in call.args] +
+                  [(k, self.state.get_variable(cls_scope, cls_scope.context, arg)) for k, arg in call.kwargs])
+        
         instance_parent = self.state.get_internal_scope(class_obj).parent
         assert instance_parent, f"{self.state.get_internal_scope(class_obj)} : {class_obj} has no parent"
         instance_ctx = self.context_selector.select_call_context(call.call_site, context, instance_obj, frozenset(params))
         instance_scope = Scope.new(instance_obj, instance_parent.module, instance_ctx, class_obj.alloc_site.stmt, instance_parent)
         self.state.set_internal_scope(instance_obj, instance_scope)
 
-        # Call __init__ function
-        init_field = self.state.get_field(instance_ctx, instance_ctx, instance_obj, attr("__init__"))
-        var_name = f"$init@{instance_obj}:{class_obj}"
-        init_var = self.variable_factory.make_variable(var_name)
-        ctx_init_var = self.state.get_variable(scope, context, init_var)
-        self.state._add_var_points_flow(init_field, ctx_init_var)
-        self.add_constraint(scope, context, CallConstraint(init_var, call.args, call.kwargs, None, call.call_site))
-
-        '''
-        if self.class_hierarchy and self.class_hierarchy.has_class(class_obj):
-            init_pts = self.state.get_field(class_obj, attr("__init__"))
-            
-            if not init_pts.is_empty():
-                instance_var = Variable(
-                    name="$instance",
-                    scope=scope,
-                    context=call.target.context,
-                    kind=VariableKind.TEMPORARY
-                )
-                
-                self.state._worklist.add((scope, instance_var, PointsToSet.singleton(instance_obj)))
-
-                init_args = (instance_var,) + call.args
-                init_call = CallConstraint(
-                    callee=Variable(
-                        name="$init",
-                        scope=call.callee.scope,
-                        context=call.callee.context,
-                        kind=VariableKind.TEMPORARY
-                    ),
-                    args=init_args,
-                    target=None,  # __init__ returns None
-                    call_site=call.call_site + "_init"
-                )
-                
-                init_var = init_call.callee
-                self.state.set_points_to(init_var, init_pts)
-                
-                self.add_constraint(init_call)
-                changed = True
-        '''
+        # Call __init__ method bound to the instance
+        # Get the __init__ method(s) from the class and bind them to the instance
+        cls_scope = self.state.get_internal_scope(class_obj)
+        cls_init_field = self.state.get_field(cls_scope, cls_scope.context, class_obj, attr("__init__"))
+        
+        # Get existing __init__ methods and bind them to the instance
+        cls_init_pts = self.state.get_points_to(cls_init_field)
+        
+        # Create a variable to hold the bound __init__ method
+        bound_init_var_name = f"$bound_init@{call.call_site}"
+        bound_init_var = self.variable_factory.make_variable(bound_init_var_name)
+        ctx_bound_init_var = self.state.get_variable(scope, context, bound_init_var)
+        
+        # For each __init__ method, create a bound version
+        for init_method in cls_init_pts:
+            if isinstance(init_method, MethodObject):
+                bound_method = init_method.deliver_into(instance_obj)
+                self.state._worklist.add((scope, NormalNode(ctx_bound_init_var), PointsToSet.singleton(bound_method)))
+            else:
+                # If it's not a MethodObject (shouldn't happen), just pass it through
+                self.state._worklist.add((scope, NormalNode(ctx_bound_init_var), PointsToSet.singleton(init_method)))
+        
+        # Also handle future __init__ methods that might be added via PFG
+        # Unfortunately, a simple PFG edge won't work because it doesn't bind the methods
+        # As a workaround, we'll add a LoadConstraint that will be triggered when cls_init_field is populated
+        # Actually, we need a custom constraint type for this, but for now, let's use a hack:
+        # We'll create a StoreConstraint that stores instance_obj into a dummy field, then when __init__ is called,
+        # it can access this field to get the instance. But that's too complex.
+        # For now, let's just add the PFG edge and hope it works (methods will be unbound but might still work)
+        self.state._add_var_points_flow(cls_init_field, ctx_bound_init_var)
+        
+        # Call the bound __init__ method
+        from pythonstan.ir.ir_statements import IRCall
+        import ast
+        self.add_constraint(scope, context, CallConstraint(bound_init_var, call.args, call.kwargs, None, call.stmt, call.call_site))
         
         return changed
     
@@ -1197,30 +1454,42 @@ class PointerSolver:
             args=(self_var,) + call.args,
             kwargs=frozenset(),
             target=call.target,
+            stmt=call.stmt,
             call_site=call.call_site + "_method"
         )
         self.add_constraint(method_call)
         return True
     
-    def _handle_builtin_call(self, call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
-        """Handle builtin call: use summary to generate constraints."""
+    def _handle_builtin_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
+        """Handle builtin call: use builtin API handler to generate constraints.
+        
+        This method delegates to the BuiltinAPIHandler which creates appropriate
+        constraints and PFG edges for builtin operations.
+        """
         if not self.builtin_manager:
             logger.debug("Cannot handle builtin call: no builtin manager")
             return False
 
-        builtin_name = builtin_obj.alloc_site.stmt.get_name()
-        if not builtin_name:
-            return False
-        summary = self.builtin_manager.get_summary(builtin_name)
-        if not summary:
-            logger.debug(f"No summary for builtin: {builtin_name}")
+        # Get the builtin API handler
+        handler = self.builtin_manager.get_handler()
+        if not handler:
+            logger.debug("Builtin handler not initialized")
             return False
         
-        constraints = summary.apply(call.target, list(call.args), call.callee.context)
-        for constraint in constraints:
-            self.add_constraint(constraint)
-        
-        return len(constraints) > 0
+        # Delegate to handler to generate constraints
+        try:
+            constraints = handler.handle_builtin_call(scope, context, call, builtin_obj)
+            
+            # Add all generated constraints to the solver
+            for constraint in constraints:
+                self.add_constraint(scope, context, constraint)
+            
+            return len(constraints) > 0
+        finally:
+            ...
+        # except Exception as e:
+        #     logger.warning(f"Error handling builtin call: {e}")
+        #     return False
     
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)

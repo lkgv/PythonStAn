@@ -30,6 +30,12 @@ class Config:
         max_import_depth: Maximum depth for transitive import analysis (0 = no imports, -1 = unlimited)
         track_unknowns: Enable tracking of unknown/unresolved calls and allocations
         log_unknown_details: If True, logs each unknown immediately (verbose mode required)
+        enable_debug_monitor: Enable comprehensive debug monitoring
+        debug_log_interval: Log snapshot every N iterations
+        track_object_flow: Track object creation and propagation
+        track_pfg_activation: Track PFG edge activation
+        export_debug_data: Export debug data to files
+        debug_output_dir: Directory for debug output files
     """
     
     context_policy: str = "2-cfa"
@@ -49,6 +55,15 @@ class Config:
     type: str = "pointer analysis"
     index_sensitive: bool = False
     
+    # Debug monitoring options
+    enable_debug_monitor: bool = False
+    debug_log_interval: int = 1000
+    track_object_flow: bool = False
+    track_pfg_activation: bool = False
+    export_debug_data: bool = False
+    debug_output_dir: str = "debug_output"
+    debug_inheritance: bool = False  # Debug class field inheritance
+    
     @classmethod
     def from_dict(cls, config_dict: Dict):
         return cls(
@@ -67,6 +82,13 @@ class Config:
             track_unknowns=config_dict.get("track_unknowns", True),
             log_unknown_details=config_dict.get("log_unknown_details", False),
             index_sensitive=config_dict.get("index_sensitive", True),
+            enable_debug_monitor=config_dict.get("enable_debug_monitor", False),
+            debug_log_interval=config_dict.get("debug_log_interval", 1000),
+            track_object_flow=config_dict.get("track_object_flow", False),
+            track_pfg_activation=config_dict.get("track_pfg_activation", False),
+            export_debug_data=config_dict.get("export_debug_data", False),
+            debug_output_dir=config_dict.get("debug_output_dir", "debug_output"),
+            debug_inheritance=config_dict.get("debug_inheritance", False),
             type="pointer analysis")
     
     def to_dict(self) -> Dict:
@@ -86,6 +108,13 @@ class Config:
             "track_unknowns": self.track_unknowns,
             "log_unknown_details": self.log_unknown_details,
             "index_sensitive": self.index_sensitive,
+            "enable_debug_monitor": self.enable_debug_monitor,
+            "debug_log_interval": self.debug_log_interval,
+            "track_object_flow": self.track_object_flow,
+            "track_pfg_activation": self.track_pfg_activation,
+            "export_debug_data": self.export_debug_data,
+            "debug_output_dir": self.debug_output_dir,
+            "debug_inheritance": self.debug_inheritance,
             "type": self.type
         }
     
