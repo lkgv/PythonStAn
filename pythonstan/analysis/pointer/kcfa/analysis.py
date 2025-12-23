@@ -8,6 +8,7 @@ from typing import Optional, List, Any, TYPE_CHECKING, Dict
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
 from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
 from pythonstan.ir import IRScope
+from .processor import *
 
 if TYPE_CHECKING:
     from .config import Config
@@ -79,7 +80,12 @@ class PointerAnalysis(AnalysisDriver):
             context_selector=self.context_selector,
             class_hierarchy=self.class_hierarchy,
             builtin_manager=self.builtin_manager,
-            debug_monitor=self.debug_monitor
+            debug_monitor=self.debug_monitor,
+            processor=ComposeProcessor([
+                NormalCallProcessor(),
+                ContainerProcessor(index_sensitive=self.kcfa_config.index_sensitive),
+                SuperResolveProcessor(),
+            ])
         )
 
     def analyze(

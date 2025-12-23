@@ -471,17 +471,6 @@ class PointerAnalysisState:
                     return captured
             owner_scope = scope.parent or scope
             owner_context = owner_scope.context if owner_scope else context
-        elif var_kind == VariableKind.TEMPORARY:
-            # Temporary variables should be context-insensitive within a function.
-            # Use the function object's allocation context, not the caller's context.
-            owner_scope = scope
-            func_obj = getattr(scope, "obj", None)
-            if func_obj is not None and hasattr(func_obj, "context"):
-                # Use the function's allocation context for true context-insensitivity
-                owner_context = func_obj.context
-            else:
-                # Fallback for module-level temporaries
-                owner_context = scope.context
         else:
             owner_scope = scope
             owner_context = context

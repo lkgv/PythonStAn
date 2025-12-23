@@ -37,7 +37,7 @@ class PointerFlowEdge:
     def __post_init__(self):
         assert isinstance(self.source, PointerFlowNode)
         assert isinstance(self.target, PointerFlowNode)
-        assert self.source != self.target
+        assert self.source != self.target, f"source and target cannot be the same: {self.source} -> {self.target}"
         if self.kind == PointerFlowKind.INHERIT:
             assert isinstance(self.target, NormalNode) and isinstance(self.target.var.content.obj, ClassObject)
         if self.kind == PointerFlowKind.INSTANCE:

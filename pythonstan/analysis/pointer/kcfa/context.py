@@ -92,7 +92,7 @@ class AbstractContext(ABC, Generic[T]):
         return f"Ctx[{context_pool[self]}]"
     
     def __repr__(self) -> str:
-        return f"Ctx[{context_pool[self]}]"
+        return str(self)
 
 
 @dataclass(frozen=True)
@@ -366,6 +366,9 @@ class Ctx(Generic[T]):
         return (self.content == other.content and
                 self.context == other.context and
                 self.scope == other.scope)
+    
+    def __str__(self) -> str:
+        return f"{self.context}@{self.scope}:{self.content}"
 
 
 @dataclass(frozen=True)
