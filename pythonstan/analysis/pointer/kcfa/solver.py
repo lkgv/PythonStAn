@@ -62,6 +62,7 @@ class PointerSolver:
         self.processor = processor
         self.ir_translator = ir_translator
         self.context_selector = context_selector
+        self.class_hierarchy = class_hierarchy
         self.builtin_manager = builtin_manager
         self.variable_factory = variable_factory or VariableFactory()
         self._unknown_tracker = UnknownTracker()
@@ -610,7 +611,11 @@ class PointerSolver:
             elif callee_obj.kind == AllocKind.BOUND_METHOD:
                 changed = self._handle_bound_method_call(c, callee_obj)
             elif callee_obj.kind == AllocKind.BUILTIN:
-                changed = self._handle_builtin_call(scope, context, c, callee_obj)
+                # Check for AI-modeled intrinsics (getattr/setattr/hasattr)
+                if self._try_ai_intrinsic(scope, context, c, callee_obj):
+                    changed = True
+                else:
+                    changed = self._handle_builtin_call(scope, context, c, callee_obj)
             # TODO add the __callable__ magic method
             else:
                 self._unknown_tracker.record(
@@ -783,6 +788,132 @@ class PointerSolver:
         # except Exception as e:
         #     logger.warning(f"Error handling builtin call: {e}")
         #     return False
+    
+    def _try_ai_intrinsic(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        builtin_obj: 'AbstractObject',
+    ) -> bool:
+        """Try to handle builtin call via AI intrinsic modeling.
+        
+        For getattr/setattr/hasattr, invokes AI's intrinsic analyzer
+        which can use constant string attribute names for precision.
+        
+        Args:
+            scope: Current scope
+            context: Current context
+            call: Call constraint
+            builtin_obj: Builtin function object
+            
+        Returns:
+            True if AI handled the call, False to fall back to normal builtin handler
+        """
+        # Check if this is a BuiltinFunctionObject with a supported name
+        if not isinstance(builtin_obj, BuiltinFunctionObject):
+            return False
+        
+        func_name = builtin_obj.function_name
+        if func_name not in {"getattr", "setattr", "hasattr"}:
+            return False
+        
+        # Lazy initialization of AI engine
+        if not hasattr(self, '_ai_engine'):
+            from .pta_query_adapter import PtaQueryAdapter
+            from pythonstan.analysis.pointer.ai.api import AISummaryEngine, AnalysisBudget
+            
+            adapter = PtaQueryAdapter(self.state, self.class_hierarchy)
+            budget = AnalysisBudget()
+            self._ai_engine = AISummaryEngine(adapter, budget)
+        
+        # Build arg bindings from call arguments
+        from pythonstan.analysis.pointer.ai.api import ArgBinding
+        from pythonstan.analysis.pointer.ai.state import AbsVal
+        
+        arg_bindings = []
+        arg_names = ["obj", "name", "value"] if func_name == "setattr" else \
+                    ["obj", "name", "default"] if func_name == "getattr" else \
+                    ["obj", "name"]
+        
+        for i, arg_var in enumerate(call.args):
+            if i >= len(arg_names):
+                break
+            
+            param_name = arg_names[i]
+            ctx_arg = self.state.get_variable(scope, context, arg_var)
+            arg_pts = self.state.get_points_to(ctx_arg)
+            
+            # For "name" argument, try to extract constant strings from ConstantObjects
+            abs_val = None
+            if param_name == "name":
+                const_strs = set()
+                for obj in arg_pts:
+                    if isinstance(obj, ConstantObject) and isinstance(obj.value, str):
+                        const_strs.add(obj.value)
+                
+                if const_strs:
+                    # We have constant string(s) - use AbsVal with str_const
+                    abs_val = AbsVal.from_strs(frozenset(const_strs))
+                    # Also include addresses in case there are non-constant strings
+                    if len(arg_pts) > len(const_strs):
+                        abs_val = AbsVal(
+                            addrs=frozenset(arg_pts),
+                            str_const=frozenset(const_strs),
+                        )
+            
+            if abs_val is None:
+                abs_val = AbsVal.from_addrs(frozenset(arg_pts))
+            
+            arg_bindings.append(ArgBinding(
+                param_name=param_name,
+                points_to=frozenset(arg_pts),
+                value=abs_val,
+            ))
+        
+        # Determine target name for return value
+        target_name = None
+        if call.target:
+            target_name = call.target.name if hasattr(call.target, 'name') else str(call.target)
+        
+        try:
+            # Run AI intrinsic analysis
+            summary = self._ai_engine.analyze_intrinsic(
+                builtin_name=func_name,
+                call_context=context,
+                arg_bindings=arg_bindings,
+                caller_scope=scope,
+                target_name=target_name,
+            )
+            
+            changed = False
+            
+            # Compile return value into target variable
+            if call.target and summary.ret:
+                target_var = self.state.get_variable(scope, context, call.target)
+                ret_pts = PointsToSet.from_objects(summary.ret)
+                self.handle_new_points_to(target_var, scope, ret_pts)
+                changed = True
+            
+            # Compile writes into field updates
+            for write in summary.writes:
+                for obj in write.obj_addrs:
+                    field_var = self.state.get_field(scope, context, obj, write.field_key)
+                    value_pts = PointsToSet.from_objects(write.value_addrs)
+                    self.handle_new_points_to(field_var, scope, value_pts)
+                    changed = True
+            
+            # If AI produced useful results, return True
+            if changed or summary.ret or summary.writes:
+                return True
+            
+            # AI didn't produce useful results, fall back to normal handler
+            return False
+            
+        except Exception as e:
+            # AI failed, fall back to normal builtin handler
+            logger.debug(f"AI intrinsic failed for {func_name}: {e}")
+            return False
     
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)
