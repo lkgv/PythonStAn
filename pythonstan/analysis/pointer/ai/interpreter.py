@@ -112,6 +112,7 @@ class IRInterpreter:
         budget: 'AnalysisBudget',
         caller_scope: Optional['Scope'] = None,
         call_context: Optional['AbstractContext'] = None,
+        recursion_depth: int = 0,
     ):
         """Initialize interpreter.
         
@@ -120,11 +121,13 @@ class IRInterpreter:
             budget: Analysis budget limits
             caller_scope: Scope that called this function
             call_context: Context at the call site
+            recursion_depth: Current recursion depth for nested AI calls
         """
         self.pta_query = pta_query
         self.budget = budget
         self.caller_scope = caller_scope
         self.call_context = call_context
+        self.recursion_depth = recursion_depth
 
         # Dispatch table for statement types
         self._handlers: Dict[type, Callable] = {}
@@ -949,7 +952,7 @@ class IRInterpreter:
         return TransferResult.terminal()
 
     # =========================================================================
-    # Control flow transfers
+    # Control flow transfers (with value partition refinement)
     # =========================================================================
 
     def _transfer_jump_if_false(
@@ -958,26 +961,22 @@ class IRInterpreter:
         state: AIState,
         summary: SummaryAccumulator,
     ) -> TransferResult:
-        """Transfer for JumpIfFalse: if not cond goto label."""
+        """Transfer for JumpIfFalse: if not cond goto label.
+        
+        Implements value partitioning by refining states on each branch:
+        - True branch (fall-through): condition is truthy
+        - False branch (jump): condition is falsy
+        """
         cond_name = stmt.get_cond().id if hasattr(stmt.get_cond(), 'id') else None
         target_label = stmt.label.to_s() if stmt.label else None
 
-        if cond_name:
-            cond_val = state.get_var(cond_name)
-            
-            # Refine states for each branch
-            true_state = state  # Fall through
-            false_state = state  # Jump
-
-            # Could refine based on condition value
-            # For now just propagate both ways
-        else:
-            true_state = state
-            false_state = state
+        true_state, false_state = self._refine_states_for_condition(
+            state, cond_name, is_jump_if_true=False
+        )
 
         return TransferResult(states=[
-            (None, true_state),  # Fall through
-            (target_label, false_state),  # Jump
+            (None, true_state),  # Fall through (condition is true)
+            (target_label, false_state),  # Jump (condition is false)
         ])
 
     def _transfer_jump_if_true(
@@ -986,17 +985,88 @@ class IRInterpreter:
         state: AIState,
         summary: SummaryAccumulator,
     ) -> TransferResult:
-        """Transfer for JumpIfTrue: if cond goto label."""
+        """Transfer for JumpIfTrue: if cond goto label.
+        
+        Implements value partitioning by refining states on each branch:
+        - True branch (jump): condition is truthy
+        - False branch (fall-through): condition is falsy
+        """
         cond_name = stmt.get_cond().id if hasattr(stmt.get_cond(), 'id') else None
         target_label = stmt.label.to_s() if stmt.label else None
 
-        true_state = state
-        false_state = state
+        true_state, false_state = self._refine_states_for_condition(
+            state, cond_name, is_jump_if_true=True
+        )
 
         return TransferResult(states=[
-            (target_label, true_state),  # Jump
-            (None, false_state),  # Fall through
+            (target_label, true_state),  # Jump (condition is true)
+            (None, false_state),  # Fall through (condition is false)
         ])
+
+    def _refine_states_for_condition(
+        self,
+        state: AIState,
+        cond_name: Optional[str],
+        is_jump_if_true: bool,
+    ) -> Tuple[AIState, AIState]:
+        """Refine states based on condition value for value partitioning.
+        
+        This is the key mechanism for value partitioning:
+        - If cond has known bool_val=True, only true branch is reachable
+        - If cond has known bool_val=False, only false branch is reachable
+        - If cond is unknown, propagate both branches with refined condition
+        - For None-ness checks, refine may_be_none on each branch
+        
+        Controlled by budget.enable_value_partition. When disabled, both
+        branches get the same unrefined state.
+        
+        Args:
+            state: Current abstract state
+            cond_name: Name of condition variable (or None)
+            is_jump_if_true: True if this is JumpIfTrue (affects which branch gets which refinement)
+            
+        Returns:
+            (true_state, false_state) tuple with refined states
+        """
+        # Check if value partitioning is enabled
+        if not getattr(self.budget, 'enable_value_partition', True):
+            return state, state
+        
+        if cond_name is None:
+            return state, state
+        
+        cond_val = state.get_var(cond_name)
+        
+        # Check if condition is definitely known
+        if cond_val.bool_val is True:
+            # Condition is definitely true
+            # True branch is reachable, false branch is unreachable (but sound to propagate)
+            true_state = state
+            false_state = state  # Keep sound (could use bottom)
+        elif cond_val.bool_val is False:
+            # Condition is definitely false
+            true_state = state  # Keep sound
+            false_state = state
+        else:
+            # Condition is unknown - refine on each branch
+            # True branch: set cond's bool_val to True
+            true_state = state.set_var(cond_name, AbsVal(
+                addrs=cond_val.addrs,
+                str_const=cond_val.str_const,
+                may_be_none=False,  # Truthy value cannot be None
+                bool_val=True,
+            ))
+            
+            # False branch: set cond's bool_val to False
+            # Note: False could be None, False, 0, "", [], etc.
+            false_state = state.set_var(cond_name, AbsVal(
+                addrs=cond_val.addrs,
+                str_const=cond_val.str_const,
+                may_be_none=cond_val.may_be_none,  # None is falsy
+                bool_val=False,
+            ))
+        
+        return true_state, false_state
 
     def _transfer_goto(
         self,
@@ -1077,7 +1147,6 @@ class IRInterpreter:
         arg_vals: List[Tuple[str, AbsVal]],
         summary: SummaryAccumulator,
         receiver_val: Optional[AbsVal] = None,
-        recursion_depth: int = 0,
     ) -> AbsVal:
         """Invoke a user-defined callee and return its summary result.
         
@@ -1086,21 +1155,23 @@ class IRInterpreter:
         - __getattribute__, __getattr__, __setattr__ hooks
         - Module __getattr__ (PEP 562)
         
+        Uses self.recursion_depth to enforce budget limits and increments it
+        for nested calls.
+        
         Args:
             callee_obj: The callable object (FunctionObject/MethodObject)
             arg_vals: List of (param_name, AbsVal) pairs for positional args
             summary: Summary accumulator to merge effects into
             receiver_val: Optional receiver for method binding (self/cls)
-            recursion_depth: Current recursion depth for budget enforcement
             
         Returns:
             AbsVal representing the return addresses, or top() if analysis fails
         """
         from .api import AISummaryEngine, ArgBinding
         
-        # Check recursion depth budget
+        # Check recursion depth budget using self.recursion_depth
         max_depth = self.budget.max_recursion_depth if self.budget else 3
-        if recursion_depth >= max_depth:
+        if self.recursion_depth >= max_depth:
             # Budget exhausted: return conservative result
             summary.add_unknown_effect("may_call", frozenset({callee_obj}))
             return AbsVal.top()
@@ -1115,15 +1186,16 @@ class IRInterpreter:
         # Build ArgBindings from arg_vals
         arg_bindings: List[ArgBinding] = []
         
-        # Inject receiver binding for methods
-        if receiver_val is not None:
+        # Inject receiver binding for methods using proper method binding rules
+        actual_receiver = self._get_receiver_for_method(callee_obj, scope_ir, receiver_val)
+        if actual_receiver is not None:
             # Determine receiver param name from scope_ir
             self_name = self._get_self_param_name(scope_ir)
             if self_name:
                 arg_bindings.append(ArgBinding(
                     param_name=self_name,
-                    points_to=receiver_val.addrs,
-                    value=receiver_val,
+                    points_to=actual_receiver.addrs,
+                    value=actual_receiver,
                 ))
         
         # Add positional arguments
@@ -1134,7 +1206,7 @@ class IRInterpreter:
                 value=arg_val,
             ))
         
-        # Create engine and analyze callee
+        # Create engine and analyze callee with incremented recursion depth
         try:
             engine = AISummaryEngine(self.pta_query, self.budget)
             callee_summary = engine.analyze_callee(
@@ -1142,10 +1214,14 @@ class IRInterpreter:
                 call_context=self.call_context,
                 arg_bindings=arg_bindings,
                 caller_scope=self.caller_scope,
+                recursion_depth=self.recursion_depth + 1,
             )
             
-            # Merge callee summary into our accumulator
-            summary.ret_addrs.update(callee_summary.ret)
+            # Merge callee summary's EFFECTS into our accumulator
+            # NOTE: Do NOT merge callee_summary.ret into summary.ret_addrs!
+            # The callee's return addresses flow into the expression result (AbsVal),
+            # not the caller's return values. The caller's returns should only come
+            # from the caller's own return statements.
             for write in callee_summary.writes:
                 summary.add_write(write.obj_addrs, write.field_key, write.value_addrs)
             for read_obj, read_field in callee_summary.reads:
@@ -1154,7 +1230,7 @@ class IRInterpreter:
                 summary.unknown_effects.append(effect)
             summary.may_raise.update(callee_summary.may_raise)
             
-            # Return the callee's return addresses
+            # Return the callee's return addresses as the expression result
             if callee_summary.ret:
                 return AbsVal.from_addrs(callee_summary.ret)
             else:
@@ -1169,7 +1245,8 @@ class IRInterpreter:
     def _get_callee_scope_ir(self, callee_obj: 'AbstractObject') -> Optional['IRFunc']:
         """Get the IR scope for a callable object.
         
-        Attempts to retrieve the IRFunc from World's scope_manager.
+        For kcfa FunctionObject/MethodObject, use their direct `ir` attribute.
+        Falls back to World lookup if the direct attribute is not available.
         
         Args:
             callee_obj: The callable object
@@ -1178,25 +1255,41 @@ class IRInterpreter:
             IRFunc if available, None otherwise
         """
         try:
-            from pythonstan.world import World
             from pythonstan.ir.ir_statements import IRFunc
             
-            # Try to get qualname from the callee object
-            qualname = None
-            if hasattr(callee_obj, 'qualname'):
-                qualname = callee_obj.qualname
-            elif hasattr(callee_obj, 'name'):
-                qualname = callee_obj.name
-            elif hasattr(callee_obj, 'get_qualname'):
-                qualname = callee_obj.get_qualname()
+            # Primary path: FunctionObject/MethodObject have an `ir` attribute
+            # that directly references the IRFunc
+            if hasattr(callee_obj, 'ir'):
+                ir = callee_obj.ir
+                if ir is not None and isinstance(ir, IRFunc):
+                    return ir
             
-            if qualname is None:
-                return None
+            # Fallback: try to get from alloc_site.stmt (some objects store it there)
+            if hasattr(callee_obj, 'alloc_site'):
+                alloc_site = callee_obj.alloc_site
+                if hasattr(alloc_site, 'stmt'):
+                    stmt = alloc_site.stmt
+                    if isinstance(stmt, IRFunc):
+                        return stmt
             
-            # Look up the scope in World
-            scope = World().scope_manager.get_module(qualname)
-            if scope is not None and isinstance(scope, IRFunc):
-                return scope
+            # Last resort: try World lookup (may not work for all cases)
+            try:
+                from pythonstan.world import World
+                
+                qualname = None
+                if hasattr(callee_obj, 'qualname'):
+                    qualname = callee_obj.qualname
+                elif hasattr(callee_obj, 'name'):
+                    qualname = callee_obj.name
+                elif hasattr(callee_obj, 'get_qualname'):
+                    qualname = callee_obj.get_qualname()
+                
+                if qualname is not None:
+                    scope = World().scope_manager.get_module(qualname)
+                    if scope is not None and isinstance(scope, IRFunc):
+                        return scope
+            except Exception:
+                pass
                 
             return None
         except Exception:
@@ -1218,5 +1311,75 @@ class IRInterpreter:
                     return args.args[0].arg
         except Exception:
             pass
+        return None
+
+    def _should_inject_receiver(self, scope_ir: 'IRFunc') -> bool:
+        """Check if receiver (self/cls) should be injected for this function.
+        
+        Static methods don't get receiver injection.
+        
+        Args:
+            scope_ir: The IRFunc to check
+            
+        Returns:
+            True if receiver should be injected
+        """
+        try:
+            if hasattr(scope_ir, 'is_static_method') and scope_ir.is_static_method:
+                return False
+            return True
+        except Exception:
+            return True  # Default to injecting receiver
+
+    def _get_receiver_for_method(
+        self,
+        callee_obj: 'AbstractObject',
+        scope_ir: 'IRFunc',
+        explicit_receiver: Optional[AbsVal],
+    ) -> Optional[AbsVal]:
+        """Get the appropriate receiver value for method binding.
+        
+        Implements kcfa rules:
+        - Instance methods: use instance_obj if available, else class_obj
+        - Class methods: use class_obj
+        - Static methods: no receiver (returns None)
+        
+        Args:
+            callee_obj: The callable object (may be MethodObject)
+            scope_ir: The IRFunc
+            explicit_receiver: Explicitly provided receiver (takes priority)
+            
+        Returns:
+            AbsVal for the receiver, or None if no receiver needed
+        """
+        # Static methods don't get a receiver
+        if not self._should_inject_receiver(scope_ir):
+            return None
+        
+        # Explicit receiver takes priority
+        if explicit_receiver is not None:
+            return explicit_receiver
+        
+        # Try to extract receiver from MethodObject
+        try:
+            if hasattr(callee_obj, 'is_class_method') and callee_obj.is_class_method:
+                # Class methods get the class object
+                if hasattr(callee_obj, 'class_obj') and callee_obj.class_obj is not None:
+                    return AbsVal.from_addrs(frozenset({callee_obj.class_obj}))
+            
+            if hasattr(scope_ir, 'is_class_method') and scope_ir.is_class_method:
+                # Check scope IR for classmethod decorator
+                if hasattr(callee_obj, 'class_obj') and callee_obj.class_obj is not None:
+                    return AbsVal.from_addrs(frozenset({callee_obj.class_obj}))
+            
+            # Instance method - prefer instance_obj, fall back to class_obj
+            if hasattr(callee_obj, 'instance_obj') and callee_obj.instance_obj is not None:
+                return AbsVal.from_addrs(frozenset({callee_obj.instance_obj}))
+            
+            if hasattr(callee_obj, 'class_obj') and callee_obj.class_obj is not None:
+                return AbsVal.from_addrs(frozenset({callee_obj.class_obj}))
+        except Exception:
+            pass
+        
         return None
 

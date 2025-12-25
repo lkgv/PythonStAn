@@ -254,6 +254,11 @@ class AnalysisBudget:
         max_const_strings: Cap for string domain const set
         enable_narrowing: Whether to run narrowing pass
         narrowing_iterations: Number of narrowing iterations
+        
+        Value Partitioning:
+        enable_value_partition: Whether to refine states on branches
+        max_value_partitions: Max partitions per variable before merging
+        value_partition_str_cap: Max string constants to enumerate for partitioning
     """
     max_iterations: int = 100
     max_stmt_visits: int = 50
@@ -263,6 +268,11 @@ class AnalysisBudget:
     max_const_strings: int = 10
     enable_narrowing: bool = True
     narrowing_iterations: int = 2
+    
+    # Value partitioning settings
+    enable_value_partition: bool = True  # Enable branch refinement (on by default)
+    max_value_partitions: int = 4  # Max partitions per variable
+    value_partition_str_cap: int = 4  # Max strings to enumerate for partitioning
 
 
 # =============================================================================
@@ -300,6 +310,7 @@ class AISummaryEngine:
         call_context: 'AbstractContext',
         arg_bindings: List[ArgBinding],
         caller_scope: Optional['Scope'] = None,
+        recursion_depth: int = 0,
     ) -> AISummary:
         """Analyze a callee scope and produce a summary.
         
@@ -310,6 +321,7 @@ class AISummaryEngine:
             call_context: Context at the call site
             arg_bindings: Parameter bindings from caller arguments
             caller_scope: Optional caller scope for context
+            recursion_depth: Current recursion depth for nested AI calls
             
         Returns:
             AISummary with returns, writes, and effects
@@ -337,6 +349,7 @@ class AISummaryEngine:
             budget=self.budget,
             caller_scope=caller_scope,
             call_context=call_context,
+            recursion_depth=recursion_depth,
         )
         summary = solver.solve()
 

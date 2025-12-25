@@ -265,6 +265,31 @@ class FieldStore:
         
         return joined
 
+    def narrow(self, other: 'FieldStore') -> 'FieldStore':
+        """Narrow field store (△).
+        
+        Refines by intersecting value sets for matching keys.
+        Does NOT un-spill keys from the default bucket (expensive and unstable).
+        """
+        # Narrow matching keys
+        new_map: Dict[str, AddrSet] = {}
+        for k in self.precise_map:
+            if k in other.precise_map:
+                # Intersect the value sets
+                new_map[k] = self.precise_map[k] & other.precise_map[k]
+            else:
+                # Keep self's value (no information from other)
+                new_map[k] = self.precise_map[k]
+        
+        # Narrow default bucket
+        new_default = self.default_bucket & other.default_bucket
+        
+        return FieldStore(
+            precise_map=new_map,
+            default_bucket=new_default,
+            max_keys=self.max_keys,
+        )
+
     def is_bottom(self) -> bool:
         """Check if this is bottom (empty)."""
         return len(self.precise_map) == 0 and len(self.default_bucket) == 0
@@ -393,6 +418,29 @@ class ContainerSlots:
         
         return joined
 
+    def narrow(self, other: 'ContainerSlots') -> 'ContainerSlots':
+        """Narrow container slots (△).
+        
+        Refines by intersecting value sets for matching indices.
+        """
+        # Narrow matching tracked indices
+        new_tracked: Dict[Union[int, str], AddrSet] = {}
+        for k in self.tracked_indices:
+            if k in other.tracked_indices:
+                new_tracked[k] = self.tracked_indices[k] & other.tracked_indices[k]
+            else:
+                new_tracked[k] = self.tracked_indices[k]
+        
+        # Narrow elem bucket
+        new_elem = self.elem_bucket & other.elem_bucket
+        
+        return ContainerSlots(
+            elem_bucket=new_elem,
+            tracked_indices=new_tracked,
+            may_be_empty=self.may_be_empty or other.may_be_empty,  # Conservative
+            max_tracked=self.max_tracked,
+        )
+
 
 # =============================================================================
 # AbsObj - Abstract heap object
@@ -481,6 +529,28 @@ class AbsObj:
             kind=self.kind,
             cls_addrs=self.cls_addrs | other.cls_addrs,
             dict_store=self.dict_store.widen(other.dict_store),
+            container_slots=container,
+        )
+
+    def narrow(self, other: 'AbsObj') -> 'AbsObj':
+        """Narrow two abstract objects (△).
+        
+        Refines by meeting (intersecting) components.
+        """
+        assert self.addr == other.addr
+        
+        container = None
+        if self.container_slots and other.container_slots:
+            container = self.container_slots.narrow(other.container_slots)
+        elif self.container_slots:
+            container = self.container_slots
+        # Note: if only other has container_slots, we keep None (self didn't have it)
+
+        return AbsObj(
+            addr=self.addr,
+            kind=self.kind,
+            cls_addrs=self.cls_addrs & other.cls_addrs,  # Meet = intersection
+            dict_store=self.dict_store.narrow(other.dict_store),
             container_slots=container,
         )
 

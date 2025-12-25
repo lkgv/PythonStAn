@@ -47,6 +47,9 @@ class AbsVal:
     Attributes:
         addrs: Set of abstract objects this value may point to
         str_const: Optional constant string value(s) for reflective keys
+            - None = unknown string (top for string component)
+            - empty frozenset = definitely not a string (bottom for string component)
+            - non-empty frozenset = known constant strings
         may_be_none: Whether value may be None
         bool_val: Optional boolean value (True/False/None=unknown)
     """
@@ -57,12 +60,19 @@ class AbsVal:
 
     @classmethod
     def bottom(cls) -> 'AbsVal':
-        """Create bottom value (unreachable)."""
-        return cls()
+        """Create bottom value (unreachable / no information).
+        
+        NOTE: Bottom is NOT the same as "unknown" - it means "no possible value".
+        For a variable that doesn't exist yet, we use bottom.
+        Joining bottom with any value V yields V.
+        """
+        # str_const=frozenset() means "definitely not a string" (empty set of possible strings)
+        # This is different from str_const=None which means "unknown string" (top)
+        return cls(addrs=frozenset(), str_const=frozenset(), may_be_none=False, bool_val=None)
 
     @classmethod
     def top(cls) -> 'AbsVal':
-        """Create top value (unknown)."""
+        """Create top value (unknown / any possible value)."""
         return cls(str_const=None, may_be_none=True, bool_val=None)
 
     @classmethod
@@ -96,7 +106,7 @@ class AbsVal:
         return cls(bool_val=False)
 
     def is_bottom(self) -> bool:
-        """Check if this is bottom."""
+        """Check if this is bottom (no possible value)."""
         return (
             len(self.addrs) == 0 and
             self.str_const is not None and len(self.str_const) == 0 and
@@ -105,35 +115,54 @@ class AbsVal:
         )
 
     def is_const_str(self) -> bool:
-        """Check if this is a constant string (finite set)."""
+        """Check if this is a constant string (finite non-empty set)."""
         return self.str_const is not None and len(self.str_const) > 0
 
     def is_unknown_str(self) -> bool:
-        """Check if string component is unknown."""
+        """Check if string component is unknown (top)."""
         return self.str_const is None
+
+    def is_str_bottom(self) -> bool:
+        """Check if string component is bottom (empty set = definitely not a string)."""
+        return self.str_const is not None and len(self.str_const) == 0
 
     def get_const_strs(self) -> Optional[FrozenSet[str]]:
         """Get constant strings if enumerable, else None."""
         return self.str_const
 
     def join(self, other: 'AbsVal') -> 'AbsVal':
-        """Join two abstract values (⊔)."""
+        """Join two abstract values (⊔).
+        
+        Bottom is the identity for join: bottom ⊔ V = V.
+        """
+        # Handle bottom cases: bottom is identity for join
+        if self.is_bottom():
+            return other
+        if other.is_bottom():
+            return self
+        
         # Join addresses
         new_addrs = self.addrs | other.addrs
 
         # Join string constants
+        # None (unknown/top) dominates; empty set (bottom) is identity
         if self.str_const is None or other.str_const is None:
             new_str = None
+        elif len(self.str_const) == 0:
+            new_str = other.str_const
+        elif len(other.str_const) == 0:
+            new_str = self.str_const
         else:
             new_str = self.str_const | other.str_const
 
         # Join bool
+        # None (unknown) dominates specific values
         if self.bool_val is None or other.bool_val is None:
             new_bool = None
         elif self.bool_val == other.bool_val:
             new_bool = self.bool_val
         else:
-            new_bool = None
+            new_bool = None  # True ⊔ False = unknown
 
         return AbsVal(
             addrs=new_addrs,
@@ -173,41 +202,123 @@ class AbsVal:
         )
 
     def leq(self, other: 'AbsVal') -> bool:
-        """Check if self ⊑ other."""
+        """Check if self ⊑ other.
+        
+        Lattice ordering where None = top (unknown), frozenset() = bottom.
+        """
         if not self.addrs <= other.addrs:
             return False
-        if self.str_const is not None:
-            if other.str_const is None:
-                pass  # self is more precise
-            elif not self.str_const <= other.str_const:
+        
+        # String lattice: None (unknown) is top, empty set is bottom
+        # specific ⊑ unknown (top), but unknown ⊏ specific
+        if self.str_const is None:
+            # self is unknown (top) - only ≤ other if other is also unknown
+            if other.str_const is not None:
+                return False  # unknown ⊏ specific
+        elif other.str_const is not None:
+            # Both are specific sets - check subset
+            if not self.str_const <= other.str_const:
                 return False
+        # else: self is specific, other is unknown → self ⊑ other ✓
+        
         if self.may_be_none and not other.may_be_none:
             return False
-        if self.bool_val is not None:
-            if other.bool_val is None:
-                pass
-            elif self.bool_val != other.bool_val:
+        
+        # Bool lattice: None (unknown) is top
+        if self.bool_val is None:
+            # self is unknown - only ≤ other if other is also unknown
+            if other.bool_val is not None:
                 return False
+        elif other.bool_val is not None:
+            # Both are specific - must be equal
+            if self.bool_val != other.bool_val:
+                return False
+        # else: self is specific, other is unknown → self ⊑ other ✓
+        
         return True
 
-    def widen(self, other: 'AbsVal', max_strs: int = 10) -> 'AbsVal':
+    def widen(self, other: 'AbsVal', max_strs: int = 10, max_addrs: int = 50) -> 'AbsVal':
         """Widen abstract value (∇).
         
-        String widening: if too many constants, go to unknown.
-        Address widening: handled at state level.
+        From ai_spec.md §10.1:
+        - String widening: if too many constants, go to unknown.
+        - Address widening: if too many addresses, summarize by alloc-site.
+        
+        Args:
+            other: Other value to widen with
+            max_strs: Maximum string constants before widening to unknown
+            max_addrs: Maximum addresses before summarization
+            
+        Returns:
+            Widened abstract value
         """
         joined = self.join(other)
         
-        # String widening
-        if joined.str_const is not None and len(joined.str_const) > max_strs:
-            joined = AbsVal(
-                addrs=joined.addrs,
-                str_const=None,  # Widen to unknown
-                may_be_none=joined.may_be_none,
-                bool_val=joined.bool_val,
-            )
+        new_addrs = joined.addrs
+        new_str = joined.str_const
         
-        return joined
+        # String widening: too many constants -> unknown
+        if new_str is not None and len(new_str) > max_strs:
+            new_str = None  # Widen to unknown
+        
+        # Address set widening: if too large, summarize by alloc-site
+        # From ai_spec.md §10.1: A ∇_A A' = {summary(site, ctx) | ...} when |A ∪ A'| > cap
+        if len(new_addrs) > max_addrs:
+            new_addrs = self._summarize_addrs_by_alloc_site(new_addrs)
+        
+        return AbsVal(
+            addrs=new_addrs,
+            str_const=new_str,
+            may_be_none=joined.may_be_none,
+            bool_val=joined.bool_val,
+        )
+
+    @staticmethod
+    def _summarize_addrs_by_alloc_site(
+        addrs: FrozenSet['AbstractObject']
+    ) -> FrozenSet['AbstractObject']:
+        """Summarize addresses by collapsing contexts at the same alloc-site.
+        
+        From ai_spec.md §10.1:
+        summary(site, ctx) = (site, trunc_{k'}(ctx)) where k' ≤ k
+        
+        For each alloc-site with multiple objects, keep only one representative
+        (the one with the shortest/most summarized context).
+        
+        Args:
+            addrs: Set of abstract objects to summarize
+            
+        Returns:
+            Summarized address set (smaller or same size)
+        """
+        from collections import defaultdict
+        
+        # Group objects by alloc_site
+        by_site: Dict[Any, List['AbstractObject']] = defaultdict(list)
+        for obj in addrs:
+            by_site[obj.alloc_site].append(obj)
+        
+        # For each site, pick the object with shortest context or create summary
+        result: Set['AbstractObject'] = set()
+        for site, objs in by_site.items():
+            if len(objs) == 1:
+                # Only one object at this site, keep it
+                result.add(objs[0])
+            else:
+                # Multiple objects at same site - pick most summarized context
+                # For now, pick the one with the shortest context representation
+                # This is a heuristic; a full implementation would create a true
+                # summary context by truncating to k'=0
+                best = min(objs, key=lambda o: len(str(o.context)))
+                result.add(best)
+                
+                # Alternatively, we could try to create a summary context:
+                # For CallStringContext, we could use k=0 (empty context)
+                # For ObjectContext, we could use depth=0
+                # But this requires constructing new AbstractObjects which may
+                # not be in the kcfa's object pool. For now, use the heuristic.
+        
+        return frozenset(result)
 
     def with_addrs(self, addrs: FrozenSet['AbstractObject']) -> 'AbsVal':
         """Return copy with new address set."""
@@ -413,6 +524,7 @@ class AIState:
         """Widen state (∇).
         
         Apply widening to address sets, string sets, and field stores.
+        From ai_spec.md §10.1: address-set widening caps growth via summarization.
         """
         max_strs = self.budget.max_const_strings if self.budget else 10
         max_addrs = self.budget.max_addr_set_size if self.budget else 50
@@ -423,13 +535,7 @@ class AIState:
         for v in all_vars:
             v1 = self.env.get(v, AbsVal.bottom())
             v2 = other.env.get(v, AbsVal.bottom())
-            widened = v1.widen(v2, max_strs=max_strs)
-            
-            # Address set widening: if too large, summarize
-            if len(widened.addrs) > max_addrs:
-                # For now just keep as-is; proper summarization needs alloc-site merging
-                pass
-            
+            widened = v1.widen(v2, max_strs=max_strs, max_addrs=max_addrs)
             new_env[v] = widened
 
         # Widen heaps
@@ -454,7 +560,8 @@ class AIState:
     def narrow(self, other: 'AIState') -> 'AIState':
         """Narrow state (△).
         
-        Apply meet to refine after widening.
+        Apply meet to refine after widening. Narrows both environment and heap.
+        From ai_spec.md §10.6: narrowing uses meet with branch constraints.
         """
         # Narrow environments
         new_env: Dict[str, AbsVal] = {}
@@ -464,9 +571,18 @@ class AIState:
             else:
                 new_env[v] = self.env[v]
 
+        # Narrow heaps: apply meet to matching objects
+        new_heap: Dict[AIAddr, AbsObj] = {}
+        for a in self.heap:
+            if a in other.heap:
+                # Narrow the heap object
+                new_heap[a] = self.heap[a].narrow(other.heap[a])
+            else:
+                new_heap[a] = self.heap[a]
+
         return AIState(
             env=new_env,
-            heap=self.heap,  # Don't narrow heap for now
+            heap=new_heap,
             exn=self.exn,
             pta_query=self.pta_query,
             budget=self.budget,
