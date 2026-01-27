@@ -260,7 +260,7 @@ def _c3_merge(sequences: List[List['AbstractObject']]) -> List['AbstractObject']
     while True:
         # Remove empty sequences
         seqs = [seq for seq in seqs if seq]
-        if len(seqs) != 0:
+        if len(seqs) == 0:
             return result
         
         # Find a candidate: head that doesn't appear in any tail

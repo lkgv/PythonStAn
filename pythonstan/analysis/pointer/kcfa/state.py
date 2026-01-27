@@ -4,10 +4,13 @@ This module defines the state maintained during pointer analysis including
 the environment (variable points-to sets) and heap (object field points-to sets).
 """
 
+from calendar import c
 from dataclasses import dataclass
-from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, List, TYPE_CHECKING, Union
-from collections import defaultdict
+from typing import Dict, FrozenSet, Tuple, Set, Optional, Iterable, Any, List, TYPE_CHECKING, Union, Deque
+from collections import defaultdict, deque
+from queue import Queue
 
+from pythonstan.utils.common import Box
 from pythonstan.ir.ir_statements import IRModule, IRStatement
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 from .object import *
@@ -25,7 +28,7 @@ __all__ = ["PointerAnalysisState"]
 
 
 # TODO to be done 
-class PointerCallGraph(AbstractCallGraph[Ctx[IRStatement], Scope]):
+class PointerCallGraph(AbstractCallGraph[Ctx[CallSite], Scope]):
 
     def __init__(self):
         super().__init__()
@@ -48,11 +51,12 @@ class Worklist:
     Uses a list for deterministic ordering and a dict for fast lookup.
     Items are processed in FIFO order for better determinism.
     """
-    items_list: List[Tuple[Scope, PointerFlowNode, PointsToSet]]
-    items_dict: Dict[PointerFlowNode, int]  # Maps node to index in list
+        
+    items_list: Deque[Dict[str, Any]]
+    items_dict: Dict[PointerFlowNode, Dict[str, Any]]  # Maps node to index in list
 
     def __init__(self):
-        self.items_list = []
+        self.items_list = deque()
         self.items_dict = {}
         self._next_index = 0
 
@@ -61,27 +65,28 @@ class Worklist:
         assert isinstance(node, PointerFlowNode), f"node must be a PFNode, but got {type(node)}"
         if isinstance(node, NormalNode):
             assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
+
+        worklist_item: Tuple[Scope, PointerFlowNode, Box[PointsToSet]] = (scope, node, Box(pts))
         
         # Check if node already in worklist
         if node in self.items_dict:
-            idx = self.items_dict[node]
-            old_scope, old_node, old_pts = self.items_list[idx]
+            item = self.items_dict[node]
             # Merge points-to sets
-            self.items_list[idx] = (scope, node, old_pts.union(pts))
+            item[2].val = item[2].val.union(pts)
         else:
             # Add new item
-            self.items_list.append((scope, node, pts))
-            self.items_dict[node] = len(self.items_list) - 1
+            self.items_list.append(worklist_item)
+            self.items_dict[node] = worklist_item
     
     def pop(self) -> Tuple[Scope, PointerFlowNode, PointsToSet]:
-        """Pop from the end (LIFO) for deterministic processing."""
+        """Pop from the front (FIFO) for deterministic processing."""
         if not self.items_list:
             raise IndexError("pop from empty worklist")
         
-        scope, node, pts = self.items_list.pop()
+        scope, node, pts = self.items_list.popleft()
         del self.items_dict[node]
         
-        return scope, node, pts
+        return scope, node, pts.val
     
     def empty(self) -> bool:
         return len(self.items_list) == 0
@@ -105,7 +110,7 @@ class PointerAnalysisState:
         """
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
-        self._call_graph: 'AbstractCallGraph' = PointerCallGraph()
+        self._call_graph: 'PointerCallGraph' = PointerCallGraph()
         self._constraints: ConstraintManager = ConstraintManager()
         self._call_edges = []  # List of CallEdge objects tracked during analysis
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
@@ -202,6 +207,21 @@ class PointerAnalysisState:
             Contextualized field access for the specified field
         """
 
+        # Summary objects: connect summary field to all concrete counterparts
+        if is_summary_object(obj):
+            field_access = self._field_accesses.get((obj, field), None)
+            if field_access is None:
+                field_access = self._variable_factory.make_field_access(obj, field)
+                self.set_field(scope, context, obj, field, field_access)
+            summary_cfield: Ctx[FieldAccess] = Ctx(obj.context, None, field_access)
+            # Bidirectionally connect summary field with each concrete matching object
+            for concrete in self._heap.objects.values():
+                if summarize_object(concrete) == obj:
+                    concrete_field = self.get_field(scope, context, concrete, field)
+                    self._add_points_flow_edge(PointerFlowEdge(NormalNode(summary_cfield), NormalNode(concrete_field), PointerFlowKind.NORMAL))
+                    self._add_points_flow_edge(PointerFlowEdge(NormalNode(concrete_field), NormalNode(summary_cfield), PointerFlowKind.NORMAL))
+            return summary_cfield
+
         field_access = self._field_accesses.get((obj, field), None)
         exists = True
         if field_access is None:
@@ -243,7 +263,7 @@ class PointerAnalysisState:
                     self._add_points_flow_edge(inherit_edge)
 
                     for idx, base in enumerate(bases):
-                        base_var = self._variable_factory.make_variable(base.id)
+                        base_var = self._variable_factory.make_variable(base.id, VariableKind.GLOBAL)
                         # Contextualize the base variable for constraint indexing
                         base_ctx_var = self.get_variable(scope, scope.context, base_var)
                         inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
@@ -275,26 +295,8 @@ class PointerAnalysisState:
                                             self._add_points_flow_edge(base_edge)
                                             logger.debug(f"[INHERIT] Immediately resolving field {field} from existing base {base.id}")
             
-            # Handle builtin instance objects - create builtin method objects on-demand
-            from .object import BuiltinInstanceObject, BuiltinMethodObject, SuperObject, ObjectFactory
-            if isinstance(obj, BuiltinInstanceObject) and field.kind == FieldKind.ATTRIBUTE and field.name:
-                # Check if this is a known builtin method
-                method_name = field.name
-                builtin_methods = self._get_builtin_methods_for_type(obj.builtin_type)
-                
-                if method_name in builtin_methods:
-                    # Create a builtin method object bound to this instance
-                    method_obj = ObjectFactory.create_builtin_method(
-                        method_name=method_name,
-                        receiver=obj,
-                        context=obj.context
-                    )
-                    
-                    # Add the method object to the field's points-to set
-                    self._worklist.add((scope, NormalNode(cfield), PointsToSet.singleton(method_obj)))
-            
             # Handle SuperObject - resolve fields via parent class MRO
-            elif isinstance(obj, SuperObject):
+            if isinstance(obj, SuperObject):
                 """
                 SuperObject field resolution via PFG + InheritanceConstraint:
                 
@@ -319,15 +321,23 @@ class PointerAnalysisState:
                             # Create SelectorNode to collect parent class fields
                             selector = SelectorNode()
                             
-                            # Add PFG edge: selector -> cfield
-                            # When parent fields are resolved, they flow to cfield
-                            inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.INHERIT)
-                            self._add_points_flow_edge(inherit_edge)
+                            if obj.instance_obj is not None:
+                                # Bind parent methods into the instance, then flow to super field
+                                instance_field = self.get_field(scope, context, obj.instance_obj, field)
+                                inherit_edge = PointerFlowEdge(selector, NormalNode(instance_field), PointerFlowKind.INSTANCE)
+                                self._add_points_flow_edge(inherit_edge)
+                                self._add_points_flow_edge(
+                                    PointerFlowEdge(NormalNode(instance_field), NormalNode(cfield), PointerFlowKind.NORMAL)
+                                )
+                            else:
+                                # No instance: flow parent fields directly to super field
+                                inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.NORMAL)
+                                self._add_points_flow_edge(inherit_edge)
                             
                             # Add InheritanceConstraint for each parent class
                             # These constraints apply lazily when parent points-to sets are known
                             for idx, base in enumerate(bases):
-                                base_var = self._variable_factory.make_variable(base.id)
+                                base_var = self._variable_factory.make_variable(base.id, VariableKind.GLOBAL)
                                 # Contextualize the base variable for constraint indexing
                                 base_ctx_var = self.get_variable(current_scope, current_scope.context, base_var)
                                 inherit_constraint = InheritanceConstraint(
@@ -337,10 +347,19 @@ class PointerAnalysisState:
                                     index=idx
                                 )
                                 self._constraints.add(current_scope, base_ctx_var, inherit_constraint)
-                            
-                            # Methods from parent classes will flow through the PFG edges
-                            # If obj.instance_obj is set, method binding happens during call handling
-                            # The MethodObject.deliver_into() is called when methods are invoked
+                                
+                                # Immediate resolution if base already known
+                                if base_ctx_var:
+                                    base_pts = self.get_points_to(base_ctx_var)
+                                    if len(base_pts) > 0:
+                                        for base_obj in base_pts:
+                                            if isinstance(base_obj, ClassObject):
+                                                base_internal_scope = self.get_internal_scope(base_obj)
+                                                if base_internal_scope:
+                                                    base_field_access = self.get_field(base_internal_scope, base_obj.context, base_obj, field)
+                                                    base_edge = PointerFlowEdge(NormalNode(base_field_access), selector, PointerFlowKind.NORMAL)
+                                                    selector.add_edge(base_edge, idx)
+                                                    self._add_points_flow_edge(base_edge)
 
         return cfield
     
@@ -471,20 +490,14 @@ class PointerAnalysisState:
                     return captured
             owner_scope = scope.parent or scope
             owner_context = owner_scope.context if owner_scope else context
-        elif var_kind == VariableKind.TEMPORARY:
-            # Temporary variables should be context-insensitive within a function.
-            # Use the function object's allocation context, not the caller's context.
-            owner_scope = scope
-            func_obj = getattr(scope, "obj", None)
-            if func_obj is not None and hasattr(func_obj, "context"):
-                # Use the function's allocation context for true context-insensitivity
-                owner_context = func_obj.context
-            else:
-                # Fallback for module-level temporaries
-                owner_context = scope.context
         else:
             owner_scope = scope
             owner_context = context
+
+        if var.name.startswith("$const") and scope.module and scope != scope.module:
+            module_cvar = self._get_variable_direct(scope.module, scope.module.context, var.name, var_kind)
+            if module_cvar is not None:
+                return module_cvar
         
         cvar = self._get_variable_direct(owner_scope, owner_context, var.name, var_kind)
         if cvar is None:
@@ -537,7 +550,7 @@ class PointerAnalysisState:
     def _add_points_flow_edge(self, edge: PointerFlowEdge):
         if self.pointer_flow_graph.add_edge(edge):
             src = edge.source
-            tgt = edge.target
+            tgt = edge.target            
             pts = self.pointer_flow_graph.flow_through_edge(edge, self.get_points_to(src)) - self.get_points_to(tgt)
             if not pts.is_empty():
                 scope = None

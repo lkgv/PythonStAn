@@ -3,11 +3,15 @@
 This module provides the main entry point for running pointer analysis.
 """
 
+import ast
 import logging
 from typing import Optional, List, Any, TYPE_CHECKING, Dict
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
 from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
+from pythonstan.analysis.pointer.kcfa.points_to_set import reset_object_table
 from pythonstan.ir import IRScope
+from pythonstan.ir.ir_statements import IRCall
+from .processor import *
 
 if TYPE_CHECKING:
     from .config import Config
@@ -79,7 +83,14 @@ class PointerAnalysis(AnalysisDriver):
             context_selector=self.context_selector,
             class_hierarchy=self.class_hierarchy,
             builtin_manager=self.builtin_manager,
-            debug_monitor=self.debug_monitor
+            debug_monitor=self.debug_monitor,
+            processor=ComposeProcessor([
+                GeneratorProcessor(),
+                AttributeSemanticsProcessor(),
+                NormalCallProcessor(),
+                ContainerProcessor(index_sensitive=self.kcfa_config.index_sensitive),
+                SuperResolveProcessor(),
+            ])
         )
 
     def analyze(
@@ -95,7 +106,10 @@ class PointerAnalysis(AnalysisDriver):
         
         Returns:
             AnalysisResult containing points-to information and call graph
-        """        
+        """
+        # Reset object ID table for clean state each analysis run
+        reset_object_table()
+        
         logger.info("Starting pointer analysis")
 
         # Get empty context for module-level analysis
@@ -215,10 +229,11 @@ class PointerAnalysis(AnalysisDriver):
                     
                     # Create a method-specific synthetic context
                     # Use a special marker to distinguish from regular call contexts
+                    synthetic_stmt = IRCall(ast.parse("synthetic_method()").body[0].value)
                     synthetic_call_site = CallSite(
-                        site_id=f"synthetic_method:{method_qualname}",
-                        fn=method_qualname,
-                        idx=0
+                        statement=synthetic_stmt,
+                        scope_name=f"synthetic_method:{method_qualname}",
+                        index=0
                     )
                     
                     # Get k value from empty context
@@ -257,8 +272,6 @@ class PointerAnalysis(AnalysisDriver):
                     self.state.set_internal_scope(class_obj, class_internal_scope)
                     
                     # Create a synthetic InstanceObject for 'self'
-                    from pythonstan.ir.ir_statements import IRCall
-                    import ast
                     cls_name = scope_ir.get_qualname().split(".")[-1]
                     synthetic_alloc_site = AllocSite(
                         stmt=IRCall(ast.parse(f"{cls_name}()").body[0].value),
@@ -326,7 +339,8 @@ class PointerAnalysis(AnalysisDriver):
             "list", "dict", "tuple", "set", "frozenset",
             "str", "int", "float", "bool", "bytes",
             "isinstance", "issubclass", "type", "hasattr", "getattr", "setattr",
-            "print", "input", "open"
+            "delattr", "vars", "callable",
+            "super", "print", "input", "open"
         ]
         
         for builtin_name in BUILTIN_FUNCTIONS:

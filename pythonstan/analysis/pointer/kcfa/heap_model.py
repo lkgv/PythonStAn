@@ -10,12 +10,16 @@ from typing import Optional, Dict, Tuple, Set, TYPE_CHECKING
 
 from yaml import NodeEvent
 
+from .variable import VariableKind
+
 if TYPE_CHECKING:
     from .object import AbstractObject, FunctionObject
-    from .variable import Variable, FieldAccess, VariableKind
+    from .variable import Variable, FieldAccess
     from .context import AbstractContext, Ctx, Scope, AllocSite
 
 __all__ = ["FieldKind", "Field", "attr", "elem", "key", "value", "unknown", "HeapModel"]
+
+_SHARED_TEMPORARY_NAMES = frozenset({"$return"})
 
 
 class FieldKind(Enum):
@@ -184,31 +188,23 @@ class HeapModel:
         registers[var.name] = ctx_var  # TODO whether use context or scope.context?
     
     def _get_var_key(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable'):
-        if var.name.startswith("$"):
-            # For temporary variables, key by function object or statement (not scope)
-            # to share temporaries across all calls to the same function
-            func_obj = getattr(scope, "obj", None)
-            if func_obj is not None:
-                ctx_key = (func_obj,)
-            else:
+        if var.kind == VariableKind.TEMPORARY:
+            if var.name in _SHARED_TEMPORARY_NAMES:
+                # Share select temporaries (e.g., $return) across contexts per function.
+                func_obj = getattr(scope, "obj", None)
+                if func_obj is not None:
+                    return (func_obj,)
                 # For module-level temporaries
-                ctx_key = (scope.module if scope.module else scope,)
-        else:
-            ctx_key = (context, scope.module)  # (scope, context)
+                return (scope.module if scope.module else scope,)
+            return (context, scope.module)
         
-        # ctx_key = (scope, context)
-        return ctx_key
-        
-    
-    def get_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> 'Ctx[FieldAccess]':
-        ...
+        if var.kind == VariableKind.GLOBAL:
+            return (scope.module,)
+        return (context, scope.module)
 
     def get_all_variables(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Variable]']:
         ctx_key = (scope, )
         return self.heap.get(ctx_key, {}).values()
-    
-    def get_all_fields(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Field]']:
-        ...
     
     def set_obj(self, scope: 'Scope', context: 'AbstractContext', c: 'AllocSite', o: "AbstractObject"):
         # print(f"New object: {o}")

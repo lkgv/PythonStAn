@@ -9,10 +9,41 @@ Design:
 - Lazy constraints are added when new objects might be created later
 """
 
-from typing import List, Optional, Dict, Set, TYPE_CHECKING
+from typing import List, Optional, Dict, Set, Tuple, TYPE_CHECKING
 import logging
 
-from pythonstan.analysis.pointer.kcfa.constraints import CopyConstraint
+from pythonstan.analysis.pointer.kcfa.constraints import (
+    AllocConstraint,
+    CallConstraint,
+    CopyConstraint,
+    AttrReadConstraint,
+    AttrWriteConstraint,
+    LoadConstraint,
+    LoadSubscrConstraint,
+    StoreConstraint,
+    StoreSubscrConstraint,
+    SuperResolveConstraint,
+)
+from pythonstan.analysis.pointer.kcfa.heap_model import FieldKind, attr, elem, key, unknown
+from pythonstan.analysis.pointer.kcfa.object import (
+    AllocKind,
+    AllocSite,
+    BuiltinClassObject,
+    BuiltinFunctionObject,
+    BuiltinInstanceObject,
+    BuiltinMethodObject,
+    ClassObject,
+    ConstantObject,
+    InstanceObject,
+    ListObject,
+    DictObject,
+    SetObject,
+    TupleObject,
+    ObjectFactory,
+)
+from pythonstan.analysis.pointer.kcfa.pointer_flow_graph import NormalNode
+from pythonstan.analysis.pointer.kcfa.points_to_set import PointsToSet
+from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
 
 if TYPE_CHECKING:
     from .constraints import Constraint, CallConstraint, LoadConstraint, StoreConstraint
@@ -68,6 +99,65 @@ class BuiltinAPIHandler:
         self.config = config
         self._method_handlers: Dict[str, callable] = self._init_method_handlers()
         self._function_handlers: Dict[str, callable] = self._init_function_handlers()
+
+    def _make_temp_var(self, prefix: str, call: 'CallConstraint') -> 'Variable':
+        """Create a temporary variable unique to the call site."""
+        return Variable(
+            name=f"${prefix}@{call.call_site.short_id()}",
+            kind=VariableKind.TEMPORARY,
+        )
+
+    @staticmethod
+    def _infer_container_type(receiver: 'AbstractObject') -> Optional[str]:
+        """Infer builtin container type name from receiver object."""
+        if isinstance(receiver, BuiltinInstanceObject):
+            return receiver.builtin_type
+        if isinstance(receiver, ListObject):
+            return "list"
+        if isinstance(receiver, DictObject):
+            return "dict"
+        if isinstance(receiver, TupleObject):
+            return "tuple"
+        if isinstance(receiver, SetObject):
+            return "set"
+        return None
+
+    def _resolve_attr_names(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        name_var: 'Variable',
+    ) -> Tuple[Set[str], bool]:
+        """Resolve constant attribute names from name_var points-to set."""
+        ctx_name = self.state.get_variable(scope, context, name_var)
+        name_pts = self.state.get_points_to(ctx_name)
+        const_names: Set[str] = set()
+        has_non_const = False
+        for obj in name_pts:
+            if isinstance(obj, ConstantObject) and isinstance(obj.value, str):
+                const_names.add(obj.value)
+            else:
+                has_non_const = True
+        if len(name_pts) == 0:
+            has_non_const = True
+        return const_names, has_non_const
+
+    def _collect_known_attr_names(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        base_var: 'Variable',
+    ) -> Set[str]:
+        """Collect known attribute names for objects in base_var points-to set."""
+        ctx_base = self.state.get_variable(scope, context, base_var)
+        base_pts = self.state.get_points_to(ctx_base)
+        names: Set[str] = set()
+        if not base_pts:
+            return names
+        for (obj, field) in self.state._field_accesses.keys():
+            if obj in base_pts and field.kind == FieldKind.ATTRIBUTE and field.name:
+                names.add(field.name)
+        return names
     
     def _init_method_handlers(self) -> Dict[str, callable]:
         """Initialize method handler dispatch table."""
@@ -76,15 +166,15 @@ class BuiltinAPIHandler:
             "append": self._handle_list_append,
             "extend": self._handle_list_extend,
             "insert": self._handle_list_insert,
-            "pop": self._handle_list_pop,
             "__getitem__": self._handle_container_getitem,
             "__setitem__": self._handle_container_setitem,
             "__iter__": self._handle_container_iter,
+            "pop": self._handle_container_pop,
             
             # Dict methods
             "get": self._handle_dict_get,
-            "update": self._handle_dict_update,
             "setdefault": self._handle_dict_setdefault,
+            "update": self._handle_container_update,
             "keys": self._handle_dict_keys,
             "values": self._handle_dict_values,
             "items": self._handle_dict_items,
@@ -93,6 +183,7 @@ class BuiltinAPIHandler:
             "add": self._handle_set_add,
             "discard": self._handle_set_discard,
             "remove": self._handle_set_remove,
+            "update": self._handle_container_update,
         }
     
     def _init_function_handlers(self) -> Dict[str, callable]:
@@ -118,11 +209,20 @@ class BuiltinAPIHandler:
             # Type/scalar functions
             "len": self._handle_len,
             "isinstance": self._handle_isinstance,
+            "issubclass": self._handle_issubclass,
             "type": self._handle_type,
             "bool": self._handle_bool,
             "int": self._handle_int,
             "float": self._handle_float,
             "str": self._handle_str,
+            "callable": self._handle_callable,
+            
+            # Introspection/dynamic attribute functions
+            "getattr": self._handle_getattr,
+            "setattr": self._handle_setattr,
+            "hasattr": self._handle_hasattr,
+            "delattr": self._handle_delattr,
+            "vars": self._handle_vars,
             
             # Object-oriented functions
             "super": self._handle_super,
@@ -148,11 +248,6 @@ class BuiltinAPIHandler:
         Returns:
             List of constraints to process
         """
-        from .object import (
-            BuiltinClassObject, BuiltinFunctionObject,
-            BuiltinMethodObject, BuiltinInstanceObject
-        )
-        
         constraints = []
         
         # Dispatch based on builtin object type
@@ -199,10 +294,6 @@ class BuiltinAPIHandler:
         Creates a new list instance. If an iterable is provided, adds
         constraints to copy elements from the iterable to the list.
         """
-        from .constraints import AllocConstraint, LoadConstraint, StoreConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if not call.target:
@@ -215,12 +306,16 @@ class BuiltinAPIHandler:
         # If iterable argument provided, copy elements
         if len(call.args) > 0:
             iterable_var = call.args[0]
-            # Load from iterable.elem() and store to list.elem()
-            # This is done via LoadConstraint which will be applied when solver processes it
+            elem_var = self._make_temp_var("list_ctor_elem", call)
             constraints.append(LoadConstraint(
                 base=iterable_var,
                 field=elem(),
-                target=call.target
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
             ))
         
         return constraints
@@ -232,9 +327,6 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle dict() constructor call."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if not call.target:
@@ -254,10 +346,6 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle tuple() constructor call."""
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if not call.target:
@@ -269,10 +357,16 @@ class BuiltinAPIHandler:
         # If iterable provided, copy elements
         if len(call.args) > 0:
             iterable_var = call.args[0]
+            elem_var = self._make_temp_var("tuple_ctor_elem", call)
             constraints.append(LoadConstraint(
                 base=iterable_var,
                 field=elem(),
-                target=call.target
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
             ))
         
         return constraints
@@ -284,10 +378,6 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle set() constructor call."""
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if not call.target:
@@ -299,10 +389,16 @@ class BuiltinAPIHandler:
         # If iterable provided, copy elements
         if len(call.args) > 0:
             iterable_var = call.args[0]
+            elem_var = self._make_temp_var("set_ctor_elem", call)
             constraints.append(LoadConstraint(
                 base=iterable_var,
                 field=elem(),
-                target=call.target
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
             ))
         
         return constraints
@@ -322,9 +418,6 @@ class BuiltinAPIHandler:
         a StoreConstraint as a fallback for cases where the receiver's points-to
         set is populated after this call.
         """
-        from .constraints import StoreConstraint
-        from .heap_model import elem
-        
         constraints = []
         
         if len(call.args) > 0 and method_obj.receiver_var:
@@ -366,10 +459,19 @@ class BuiltinAPIHandler:
         constraints = []
         
         # Similar to append, but loads from iterable
-        if len(call.args) > 0:
+        if len(call.args) > 0 and method_obj.receiver_var:
             iterable_var = call.args[0]
-            # Add constraint to copy iterable.elem() to receiver.elem()
-            pass
+            elem_var = self._make_temp_var("list_extend_elem", call)
+            constraints.append(LoadConstraint(
+                base=iterable_var,
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -386,10 +488,14 @@ class BuiltinAPIHandler:
         """
         constraints = []
         
-        if len(call.args) > 1:
+        if len(call.args) > 1 and method_obj.receiver_var:
             item_var = call.args[1]  # Second arg is the item
             # Add constraint to store item to receiver.elem()
-            pass
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=item_var,
+            ))
         
         return constraints
     
@@ -404,15 +510,22 @@ class BuiltinAPIHandler:
         
         Loads from list.elem() to return value.
         """
-        from .constraints import LoadConstraint
-        from .heap_model import elem
-        
         constraints = []
         
-        if call.target:
-            # Add constraint to load from receiver.elem()
-            # This requires creating a variable for the receiver
-            pass
+        if call.target and method_obj.receiver_var:
+            if len(call.args) > 0:
+                index_var = call.args[0]
+                constraints.append(LoadSubscrConstraint(
+                    target=call.target,
+                    base=method_obj.receiver_var,
+                    index=index_var,
+                ))
+            else:
+                constraints.append(LoadConstraint(
+                    base=method_obj.receiver_var,
+                    field=elem(),
+                    target=call.target,
+                ))
         
         return constraints
     
@@ -430,15 +543,17 @@ class BuiltinAPIHandler:
         For lists/tuples: loads from elem()
         For dicts: loads from key(k) if constant, else elem()
         """
-        from .constraints import LoadSubscrConstraint
-        
         constraints = []
         
-        if call.target and len(call.args) > 0:
+        if call.target and len(call.args) > 0 and method_obj.receiver_var:
             index_var = call.args[0]
             # Add LoadSubscrConstraint which will be resolved based on index type
             # This will be handled in solver's _apply_load_subscr
-            pass
+            constraints.append(LoadSubscrConstraint(
+                target=call.target,
+                base=method_obj.receiver_var,
+                index=index_var,
+            ))
         
         return constraints
     
@@ -453,15 +568,17 @@ class BuiltinAPIHandler:
         
         Stores value to appropriate field based on key type.
         """
-        from .constraints import StoreSubscrConstraint
-        
         constraints = []
         
-        if len(call.args) > 1:
+        if len(call.args) > 1 and method_obj.receiver_var:
             key_var = call.args[0]
             value_var = call.args[1]
             # Add StoreSubscrConstraint
-            pass
+            constraints.append(StoreSubscrConstraint(
+                base=method_obj.receiver_var,
+                index=key_var,
+                source=value_var,
+            ))
         
         return constraints
     
@@ -476,22 +593,99 @@ class BuiltinAPIHandler:
         
         Creates iterator object that yields container elements.
         """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
-        if call.target:
+        if call.target and method_obj.receiver_var:
             # Create iterator object
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link iterator to container elements
             # The iterator's elem() field should point to container's elem()
-            pass
+            container_type = self._infer_container_type(method_obj.receiver)
+            if container_type == "dict":
+                unknown_var = self._make_temp_var("dict_iter_key", call)
+                constraints.append(AllocConstraint(
+                    target=unknown_var,
+                    alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.UNKNOWN),
+                ))
+                constraints.append(StoreConstraint(
+                    base=call.target,
+                    field=elem(),
+                    source=unknown_var,
+                ))
+            else:
+                elem_var = self._make_temp_var("iter_elem", call)
+                constraints.append(LoadConstraint(
+                    base=method_obj.receiver_var,
+                    field=elem(),
+                    target=elem_var,
+                ))
+                constraints.append(StoreConstraint(
+                    base=call.target,
+                    field=elem(),
+                    source=elem_var,
+                ))
         
         return constraints
+
+    def _handle_container_pop(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        method_obj: 'BuiltinMethodObject'
+    ) -> List['Constraint']:
+        """Handle container.pop(...) for list/dict/set."""
+        constraints = []
+        if not call.target or not method_obj.receiver_var:
+            return constraints
+        
+        container_type = self._infer_container_type(method_obj.receiver)
+        if container_type == "dict":
+            if len(call.args) > 0:
+                key_var = call.args[0]
+                constraints.append(LoadSubscrConstraint(
+                    target=call.target,
+                    base=method_obj.receiver_var,
+                    index=key_var,
+                ))
+                if len(call.args) > 1:
+                    default_var = call.args[1]
+                    constraints.append(CopyConstraint(
+                        source=default_var,
+                        target=call.target,
+                    ))
+        elif container_type in {"list", "tuple", "set"}:
+            if len(call.args) > 0 and container_type == "list":
+                index_var = call.args[0]
+                constraints.append(LoadSubscrConstraint(
+                    target=call.target,
+                    base=method_obj.receiver_var,
+                    index=index_var,
+                ))
+            else:
+                constraints.append(LoadConstraint(
+                    base=method_obj.receiver_var,
+                    field=elem(),
+                    target=call.target,
+                ))
+        return constraints
+
+    def _handle_container_update(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        method_obj: 'BuiltinMethodObject'
+    ) -> List['Constraint']:
+        """Handle update() for dict/set by receiver type."""
+        container_type = self._infer_container_type(method_obj.receiver)
+        if container_type == "dict":
+            return self._handle_dict_update(scope, context, call, method_obj)
+        if container_type == "set":
+            return self._handle_set_update(scope, context, call, method_obj)
+        return []
     
     # ===== Dict Methods =====
     
@@ -506,14 +700,22 @@ class BuiltinAPIHandler:
         
         Loads from dict.key(k) if constant, else dict.elem().
         """
-        from .constraints import LoadSubscrConstraint
-        
         constraints = []
         
-        if call.target and len(call.args) > 0:
+        if call.target and len(call.args) > 0 and method_obj.receiver_var:
             key_var = call.args[0]
             # Add LoadSubscrConstraint
-            pass
+            constraints.append(LoadSubscrConstraint(
+                target=call.target,
+                base=method_obj.receiver_var,
+                index=key_var,
+            ))
+            if len(call.args) > 1:
+                default_var = call.args[1]
+                constraints.append(CopyConstraint(
+                    source=default_var,
+                    target=call.target,
+                ))
         
         return constraints
     
@@ -527,10 +729,20 @@ class BuiltinAPIHandler:
         """Handle dict.update(other)."""
         constraints = []
         
-        if len(call.args) > 0:
+        if len(call.args) > 0 and method_obj.receiver_var:
             other_var = call.args[0]
             # Copy other's values to receiver
-            pass
+            elem_var = self._make_temp_var("dict_update_elem", call)
+            constraints.append(LoadConstraint(
+                base=other_var,
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -544,11 +756,26 @@ class BuiltinAPIHandler:
         """Handle dict.setdefault(key, default)."""
         constraints = []
         
-        if len(call.args) > 1:
+        if len(call.args) > 0 and method_obj.receiver_var:
             key_var = call.args[0]
-            default_var = call.args[1]
-            # Store default to dict and load from dict to target
-            pass
+            if len(call.args) > 1:
+                default_var = call.args[1]
+                constraints.append(StoreSubscrConstraint(
+                    base=method_obj.receiver_var,
+                    index=key_var,
+                    source=default_var,
+                ))
+                if call.target:
+                    constraints.append(CopyConstraint(
+                        source=default_var,
+                        target=call.target,
+                    ))
+            if call.target:
+                constraints.append(LoadSubscrConstraint(
+                    target=call.target,
+                    base=method_obj.receiver_var,
+                    index=key_var,
+                ))
         
         return constraints
     
@@ -560,15 +787,22 @@ class BuiltinAPIHandler:
         method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.keys()."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
             # Create dict_keys object
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+            unknown_var = self._make_temp_var("dict_keys_elem", call)
+            constraints.append(AllocConstraint(
+                target=unknown_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.UNKNOWN),
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=unknown_var,
+            ))
         
         return constraints
     
@@ -580,16 +814,23 @@ class BuiltinAPIHandler:
         method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.values()."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
-        if call.target:
+        if call.target and method_obj.receiver_var:
             # Create dict_values object that yields dict values
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            # TODO: Link to dict values via elem()
+            elem_var = self._make_temp_var("dict_values_elem", call)
+            constraints.append(LoadConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -601,16 +842,55 @@ class BuiltinAPIHandler:
         method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle dict.items()."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
-        if call.target:
+        if call.target and method_obj.receiver_var:
             # Create dict_items object
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            # TODO: Link to dict items (tuples of key-value pairs)
+            tuple_var = self._make_temp_var("dict_items_tuple", call)
+            constraints.append(AllocConstraint(
+                target=tuple_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.TUPLE),
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=tuple_var,
+            ))
+
+            value_var = self._make_temp_var("dict_items_value", call)
+            constraints.append(LoadConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                target=value_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=key(1),
+                source=value_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=elem(),
+                source=value_var,
+            ))
+
+            key_var = self._make_temp_var("dict_items_key", call)
+            constraints.append(AllocConstraint(
+                target=key_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.UNKNOWN),
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=key(0),
+                source=key_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=elem(),
+                source=key_var,
+            ))
         
         return constraints
     
@@ -629,10 +909,40 @@ class BuiltinAPIHandler:
         """
         constraints = []
         
-        if len(call.args) > 0:
+        if len(call.args) > 0 and method_obj.receiver_var:
             item_var = call.args[0]
             # Store item to receiver.elem()
-            pass
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=item_var,
+            ))
+        
+        return constraints
+
+    def _handle_set_update(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        method_obj: 'BuiltinMethodObject'
+    ) -> List['Constraint']:
+        """Handle set.update(iterable)."""
+        constraints = []
+        
+        if len(call.args) > 0 and method_obj.receiver_var:
+            iterable_var = call.args[0]
+            elem_var = self._make_temp_var("set_update_elem", call)
+            constraints.append(LoadConstraint(
+                base=iterable_var,
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=method_obj.receiver_var,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -668,19 +978,27 @@ class BuiltinAPIHandler:
     ) -> List['Constraint']:
         """Handle iter(iterable).
         
-        Simplified: directly copy iterable to iterator (soundness over precision).
-        The iterator's elem() will be accessed by next().
+        Creates an iterator whose elem() flows from iterable.elem().
         """
-        from .constraints import CopyConstraint
-        
         constraints = []
         
         if call.target and len(call.args) > 0:
             iterable_var = call.args[0]
             
-            # Simplified: just copy the iterable to the iterator variable
-            # This allows next() to load from iterator.elem() which is the same as iterable.elem()
-            constraints.append(CopyConstraint(source=iterable_var, target=call.target))
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+
+            elem_var = self._make_temp_var("iter_elem", call)
+            constraints.append(LoadConstraint(
+                base=iterable_var,
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -694,9 +1012,6 @@ class BuiltinAPIHandler:
         
         Loads from iterator.elem().
         """
-        from .constraints import LoadConstraint
-        from .heap_model import elem
-        
         constraints = []
         
         if call.target and len(call.args) > 0:
@@ -721,16 +1036,55 @@ class BuiltinAPIHandler:
         
         Creates enumerate iterator that yields (index, item) tuples.
         """
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
-        if call.target:
+        if call.target and len(call.args) > 0:
             # Create enumerate iterator
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            # TODO: Link to iterable elements and create tuples
+            tuple_var = self._make_temp_var("enumerate_tuple", call)
+            constraints.append(AllocConstraint(
+                target=tuple_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.TUPLE),
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=tuple_var,
+            ))
+
+            item_var = self._make_temp_var("enumerate_item", call)
+            constraints.append(LoadConstraint(
+                base=call.args[0],
+                field=elem(),
+                target=item_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=key(1),
+                source=item_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=elem(),
+                source=item_var,
+            ))
+
+            index_var = self._make_temp_var("enumerate_index", call)
+            constraints.append(AllocConstraint(
+                target=index_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.INTEGER),
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=key(0),
+                source=index_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=tuple_var,
+                field=elem(),
+                source=index_var,
+            ))
         
         return constraints
     
@@ -741,16 +1095,39 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle zip(*iterables)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
             # Create zip iterator
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            # TODO: Link to all iterable elements and create tuples
+            tuple_var = self._make_temp_var("zip_tuple", call)
+            constraints.append(AllocConstraint(
+                target=tuple_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.TUPLE),
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=tuple_var,
+            ))
+            for idx, iterable_var in enumerate(call.args):
+                elem_var = self._make_temp_var(f"zip_elem_{idx}", call)
+                constraints.append(LoadConstraint(
+                    base=iterable_var,
+                    field=elem(),
+                    target=elem_var,
+                ))
+                constraints.append(StoreConstraint(
+                    base=tuple_var,
+                    field=key(idx),
+                    source=elem_var,
+                ))
+                constraints.append(StoreConstraint(
+                    base=tuple_var,
+                    field=elem(),
+                    source=elem_var,
+                ))
         
         return constraints
     
@@ -761,16 +1138,35 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle map(func, *iterables)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
-        if call.target:
+        if call.target and len(call.args) > 1:
             # Create map iterator
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            # TODO: Model function application on iterable elements
+            func_var = call.args[0]
+            elem_vars = []
+            for idx, iterable_var in enumerate(call.args[1:]):
+                elem_var = self._make_temp_var(f"map_elem_{idx}", call)
+                constraints.append(LoadConstraint(
+                    base=iterable_var,
+                    field=elem(),
+                    target=elem_var,
+                ))
+                elem_vars.append(elem_var)
+            result_var = self._make_temp_var("map_result", call)
+            constraints.append(CallConstraint(
+                callee=func_var,
+                args=tuple(elem_vars),
+                kwargs=frozenset(call.kwargs),
+                target=result_var,
+                call_site=call.call_site,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=result_var,
+            ))
         
         return constraints
     
@@ -784,13 +1180,10 @@ class BuiltinAPIHandler:
         
         Creates filter iterator linked to iterable elements.
         """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if call.target and len(call.args) > 1:
+            func_var = call.args[0]
             iterable_var = call.args[1]
             
             # Create filter iterator
@@ -798,10 +1191,24 @@ class BuiltinAPIHandler:
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link to iterable elements
+            elem_var = self._make_temp_var("filter_elem", call)
             constraints.append(LoadConstraint(
                 base=iterable_var,
                 field=elem(),
-                target=call.target
+                target=elem_var,
+            ))
+            pred_var = self._make_temp_var("filter_pred", call)
+            constraints.append(CallConstraint(
+                callee=func_var,
+                args=(elem_var,),
+                kwargs=frozenset(),
+                target=pred_var,
+                call_site=call.call_site,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
             ))
         
         return constraints
@@ -816,10 +1223,6 @@ class BuiltinAPIHandler:
         
         Creates reverse iterator linked to sequence elements.
         """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if call.target and len(call.args) > 0:
@@ -830,10 +1233,16 @@ class BuiltinAPIHandler:
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
             
             # Link to sequence elements
+            elem_var = self._make_temp_var("reversed_elem", call)
             constraints.append(LoadConstraint(
                 base=sequence_var,
                 field=elem(),
-                target=call.target
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
             ))
         
         return constraints
@@ -848,14 +1257,22 @@ class BuiltinAPIHandler:
         
         Creates new list with elements from iterable.
         """
-        from .constraints import AllocConstraint, LoadConstraint
-        from .object import AllocSite, AllocKind
-        from .heap_model import elem
-        
         constraints = []
         
         if call.target and len(call.args) > 0:
-            constraints.append(CopyConstraint(source=call.args[0], target=call.target))
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.LIST)
+            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+            elem_var = self._make_temp_var("sorted_elem", call)
+            constraints.append(LoadConstraint(
+                base=call.args[0],
+                field=elem(),
+                target=elem_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -866,15 +1283,22 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle range(...)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
             # Create range object
             alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+            elem_var = self._make_temp_var("range_elem", call)
+            constraints.append(AllocConstraint(
+                target=elem_var,
+                alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.INTEGER),
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=elem_var,
+            ))
         
         return constraints
     
@@ -887,14 +1311,11 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle len(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
             # Create int object
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.INTEGER)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -906,14 +1327,26 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle isinstance(obj, type)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
             # Create bool object
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.BOOLEAN)
+            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        return constraints
+
+    def _handle_issubclass(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle issubclass(cls, classinfo)."""
+        constraints = []
+        
+        if call.target:
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.BOOLEAN)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -927,17 +1360,29 @@ class BuiltinAPIHandler:
         """Handle type(obj)."""
         constraints = []
         
-        if call.target:
-            from .object import InstanceObject
-            from .pointer_flow_graph import NormalNode
-            from .points_to_set import PointsToSet
-            
-            # Create type object
-            # alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.CLASS)
-            # constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
-            for obj in  self.state.get_points_to(call.target):
+        if call.target and len(call.args) > 0:
+            arg_var = call.args[0]
+            arg_ctx = self.state.get_variable(scope, context, arg_var)
+            target_ctx = self.state.get_variable(scope, context, call.target)
+            arg_pts = self.state.get_points_to(arg_ctx)
+            added = False
+            for obj in arg_pts:
                 if isinstance(obj, InstanceObject):
-                    self.state._worklist.add((scope, NormalNode(call.target), PointsToSet.singleton(obj.class_obj)))
+                    self.state._worklist.add((scope, NormalNode(target_ctx), PointsToSet.singleton(obj.class_obj)))
+                    added = True
+                elif isinstance(obj, ClassObject):
+                    self.state._worklist.add((scope, NormalNode(target_ctx), PointsToSet.singleton(obj)))
+                    added = True
+                elif isinstance(obj, BuiltinInstanceObject):
+                    builtin_cls = ObjectFactory.create_builtin_class(obj.builtin_type, context)
+                    self.state._worklist.add((scope, NormalNode(target_ctx), PointsToSet.singleton(builtin_cls)))
+                    added = True
+                elif isinstance(obj, BuiltinClassObject):
+                    self.state._worklist.add((scope, NormalNode(target_ctx), PointsToSet.singleton(obj)))
+                    added = True
+            if not added:
+                alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+                constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
     
@@ -948,13 +1393,10 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle bool(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.BOOLEAN)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -966,13 +1408,10 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle int(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.INTEGER)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -984,13 +1423,10 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle float(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.FLOAT)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
         
         return constraints
@@ -1002,14 +1438,232 @@ class BuiltinAPIHandler:
         call: 'CallConstraint'
     ) -> List['Constraint']:
         """Handle str(obj)."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
-            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.OBJECT)
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.STRING)
             constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        return constraints
+
+    def _handle_callable(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle callable(obj)."""
+        constraints = []
+        
+        if call.target:
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.BOOLEAN)
+            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        return constraints
+
+    def _handle_getattr(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle getattr(obj, name, default=None)."""
+        constraints = []
+        
+        if not call.target or len(call.args) < 2:
+            return constraints
+        
+        base_var = call.args[0]
+        name_var = call.args[1]
+        const_names, has_non_const = self._resolve_attr_names(scope, context, name_var)
+        
+        for name in const_names:
+            constraints.append(AttrReadConstraint(
+                base=base_var,
+                attr=name,
+                target=call.target,
+                call_site=call.call_site,
+            ))
+        
+        if has_non_const or not const_names:
+            constraints.append(AttrReadConstraint(
+                base=base_var,
+                attr=unknown(),
+                target=call.target,
+                call_site=call.call_site,
+            ))
+        
+        if len(call.args) > 2:
+            default_var = call.args[2]
+            constraints.append(CopyConstraint(
+                source=default_var,
+                target=call.target,
+            ))
+        
+        return constraints
+
+    def _handle_setattr(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle setattr(obj, name, value)."""
+        constraints = []
+        
+        if len(call.args) < 3:
+            return constraints
+        
+        base_var = call.args[0]
+        name_var = call.args[1]
+        value_var = call.args[2]
+        const_names, has_non_const = self._resolve_attr_names(scope, context, name_var)
+        
+        for name in const_names:
+            constraints.append(AttrWriteConstraint(
+                base=base_var,
+                attr=name,
+                source=value_var,
+                call_site=call.call_site,
+            ))
+        
+        if has_non_const or not const_names:
+            constraints.append(AttrWriteConstraint(
+                base=base_var,
+                attr=unknown(),
+                source=value_var,
+                call_site=call.call_site,
+            ))
+        
+        return constraints
+
+    def _handle_hasattr(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle hasattr(obj, name)."""
+        constraints = []
+        
+        if call.target:
+            alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.BOOLEAN)
+            constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+
+        if len(call.args) < 2:
+            return constraints
+
+        base_var = call.args[0]
+        name_var = call.args[1]
+        const_names, has_non_const = self._resolve_attr_names(scope, context, name_var)
+        temp_var = self._make_temp_var("hasattr_value", call)
+
+        for name in const_names:
+            constraints.append(AttrReadConstraint(
+                base=base_var,
+                attr=name,
+                target=temp_var,
+                call_site=call.call_site,
+            ))
+
+        if has_non_const or not const_names:
+            constraints.append(AttrReadConstraint(
+                base=base_var,
+                attr=unknown(),
+                target=temp_var,
+                call_site=call.call_site,
+            ))
+        
+        return constraints
+
+    def _handle_delattr(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle delattr(obj, name)."""
+        constraints = []
+        
+        if len(call.args) < 2:
+            return constraints
+        
+        base_var = call.args[0]
+        name_var = call.args[1]
+        const_names, has_non_const = self._resolve_attr_names(scope, context, name_var)
+        
+        value_var = self._make_temp_var("delattr_value", call)
+        constraints.append(AllocConstraint(
+            target=value_var,
+            alloc_site=AllocSite(stmt=call.stmt, kind=AllocKind.UNKNOWN),
+        ))
+        
+        for name in const_names:
+            constraints.append(AttrWriteConstraint(
+                base=base_var,
+                attr=name,
+                source=value_var,
+                call_site=call.call_site,
+            ))
+        
+        if has_non_const or not const_names:
+            constraints.append(AttrWriteConstraint(
+                base=base_var,
+                attr=unknown(),
+                source=value_var,
+                call_site=call.call_site,
+            ))
+        
+        return constraints
+
+    def _handle_vars(
+        self,
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint'
+    ) -> List['Constraint']:
+        """Handle vars(obj)."""
+        constraints = []
+        
+        if not call.target or len(call.args) < 1:
+            return constraints
+        
+        base_var = call.args[0]
+        alloc_site = AllocSite(stmt=call.stmt, kind=AllocKind.DICT)
+        constraints.append(AllocConstraint(target=call.target, alloc_site=alloc_site))
+        
+        attr_names = self._collect_known_attr_names(scope, context, base_var)
+        for idx, name in enumerate(sorted(attr_names)):
+            val_var = self._make_temp_var(f"vars_attr_{idx}", call)
+            constraints.append(AttrReadConstraint(
+                base=base_var,
+                attr=name,
+                target=val_var,
+                call_site=call.call_site,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=key(name),
+                source=val_var,
+            ))
+            constraints.append(StoreConstraint(
+                base=call.target,
+                field=elem(),
+                source=val_var,
+            ))
+        
+        unknown_var = self._make_temp_var("vars_unknown", call)
+        constraints.append(AttrReadConstraint(
+            base=base_var,
+            attr=unknown(),
+            target=unknown_var,
+            call_site=call.call_site,
+        ))
+        constraints.append(StoreConstraint(
+            base=call.target,
+            field=elem(),
+            source=unknown_var,
+        ))
         
         return constraints
     
@@ -1041,9 +1695,6 @@ class BuiltinAPIHandler:
         4. Parent class fields flow to super field via PFG edges
         5. Methods are bound to instance_obj when called
         """
-        from .constraints import AllocConstraint, SuperResolveConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if not call.target:
@@ -1087,9 +1738,6 @@ class BuiltinAPIHandler:
         builtin_name: str
     ) -> List['Constraint']:
         """Handle generic builtin constructor."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
@@ -1107,9 +1755,6 @@ class BuiltinAPIHandler:
         function_name: str
     ) -> List['Constraint']:
         """Handle generic builtin function."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:
@@ -1127,9 +1772,6 @@ class BuiltinAPIHandler:
         method_obj: 'BuiltinMethodObject'
     ) -> List['Constraint']:
         """Handle generic builtin method."""
-        from .constraints import AllocConstraint
-        from .object import AllocSite, AllocKind
-        
         constraints = []
         
         if call.target:

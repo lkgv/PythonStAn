@@ -40,7 +40,7 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
         self.callee_to_edges[edge.get_callee()].add(edge)
         self.callsite_to_container[edge.get_callsite()] = edge.get_callee()
         self.callsites_in[edge.get_callee()].add(edge.get_callsite())
-        self.reachable_scopes.add(edge.get_callee)
+        self.reachable_scopes.add(edge.get_callee())
         self.edges.add(edge)
 
     def get_callers_of(self, callee: Method) -> Set[CallSite]:

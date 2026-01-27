@@ -3,12 +3,13 @@
 This module translates IR events to pointer constraints for analysis.
 """
 
-from typing import List, TYPE_CHECKING, Optional, Tuple, Dict, Set
+from typing import List, TYPE_CHECKING, Optional, Tuple, Dict, Set, Union
 import logging, ast
 from collections import defaultdict
 
 from .constraints import *
 from .config import Config
+from .context import CallSite
 from .variable import Variable, VariableFactory, VariableKind
 from .heap_model import elem, attr, key
 from pythonstan.ir.ir_statements import *
@@ -154,7 +155,15 @@ class IRTranslator:
                     # Treat unresolved names as globals (module-level)
                     kind = VariableKind.GLOBAL
         elif isinstance(self._current_scope, IRClass):
-            kind = VariableKind.LOCAL
+            locals_in_scope = self._local_vars.get(self._current_scope, set())
+            if name in locals_in_scope:
+                kind = VariableKind.LOCAL
+            else:
+                enclosing_kind = self._resolve_enclosing_variable_kind(name)
+                if enclosing_kind is not None:
+                    kind = enclosing_kind
+                else:
+                    kind = VariableKind.GLOBAL
         elif name in self._current_scope.get_nonlocal_vars():
             kind = VariableKind.NONLOCAL
         elif name in self._current_scope.get_global_vars():
@@ -180,12 +189,20 @@ class IRTranslator:
             kind=kind
         )
     
-    def _register_local_var(self, name: Optional[str]) -> None:
-        if not name:
+    def _register_local_var(self, name_or_var: Optional[Union[str, 'Variable']]) -> None:
+        if not name_or_var:
             return
         if not isinstance(self._current_scope, IRFunc):
             return
-        if name.startswith("$"):
+        if isinstance(name_or_var, str):
+            name = name_or_var
+            is_temporary = not name.isidentifier()
+        else:
+            name = name_or_var.name
+            is_temporary = name_or_var.is_temporary
+        if not name:
+            return
+        if is_temporary:
             return
         locals_set = self._local_vars.setdefault(self._current_scope, set())
         locals_set.add(name)
@@ -232,35 +249,107 @@ class IRTranslator:
         lval = stmt.get_lval().id
         rval = stmt.get_rval().id
         self._register_local_var(lval)
-        
-        source_var = self._make_variable(rval)
         target_var = self._make_variable(lval)
+        source_var = self._make_variable(rval)
         constraints.append(CopyConstraint(source=source_var, target=target_var))
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
 
     def _translate_yield(self, stmt: IRYield) -> List['Constraint']:
-        """Translate IRYield: yield value"""
-        # raise NotImplementedError("Yield statement is not supported yet")
-        return []
+        """Translate IRYield: [target =] yield value.
+        
+        Yields store values to the generator object's elem() field, enabling
+        iteration via next()/for-loops. If a target is present (target = yield value),
+        the sent value flows into the target from the generator's $sent field.
+        
+        Design:
+        - Yielded values -> generator.$elem via StoreConstraint
+        - Sent values -> target via LoadConstraint from generator.$sent (future)
+        - Generator object tracked via special $generator variable in scope
+        """
+        constraints = []
+        
+        # Get or create the generator variable for this scope
+        generator_var = self._make_variable("$generator")
+        
+        # If there's a value being yielded, store it to generator.elem()
+        if stmt.value is not None:
+            value_var = self._make_variable(stmt.value.id)
+            constraints.append(StoreConstraint(
+                base=generator_var,
+                field=elem(),
+                source=value_var
+            ))
+        
+        # If there's a target (target = yield value), it receives sent values
+        # For now, we model send() conservatively by loading from a $sent field
+        if stmt.target is not None and isinstance(stmt.target, ast.Name):
+            target_name = stmt.target.id
+            self._register_local_var(target_name)
+            target_var = self._make_variable(target_name)
+            # Load from generator.$sent field (populated by generator.send())
+            constraints.append(LoadConstraint(
+                base=generator_var,
+                field=attr("$sent"),
+                target=target_var
+            ))
+        
+        return constraints
     
     def _translate_await(self, stmt: IRAwait) -> List['Constraint']:
-        """Translate IRAwait: await value"""
-        # raise NotImplementedError("Await statement is not supported yet")
-        return []
+        """Translate IRAwait: [target =] await value.
+        
+        Awaiting loads the result from the awaitable's $await_result field.
+        The async function's return statement stores to this field.
+        
+        Design:
+        - await coro -> Load coro.$await_result into target
+        - For soundness, also copy the awaitable directly (handles non-coroutine awaitables)
+        """
+        constraints = []
+        
+        # Get the awaitable variable
+        awaitable_expr = stmt.get_value()
+        if not isinstance(awaitable_expr, ast.Name):
+            return constraints
+        
+        awaitable_var = self._make_variable(awaitable_expr.id)
+        
+        # If there's a target, load the await result into it
+        target = stmt.get_target()
+        if target is not None and isinstance(target, ast.Name):
+            target_name = target.id
+            self._register_local_var(target_name)
+            target_var = self._make_variable(target_name)
+            
+            # Load from awaitable.$await_result (set by async function return)
+            constraints.append(LoadConstraint(
+                base=awaitable_var,
+                field=attr("$await_result"),
+                target=target_var
+            ))
+            
+            # For soundness: also load from elem() to handle generators-as-coroutines
+            constraints.append(LoadConstraint(
+                base=awaitable_var,
+                field=elem(),
+                target=target_var
+            ))
+        
+        return constraints
     
     def _translate_assign(self, stmt: IRAssign) -> List['Constraint']:
         """Translate IRAssign: may allocate objects"""
         constraints = []
         lval = stmt.get_lval()
         rval = stmt.get_rval()
-        self._register_local_var(lval.id)
         
+        self._register_local_var(lval.id)
         target_var = self._make_variable(lval.id)
         
         if isinstance(rval, ast.List):
@@ -373,7 +462,7 @@ class IRTranslator:
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -383,17 +472,18 @@ class IRTranslator:
         lval = stmt.get_lval().id
         obj_name = stmt.get_obj().id
         attr_name = stmt.get_attr()
-        self._register_local_var(lval)
         
+        self._register_local_var(lval)
         base_var = self._make_variable(obj_name)
         target_var = self._make_variable(lval)
-        field = attr(attr_name) if attr_name else attr("<unknown>")
+        attr_value = attr_name if attr_name else "<unknown>"
+        call_site = CallSite(statement=stmt, scope_name=self._get_current_scope_label())
 
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
-        return [LoadConstraint(base=base_var, field=field, target=target_var)]
+        return [AttrReadConstraint(base=base_var, attr=attr_value, target=target_var, call_site=call_site)]
     
     def _translate_store_attr(self, stmt: IRStoreAttr) -> List['Constraint']:
         """Translate IRStoreAttr: base.attr = source"""
@@ -403,9 +493,10 @@ class IRTranslator:
         
         base_var = self._make_variable(obj_name)
         source_var = self._make_variable(value_name)
-        field = attr(attr_name) if attr_name else attr("<unknown>")
+        attr_value = attr_name if attr_name else "<unknown>"
+        call_site = CallSite(statement=stmt, scope_name=self._get_current_scope_label())
         
-        return [StoreConstraint(base=base_var, field=field, source=source_var)]
+        return [AttrWriteConstraint(base=base_var, attr=attr_value, source=source_var, call_site=call_site)]
     
     def _translate_call(self, stmt: IRCall) -> List['Constraint']:
         """Translate IRCall: target = callee(args...)"""
@@ -417,14 +508,36 @@ class IRTranslator:
         args = stmt.get_args()
         
         callee_var = self._make_variable(callee_expr)
-        arg_vars = tuple(self._make_variable(arg) for arg, _ in args)
+        arg_vars = []
+        for idx, (arg, _) in enumerate(args):
+            if arg.startswith("<Constant: ") and arg.endswith(">"):
+                value_str = arg[len("<Constant: "):-1]
+                try:
+                    const_value = ast.literal_eval(value_str)
+                except Exception:
+                    const_value = value_str
+                const_name = f"$const_{id(stmt)}_{idx}"
+                const_var = self._make_variable(const_name)
+                const_assign = IRAssign(
+                    ast.Assign(
+                        targets=[ast.Name(id=const_name, ctx=ast.Store())],
+                        value=ast.Constant(value=const_value),
+                    )
+                )
+                const_alloc = AllocSite.from_ir_node(const_assign, AllocKind.CONSTANT)
+                constraints.append(AllocConstraint(target=const_var, alloc_site=const_alloc))
+                arg_vars.append(const_var)
+            else:
+                arg_vars.append(self._make_variable(arg))
+        arg_vars = tuple(arg_vars)
         
-        target_var = self._make_variable(lval) if lval else None
+        target_var = None
         if lval:
             self._register_local_var(lval)
+            target_var = self._make_variable(lval)
         
         call_site_scope = self._get_current_scope_label()
-        call_site_id = f"{call_site_scope}:{stmt.get_ast().lineno}:{stmt.get_ast().col_offset}:{stmt}"
+        call_site = CallSite(statement=stmt, scope_name=call_site_scope)
         keyword_vars = {kw_name: self._make_variable(kw_val) 
                         for kw_name, kw_val in stmt.get_keywords() 
                         if kw_name is not None}
@@ -433,13 +546,12 @@ class IRTranslator:
             args=arg_vars,
             kwargs=frozenset(keyword_vars.items()),
             target=target_var,
-            stmt=stmt,
-            call_site=call_site_id
+            call_site=call_site
         ))
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -505,15 +617,38 @@ class IRTranslator:
         return None
     
     def _translate_return(self, stmt: IRReturn) -> List['Constraint']:
-        """Translate IRReturn: return value"""
+        """Translate IRReturn: return value.
+        
+        For regular functions: stores to $return variable.
+        For async functions: stores to $coroutine.$await_result field.
+        For generator functions: yield handles the values, return just exits.
+        """
         rval = stmt.get_value()
         
-        if rval:
-            source_var = self._make_variable(rval)
-            return_var = self._make_variable("$return")
-            return [CopyConstraint(source=source_var, target=return_var)]
+        if not rval:
+            return []
         
-        return []
+        source_var = self._make_variable(rval)
+        constraints = []
+        
+        # Check if we're in an async function
+        is_async = (isinstance(self._current_scope, IRFunc) and 
+                    self._current_scope.is_async)
+        
+        if is_async:
+            # For async functions, store to coroutine's $await_result field
+            coroutine_var = self._make_variable("$coroutine")
+            constraints.append(StoreConstraint(
+                base=coroutine_var,
+                field=attr("$await_result"),
+                source=source_var
+            ))
+        
+        # Always copy to $return for normal call handling
+        return_var = self._make_variable("$return")
+        constraints.append(CopyConstraint(source=source_var, target=return_var))
+        
+        return constraints
     
     def _translate_load_subscr(self, stmt: IRLoadSubscr) -> List['Constraint']:        
         """Translate IRLoadSubscr: target = container[index]"""
@@ -521,10 +656,9 @@ class IRTranslator:
         container_name = stmt.get_obj().id
         
         subslice = stmt.get_slice()
-        
+        self._register_local_var(lval)
         container_var = self._make_variable(container_name)
         target_var = self._make_variable(lval)
-        self._register_local_var(lval)
         
         constraints = []
         
@@ -533,7 +667,17 @@ class IRTranslator:
             index_var = self._make_variable(subslice.id)
         else:
             # For non-name indexes (constants, etc.), create a temporary
-            index_var = self._make_variable(f"$index_{id(stmt)}")
+            index_name = f"$index_{id(stmt)}"
+            index_var = self._make_variable(index_name)
+            if isinstance(subslice, ast.Constant):
+                const_assign = IRAssign(
+                    ast.Assign(
+                        targets=[ast.Name(id=index_name, ctx=ast.Store())],
+                        value=subslice,
+                    )
+                )
+                const_alloc = AllocSite.from_ir_node(const_assign, AllocKind.CONSTANT)
+                constraints.append(AllocConstraint(target=index_var, alloc_site=const_alloc))
         
         # Generate LoadSubscrConstraint with index variable for dynamic resolution
         if self.config.index_sensitive:
@@ -559,13 +703,12 @@ class IRTranslator:
         ))
         
         try:
-            call_site = f"{self._current_scope.name}:getitem:{id(stmt)}"
+            call_site = CallSite(statement=stmt, scope_name=self._get_current_scope_label())
             constraints.append(CallConstraint(
                 callee=getitem_method_var,
                 args=(index_var,),
                 kwargs=frozenset(),
                 target=target_var,
-                stmt=stmt,
                 call_site=call_site
             ))
         finally:
@@ -575,7 +718,7 @@ class IRTranslator:
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -596,7 +739,17 @@ class IRTranslator:
             index_var = self._make_variable(index_expr.id)
         else:
             # For non-name indexes (constants, etc.), create a temporary
-            index_var = self._make_variable(f"$index_{id(stmt)}")
+            index_name = f"$index_{id(stmt)}"
+            index_var = self._make_variable(index_name)
+            if isinstance(index_expr, ast.Constant):
+                const_assign = IRAssign(
+                    ast.Assign(
+                        targets=[ast.Name(id=index_name, ctx=ast.Store())],
+                        value=index_expr,
+                    )
+                )
+                const_alloc = AllocSite.from_ir_node(const_assign, AllocKind.CONSTANT)
+                constraints.append(AllocConstraint(target=index_var, alloc_site=const_alloc))
         
         # Generate StoreSubscrConstraint with index variable for dynamic resolution
         constraints.append(StoreSubscrConstraint(
@@ -627,14 +780,13 @@ class IRTranslator:
         ))
         
         try:
-            call_site = f"{self._current_scope.name}:setitem:{id(stmt)}"
+            call_site = CallSite(statement=stmt, scope_name=self._get_current_scope_label())
             
             constraints.append(CallConstraint(
                 callee=setitem_method_var,
                 args=(index_var, value_var),
                 kwargs=frozenset(),
                 target=None,
-                stmt=stmt,
                 call_site=call_site
             ))
         finally:
@@ -706,20 +858,33 @@ class IRTranslator:
                                 factory_args.append(self._make_variable(arg.id))
                             else:
                                 # Constant or complex expression - create temp
-                                arg_var = self._make_variable(f"$decorator_arg_{stmt.name}_{idx}_{len(factory_args)}")
+                                arg_name = f"$decorator_arg_{stmt.name}_{idx}_{len(factory_args)}"
+                                arg_var = self._make_variable(arg_name)
                                 factory_args.append(arg_var)
+                                if isinstance(arg, ast.Constant):
+                                    const_assign = IRAssign(
+                                        ast.Assign(
+                                            targets=[ast.Name(id=arg_name, ctx=ast.Store())],
+                                            value=arg,
+                                        )
+                                    )
+                                    const_alloc = AllocSite.from_ir_node(const_assign, AllocKind.CONSTANT)
+                                    constraints.append(AllocConstraint(target=arg_var, alloc_site=const_alloc))
                         
                         # Create temporary for the decorator returned by the factory
                         decorator_var = self._make_variable(f"$decorator_{stmt.name}_{idx}")
                         
                         # Create call to the decorator factory
-                        factory_call_site = f"{self._current_scope.name}:decorator_factory:{id(decorator_expr)}"
+                        factory_call_site = CallSite(
+                            statement=stmt,
+                            scope_name=self._get_current_scope_label(),
+                            index=idx * 2
+                        )
                         constraints.append(CallConstraint(
                             callee=factory_var,
                             args=tuple(factory_args),
                             kwargs=frozenset(),
                             target=decorator_var,
-                            stmt=stmt,
                             call_site=factory_call_site
                         ))
                     else:
@@ -729,14 +894,17 @@ class IRTranslator:
                     
                     # result = decorator(current)
                     result_var = self._make_variable(f"{stmt.name}_decorated_{idx}")
-                    call_site = f"{self._current_scope.name}:decorator:{id(decorator_expr)}"
+                    call_site = CallSite(
+                        statement=stmt,
+                        scope_name=self._get_current_scope_label(),
+                        index=idx * 2 + 1
+                    )
                     
                     constraints.append(CallConstraint(
                         callee=decorator_var,
                         args=(current_var,),
                         kwargs=frozenset(),
                         target=result_var,
-                        stmt=stmt,
                         call_site=call_site
                     ))
                     
@@ -752,7 +920,7 @@ class IRTranslator:
                 
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not func_var.name.startswith("$")): # only store the field if it is not a temporary variable
+            not func_var.is_temporary): # only store the field if it is not a temporary variable
             self.used_variables.append(func_var)
         
         return func_var, constraints
@@ -782,7 +950,7 @@ class IRTranslator:
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not class_var.name.startswith("$")): # only store the field if it is not a temporary variable
+            not class_var.is_temporary): # only store the field if it is not a temporary variable
             self.used_variables.append(class_var)
         
         return class_var, constraints
@@ -818,7 +986,7 @@ class IRTranslator:
         
         # for fields of class, we need to store the value to the class
         if (isinstance(self._current_scope, IRClass) and 
-            not local_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not local_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(local_var)
 
         return constraints
@@ -837,13 +1005,13 @@ class IRTranslator:
             target=enter_method_var
         ))
         
-        call_site = f"{self._current_scope.name}:enter:{id(context_manager_var)}"
+        call_stmt = IRCall(ast.parse(f"[{target_var}] = {context_manager_var}.__enter__()").body[0])
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=enter_method_var,
             args=(),
             kwargs=frozenset(),
             target=target_var,
-            stmt=IRCall(ast.parse(f"[{target_var}] = {context_manager_var}.__enter__()").body[0]),
             call_site=call_site
         ))
         
@@ -863,13 +1031,13 @@ class IRTranslator:
             target=exit_method_var
         ))
         
-        call_site = f"{self._current_scope.name}:exit:{id(context_manager_var)}"
+        call_stmt = IRCall(ast.parse(f"{context_manager_var}.__exit__(None, None, None)").body[0].value)
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=exit_method_var,
             args=(),
             kwargs=frozenset(),
             target=None,
-            stmt=IRCall(ast.parse(f"{context_manager_var}.__exit__(None, None, None)").body[0]),
             call_site=call_site
         ))
         
@@ -889,13 +1057,13 @@ class IRTranslator:
             target=iter_method_var
         ))
         
-        call_site = f"{self._current_scope.name}:iter:{id(iterable_var)}"
+        call_stmt = IRCall(ast.parse(f"[{target_var}] = {iterable_var}.__iter__()").body[0])
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=iter_method_var,
             args=(),
             kwargs=frozenset(),
             target=target_var,
-            stmt=IRCall(ast.parse(f"[{target_var}] = {iterable_var}.__iter__()").body[0]),
             call_site=call_site
         ))
         
@@ -912,13 +1080,13 @@ class IRTranslator:
             target=next_method_var
         ))
         
-        call_site = f"{self._current_scope.name}:next:{id(iterator_var)}"
+        call_stmt = IRCall(ast.parse(f"[{target_var}] = {iterator_var}.__next__()").body[0])
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=next_method_var,
             args=(),
             kwargs=frozenset(),
             target=target_var,
-            stmt=IRCall(ast.parse(f"[{target_var}] = {iterator_var}.__next__()").body[0]),
             call_site=call_site
         ))
         
@@ -944,18 +1112,18 @@ class IRTranslator:
             target=method_var
         ))
         
-        call_site = f"{self._current_scope.name}:{op_name}:{id(left_var)}"
+        call_stmt = IRCall(ast.parse(f"[{target_var}] = {left_var}.{op_name}({right_var})").body[0])
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=method_var,
             args=(right_var,),
             kwargs=frozenset(),
             target=target_var,
-            stmt=IRCall(ast.parse(f"[{target_var}] = {left_var}.{op_name}({right_var})").body[0]),
             call_site=call_site
         ))
 
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
@@ -978,18 +1146,18 @@ class IRTranslator:
             field=attr(op_name),
             target=method_var
         ))
-        call_site = f"{self._current_scope.name}:{op_name}:{id(operand_var)}"
+        call_stmt = IRCall(ast.parse(f"[{target_var}] = {operand_var}.{op_name}()").body[0])
+        call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(CallConstraint(
             callee=method_var,
             args=(),
             kwargs=frozenset(),
             target=target_var,
-            stmt=IRCall(ast.parse(f"[{target_var}] = {operand_var}.{op_name}()").body[0]),
             call_site=call_site
         ))
 
         if (isinstance(self._current_scope, IRClass) and 
-            not target_var.name.startswith("$")): # only store the field to the class if it is not a temporary variable
+            not target_var.is_temporary): # only store the field to the class if it is not a temporary variable
             self.used_variables.append(target_var)
         
         return constraints
