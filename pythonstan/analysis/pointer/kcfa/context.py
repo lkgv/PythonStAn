@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING, Dict
 
 from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
-from pythonstan.ir.ir_statements import IRScope, IRModule
+from pythonstan.ir.ir_statements import IRScope, IRModule, IRStatement
 
 if TYPE_CHECKING:
     from .object import AbstractObject, AllocSite
@@ -25,28 +25,47 @@ __all__ = [
     "ReceiverContext",
     "ParamContext",
     "HybridContext",
+    "SummaryContext",
 ]
 
 
 @dataclass(frozen=True)
 class CallSite:
-    """Call site identifier.
+    """Call site identifier bound to an IR statement."""
     
-    Attributes:
-        site_id: Unique identifier (file:line:col:call format)
-        fn: Function containing this call site
-        bb: Optional basic block identifier
-        idx: Index within basic block
-    """
+    statement: IRStatement
+    scope_name: Optional[str] = None
+    index: int = 0
     
-    site_id: str
-    fn: str
-    bb: Optional[str] = None
-    idx: int = 0
+    def __post_init__(self) -> None:
+        if not isinstance(self.statement, IRStatement):
+            raise ValueError(f"CallSite.statement must be IRStatement, got {type(self.statement)}")
+    
+    @property
+    def site_id(self) -> str:
+        scope = self.scope_name or "<unknown>"
+        line, col = self._location()
+        stmt_str = str(self.statement)
+        if line is None or col is None:
+            return f"{scope}:{stmt_str}#{self.index}"
+        return f"{scope}:{line}:{col}:{stmt_str}#{self.index}"
+    
+    def short_id(self) -> str:
+        line, col = self._location()
+        if line is None or col is None:
+            return f"{id(self.statement)}:{self.index}"
+        return f"{line}:{col}:{self.index}"
+    
+    def _location(self) -> Tuple[Optional[int], Optional[int]]:
+        ast_node = self.statement.get_ast()
+        if ast_node is None:
+            return None, None
+        line = getattr(ast_node, "lineno", None)
+        col = getattr(ast_node, "col_offset", None)
+        return line, col
     
     def __str__(self) -> str:
-        bb_suffix = f":{self.bb}" if self.bb else ""
-        return f"{self.site_id}{bb_suffix}#{self.idx}"
+        return self.site_id
 
 
 max_idx: int = 0
@@ -190,7 +209,7 @@ class TypeContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     def to_string(self) -> str:
         if not self.types:
             return "<:>"
-        return "<" + ":".join(self.types) + ">"
+        return "<" + ":".join(str(t) for t in self.types) + ">"
     
     def is_empty(self) -> bool:
         return len(self.types) == 0
@@ -226,7 +245,7 @@ class ReceiverContext(AbstractContext[Union['CallSite', 'AllocSite']]):
     def to_string(self) -> str:
         if not self.receivers:
             return "<rcv:>"
-        shortened = [r.split(':')[-1] if ':' in r else r for r in self.receivers]
+        shortened = [str(r).split(':')[-1] for r in self.receivers]
         return "<rcv:" + ",".join(shortened) + ">"
     
     def is_empty(self) -> bool:
@@ -302,7 +321,7 @@ class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']
     
     def to_string(self) -> str:
         call_part = "[" + ",".join(str(cs) for cs in self.call_sites) + "]" if self.call_sites else "[]"
-        shortened = [s.split(':')[-1] if ':' in s else s for s in self.alloc_sites]
+        shortened = [str(s).split(':')[-1] for s in self.alloc_sites]
         obj_part = "<" + ",".join(shortened) + ">" if self.alloc_sites else "<>"
         return call_part + obj_part
     
@@ -342,6 +361,30 @@ class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']
                 self.alloc_sites == other.alloc_sites and
                 self.call_k == other.call_k and 
                 self.obj_depth == other.obj_depth)
+
+
+@dataclass(frozen=True)
+class SummaryContext(AbstractContext[Any]):
+    """Explicit marker for summary objects produced by widening."""
+
+    inner: AbstractContext[Any]
+
+    def to_string(self) -> str:
+        return f"S[{self.inner.to_string()}]"
+
+    def is_empty(self) -> bool:
+        return self.inner.is_empty()
+
+    def append(self, call_site: Any) -> 'SummaryContext':
+        return SummaryContext(self.inner.append(call_site))
+
+    def __hash__(self) -> int:
+        return hash(("summary", self.inner))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, SummaryContext):
+            return False
+        return self.inner == other.inner
 
 
 T = TypeVar('T')

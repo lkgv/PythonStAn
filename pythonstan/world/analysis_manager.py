@@ -9,6 +9,7 @@ from pythonstan.ir import IRModule
 from pythonstan.analysis.transform import TransformDriver
 from pythonstan.analysis.dataflow import DataflowAnalysisDriver
 from pythonstan.analysis.pointer import PointerAnalysisDriver
+from pythonstan.analysis.pointer.ai.analysis import AIAnalysisDriver
 from pythonstan.analysis.closure import ClosureAnalysis
 
 DEFAULT_ANALYSIS = [
@@ -87,6 +88,8 @@ class AnalysisManager:
             analyzer = DataflowAnalysisDriver(config)
         elif config.type == "pointer analysis":
             analyzer = PointerAnalysisDriver(config)
+        elif config.type == "ai analysis":
+            analyzer = AIAnalysisDriver(config)
         elif config.type == "closure analysis":
             analyzer = ClosureAnalysis(config)
         else:

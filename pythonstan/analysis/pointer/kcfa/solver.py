@@ -4,19 +4,20 @@ This module implements the core solver for pointer analysis using
 constraint-based propagation.
 """
 
+import ast
 import logging
 from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple
 
-from pythonstan.ir.ir_statements import IRFunc, IRModule, IRClass, IRAssign
+from pythonstan.ir.ir_statements import IRFunc, IRModule, IRClass, IRAssign, IRStoreSubscr
 
 from .state import PointerAnalysisState, PointsToSet
 from .constraints import *
 from .variable import Variable, VariableKind, VariableFactory, FieldAccess
 from .config import Config
-from .heap_model import Field, attr, key, elem
+from .heap_model import Field, FieldKind, attr, key, elem
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge, CallKind
 from .ir_translator import IRTranslator
-from .context_selector import ContextSelector, CallSite, AbstractContext
+from .context_selector import ContextSelector, AbstractContext
 from .context import Ctx, Scope
 from .class_hierarchy import ClassHierarchyManager
 from .builtin_api_handler import BuiltinSummaryManager
@@ -104,7 +105,30 @@ class PointerSolver:
                     self._apply_store(scope, base, constraint, base_pts)
             elif isinstance(constraint, CallConstraint):
                 callee = self.state.get_variable(scope, context, constraint.callee)
-                self.state.constraints.add(scope, callee, constraint)
+                callee_pts = self.state.get_points_to(callee)
+                if callee_pts.is_empty():
+                    self.state.constraints.add(scope, callee, constraint)
+                else:
+                    # Lazy call activation: copy callee pts into a fresh temp var
+                    # so the call constraint is triggered via normal propagation.
+                    lazy_callee = self.variable_factory.make_variable(
+                        f"$call_lazy@{constraint.call_site.short_id()}@{constraint.callee.name}",
+                        VariableKind.TEMPORARY,
+                    )
+                    lazy_ctx = self.state.get_variable(scope, context, lazy_callee)
+                    lazy_constraint = CallConstraint(
+                        callee=lazy_callee,
+                        args=constraint.args,
+                        kwargs=constraint.kwargs,
+                        target=constraint.target,
+                        call_site=constraint.call_site,
+                    )
+                    self.state.constraints.add(scope, lazy_ctx, lazy_constraint)
+                    self.state._static_constraints.append((
+                        scope,
+                        context,
+                        CopyConstraint(source=constraint.callee, target=lazy_callee),
+                    ))
             elif isinstance(constraint, InheritanceConstraint):
                 base = self.state.get_variable(scope, context, constraint.base)
                 self.state.constraints.add(scope, base, constraint)
@@ -131,7 +155,9 @@ class PointerSolver:
         self._stats["iterations"] = self._iteration
         logger.info(f"Processed {len(self._modules)} modules: {self._modules}")
         logger.info(f"Call Constraints: {len(self.state.constraints.get_by_type(CallConstraint))}")
-        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()} absolute: {self.state._call_graph.num_plain_edges()}")
+        abs_nodes = set([node.stmt.get_qualname() for node in self.state._call_graph.get_nodes()])
+        logger.info(f"Call graph: {self.state._call_graph} node: {len(self.state._call_graph.get_nodes())} edge: {self.state._call_graph.get_number_of_edges()}")
+        logger.info(f"    absolute nodes: { len(abs_nodes) } absolute edges: { self.state._call_graph.num_plain_edges() }")
         logger.info(f"Pointer flow graph: {self.state._pointer_flow_graph} node: {len(self.state._pointer_flow_graph.get_nodes())} edge: {len(self.state._pointer_flow_graph.get_edges())}")                
         logger.info(f"Converged after {self._iteration} iterations")
         
@@ -141,13 +167,15 @@ class PointerSolver:
     
     def __next__(self) -> 'PointerAnalysisState':
         if ((not self.state._worklist.empty()) or self.state._static_constraints) and self._iteration < self.config.max_iterations:
-            self._iteration += 1    
+            self._iteration += 1
             if self.state._static_constraints:
                 scope, ctx, constraint = self.state._static_constraints.pop()
                 return self._apply_static(scope, ctx, constraint)
             elif not self.state._worklist.empty():
                 scope, node, pts = self.state._worklist.pop()
                 return self._apply_dynamic(scope, node, pts)
+            
+            
         raise StopIteration
     
     def _apply_dynamic(self, scope: 'Scope', node: 'PointerFlowNode', pts: 'PointsToSet') -> 'PointerAnalysisState':
@@ -278,6 +306,39 @@ class PointerSolver:
         assert isinstance(stmt, IRAssign), f"alloc_site.stmt must be an IRAssign, but got {type(stmt)}"
         obj = ConstantObject(self.context_selector.empty_context(), c.alloc_site, stmt.get_rval().value)
         return obj
+
+    def _infer_free_vars(self, ir_func: 'IRFunc') -> Set[str]:
+        ir = self.state.scope_manager.get_ir(ir_func, "ir")
+        if ir is None:
+            return set()
+        loads = set()
+        stores = set()
+        for stmt in ir:
+            loads.update(stmt.get_loads())
+            stores.update(stmt.get_stores())
+            if isinstance(stmt, IRStoreSubscr):
+                subslice = stmt.get_slice()
+                if isinstance(subslice, ast.Name):
+                    loads.add(subslice.id)
+        free_vars = loads - stores - ir_func.get_arg_names()
+        free_vars.difference_update(ir_func.get_global_vars())
+        free_vars.difference_update(ir_func.get_nonlocal_vars())
+        return {name for name in free_vars if name and name.isidentifier()}
+
+    def _resolve_outer_var_kind(self, scope: 'Scope', var_name: str) -> VariableKind:
+        stmt = getattr(scope, "stmt", None)
+        if isinstance(stmt, IRModule):
+            return VariableKind.GLOBAL
+        if isinstance(stmt, IRFunc):
+            if var_name in stmt.get_global_vars():
+                return VariableKind.GLOBAL
+            if var_name in stmt.get_nonlocal_vars():
+                return VariableKind.NONLOCAL
+            if var_name in stmt.get_cell_vars():
+                return VariableKind.CELL
+            if var_name in stmt.arg_names:
+                return VariableKind.LOCAL
+        return VariableKind.LOCAL
     
     @staticmethod
     def is_entrance(ir_func: 'IRFunc') -> bool:
@@ -295,7 +356,10 @@ class PointerSolver:
         
         # process cell vars into the closure
         cell_vars = {}
-        for var_name in ir_func.get_cell_vars():
+        cell_var_names = ir_func.get_cell_vars()
+        if not cell_var_names:
+            cell_var_names = self._infer_free_vars(ir_func)
+        for var_name in cell_var_names:
             var = self.variable_factory.make_variable(var_name, VariableKind.CELL)
             cell_vars[var_name] = self.state.get_variable(scope.parent, context, var)
         self.state.set_cell_vars(obj, cell_vars)
@@ -350,8 +414,12 @@ class PointerSolver:
         
         # process cell vars into the closure
         cell_vars = {}
-        for var_name in ir_func.get_cell_vars():
-            var = self.variable_factory.make_variable(var_name, VariableKind.CELL)
+        cell_var_names = ir_func.get_cell_vars()
+        if not cell_var_names:
+            cell_var_names = self._infer_free_vars(ir_func)
+        for var_name in cell_var_names:
+            var_kind = self._resolve_outer_var_kind(scope, var_name)
+            var = self.variable_factory.make_variable(var_name, var_kind)
             cell_vars[var_name] = self.state.get_variable(scope, context, var)
         self.state.set_cell_vars(obj, cell_vars)
         
@@ -535,30 +603,35 @@ class PointerSolver:
                     continue
             
             # Special handling for builtin methods on container objects
-            if (c.field and c.field.kind.name == 'ATTR' and
-                isinstance(base_obj, (ListObject, DictObject, TupleObject, SetObject))):
-                method_name = c.field.name
-                # Check if this is a known builtin method
-                if method_name in ['append', 'extend', 'insert', 'pop', 'get', 'setdefault', 'keys', 'values', 'items']:
-                    # Create a BuiltinMethodObject bound to this container
-                    method_alloc = AllocSite(
-                        file=c.base.scope if hasattr(c.base, 'scope') else scope.stmt,
-                        line=0,
-                        col=0,
-                        kind=AllocKind.BUILTIN,
-                        scope=scope,
-                        name=f"{base_obj}_{method_name}",
-                        stmt=None
-                    )
-                    method_obj = BuiltinMethodObject(
-                        context=context,
-                        alloc_site=method_alloc,
-                        method_name=method_name,
-                        receiver=base_obj,
-                        receiver_var=c.base  # Store the receiver variable for later use
-                    )
-                    self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(method_obj)))
-                    continue
+            if c.field and c.field.kind == FieldKind.ATTRIBUTE and c.field.name:
+                builtin_type = None
+                if isinstance(base_obj, ListObject):
+                    builtin_type = "list"
+                elif isinstance(base_obj, DictObject):
+                    builtin_type = "dict"
+                elif isinstance(base_obj, TupleObject):
+                    builtin_type = "tuple"
+                elif isinstance(base_obj, SetObject):
+                    builtin_type = "set"
+                elif isinstance(base_obj, BuiltinInstanceObject):
+                    builtin_type = base_obj.builtin_type
+
+                if builtin_type:
+                    builtin_methods = self.state._get_builtin_methods_for_type(builtin_type)
+                    if c.field.name in builtin_methods:
+                        method_alloc = AllocSite(
+                            stmt=f"<builtin_method:{c.field.name}>",
+                            kind=AllocKind.BUILTIN,
+                        )
+                        method_obj = BuiltinMethodObject(
+                            context=context,
+                            alloc_site=method_alloc,
+                            method_name=c.field.name,
+                            receiver=base_obj,
+                            receiver_var=c.base,
+                        )
+                        self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(method_obj)))
+                        continue
             
             # Default behavior: use field access for classes, instances, etc.
             field_access = self.state.get_field(scope, context, base_obj, c.field)
@@ -575,13 +648,12 @@ class PointerSolver:
     
     def _apply_call(self, scope: 'Scope', variable: 'Ctx', c: 'CallConstraint', pts: 'PointsToSet') -> bool:
         """Apply call constraint: target = callee(args...)."""
-        context = scope.context
         # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
         
         # Debug monitoring: record call constraint processing
         if self._debug_monitor and self._debug_monitor.enabled:
             self._debug_monitor.record_call_constraint_processed(
-                call_site=c.call_site,
+                call_site=str(c.call_site),
                 callee_var=str(variable),
                 callee_pts_size=len(pts)
             )
@@ -590,7 +662,7 @@ class PointerSolver:
         if len(pts) == 0:
             if self._debug_monitor and self._debug_monitor.enabled:
                 self._debug_monitor.record_call_failed(
-                    call_site=c.call_site,
+                    call_site=str(c.call_site),
                     reason="empty_callee",
                     details="Callee points-to set is empty"
                 )
@@ -615,7 +687,7 @@ class PointerSolver:
             else:
                 self._unknown_tracker.record(
                     UnknownKind.CALLEE_NON_CALLABLE,
-                    c.call_site,
+                    str(c.call_site),
                     f"Attempting to call non-callable: {callee_obj.kind.value}",
                     context=str(callee_obj)
                 )
@@ -623,7 +695,7 @@ class PointerSolver:
                 # Debug monitoring: record non-callable
                 if self._debug_monitor and self._debug_monitor.enabled:
                     self._debug_monitor.record_call_failed(
-                        call_site=c.call_site,
+                        call_site=str(c.call_site),
                         reason="non_callable",
                         details=f"Object kind: {callee_obj.kind.value}"
                     )
@@ -651,106 +723,99 @@ class PointerSolver:
         return changed
  
     def _handle_class_instantiation(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', class_obj: 'AbstractObject') -> bool:
-        """Handle class instantiation: create instance + call __init__."""
+        """Handle class instantiation: call __new__, then __init__ conditionally."""
         # logger.info(f"Handling class instantiation: {call.call_site} -> {class_obj.alloc_site.stmt}")
-        
-        if not call.target:
-            return False
 
-        instance_alloc = AllocSite(call.call_site, AllocKind.INSTANCE)
-        
+        instance_alloc = AllocSite(call.call_site.statement, AllocKind.INSTANCE)
         if self.context_selector:
-            call_site = CallSite(call.call_site, len(call.args))
             alloc_context = self.context_selector.select_alloc_context(context, instance_alloc, class_obj)
         else:
             alloc_context = context
-        
         instance_obj = InstanceObject(alloc_context, instance_alloc, class_obj)
 
-        target_var = self.state.get_variable(scope, context, call.target)        
-        changed = self.state._worklist.add((scope, NormalNode(target_var), PointsToSet.singleton(instance_obj)))
-
         cls_scope = self.state.get_internal_scope(class_obj)
-        params = ([("$self", instance_obj)] + [self.state.get_variable(scope, context, arg) for arg in call.args] +
-                  [(k, self.state.get_variable(cls_scope, cls_scope.context, arg)) for k, arg in call.kwargs])
-        
-        instance_parent = self.state.get_internal_scope(class_obj).parent
-        assert instance_parent, f"{self.state.get_internal_scope(class_obj)} : {class_obj} has no parent"
+        params = (
+            [("$self", instance_obj)] +
+            [self.state.get_variable(scope, context, arg) for arg in call.args] +
+            [(k, self.state.get_variable(scope, context, arg)) for k, arg in call.kwargs]
+        )
+
+        instance_parent = cls_scope.parent
+        assert instance_parent, f"{cls_scope} : {class_obj} has no parent"
         instance_ctx = self.context_selector.select_call_context(call.call_site, context, instance_obj, frozenset(params))
         instance_scope = Scope.new(instance_obj, instance_parent.module, instance_ctx, class_obj.alloc_site.stmt, instance_parent)
         self.state.set_internal_scope(instance_obj, instance_scope)
 
-        # Call __init__ method bound to the instance
-        # Get the __init__ method(s) from the class and bind them to the instance
-        cls_scope = self.state.get_internal_scope(class_obj)
-        cls_init_field = self.state.get_field(cls_scope, cls_scope.context, class_obj, attr("__init__"))
-        
-        # Get existing __init__ methods and bind them to the instance
-        cls_init_pts = self.state.get_points_to(cls_init_field)
-        
-        # Create a variable to hold the bound __init__ method
-        bound_init_var_name = f"$bound_init@{call.call_site}"
-        bound_init_var = self.variable_factory.make_variable(bound_init_var_name)
-        ctx_bound_init_var = self.state.get_variable(scope, context, bound_init_var)
-        
-        # For each __init__ method, create a bound version
-        for init_method in cls_init_pts:
-            if isinstance(init_method, MethodObject):
-                bound_method = init_method.deliver_into(instance_obj)
-                self.handle_new_points_to(ctx_bound_init_var, scope, PointsToSet.singleton(bound_method))
-            else:
-                # If it's not a MethodObject (shouldn't happen), just pass it through
-                self.handle_new_points_to(ctx_bound_init_var, scope, PointsToSet.singleton(init_method))
-        
-        # Also handle future __init__ methods that might be added via PFG
-        # Unfortunately, a simple PFG edge won't work because it doesn't bind the methods
-        # As a workaround, we'll add a LoadConstraint that will be triggered when cls_init_field is populated
-        # Actually, we need a custom constraint type for this, but for now, let's use a hack:
-        # We'll create a StoreConstraint that stores instance_obj into a dummy field, then when __init__ is called,
-        # it can access this field to get the instance. But that's too complex.
-        # For now, let's just add the PFG edge and hope it works (methods will be unbound but might still work)
-        self.state._add_var_points_flow(cls_init_field, ctx_bound_init_var)
-        
-        # Call the bound __init__ method
-        from pythonstan.ir.ir_statements import IRCall
-        import ast
-        self.add_constraint(scope, context, CallConstraint(bound_init_var, call.args, call.kwargs, None, call.stmt, call.call_site))
-        
-        return changed
-    
-    def _handle_bound_method_call(self, call: 'CallConstraint', method_obj: 'AbstractObject') -> bool:
-        """Handle bound method call: extract __func__ and __self__, call with self prepended."""
-        func_pts = self.state.get_field(method_obj, attr("__func__"))
-        self_pts = self.state.get_field(method_obj, attr("__self__"))
-        
-        if func_pts.is_empty():
-            logger.debug("Bound method has no __func__")
-            return False
-        
-        func_var = Variable(
-            name="$func",
-            scope=call.callee.scope,
-            context=call.callee.context,
-            kind=VariableKind.TEMPORARY
+        # Seed __new__ result with a fresh instance as a conservative default
+        new_result_var = self.variable_factory.make_variable(f"$new_result@{call.call_site.short_id()}")
+        ctx_new_result_var = self.state.get_variable(scope, context, new_result_var)
+        self.handle_new_points_to(ctx_new_result_var, scope, PointsToSet.singleton(instance_obj))
+
+        # Load and call C.__new__(C, *args, **kwargs)
+        cls_var = self.variable_factory.make_variable(f"$class@{call.call_site.short_id()}")
+        ctx_cls_var = self.state.get_variable(scope, context, cls_var)
+        self.handle_new_points_to(ctx_cls_var, scope, PointsToSet.singleton(class_obj))
+
+        new_callee_var = self.variable_factory.make_variable(f"$new@{call.call_site.short_id()}")
+        self.add_constraint(
+            scope,
+            context,
+            LoadConstraint(
+                base=cls_var,
+                field=attr("__new__"),
+                target=new_callee_var,
+            ),
         )
-        self_var = Variable(
-            name="$self",
-            scope=call.callee.scope,
-            context=call.callee.context,
-            kind=VariableKind.TEMPORARY
+        new_args = (cls_var,) + call.args
+        self.add_constraint(
+            scope,
+            context,
+            CallConstraint(
+                callee=new_callee_var,
+                args=new_args,
+                kwargs=call.kwargs,
+                target=new_result_var,
+                call_site=call.call_site,
+            ),
         )
-        self.state._worklist.add((call.callee.scope, NormalNode(func_var), func_pts))
-        self.state._worklist.add((call.callee.scope, NormalNode(self_var), self_pts))
-        
-        method_call = CallConstraint(
-            callee=func_var,
-            args=(self_var,) + call.args,
-            kwargs=frozenset(),
-            target=call.target,
-            stmt=call.stmt,
-            call_site=call.call_site + "_method"
+
+        # Flow __new__ result to call target
+        if call.target:
+            target_var = self.state.get_variable(scope, context, call.target)
+            self.state._add_var_points_flow(ctx_new_result_var, target_var)
+
+        # Call __init__ only for instance-like results
+        init_base_var = self.variable_factory.make_variable(f"$init_base@{call.call_site.short_id()}")
+        ctx_init_base_var = self.state.get_variable(scope, context, init_base_var)
+
+        guard = GuardNode(
+            lambda edge, pts: PointsToSet.from_objects(
+                [obj for obj in pts if isinstance(obj, InstanceObject)]
+            )
         )
-        self.add_constraint(method_call)
+        self.state._add_points_flow_edge(
+            PointerFlowEdge(NormalNode(ctx_new_result_var), guard, PointerFlowKind.NORMAL)
+        )
+        self.state._add_points_flow_edge(
+            PointerFlowEdge(guard, NormalNode(ctx_init_base_var), PointerFlowKind.NORMAL)
+        )
+
+        init_callee_var = self.variable_factory.make_variable(f"$bound_init@{call.call_site.short_id()}")
+        self.add_constraint(
+            scope,
+            context,
+            LoadConstraint(
+                base=init_base_var,
+                field=attr("__init__"),
+                target=init_callee_var,
+            ),
+        )
+        self.add_constraint(
+            scope,
+            context,
+            CallConstraint(init_callee_var, call.args, call.kwargs, None, call.call_site),
+        )
+
         return True
     
     def _handle_builtin_call(self, scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', builtin_obj: 'AbstractObject') -> bool:
@@ -783,7 +848,8 @@ class PointerSolver:
         # except Exception as e:
         #     logger.warning(f"Error handling builtin call: {e}")
         #     return False
-    
+
+
     def query(self) -> ISolverQuery:
         return SolverQuery(self.state, self._stats, self._unknown_tracker)
 

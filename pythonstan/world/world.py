@@ -35,7 +35,12 @@ class World(Singleton):
     def build(self, config: 'Config'):
         self.scope_manager.build()
         self.import_manager.build()
-        self.namespace_manager.build(config.project_path, config.library_paths)
+        self.namespace_manager.build(
+            config.project_path,
+            config.library_paths,
+            mock_libs=config.mock_libs,
+            prefer_mock_libs=config.prefer_mock_libs,
+        )
 
     def set_entry_module(self, module: IRModule):
         self.entry_module = module

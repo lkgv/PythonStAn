@@ -203,11 +203,13 @@ class ContextSelector:
                 return ctx.append(alloc_site)
         
         elif self.policy in (ContextPolicy.TYPE_1, ContextPolicy.TYPE_2, ContextPolicy.TYPE_3):
+            # For TYPE-sensitive policies, use alloc_type if provided, otherwise alloc_site
+            type_elem = alloc_type if alloc_type is not None else alloc_site
             if isinstance(current_ctx, TypeContext):
-                return current_ctx.append(alloc_site.get_type())
+                return current_ctx.append(type_elem)
             else:
                 ctx = TypeContext((), self._get_depth())
-                return ctx.append(alloc_site.get_type())
+                return ctx.append(type_elem)
         
         elif self.policy in (ContextPolicy.HYBRID_CALL1_OBJ1,
                             ContextPolicy.HYBRID_CALL2_OBJ1,

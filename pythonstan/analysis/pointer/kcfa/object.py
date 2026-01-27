@@ -4,7 +4,7 @@ This module defines the representation of heap objects in the k-CFA pointer anal
 Objects are context-sensitive and identified by their allocation site and context.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import ast
 from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
@@ -17,7 +17,8 @@ if TYPE_CHECKING:
 __all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject", "ConstantObject", 
            "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
            "TupleObject", "DictObject", "SetObject", "BuiltinClassObject", "BuiltinInstanceObject",
-           "BuiltinMethodObject", "BuiltinFunctionObject", "SuperObject", "ObjectFactory"]
+           "BuiltinMethodObject", "BuiltinFunctionObject", "SuperObject", "GeneratorObject",
+           "CoroutineObject", "ObjectFactory", "truncate_context", "summarize_object", "is_summary_object"]
 
 
 class AllocKind(Enum):
@@ -41,6 +42,8 @@ class AllocKind(Enum):
     BUILTIN = "builtin"
     CELL = "cell"
     CONSTANT = "constant"
+    GENERATOR = "generator"
+    COROUTINE = "coroutine"
     UNKNOWN = "unknown"
 
 
@@ -146,6 +149,10 @@ class AbstractObject:
             AllocKind.BOUND_METHOD,
             AllocKind.BUILTIN
         )
+    
+    def get_type(self) -> 'AbstractObject':
+        """Get the type of the object."""
+        return self.alloc_site
 
 
 @dataclass(frozen=True)
@@ -298,6 +305,57 @@ class SuperObject(AbstractObject):
         return f"<super at {self.alloc_site}>"
 
 
+@dataclass(frozen=True)
+class GeneratorObject(AbstractObject):
+    """Generator object returned from calling a generator function.
+    
+    Represents the generator iterator produced when calling a function
+    containing yield statements. Yielded values flow to the elem() field,
+    enabling iteration via iter()/next() builtin handling.
+    
+    Key behaviors:
+    - Calling a generator function returns GeneratorObject (not function result)
+    - IRYield stores values to this object's elem() field
+    - next()/iter() loads from elem() field (existing builtin handling)
+    - send() values flow to yield expression targets (future enhancement)
+    
+    Attributes:
+        func_obj: The FunctionObject that defines this generator
+        container_scope: Scope where the generator function is defined
+    """
+    func_obj: 'FunctionObject'
+    container_scope: 'Scope'
+    
+    def __str__(self) -> str:
+        func_name = getattr(self.func_obj.ir, 'name', '<unknown>')
+        return f"<generator object {func_name} at {self.alloc_site}>"
+
+
+@dataclass(frozen=True)
+class CoroutineObject(AbstractObject):
+    """Coroutine object returned from calling an async function.
+    
+    Represents the coroutine produced when calling an async def function.
+    The coroutine's result flows through the $await_result field, enabling
+    await expressions to retrieve the final value.
+    
+    Key behaviors:
+    - Calling an async function returns CoroutineObject (not function result)
+    - IRReturn in async function stores to $await_result field
+    - IRAwait loads from the coroutine's $await_result field
+    
+    Attributes:
+        func_obj: The FunctionObject that defines this coroutine
+        container_scope: Scope where the async function is defined
+    """
+    func_obj: 'FunctionObject'
+    container_scope: 'Scope'
+    
+    def __str__(self) -> str:
+        func_name = getattr(self.func_obj.ir, 'name', '<unknown>')
+        return f"<coroutine object {func_name} at {self.alloc_site}>"
+
+
 class ObjectFactory:
     """Factory for creating abstract objects with proper context sensitivity.
     
@@ -380,7 +438,7 @@ class ObjectFactory:
         """
         alloc_site = AllocSite(
             stmt=f"<builtin_method:{method_name}>",
-            kind=AllocKind.METHOD
+            kind=AllocKind.BUILTIN
         )
         return BuiltinMethodObject(
             context=context,
@@ -494,3 +552,130 @@ class ObjectFactory:
             current_class=current_class,
             instance_obj=instance_obj
         )
+    
+    @staticmethod
+    def create_generator(
+        context: 'AbstractContext',
+        stmt: Union[str, 'IRStatement'],
+        func_obj: 'FunctionObject',
+        container_scope: 'Scope'
+    ) -> 'GeneratorObject':
+        """Create a generator object.
+        
+        Args:
+            context: Analysis context
+            stmt: IR statement or call site for allocation site
+            func_obj: The generator function object
+            container_scope: Scope where the generator function is defined
+        
+        Returns:
+            GeneratorObject representing the generator iterator
+        """
+        alloc_site = AllocSite(stmt=stmt, kind=AllocKind.GENERATOR)
+        return GeneratorObject(
+            context=context,
+            alloc_site=alloc_site,
+            func_obj=func_obj,
+            container_scope=container_scope
+        )
+    
+    @staticmethod
+    def create_coroutine(
+        context: 'AbstractContext',
+        stmt: Union[str, 'IRStatement'],
+        func_obj: 'FunctionObject',
+        container_scope: 'Scope'
+    ) -> 'CoroutineObject':
+        """Create a coroutine object.
+        
+        Args:
+            context: Analysis context
+            stmt: IR statement or call site for allocation site
+            func_obj: The async function object
+            container_scope: Scope where the async function is defined
+        
+        Returns:
+            CoroutineObject representing the coroutine
+        """
+        alloc_site = AllocSite(stmt=stmt, kind=AllocKind.COROUTINE)
+        return CoroutineObject(
+            context=context,
+            alloc_site=alloc_site,
+            func_obj=func_obj,
+            container_scope=container_scope
+        )
+
+
+# =============================================================================
+# Summary helpers (context truncation + summary objects)
+# =============================================================================
+
+def truncate_context(ctx: 'AbstractContext') -> 'AbstractContext':
+    """Truncate an analysis context to depth 0 for summary objects."""
+    try:
+        from .context import SummaryContext
+    except Exception:
+        SummaryContext = None  # type: ignore
+
+    if SummaryContext is not None and isinstance(ctx, SummaryContext):
+        inner_truncated = truncate_context(ctx.inner)
+        # Preserve the summary wrapper while truncating the inner context
+        if inner_truncated == ctx.inner:
+            return ctx
+        return SummaryContext(inner_truncated)
+    try:
+        from .context import (
+            CallStringContext,
+            ObjectContext,
+            TypeContext,
+            ReceiverContext,
+            ParamContext,
+            HybridContext,
+        )
+    except Exception:
+        # If context module fails to import (should not in normal runtime),
+        # return original context to remain sound.
+        return ctx
+    
+    if isinstance(ctx, CallStringContext):
+        return replace(ctx, call_sites=(), k=0)
+    if isinstance(ctx, ObjectContext):
+        return replace(ctx, alloc_sites=(), depth=0)
+    if isinstance(ctx, TypeContext):
+        return replace(ctx, types=(), depth=0)
+    if isinstance(ctx, ReceiverContext):
+        return replace(ctx, receivers=(), depth=0)
+    if isinstance(ctx, ParamContext):
+        return replace(ctx, params=(), depth=0)
+    if isinstance(ctx, HybridContext):
+        return replace(ctx, call_sites=(), alloc_sites=(), call_k=0, obj_depth=0)
+    
+    # Fallback: return the same context when we do not know how to truncate
+    return ctx
+
+
+def summarize_object(obj: 'AbstractObject') -> 'AbstractObject':
+    """Create a summary object by truncating context and tagging with SummaryContext."""
+    from .context import SummaryContext
+
+    base_ctx = obj.context
+
+    # If already a summary, keep the wrapper but re-truncate the inner context
+    if isinstance(base_ctx, SummaryContext):
+        inner_truncated = truncate_context(base_ctx.inner)
+        if inner_truncated == base_ctx.inner:
+            return obj
+        return replace(obj, context=SummaryContext(inner_truncated))
+
+    truncated = truncate_context(base_ctx)
+    summary_ctx = SummaryContext(truncated)
+    return replace(obj, context=summary_ctx)
+
+
+def is_summary_object(obj: 'AbstractObject') -> bool:
+    """Check if object context is explicitly marked as a summary."""
+    try:
+        from .context import SummaryContext
+    except Exception:
+        return False
+    return isinstance(obj.context, SummaryContext)

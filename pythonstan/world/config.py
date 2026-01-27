@@ -17,11 +17,15 @@ class Config:
     lazy_ir_construction: bool
     import_level: int
     time_count: bool
+    mock_libs: bool
+    prefer_mock_libs: bool
 
     def __init__(self, filename, project_path,
                  lazy_ir_construction: bool = False,
                  import_level: int = -1,
-                 time_count: bool = False):
+                 time_count: bool = False,
+                 mock_libs: bool = True,
+                 prefer_mock_libs: bool = False):
         self.filename = filename
         self.project_path = project_path
         self.library_paths = []
@@ -30,11 +34,21 @@ class Config:
         self.lazy_ir_construction = lazy_ir_construction
         self.import_level = import_level
         self.time_count = time_count
+        self.mock_libs = mock_libs
+        self.prefer_mock_libs = prefer_mock_libs
         
     @classmethod
     def from_dict(cls, info: Dict):
         lazy_ir = info.get('lazy_ir_construction', False)
-        conf = cls(info['filename'], info['project_path'], lazy_ir_construction=lazy_ir)
+        mock_libs = info.get('mock_libs', True)
+        prefer_mock_libs = info.get('prefer_mock_libs', False)
+        conf = cls(
+            info['filename'],
+            info['project_path'],
+            lazy_ir_construction=lazy_ir,
+            mock_libs=mock_libs,
+            prefer_mock_libs=prefer_mock_libs,
+        )
         for anal_info in info['analysis']:
             inter_procedure = anal_info.get('inter_procedure', False)
             anal_cfg = AnalysisConfig(

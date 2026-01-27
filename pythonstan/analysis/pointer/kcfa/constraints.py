@@ -6,12 +6,13 @@ provides efficient storage and indexing for constraint-based solving.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING
+from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING, Union
 from collections import defaultdict
 
 if TYPE_CHECKING:
     from pythonstan.ir import IRCall
     from pythonstan.ir.ir_statements import IRStatement
+    from .context import CallSite
     from .variable import Variable, FieldAccess
     from .heap_model import Field
     from .pointer_flow_graph import SelectorNode
@@ -23,6 +24,8 @@ __all__ = [
     "CopyConstraint",
     "InheritanceConstraint",
     "LoadConstraint",
+    "AttrReadConstraint",
+    "AttrWriteConstraint",
     "StoreConstraint",
     "AllocConstraint",
     "LoadSubscrConstraint",
@@ -30,6 +33,8 @@ __all__ = [
     "CallConstraint",
     "ReturnConstraint",
     "SuperResolveConstraint",
+    "YieldConstraint",
+    "AwaitConstraint",
     "ConstraintManager"
 ]
 
@@ -106,6 +111,66 @@ class LoadConstraint(Constraint):
         if self.index:
             return f"LoadConstraint: {self.target} = {self.base}[{self.index}]"
         return f"LoadConstraint: {self.target} = {self.base}{self.field}"
+
+
+@dataclass(frozen=True)
+class AttrReadConstraint(Constraint):
+    """Attribute read constraint: target = base.attr.
+    
+    Represents attribute reads that require descriptor/interceptor semantics.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        attr: Attribute name or field key
+        target: Target variable receiving the attribute value
+        call_site: Call site metadata for context-sensitive processing
+    """
+    
+    base: 'Variable'
+    attr: Union[str, 'Field']
+    target: 'Variable'
+    call_site: 'CallSite'
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        return {self.base, self.target}
+    
+    def __str__(self) -> str:
+        if isinstance(self.attr, str):
+            attr_str = f".{self.attr}"
+        else:
+            attr_str = str(self.attr)
+        return f"AttrReadConstraint: {self.target} = {self.base}{attr_str}"
+
+
+@dataclass(frozen=True)
+class AttrWriteConstraint(Constraint):
+    """Attribute write constraint: base.attr = source.
+    
+    Represents attribute writes that require descriptor/interceptor semantics.
+    
+    Attributes:
+        base: Base variable pointing to objects
+        attr: Attribute name or field key
+        source: Source variable being stored
+        call_site: Call site metadata for context-sensitive processing
+    """
+    
+    base: 'Variable'
+    attr: Union[str, 'Field']
+    source: 'Variable'
+    call_site: 'CallSite'
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        return {self.base, self.source}
+    
+    def __str__(self) -> str:
+        if isinstance(self.attr, str):
+            attr_str = f".{self.attr}"
+        else:
+            attr_str = str(self.attr)
+        return f"AttrWriteConstraint: {self.base}{attr_str} = {self.source}"
 
 
 @dataclass(frozen=True)
@@ -296,19 +361,23 @@ class CallConstraint(Constraint):
         callee: Variable holding callable object
         args: Tuple of argument variables
         target: Optional target variable for return value
-        call_site: Unique call site identifier
+        call_site: Call site metadata bound to an IR statement
     """
     
     callee: 'Variable'
     args: Tuple['Variable', ...]
     kwargs: FrozenSet[Tuple[str, 'Variable']]
     target: Optional['Variable']
-    stmt: 'IRStatement'
-    call_site: str
+    call_site: 'CallSite'
+    
+    @property
+    def stmt(self) -> 'IRStatement':
+        return self.call_site.statement
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
-        vars = {self.callee, *self.args, *self.kwargs.values()}
+        vars = {self.callee, *self.args}
+        vars.update(var for _, var in self.kwargs)
         if self.target:
             vars.add(self.target)
         return vars
@@ -340,6 +409,70 @@ class ReturnConstraint(Constraint):
     
     def __str__(self) -> str:
         return f"ReturnConstraint: {self.caller_target} = return({self.callee_return})"
+
+
+@dataclass(frozen=True)
+class YieldConstraint(Constraint):
+    """Yield constraint: [target =] yield value.
+    
+    Represents yielding a value from a generator function. The yielded value
+    flows to the generator object's elem() field. If a target is present,
+    the value sent to the generator flows into the target.
+    
+    Attributes:
+        value: Variable holding the yielded value (or None for bare yield)
+        target: Variable to receive sent value (for target = yield value)
+        generator_var: Variable holding the current generator object ($generator)
+    """
+    
+    value: Optional['Variable']
+    target: Optional['Variable']
+    generator_var: 'Variable'
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.generator_var}
+        if self.value:
+            vars.add(self.value)
+        if self.target:
+            vars.add(self.target)
+        return vars
+    
+    def __str__(self) -> str:
+        if self.target and self.value:
+            return f"YieldConstraint: {self.target} = yield {self.value}"
+        elif self.value:
+            return f"YieldConstraint: yield {self.value}"
+        else:
+            return f"YieldConstraint: yield"
+
+
+@dataclass(frozen=True)
+class AwaitConstraint(Constraint):
+    """Await constraint: target = await value.
+    
+    Represents awaiting a coroutine/awaitable. The awaited value's result
+    (from its $await_result field) flows into the target variable.
+    
+    Attributes:
+        awaitable: Variable holding the awaitable/coroutine object
+        target: Variable to receive the await result (or None)
+    """
+    
+    awaitable: 'Variable'
+    target: Optional['Variable']
+    
+    def variables(self) -> Set['Variable']:
+        """Get variables involved."""
+        vars = {self.awaitable}
+        if self.target:
+            vars.add(self.target)
+        return vars
+    
+    def __str__(self) -> str:
+        if self.target:
+            return f"AwaitConstraint: {self.target} = await {self.awaitable}"
+        return f"AwaitConstraint: await {self.awaitable}"
 
 
 class ConstraintManager:

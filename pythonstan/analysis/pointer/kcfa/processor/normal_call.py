@@ -1,17 +1,32 @@
 from abc import ABC, abstractmethod
+import ast
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Dict, Tuple
 
 from .processor import Processor
 from ..points_to_set import PointsToSet
-from ..object import AllocKind, FunctionObject, MethodObject, AllocSite, TupleObject, DictObject
+from ..constraints import CallConstraint, AllocConstraint, LoadConstraint
+from ..object import (
+    AllocKind,
+    FunctionObject,
+    MethodObject,
+    ClassObject,
+    InstanceObject,
+    BuiltinObject,
+    BuiltinFunctionObject,
+    BuiltinMethodObject,
+    BuiltinClassObject,
+    BuiltinInstanceObject,
+    AllocSite,
+    TupleObject,
+    DictObject,
+)
 from ..context import Ctx, Scope, AbstractContext
-from ..context_selector import CallSite
 from ..variable import VariableKind, Variable
 from ..unknown_tracker import UnknownKind
 from ..heap_model import key, attr
 from pythonstan.graph.call_graph import CallEdge, CallKind
-from pythonstan.ir.ir_statements import IRFunc
+from pythonstan.ir.ir_statements import IRFunc, IRAssign
 
 if TYPE_CHECKING:
     from ..pointer_flow_graph import NormalNode
@@ -25,18 +40,164 @@ __all__ = ["NormalCallProcessor"]
 
 
 class NormalCallProcessor(Processor):
+    def __init__(self) -> None:
+        self._default_alloc_sites: Dict[Tuple[IRFunc, str, int, AllocKind], AllocSite] = {}
+
     def handle_call(self, solver: 'PointerSolver', target: 'Ctx[Any]', scope: 'Scope', constraint: 'Constraint', callee_obj: 'AbstractObject') -> bool:
-        if callee_obj.kind == AllocKind.FUNCTION:
-            return self._handle_function_call(solver, scope, scope.context, constraint, callee_obj)
-        elif callee_obj.kind == AllocKind.METHOD:
+        if isinstance(callee_obj, MethodObject):
             return self._handle_method_call(solver, scope, scope.context, constraint, callee_obj)
-        return False
+        if isinstance(callee_obj, FunctionObject):
+            return self._handle_function_call(solver, scope, scope.context, constraint, callee_obj)
+        if isinstance(callee_obj, (BuiltinObject, BuiltinFunctionObject, BuiltinMethodObject, BuiltinClassObject, BuiltinInstanceObject)) or callee_obj.kind == AllocKind.BUILTIN:
+            return self._handle_builtin_call(solver, scope, scope.context, constraint, callee_obj)
+        if isinstance(callee_obj, ClassObject):
+            return self._handle_class_call(solver, scope, scope.context, constraint, callee_obj)
+        if isinstance(callee_obj, InstanceObject):
+            return self._handle_object_call(solver, scope, scope.context, constraint, callee_obj)
+        return self._handle_object_call(solver, scope, scope.context, constraint, callee_obj)
+
+    def _handle_builtin_call(
+        self,
+        solver: 'PointerSolver',
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        builtin_obj: 'AbstractObject',
+    ) -> bool:
+        if solver._handle_builtin_call(scope, context, call, builtin_obj):
+            return True
+        return True
+
+    def _handle_class_call(
+        self,
+        solver: 'PointerSolver',
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        class_obj: 'ClassObject',
+    ) -> bool:
+        return solver._handle_class_instantiation(scope, context, call, class_obj)
+
+    def _handle_object_call(
+        self,
+        solver: 'PointerSolver',
+        scope: 'Scope',
+        context: 'AbstractContext',
+        call: 'CallConstraint',
+        callee_obj: 'AbstractObject',
+    ) -> bool:
+        if call.callee.name.startswith("$call@"):
+            return False
+        call_var = solver.variable_factory.make_variable(f"$call@{call.call_site.short_id()}")
+        ctx_call_var = solver.state.get_variable(scope, context, call_var)
+        call_field = solver.state.get_field(scope, context, callee_obj, attr("__call__"))
+        solver.state._add_var_points_flow(call_field, ctx_call_var)
+        solver.add_constraint(
+            scope,
+            context,
+            CallConstraint(
+                callee=call_var,
+                args=call.args,
+                kwargs=call.kwargs,
+                target=call.target,
+                call_site=call.call_site,
+            ),
+        )
+        return True
+
+    def _make_default_alloc_site(
+        self,
+        func_ir: IRFunc,
+        param_name: str,
+        default_index: int,
+        kind: AllocKind,
+        value: Any,
+    ) -> AllocSite:
+        key = (func_ir, param_name, default_index, kind)
+        alloc_site = self._default_alloc_sites.get(key)
+        if alloc_site is None:
+            default_var_name = self._default_var_name(func_ir, param_name, default_index, kind)
+            const_assign = IRAssign(
+                ast.Assign(
+                    targets=[ast.Name(id=default_var_name, ctx=ast.Store())],
+                    value=ast.Constant(value=value),
+                )
+            )
+            alloc_site = AllocSite.from_ir_node(const_assign, kind)
+            self._default_alloc_sites[key] = alloc_site
+        return alloc_site
+
+    @staticmethod
+    def _default_var_name(func_ir: IRFunc, param_name: str, default_index: int, kind: AllocKind) -> str:
+        return f"$default_{kind.value}_{id(func_ir)}_{param_name}_{default_index}"
+
+    def _materialize_default(
+        self,
+        solver: 'PointerSolver',
+        func_ir: IRFunc,
+        def_scope: Scope,
+        def_context: AbstractContext,
+        param_name: str,
+        default_index: int,
+        default_expr: ast.expr,
+    ) -> 'Ctx[Variable]':
+        default_var_name = self._default_var_name(func_ir, param_name, default_index, AllocKind.CONSTANT)
+        default_var = solver.variable_factory.make_variable(default_var_name)
+        default_ctx_var = solver.state.get_variable(def_scope, def_context, default_var)
+
+        if isinstance(default_expr, ast.Constant):
+            alloc_site = self._make_default_alloc_site(
+                func_ir=func_ir,
+                param_name=param_name,
+                default_index=default_index,
+                kind=AllocKind.CONSTANT,
+                value=default_expr.value,
+            )
+            solver.add_constraint(
+                def_scope,
+                def_context,
+                AllocConstraint(target=default_var, alloc_site=alloc_site),
+            )
+            return default_ctx_var
+
+        if isinstance(default_expr, ast.Name):
+            source_var = solver.variable_factory.make_variable(default_expr.id)
+            source_ctx = solver.state.get_variable(def_scope, def_context, source_var)
+            solver.state._add_var_points_flow(source_ctx, default_ctx_var)
+            return default_ctx_var
+
+        if isinstance(default_expr, ast.Attribute) and isinstance(default_expr.value, ast.Name):
+            base_var = solver.variable_factory.make_variable(default_expr.value.id)
+            solver.add_constraint(
+                def_scope,
+                def_context,
+                LoadConstraint(
+                    base=base_var,
+                    field=attr(default_expr.attr),
+                    target=default_var,
+                ),
+            )
+            return default_ctx_var
+
+        alloc_site = self._make_default_alloc_site(
+            func_ir=func_ir,
+            param_name=param_name,
+            default_index=default_index,
+            kind=AllocKind.UNKNOWN,
+            value=None,
+        )
+        solver.add_constraint(
+            def_scope,
+            def_context,
+            AllocConstraint(target=default_var, alloc_site=alloc_site),
+        )
+        return default_ctx_var
     
     def _handle_method_call(self, solver: 'PointerSolver', scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
         # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt.get_qualname()}")
         
         if not isinstance(method_obj, MethodObject):
-            logger.info(f"is not method object, {type(func_obj)} got!")
+            logger.info(f"is not method object, {type(method_obj)} got!")
             return False
                 
         func_ir: IRFunc = method_obj.alloc_site.stmt
@@ -44,22 +205,24 @@ class NormalCallProcessor(Processor):
         func_name = func_ir.get_qualname()
 
         if func_ir.is_static_method:
-            return self._handle_function_call(scope, context, call, method_obj)
+            return self._handle_function_call(solver, scope, context, call, method_obj)
         
         if func_ir.is_class_method:
             holder_obj = method_obj.class_obj
         else:
             holder_obj = method_obj.instance_obj
-            if not holder_obj:
-                holder_obj = method_obj.class_obj
+            if holder_obj is None:
+                return self._handle_function_call(solver, scope, context, call, method_obj)
         
         if not holder_obj:
             logger.info(f"No holder got in {method_obj}")
             return False
         
-        call_site = CallSite(call.call_site, len(call.args))
-        
-        self_var = solver.state.get_variable(scope, context, solver.variable_factory.make_variable(f"$self@{call.call_site}"))
+        self_var = solver.state.get_variable(
+            scope,
+            context,
+            solver.variable_factory.make_variable(f"$self@{call.call_site.short_id()}")
+        )
         solver.handle_new_points_to(self_var, scope, PointsToSet.singleton(holder_obj))
 
         args = [solver.state.get_variable(scope, context, arg) for arg in call.args]
@@ -67,7 +230,7 @@ class NormalCallProcessor(Processor):
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
 
         call_context = solver.context_selector.select_call_context(
-            call_site,
+            call.call_site,
             context,
             holder_obj,
             params=frozenset(args) | frozenset(kwargs.items())
@@ -79,7 +242,11 @@ class NormalCallProcessor(Processor):
         callee_scope = Scope.new(method_obj, method_scope.module, call_context, func_ir, method_scope)
         assert holder_obj
 
-        call_edge = CallEdge(kind=CallKind.FUNCTION, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
+        if func_ir.is_class_method:
+            call_kind = CallKind.CLASS
+        else:
+            call_kind = CallKind.INSTANCE
+        call_edge = CallEdge(kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
         # if self.state.call_graph.has_edge(edge):
         #     return False
 
@@ -94,7 +261,7 @@ class NormalCallProcessor(Processor):
         except Exception as e:
             solver._unknown_tracker.record(
                 UnknownKind.TRANSLATION_ERROR,
-                call.call_site,
+                str(call.call_site),
                 f"Error translating function body: {str(e)}",
                 context=func_name
             )
@@ -131,7 +298,7 @@ class NormalCallProcessor(Processor):
             solver._debug_monitor.record_call_edge_created(
                 caller=caller_name,
                 callee=callee_name,
-                call_site=call.call_site,
+                call_site=str(call.call_site),
                 callee_type="method"
             )
 
@@ -158,9 +325,8 @@ class NormalCallProcessor(Processor):
         args = [solver.state.get_variable(scope, context, arg) for arg in call.args]
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
         
-        call_site = CallSite(call.call_site, len(call.args))
         call_context = solver.context_selector.select_call_context(
-            call_site,
+            call.call_site,
             context,
             None,  # No receiver ffor regular functions
             params=frozenset(args) | frozenset(kwargs.items())
@@ -169,11 +335,12 @@ class NormalCallProcessor(Processor):
         logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
         
         # func_ir = self.function_registry[func_name]
-        method_scope = solver.state.obj_scope[func_obj]
+        # method_scope = solver.state.obj_scope[func_obj]
         alloc_site = func_obj.alloc_site
         # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
         callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
-        call_edge = CallEdge(kind=CallKind.FUNCTION, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
+        call_kind = CallKind.STATIC if func_ir.is_static_method else CallKind.FUNCTION
+        call_edge = CallEdge(kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
         # if self.state.call_graph.has_edge(edge):
         #     return False
 
@@ -187,7 +354,7 @@ class NormalCallProcessor(Processor):
         except Exception as e:
             solver._unknown_tracker.record(
                 UnknownKind.TRANSLATION_ERROR,
-                call.call_site,
+                str(call.call_site),
                 f"Error translating function body: {str(e)}",
                 context=func_name
             )
@@ -229,7 +396,7 @@ class NormalCallProcessor(Processor):
             solver._debug_monitor.record_call_edge_created(
                 caller=caller_name,
                 callee=callee_name,
-                call_site=call.call_site,
+                call_site=str(call.call_site),
                 callee_type="function"
             )
 
@@ -280,6 +447,19 @@ class NormalCallProcessor(Processor):
             arg_vars = args  # Positional argument variables from call site
             kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
             
+            positional_params = []
+            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+                positional_params.extend(func_args.posonlyargs)
+            if func_args.args:
+                positional_params.extend(func_args.args)
+
+            positional_defaults = {}
+            if func_args.defaults:
+                first_default_idx = len(positional_params) - len(func_args.defaults)
+                for idx, default_expr in enumerate(func_args.defaults):
+                    param = positional_params[first_default_idx + idx]
+                    positional_defaults[param.arg] = (default_expr, first_default_idx + idx)
+
             # Track which parameters have been bound
             arg_index = 0
             consumed_kwargs = set()  # Track which keyword arguments have been matched
@@ -300,16 +480,32 @@ class NormalCallProcessor(Processor):
                         state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
                     else:
-                        # Must use default value (if available)
-                        pass
+                        default_entry = positional_defaults.get(param_name)
+                        if default_entry is not None:
+                            default_expr, default_idx = default_entry
+                            def_scope = callee_obj.container_scope
+                            def_context = def_scope.context
+                            default_ctx = self._materialize_default(
+                                solver=solver,
+                                func_ir=func_ir,
+                                def_scope=def_scope,
+                                def_context=def_context,
+                                param_name=param_name,
+                                default_index=default_idx,
+                                default_expr=default_expr,
+                            )
+                            state._add_var_points_flow(default_ctx, param_var)
+                        else:
+                            solver._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                str(call.call_site),
+                                f"Required positional-only parameter {param_name} not provided",
+                                context=func_name
+                            )
             
             # 2. Handle regular positional/keyword parameters
             # These can be filled by either positional OR keyword arguments
             if func_args.args:
-                num_regular_params = len(func_args.args)
-                num_defaults = len(func_args.defaults) if func_args.defaults else 0
-                first_default_idx = num_regular_params - num_defaults
-                
                 for param_idx, param in enumerate(func_args.args):
                     param_name = param.arg
                     param_var = state.get_variable(
@@ -327,17 +523,30 @@ class NormalCallProcessor(Processor):
                         # Bind positional argument to parameter
                         state._add_var_points_flow(arg_vars[arg_index], param_var)
                         arg_index += 1
-                    elif param_idx >= first_default_idx:
-                        # This parameter has a default value
-                        pass
                     else:
-                        # Missing required parameter - this is an error in real Python
-                        solver._unknown_tracker.record(
-                            UnknownKind.MISSING_ARGUMENT,
-                            call.call_site,
-                            f"Required parameter {param_name} not provided",
-                            context=func_name
-                        )
+                        default_entry = positional_defaults.get(param_name)
+                        if default_entry is not None:
+                            default_expr, default_idx = default_entry
+                            def_scope = callee_obj.container_scope
+                            def_context = def_scope.context
+                            default_ctx = self._materialize_default(
+                                solver=solver,
+                                func_ir=func_ir,
+                                def_scope=def_scope,
+                                def_context=def_context,
+                                param_name=param_name,
+                                default_index=default_idx,
+                                default_expr=default_expr,
+                            )
+                            state._add_var_points_flow(default_ctx, param_var)
+                        else:
+                            # Missing required parameter - this is an error in real Python
+                            solver._unknown_tracker.record(
+                                UnknownKind.MISSING_ARGUMENT,
+                                str(call.call_site),
+                                f"Required parameter {param_name} not provided",
+                                context=func_name
+                            )
             
             # 3. Handle *args (vararg) - collects remaining positional arguments
             if func_args.vararg:
@@ -353,21 +562,19 @@ class NormalCallProcessor(Processor):
                 vararg_tuple_obj = TupleObject(call_context, vararg_alloc)
                 
                 # Add the tuple to the vararg parameter
-                changed_vararg = solver.handle_new_points_to(vararg_var, callee_scope, PointsToSet.singleton(vararg_tuple_obj))
-                if changed_vararg:
-                    changed = True
+                solver.handle_new_points_to(vararg_var, callee_scope, PointsToSet.singleton(vararg_tuple_obj))
                 
                 # All remaining positional arguments go into *args
                 for i in range(arg_index, len(arg_vars)):
                     # Store each remaining argument as an element of the tuple
                     field = key(i - arg_index)
-                    element_var = state.get_field(callee_scope, call_context, vararg_var, field)
+                    element_var = state.get_field(callee_scope, call_context, vararg_tuple_obj, field)
                     state._add_var_points_flow(arg_vars[i], element_var)
             elif arg_index < len(arg_vars):
                 # Too many positional arguments and no *args to catch them
                 solver._unknown_tracker.record(
                     UnknownKind.MISSING_ARGUMENT,
-                    call.call_site,
+                    str(call.call_site),
                     f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
                     context=func_name
                 )
@@ -393,12 +600,23 @@ class NormalCallProcessor(Processor):
                         kw_default = func_args.kw_defaults[kw_idx]
                         if kw_default is not None:
                             # Has a default value
-                            pass
+                            def_scope = callee_obj.container_scope
+                            def_context = def_scope.context
+                            default_ctx = self._materialize_default(
+                                solver=solver,
+                                func_ir=func_ir,
+                                def_scope=def_scope,
+                                def_context=def_context,
+                                param_name=param_name,
+                                default_index=kw_idx,
+                                default_expr=kw_default,
+                            )
+                            state._add_var_points_flow(default_ctx, param_var)
                         else:
                             # Missing required keyword-only parameter
                             solver._unknown_tracker.record(
                                 UnknownKind.MISSING_ARGUMENT,
-                                call.call_site,
+                                str(call.call_site),
                                 f"Required keyword-only parameter {param_name} not provided",
                                 context=func_name
                             )
@@ -406,7 +624,7 @@ class NormalCallProcessor(Processor):
                         # Missing required keyword-only parameter with no default
                         solver._unknown_tracker.record(
                             UnknownKind.MISSING_ARGUMENT,
-                            call.call_site,
+                            str(call.call_site),
                             f"Required keyword-only parameter {param_name} not provided",
                             context=func_name
                         )
@@ -427,20 +645,20 @@ class NormalCallProcessor(Processor):
                 kwarg_dict_obj = DictObject(call_context, kwarg_alloc)
                 
                 # Add the dict to the kwarg parameter
-                changed_kwarg = solver.handle_new_points_to(kwarg_var, callee_scope, PointsToSet.singleton(kwarg_dict_obj))
+                solver.handle_new_points_to(kwarg_var, callee_scope, PointsToSet.singleton(kwarg_dict_obj))
                 
                 # Store all remaining keyword arguments into the **kwargs dict
                 for kw_name, kw_var in remaining_kwargs.items():
                     # Use the keyword name as the dict key (field)
-                    field = attr(kw_name)
-                    dict_value_var = state.get_field(callee_scope, call_context, kwarg_var, field)
+                    field = key(kw_name)
+                    dict_value_var = state.get_field(callee_scope, call_context, kwarg_dict_obj, field)
                     state._add_var_points_flow(kw_var, dict_value_var)
             elif remaining_kwargs:
                 # Unexpected keyword arguments and no **kwargs to catch them
                 extra_kw_names = ', '.join(remaining_kwargs.keys())
                 solver._unknown_tracker.record(
                     UnknownKind.MISSING_ARGUMENT,
-                    call.call_site,
+                    str(call.call_site),
                     f"Unexpected keyword arguments: {extra_kw_names}",
                     context=func_name
                 )

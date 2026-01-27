@@ -108,4 +108,5 @@ class ICFGTransformBase:
     def analysis_stmt(self, stmt: ast.stmt, env: PersistentMap):
         if isinstance(stmt, ast.Assign):
             ...
-        elif isinstance(stmt, )
+        elif isinstance(stmt, ):
+            ...
