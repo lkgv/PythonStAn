@@ -1,5 +1,6 @@
 """Tests for pointer analysis solver."""
 
+import ast
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     PointerSolver,
@@ -8,6 +9,13 @@ from pythonstan.analysis.pointer.kcfa import (
     AllocKind,
 )
 from pythonstan.analysis.pointer.kcfa.solver import SolverQuery
+from pythonstan.analysis.pointer.kcfa.context import CallSite
+from pythonstan.ir.ir_statements import IRCall
+
+
+def _make_call_site(scope_name: str, index: int = 0) -> CallSite:
+    call_stmt = IRCall(ast.parse("callsite()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name, index=index)
 
 
 class TestPointerSolverInitialization:
@@ -571,13 +579,13 @@ class TestSolverAllocConstraint:
     def test_alloc_uses_context(self, empty_state, alloc_site_factory):
         """Test that alloc uses variable's context."""
         from pythonstan.analysis.pointer.kcfa import AllocConstraint, Variable, Scope
-        from pythonstan.analysis.pointer.kcfa.context import CallStringContext, CallSite
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext
         
         config = Config()
         solver = PointerSolver(empty_state, config)
         
         # Create variable with specific context
-        ctx = CallStringContext((CallSite("test", 0),), 2)
+        ctx = CallStringContext((_make_call_site("test"),), 2)
         scope = Scope("func", "function")
         var_tgt = Variable("x", scope, ctx)
         
@@ -595,14 +603,14 @@ class TestSolverAllocConstraint:
     def test_multiple_allocs_same_site(self, empty_state, alloc_site_factory):
         """Test multiple allocations at same site with different contexts."""
         from pythonstan.analysis.pointer.kcfa import AllocConstraint, Variable, Scope
-        from pythonstan.analysis.pointer.kcfa.context import CallStringContext, CallSite
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext
         
         config = Config()
         solver = PointerSolver(empty_state, config)
         
         scope = Scope("func", "function")
-        ctx1 = CallStringContext((CallSite("call1", 0),), 2)
-        ctx2 = CallStringContext((CallSite("call2", 0),), 2)
+        ctx1 = CallStringContext((_make_call_site("call1", 1),), 2)
+        ctx2 = CallStringContext((_make_call_site("call2", 2),), 2)
         
         var1 = Variable("x", scope, ctx1)
         var2 = Variable("y", scope, ctx2)
@@ -638,7 +646,13 @@ class TestSolverCallConstraint:
         empty_state.set_points_to(var_callee, PointsToSet.singleton(func_obj))
         
         # Create call constraint
-        constraint = CallConstraint(callee=var_callee, args=(), target=var_tgt, call_site="test:1")
+        constraint = CallConstraint(
+            callee=var_callee,
+            args=(),
+            kwargs=frozenset(),
+            target=var_tgt,
+            call_site=_make_call_site("test", 1)
+        )
         solver.add_constraint(constraint)
         
         # Call should resolve (even if it doesn't fully process yet)
@@ -664,8 +678,9 @@ class TestSolverCallConstraint:
         constraint = CallConstraint(
             callee=var_callee,
             args=(var_arg,),
+            kwargs=frozenset(),
             target=var_tgt,
-            call_site="test:1"
+            call_site=_make_call_site("test", 2)
         )
         solver.add_constraint(constraint)
         # Just verify constraint handling works
@@ -684,7 +699,13 @@ class TestSolverCallConstraint:
         func_obj = object_factory(AllocKind.FUNCTION, "test_func")
         empty_state.set_points_to(var_callee, PointsToSet.singleton(func_obj))
         
-        constraint = CallConstraint(callee=var_callee, args=(), target=var_tgt, call_site="test:1")
+        constraint = CallConstraint(
+            callee=var_callee,
+            args=(),
+            kwargs=frozenset(),
+            target=var_tgt,
+            call_site=_make_call_site("test", 3)
+        )
         solver.add_constraint(constraint)
         solver.solve_to_fixpoint()
         # Basic smoke test - verify it runs

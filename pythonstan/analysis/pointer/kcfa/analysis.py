@@ -3,17 +3,22 @@
 This module provides the main entry point for running pointer analysis.
 """
 
+import ast
 import logging
-from typing import Optional, List, Any, TYPE_CHECKING, Dict
+import os
+from typing import Optional, List, Any, TYPE_CHECKING, Dict, Set
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
 from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
+from pythonstan.analysis.pointer.kcfa.points_to_set import reset_object_table
 from pythonstan.ir import IRScope
+from pythonstan.ir.ir_statements import IRCall
 from .processor import *
 
 if TYPE_CHECKING:
     from .config import Config
     from .solver_interface import ISolverQuery
     from .context import Scope, AbstractContext
+    from pythonstan.ir import IRModule, IRFunc, IRClass, IRScope
 
 __all__ = ["PointerAnalysis", "AnalysisResult"]
 
@@ -82,6 +87,8 @@ class PointerAnalysis(AnalysisDriver):
             builtin_manager=self.builtin_manager,
             debug_monitor=self.debug_monitor,
             processor=ComposeProcessor([
+                GeneratorProcessor(),
+                AttributeSemanticsProcessor(),
                 NormalCallProcessor(),
                 ContainerProcessor(index_sensitive=self.kcfa_config.index_sensitive),
                 SuperResolveProcessor(),
@@ -101,7 +108,10 @@ class PointerAnalysis(AnalysisDriver):
         
         Returns:
             AnalysisResult containing points-to information and call graph
-        """        
+        """
+        # Reset object ID table for clean state each analysis run
+        reset_object_table()
+        
         logger.info("Starting pointer analysis")
 
         # Get empty context for module-level analysis
@@ -109,43 +119,70 @@ class PointerAnalysis(AnalysisDriver):
         
         from .object import ModuleObject
         from .context import Scope
+        from pythonstan.ir import IRModule, IRFunc, IRClass
+
+        options = getattr(self.config, "options", {}) or {}
+        test_root = options.get("test_root") or options.get("test_dir")
+        test_files = options.get("test_files")
+        print(">>> test_files", test_files)
+
+        test_funcs = self._collect_test_functions(test_root, test_files)
+        print(test_funcs)
+        if test_funcs:
+            self.solver.is_entrance = lambda ir_func, _tests=test_funcs: ir_func in _tests
+            logger.info("Using %d test functions as entry points", len(test_funcs))
 
         # Translate ALL scopes to constraints (not just entry module)
         logger.info("Translating all scopes to constraints...")
         
         constraints = []
-        
-        scope = self.world.get_entry_module()
-        
-        # Make scope with context
-        alloc_site = AllocSite.from_ir_node(scope, AllocKind.MODULE)
-        module_obj = ModuleObject(empty_context, alloc_site, entry_scope)
-        ctx_scope = Scope(scope, None, empty_context, None, None)
-        self.state.set_internal_scope(module_obj, ctx_scope)
-        
-        # Generate constraints
-        try:
-            scope_name = scope.get_qualname()
-            logger.debug(f"Translating module: {scope_name}")                    
-            c = self.translator.translate_module(scope)
-            constraints.extend(c)
-        except Exception as e:
-            import traceback
-            print(traceback.format_exc())
-            logger.warning(f"Error translating scope {scope.get_qualname()}: {e}")        
+
+        module_graph = self.world.scope_manager.get_module_graph()
+        modules = module_graph.get_modules() if module_graph is not None else {self.world.get_entry_module()}
+        entry_module = self.world.get_entry_module()
+        entry_module_scope: Optional['Scope'] = None
+        fallback_scope: Optional['Scope'] = None
+
+        for module_ir in modules:
+            if not isinstance(module_ir, IRModule):
+                continue
+            alloc_site = AllocSite.from_ir_node(module_ir, AllocKind.MODULE)
+            module_obj = ModuleObject(empty_context, alloc_site, module_ir)
+            module_scope = Scope.new(obj=module_obj, module=None, context=empty_context, stmt=module_ir, parent=None)
+            self.state.set_internal_scope(module_obj, module_scope)
+            if fallback_scope is None:
+                fallback_scope = module_scope
+            if module_ir == entry_module:
+                entry_module_scope = module_scope
+
+            try:
+                scope_name = module_ir.get_qualname()
+                logger.debug(f"Translating module: {scope_name}")                    
+                c = self.translator.translate_module(module_ir)
+                constraints.extend(c)
+            except Exception as e:
+                import traceback
+                print(traceback.format_exc())
+                logger.warning(f"Error translating scope {module_ir.get_qualname()}: {e}")
+
         logger.info(f"Total constraints generated: {len(constraints)}")
-        
+
         # Add all constraints to solver
+        target_scope = entry_module_scope or fallback_scope
+        if target_scope is None:
+            raise RuntimeError("No module scope available for constraint solving")
         for constraint in constraints:
-            self.solver.add_constraint(ctx_scope, empty_context, constraint)
+            self.solver.add_constraint(target_scope, empty_context, constraint)
         
         # Initialize builtin functions (iter, next, len, etc.)
         logger.info("Initializing builtin functions...")
-        self._initialize_builtins(ctx_scope, empty_context)
+        if entry_module_scope is None:
+            entry_module_scope = fallback_scope
+        self._initialize_builtins(entry_module_scope, empty_context)
         
         # Create synthetic method contexts to enable method-to-method call resolution
         logger.info("Creating synthetic method contexts...")
-        self._create_synthetic_method_contexts(ctx_scope, empty_context)
+        self._create_synthetic_method_contexts(entry_module_scope, empty_context)
         
         # Solve to fixpoint
         self.solver.solve_to_fixpoint()
@@ -221,21 +258,18 @@ class PointerAnalysis(AnalysisDriver):
                     
                     # Create a method-specific synthetic context
                     # Use a special marker to distinguish from regular call contexts
+                    synthetic_stmt = IRCall(ast.parse("synthetic_method()").body[0].value)
                     synthetic_call_site = CallSite(
-                        site_id=f"synthetic_method:{method_qualname}",
-                        fn=method_qualname,
-                        idx=0
+                        statement=synthetic_stmt,
+                        scope_name=f"synthetic_method:{method_qualname}",
+                        index=0
                     )
                     
-                    # Get k value from empty context
-                    if isinstance(empty_context, CallStringContext):
-                        k_value = empty_context.k
-                    else:
-                        k_value = 2  # Default to 2-CFA
-                    
-                    method_context = CallStringContext(
-                        call_sites=(synthetic_call_site,),
-                        k=k_value
+                    method_context = self.context_selector.select_call_context(
+                        synthetic_call_site,
+                        empty_context,
+                        None,
+                        frozenset()
                     )
                     
                     # Map this instance to its class for method lookup
@@ -263,8 +297,6 @@ class PointerAnalysis(AnalysisDriver):
                     self.state.set_internal_scope(class_obj, class_internal_scope)
                     
                     # Create a synthetic InstanceObject for 'self'
-                    from pythonstan.ir.ir_statements import IRCall
-                    import ast
                     cls_name = scope_ir.get_qualname().split(".")[-1]
                     synthetic_alloc_site = AllocSite(
                         stmt=IRCall(ast.parse(f"{cls_name}()").body[0].value),
@@ -308,6 +340,63 @@ class PointerAnalysis(AnalysisDriver):
                         logger.warning(f"Error translating method {method_qualname}: {e}")
         
         logger.info(f"Created synthetic contexts for {method_count} methods in {class_count} classes")
+
+    def _collect_test_functions(self, test_root: Optional[str], test_files: Optional[List[str]]) -> Set['IRFunc']:
+        from pythonstan.ir import IRModule, IRFunc, IRClass
+
+        if not test_root and not test_files:
+            return set()
+
+        scope_manager = self.world.scope_manager
+        normalized_files = set()
+        if test_files:
+            for path in test_files:
+                if path:
+                    normalized_files.add(os.path.abspath(path))
+        print(">>> test_files", test_files, "normalized_files", normalized_files)
+
+        normalized_root = os.path.abspath(test_root) if test_root else None
+
+        test_funcs: Set['IRFunc'] = set()
+        for scope_ir in scope_manager.scopes:
+            if not isinstance(scope_ir, IRFunc):
+                continue
+            parent = scope_manager.father.get(scope_ir)
+            module = self._get_module_for_scope(scope_ir)
+            if module is None:
+                continue
+            filename = os.path.abspath(module.get_filename())
+
+            if normalized_files and filename not in normalized_files:
+                continue
+            if normalized_root and not filename.startswith(normalized_root + os.sep):
+                continue
+            if not self._is_test_function(scope_ir, parent):
+                continue
+            test_funcs.add(scope_ir)
+
+        return test_funcs
+
+    def _get_module_for_scope(self, scope_ir: 'IRScope') -> Optional['IRModule']:
+        from pythonstan.ir import IRModule
+        scope_manager = self.world.scope_manager
+        cur = scope_ir
+        while cur is not None and not isinstance(cur, IRModule):
+            cur = scope_manager.father.get(cur)
+        if isinstance(cur, IRModule):
+            return cur
+        return None
+
+    def _is_test_function(self, func_ir: 'IRFunc', parent: Optional['IRScope']) -> bool:
+        name = func_ir.name
+        if not name.startswith("test"):
+            return False
+        from pythonstan.ir import IRModule, IRClass
+        if isinstance(parent, IRModule):
+            return True
+        if isinstance(parent, IRClass) and parent.name.startswith("Test"):
+            return True
+        return False
     
     def _initialize_builtins(self, module_scope: 'Scope', context: 'AbstractContext') -> None:
         """Initialize common builtin functions in the global scope.
@@ -330,9 +419,15 @@ class PointerAnalysis(AnalysisDriver):
             "iter", "next", "len", "enumerate", "zip", "map", "filter",
             "range", "reversed", "sorted", "sum", "min", "max", "all", "any",
             "list", "dict", "tuple", "set", "frozenset",
-            "str", "int", "float", "bool", "bytes",
+            "str", "int", "float", "bool", "bytes", "bytearray", "memoryview",
+            "slice", "complex",
             "isinstance", "issubclass", "type", "hasattr", "getattr", "setattr",
-            "print", "input", "open"
+            "delattr", "vars", "dir", "globals", "locals", "callable",
+            "super", "print", "input", "open", "object",
+            "abs", "round", "divmod", "pow",
+            "repr", "ascii", "format", "bin", "hex", "oct", "chr", "ord",
+            "hash", "id",
+            "property", "classmethod", "staticmethod",
         ]
         
         for builtin_name in BUILTIN_FUNCTIONS:

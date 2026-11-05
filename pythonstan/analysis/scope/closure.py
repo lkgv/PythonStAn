@@ -17,6 +17,30 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
                           options={'solver': 'WorklistSolver'})
         self.liveness_driver = DataflowAnalysisDriver(liveness_config)
         self.in_place = config.options.get('in_place', False)
+        self._builtin_names = {
+            "iter", "next", "len", "enumerate", "zip", "map", "filter",
+            "range", "reversed", "sorted", "sum", "min", "max", "all", "any",
+            "list", "dict", "tuple", "set", "frozenset",
+            "str", "int", "float", "bool", "bytes",
+            "isinstance", "issubclass", "type", "hasattr", "getattr", "setattr",
+            "delattr", "vars", "callable",
+            "super", "print", "input", "open",
+        }
+
+    def _filter_builtin_cells(self, scope, cell_vars: Set[str]) -> None:
+        if not cell_vars:
+            return
+        defined: Set[str] = set()
+        if hasattr(scope, "cfg") and scope.cfg is not None:
+            for stmt in scope.cfg.stmts:
+                defined.update(stmt.get_stores())
+        if isinstance(scope, IRFunc):
+            defined.update(scope.get_arg_names())
+        to_remove = {
+            name for name in cell_vars
+            if name in self._builtin_names and name not in defined
+        }
+        cell_vars.difference_update(to_remove)
     
     def analyze_function(self, fn: IRFunc, fact=None) -> Set[str]:
         if fact is None:
@@ -36,6 +60,7 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
         fact.difference_update(s_colle.get_vars())
         fact.update(free_vars)
         if self.in_place:
+            self._filter_builtin_cells(fn, fact)
             fn.func_def.set_cell_vars(fact)
         return fact
 
@@ -51,6 +76,7 @@ class ClosureAnalysis(ScopeAnalysis[Set[str]]):
             fact.update(self.analyze_function(fn, {*()}))
         fact.update(free_vars)
         if self.in_place:
+            self._filter_builtin_cells(cls, fact)
             cls.class_def.set_cell_vars(fact)
         return fact
 

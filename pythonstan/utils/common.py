@@ -10,6 +10,14 @@ class Singleton(object):
             class_._instances[class_] = super(Singleton, class_).__new__(class_, *args, **kwargs)
         return class_._instances[class_]
 
+T = TypeVar('T')
+class Box(Generic[T]):
+    __slots__ = ['val']
+    val: T
+    
+    def __init__(self, content: T):
+        self.val = content
+
 
 def topo_sort(succ: Dict[Any, Collection[Any]]) -> List[Any]:
     in_degree = {node: 0 for node in succ.keys()}
@@ -23,7 +31,6 @@ def topo_sort(succ: Dict[Any, Collection[Any]]) -> List[Any]:
             if in_degree[tgt] == 0:
                 ret.append(tgt)
     return ret
-
 
 def is_src_file(filename: str) -> bool:
     return filename.endswith('.py')

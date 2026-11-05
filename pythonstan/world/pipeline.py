@@ -28,6 +28,7 @@ class Pipeline:
         self.analysis_manager = AnalysisManager()
         self.analysis_manager.build(self.config.get_analysis_list())
         self.analysis_manager.set_time_count(self.config.time_count)
+        World().analysis_manager = self.analysis_manager
         print("Time count: ", self.config.time_count)
         self.build_scope_graph(self.config.filename)
 
@@ -144,6 +145,8 @@ class Pipeline:
                 self.analyse_inter_procedure(analyzer)
             elif analyzer.config.type == 'pointer analysis':
                 # Pointer analysis is typically inter-procedural
+                self.analyse_inter_procedure(analyzer)
+            elif analyzer.config.type == 'ai analysis':
                 self.analyse_inter_procedure(analyzer)
 
     def run(self):

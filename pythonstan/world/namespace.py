@@ -1,6 +1,7 @@
 import ast
-from typing import List, Dict, Tuple, Any, Optional
 import os
+from pathlib import Path
+from typing import List, Dict, Tuple, Any, Optional
 
 from pythonstan.ir import IRImport
 from pythonstan.utils.common import is_src_file, srcfile_to_name, builtin_module_names
@@ -8,11 +9,18 @@ from pythonstan.utils.common import is_src_file, srcfile_to_name, builtin_module
 
 def get_root(path: str, names: List[str]) -> str:
     prev_num = len(names)
-    root_names = path.rstrip('/__init__.py').strip('.py').split('/')
-    root_path = '/'.join(root_names[: -prev_num])
-    if len(root_path) == 0 and path.startswith('/'):
-        root_path = '/'
-    return root_path
+    path_obj = Path(path)
+    if path_obj.name == "__init__.py":
+        module_path = path_obj.parent
+    elif path_obj.suffix == ".py":
+        module_path = path_obj.with_suffix("")
+    else:
+        module_path = path_obj
+    parts = module_path.parts
+    root_parts = parts[: -prev_num] if prev_num <= len(parts) else parts
+    if not root_parts:
+        return path_obj.anchor if path_obj.is_absolute() else ""
+    return str(Path(*root_parts))
 
 
 class Namespace:
@@ -43,12 +51,17 @@ class Namespace:
 
     @classmethod
     def from_path(cls, filename: str) -> 'Namespace':
-        s = filename.rstrip('/')
-        if s.endswith('__init__.py'):
-            s = s.rstrip('/__init__.py')
-        if s.endswith('.py'):
-            s = s.rstrip('.py')
-        return cls(s.split('/'))
+        path_obj = Path(filename)
+        if path_obj.name == "__init__.py":
+            module_path = path_obj.parent
+        elif path_obj.suffix == ".py":
+            module_path = path_obj.with_suffix("")
+        else:
+            module_path = path_obj
+        parts = list(module_path.parts)
+        if parts and parts[0] == os.sep:
+            parts = parts[1:]
+        return cls(parts)
 
     def to_str(self):
         return '.'.join(self.names)
@@ -108,12 +121,28 @@ class NamespaceManager:
     paths: List[str]
     names2path: Dict[str, str]
     ns2path: Dict[Namespace, str]
+    mock_root: Path
+    mock_libs: bool
+    prefer_mock_libs: bool
 
-    def build(self, homepath, paths: List[str]):
+    def build(
+        self,
+        homepath: str,
+        paths: Optional[List[str]],
+        mock_libs: bool = True,
+        prefer_mock_libs: bool = False,
+    ):
         self.homepath = homepath
-        self.paths = [homepath] + paths
+        self.paths = [homepath] + (paths or [])
         self.names2path = {}
         self.ns2path = {}
+        self.mock_libs = mock_libs
+        self.prefer_mock_libs = prefer_mock_libs
+        self.mock_root = (
+            Path(__file__).resolve().parents[2]
+            / "stubs"
+            / "stdlib"
+        )
 
     # path to namespace
     def get_module(self, filepath: str) -> Namespace:
@@ -146,23 +175,53 @@ class NamespaceManager:
     def names_from_import(self, ir: IRImport) -> List[str]:
         ...
 
+    def _cache_ns_path(self, ns: Namespace, path: str) -> str:
+        self.ns2path[ns] = path
+        self.names2path[ns.to_str()] = path
+        return path
+
     def find_ns_in_path(self, paths: List[str], ns: Namespace) -> Optional[str]:
         for path in paths:
             if os.path.isfile(ns.to_filepath(rootpath=path)):
                 mod_path = ns.to_filepath(path)
-                self.ns2path[ns] = mod_path
-                break
+                return self._cache_ns_path(ns, mod_path)
             elif os.path.isfile(ns.to_dirpath(rootpath=path)):
                 mod_path = ns.to_dirpath(path)
-                self.ns2path[ns] = mod_path
-                break
-        else:
-            if ns.base() in builtin_module_names():
-                mod_path = f"__builtin__.{ns.base()}"
-                self.ns2path[ns] = mod_path
-            else:
-                return None
-        return mod_path
+                return self._cache_ns_path(ns, mod_path)
+        if ns.base() in builtin_module_names():
+            return self._cache_ns_path(ns, f"__builtin__.{ns.base()}")
+        return None
+
+    def _find_mock_path(self, ns: Namespace) -> Optional[str]:
+        if not self.mock_libs:
+            return None
+        if not self.mock_root.exists():
+            return None
+        file_path = ns.to_filepath(rootpath=str(self.mock_root))
+        if os.path.isfile(file_path):
+            return file_path
+        dir_path = ns.to_dirpath(rootpath=str(self.mock_root))
+        if os.path.isfile(dir_path):
+            return dir_path
+        return None
+
+    def _resolve_import_path(self, ns: Namespace) -> Optional[str]:
+        if ns.base() in builtin_module_names():
+            return self.find_ns_in_path(self.paths, ns)
+        if not self.mock_libs:
+            return self.find_ns_in_path(self.paths, ns)
+        if self.prefer_mock_libs:
+            mock_path = self._find_mock_path(ns)
+            if mock_path is not None:
+                return self._cache_ns_path(ns, mock_path)
+            return self.find_ns_in_path(self.paths, ns)
+        mod_path = self.find_ns_in_path(self.paths, ns)
+        if mod_path is not None:
+            return mod_path
+        mock_path = self._find_mock_path(ns)
+        if mock_path is not None:
+            return self._cache_ns_path(ns, mock_path)
+        return None
 
     def resolve_import(self, name: str) -> Optional[Tuple[Namespace, str]]:
         """
@@ -175,7 +234,7 @@ class NamespaceManager:
             Tuple[Namespace, str]: Namespace and path of the imported module
         """
         ns = Namespace.from_str(name)
-        path = self.find_ns_in_path(self.paths, ns)
+        path = self._resolve_import_path(ns)
         if path is not None:
             return ns, path
         return None
@@ -193,13 +252,11 @@ class NamespaceManager:
         """
         mod_ns = Namespace.from_str(module)
         succ_mod_ns = mod_ns.next_ns([name])
-        succ_mod_path = self.find_ns_in_path(self.paths, succ_mod_ns)
-        mod_path = self.find_ns_in_path(self.paths, mod_ns)
+        succ_mod_path = self._resolve_import_path(succ_mod_ns)
+        mod_path = self._resolve_import_path(mod_ns)
         if succ_mod_path is not None:
-            self.ns2path[succ_mod_ns] = succ_mod_path
             return succ_mod_ns, succ_mod_path
         elif mod_path is not None:
-            self.ns2path[mod_ns] = mod_path
             return mod_ns, mod_path
         return None
 

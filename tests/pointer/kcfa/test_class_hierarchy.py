@@ -88,6 +88,25 @@ class TestDiamondInheritance:
         assert mro_d[2] == class_c
         assert mro_d[3] == class_a
 
+    def test_compute_c3_mro_diamond(self):
+        """Test compute_c3_mro on diamond inheritance."""
+        hierarchy = ClassHierarchyManager()
+        ctx = CallStringContext((), 2)
+        
+        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
+        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
+        class_c = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        class_d = AbstractObject(AllocSite('<test>', 4, 0, AllocKind.CLASS, 'D'), ctx)
+        
+        hierarchy.add_class(class_a)
+        hierarchy.add_class(class_b, [class_a])
+        hierarchy.add_class(class_c, [class_a])
+        hierarchy.add_class(class_d, [class_b, class_c])
+        
+        mro_d = compute_c3_mro(class_d, hierarchy)
+        
+        assert mro_d == [class_d, class_b, class_c, class_a]
+
 
 class TestMultipleInheritance:
     """Tests for multiple inheritance."""
@@ -181,4 +200,26 @@ class TestMROCache:
         # Update A's bases - should invalidate
         hierarchy.update_bases(class_a, [])
         assert class_a not in hierarchy._mro_cache
+
+    def test_update_bases_refreshes_mro(self):
+        """Test MRO updates when bases are changed."""
+        hierarchy = ClassHierarchyManager()
+        ctx = CallStringContext((), 2)
+        
+        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
+        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
+        class_c = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        
+        hierarchy.add_class(class_a)
+        hierarchy.add_class(class_b)
+        hierarchy.add_class(class_c, [class_a, class_b])
+        
+        mro_before = hierarchy.get_mro(class_c)
+        assert mro_before == [class_c, class_a, class_b]
+        
+        hierarchy.update_bases(class_c, [class_b, class_a])
+        assert class_c not in hierarchy._mro_cache
+        
+        mro_after = hierarchy.get_mro(class_c)
+        assert mro_after == [class_c, class_b, class_a]
 

@@ -41,7 +41,7 @@ class BaseBlockHelper:
     @staticmethod
     def will_directly_jump(blk: BaseBlock) -> bool:
         stmts = blk.get_stmts()
-        return len(stmts) > 0 and isinstance(stmts[-1], (Goto, IRReturn, IRYield, IRRaise))
+        return len(stmts) > 0 and isinstance(stmts[-1], (Goto, IRReturn, IRRaise))
 
     @staticmethod
     def will_return(blk: BaseBlock) -> bool:
@@ -76,7 +76,7 @@ class BlockCFGBuilder:
                 cur_blk = [stmt]
                 ret_blks.append(cur_blk)
             elif isinstance(stmt, (Goto, JumpIfTrue, JumpIfFalse,
-                                   IRCatchException, IRReturn, IRYield, IRRaise)):
+                                   IRCatchException, IRReturn, IRRaise)):
                 cur_blk.append(stmt)
                 cur_blk = []
                 ret_blks.append(cur_blk)
@@ -94,6 +94,8 @@ class BlockCFGBuilder:
             blk_label = BaseBlockHelper.retrive_label(blk)
             if blk_label is not None:
                 self.lab2blk[blk_label] = blk
+                # Populate CFG label map so downstream analyses can resolve jumps
+                self.cfg.add_label(blk_label, blk)
             blk_list.append(blk)
         for blk in blk_list:
             self.cfg.add_blk(blk)

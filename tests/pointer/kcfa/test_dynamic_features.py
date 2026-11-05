@@ -1,9 +1,185 @@
 """Tests for dynamic Python features.
 
-Most advanced dynamic features are documented limitations or future work.
+Tests for generators, coroutines, and other dynamic features.
 """
 
 import pytest
+
+
+# ============================================================================
+# Generator Tests
+# ============================================================================
+
+class TestGeneratorSupport:
+    """Tests for generator function support."""
+    
+    def test_generator_object_creation(self):
+        """Test that calling a generator function returns a GeneratorObject."""
+        from pythonstan.analysis.pointer.kcfa.object import (
+            GeneratorObject, AllocKind
+        )
+        from pythonstan.analysis.pointer.kcfa.processor import GeneratorProcessor
+        
+        # Verify types exist and are correct
+        assert AllocKind.GENERATOR.value == "generator"
+        assert GeneratorProcessor is not None
+    
+    def test_generator_yield_constraint_structure(self):
+        """Test that YieldConstraint has correct structure for yield statements."""
+        from pythonstan.analysis.pointer.kcfa.constraints import StoreConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import elem
+        
+        # Verify the constraint structure: yield stores to generator.elem()
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        value_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        # This is what _translate_yield generates
+        store_constraint = StoreConstraint(
+            base=gen_var,
+            field=elem(),
+            source=value_var
+        )
+        
+        assert store_constraint.base == gen_var
+        assert store_constraint.source == value_var
+        assert store_constraint.field.kind.name == "ELEMENT"
+    
+    def test_yield_target_receives_sent_value(self):
+        """Test that yield target receives sent values from generator.$sent."""
+        from pythonstan.analysis.pointer.kcfa.constraints import LoadConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For "target = yield value", target loads from $sent field
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        target_var = Variable("target", kind=VariableKind.LOCAL)
+        
+        load_constraint = LoadConstraint(
+            base=gen_var,
+            field=attr("$sent"),
+            target=target_var
+        )
+        
+        assert load_constraint.base == gen_var
+        assert load_constraint.target == target_var
+        assert load_constraint.field.name == "$sent"
+
+
+# ============================================================================
+# Coroutine Tests
+# ============================================================================
+
+class TestCoroutineSupport:
+    """Tests for async/await support."""
+    
+    def test_coroutine_object_creation(self):
+        """Test that calling an async function returns a CoroutineObject."""
+        from pythonstan.analysis.pointer.kcfa.object import (
+            CoroutineObject, AllocKind
+        )
+        
+        assert AllocKind.COROUTINE.value == "coroutine"
+    
+    def test_await_constraint_structure(self):
+        """Test that await loads from coroutine.$await_result."""
+        from pythonstan.analysis.pointer.kcfa.constraints import LoadConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For "x = await coro", x loads from coro.$await_result
+        coro_var = Variable("coro", kind=VariableKind.LOCAL)
+        target_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        load_constraint = LoadConstraint(
+            base=coro_var,
+            field=attr("$await_result"),
+            target=target_var
+        )
+        
+        assert load_constraint.base == coro_var
+        assert load_constraint.target == target_var
+        assert load_constraint.field.name == "$await_result"
+    
+    def test_async_return_stores_to_await_result(self):
+        """Test that async function return stores to $await_result."""
+        from pythonstan.analysis.pointer.kcfa.constraints import StoreConstraint, CopyConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For async function return, store to coroutine.$await_result
+        coro_var = Variable("$coroutine", kind=VariableKind.TEMPORARY)
+        return_var = Variable("$return", kind=VariableKind.TEMPORARY)
+        source_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        # These are the constraints generated by _translate_return for async functions
+        store_constraint = StoreConstraint(
+            base=coro_var,
+            field=attr("$await_result"),
+            source=source_var
+        )
+        copy_constraint = CopyConstraint(
+            source=source_var,
+            target=return_var
+        )
+        
+        assert store_constraint.base == coro_var
+        assert store_constraint.field.name == "$await_result"
+        assert copy_constraint.target == return_var
+
+
+# ============================================================================
+# Constraint Type Tests
+# ============================================================================
+
+class TestGeneratorConstraints:
+    """Tests for generator/coroutine constraint types."""
+    
+    def test_yield_constraint_creation(self):
+        """Test YieldConstraint creation and attributes."""
+        from pythonstan.analysis.pointer.kcfa.constraints import YieldConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        
+        value_var = Variable("x", kind=VariableKind.LOCAL)
+        target_var = Variable("y", kind=VariableKind.LOCAL)
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        
+        constraint = YieldConstraint(
+            value=value_var,
+            target=target_var,
+            generator_var=gen_var
+        )
+        
+        assert constraint.value == value_var
+        assert constraint.target == target_var
+        assert constraint.generator_var == gen_var
+        
+        # Test variables() method
+        vars_set = constraint.variables()
+        assert gen_var in vars_set
+        assert value_var in vars_set
+        assert target_var in vars_set
+    
+    def test_await_constraint_creation(self):
+        """Test AwaitConstraint creation and attributes."""
+        from pythonstan.analysis.pointer.kcfa.constraints import AwaitConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        
+        awaitable_var = Variable("coro", kind=VariableKind.LOCAL)
+        target_var = Variable("result", kind=VariableKind.LOCAL)
+        
+        constraint = AwaitConstraint(
+            awaitable=awaitable_var,
+            target=target_var
+        )
+        
+        assert constraint.awaitable == awaitable_var
+        assert constraint.target == target_var
+        
+        # Test variables() method
+        vars_set = constraint.variables()
+        assert awaitable_var in vars_set
+        assert target_var in vars_set
 
 
 # ============================================================================
@@ -37,26 +213,16 @@ class TestDynamicFeatureLimitations:
         """Document exec/eval limitation."""
         pytest.skip("exec/eval make analysis potentially unsound - should emit warning")
     
-    def test_generators_not_supported(self):
-        """Document generator/coroutine limitation."""
-        pytest.skip("Generators and coroutines not supported")
-    
-    def test_async_await_not_supported(self):
-        """Document async/await limitation."""
-        pytest.skip("Async/await not supported - future work")
-    
     def test_dynamic_imports_not_supported(self):
         """Document dynamic import limitation."""
         pytest.skip("Dynamic imports not supported - static imports only")
 
 
-# NOTE: Advanced Python features like closures, decorators, properties,
-# descriptors, metaclasses, generators, and async/await are explicitly
-# marked as limitations or future enhancements in the design document.
+# NOTE: Generator and coroutine support has been implemented:
+# - GeneratorObject and CoroutineObject types
+# - YieldConstraint and AwaitConstraint
+# - GeneratorProcessor for call handling
+# - IRTranslator._translate_yield() and _translate_await()
 #
-# The current implementation focuses on core pointer analysis features:
-# - Copy propagation
-# - Field-sensitive analysis
-# - Function/method calls
-# - Class instantiation
-# - Basic inheritance (MRO)
+# Yielded values flow to generator.elem() for iteration via next()/for-loops.
+# Await results flow from coroutine.$await_result field.

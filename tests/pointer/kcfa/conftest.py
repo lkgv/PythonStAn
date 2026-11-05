@@ -4,6 +4,7 @@ This module provides reusable fixtures and helper functions for testing the
 k-CFA pointer analysis implementation.
 """
 
+import ast
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     # Core types
@@ -37,6 +38,7 @@ from pythonstan.analysis.pointer.kcfa import (
     ContextPolicy,
     ContextSelector,
 )
+from pythonstan.ir.ir_statements import IRCall
 
 
 # ============================================================================
@@ -62,8 +64,9 @@ def call_site_factory():
     
     def _make_call_site(fn: str = "test_fn", bb: str = None) -> CallSite:
         counter["count"] += 1
-        site_id = f"test.py:10:{counter['count']}:call"
-        return CallSite(site_id, fn, bb, counter["count"])
+        scope_name = f"{fn}:{bb}" if bb else fn
+        call_stmt = IRCall(ast.parse(f"call_{counter['count']}()").body[0].value)
+        return CallSite(statement=call_stmt, scope_name=scope_name, index=counter["count"])
     
     return _make_call_site
 
@@ -275,16 +278,21 @@ def constraint_factory(variable_factory, alloc_site_factory, field_factory):
             callee: str = "fn",
             args: list = None,
             target: str = "result",
-            call_site: str = "test.py:10:0:call"
+            call_site: CallSite = None
         ) -> CallConstraint:
             if args is None:
                 args = []
             arg_vars = tuple(variable_factory(arg) for arg in args)
+            if call_site is None:
+                call_site = make_call_site(fn=callee, idx=0)
+            elif isinstance(call_site, str):
+                call_site = make_call_site(fn=call_site, idx=0)
             return CallConstraint(
-                variable_factory(callee),
-                arg_vars,
-                variable_factory(target) if target else None,
-                call_site
+                callee=variable_factory(callee),
+                args=arg_vars,
+                kwargs=frozenset(),
+                target=variable_factory(target) if target else None,
+                call_site=call_site
             )
         
         def ret(
@@ -385,7 +393,6 @@ def make_pts(*objects: AbstractObject) -> PointsToSet:
 
 
 def make_call_site(
-    site_id: str,
     fn: str = "test",
     bb: str = None,
     idx: int = 0
@@ -393,7 +400,6 @@ def make_call_site(
     """Helper to create a call site quickly.
     
     Args:
-        site_id: Call site identifier
         fn: Function name
         bb: Optional basic block
         idx: Index in block
@@ -401,7 +407,9 @@ def make_call_site(
     Returns:
         Created call site
     """
-    return CallSite(site_id, fn, bb, idx)
+    scope_name = f"{fn}:{bb}" if bb else fn
+    call_stmt = IRCall(ast.parse(f"call_{idx}()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name, index=idx)
 
 
 # ============================================================================

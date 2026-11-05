@@ -37,9 +37,12 @@ class CallEdge(Generic[CallSite, Method]):
         return self.callee
 
     def __eq__(self, other):
-        if other is None or not type(self) != type(other):
+        if other is None or not isinstance(other, CallEdge):
             return False
-        return (self.kind, self.callsite, self.callee) == (other.kind, other.callsite, other.callee)
+        return self.kind == other.kind and self.callsite == other.callsite and self.callee == other.callee
+    
+    def __str__(self):
+        return f"CallEdge(kind={self.kind}, callsite={self.callsite}, callee={self.callee})"
 
     def __hash__(self):
         return hash((self.kind, self.callsite, self.callee))

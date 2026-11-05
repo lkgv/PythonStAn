@@ -64,6 +64,9 @@ class Config:
     debug_output_dir: str = "debug_output"
     debug_inheritance: bool = False  # Debug class field inheritance
     
+    # AI intrinsic toggle (for KCFA vs KCFA+AI comparison)
+    enable_ai_intrinsics: bool = True
+    
     @classmethod
     def from_dict(cls, config_dict: Dict):
         return cls(
@@ -89,6 +92,7 @@ class Config:
             export_debug_data=config_dict.get("export_debug_data", False),
             debug_output_dir=config_dict.get("debug_output_dir", "debug_output"),
             debug_inheritance=config_dict.get("debug_inheritance", False),
+            enable_ai_intrinsics=config_dict.get("enable_ai_intrinsics", True),
             type="pointer analysis")
     
     def to_dict(self) -> Dict:
@@ -115,6 +119,7 @@ class Config:
             "export_debug_data": self.export_debug_data,
             "debug_output_dir": self.debug_output_dir,
             "debug_inheritance": self.debug_inheritance,
+            "enable_ai_intrinsics": self.enable_ai_intrinsics,
             "type": self.type
         }
     

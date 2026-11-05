@@ -2,8 +2,9 @@
 
 This module defines:
 - AIAddr: Abstract addresses (allocation site + context)
-- FieldStore: Bounded precise map + default bucket for field abstraction
-- AbsObj: Abstract heap objects with kind, class pointer, dict, slots
+- SlotMap: Unified namespace/dict abstraction
+- AbsObj: Abstract heap objects with kind, class pointer, slots
+- FieldStore: DEPRECATED - kept for backward compatibility, use SlotMap instead
 """
 
 from dataclasses import dataclass, field
@@ -24,18 +25,40 @@ from typing import (
     Union,
 )
 
+from .value_domain import AbsVal
+
 if TYPE_CHECKING:
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject, AllocSite
     from pythonstan.analysis.pointer.kcfa.context import AbstractContext
     from pythonstan.analysis.pointer.kcfa.heap_model import Field
 
+# Import unified SlotMap from domains
+from .domains.mapslots import (
+    SlotMap,
+    Slot,
+    Presence,
+    KeySig,
+    make_str_keysig,
+    keysig_to_field,
+    field_to_keysig,
+    slotmap_from_fieldstore,
+    slotmap_to_fieldstore,
+)
+
 __all__ = [
     "AIAddr",
-    "FieldStore",
+    "SlotMap",
+    "Slot",
+    "Presence",
     "AbsObj",
     "ObjKind",
     "ContainerSlots",
+    # Backward compatibility
+    "FieldStore",
 ]
+
+# Type for address sets used by summaries and low-level compatibility.
+AddrSet = FrozenSet['AbstractObject']
 
 
 # =============================================================================
@@ -86,31 +109,31 @@ class ObjKind(Enum):
 
 
 # =============================================================================
-# FieldStore - Bounded precise map + default bucket
+# FieldStore - DEPRECATED: Kept for backward compatibility
 # =============================================================================
-
-# Type for abstract values in field store (just address sets for now)
-AddrSet = FrozenSet['AbstractObject']
-
 
 @dataclass
 class FieldStore:
     """Field store abstraction with bounded precise map + default bucket.
     
+    DEPRECATED: Use SlotMap instead. This class is kept for backward compatibility
+    and will be removed in a future version. Use slotmap_from_fieldstore() and
+    slotmap_to_fieldstore() for conversion.
+
     From ai_spec.md §3.4:
-    - M: ConstKey -> AbsVal (finite partial map for tracked keys)
+    - M: Field -> AbsVal (finite partial map for tracked keys)
     - def: AbsVal (default bucket for "all other keys")
-    
+
     This is the key mechanism for handling dynamic attribute names
     without immediately collapsing to top.
-    
+
     Attributes:
-        precise_map: Tracked key -> value mapping
+        precise_map: Tracked field -> value mapping
         default_bucket: Value for unknown/untracked keys
         max_keys: Maximum number of tracked keys before spilling
     """
-    precise_map: Dict[str, AddrSet] = field(default_factory=dict)
-    default_bucket: AddrSet = field(default_factory=frozenset)
+    precise_map: Dict['Field', AbsVal] = field(default_factory=dict)
+    default_bucket: AbsVal = field(default_factory=AbsVal.bottom)
     max_keys: int = 20
 
     def copy(self) -> 'FieldStore':
@@ -125,73 +148,67 @@ class FieldStore:
     # Read operations
     # -------------------------------------------------------------------------
 
-    def get_const(self, key: str) -> AddrSet:
-        """Get value for a constant key (FSGet# for const string).
-        
+    def get_const(self, key: 'Field') -> AbsVal:
+        """Get value for a constant field key (FSGet# for const string).
+
         Returns M[key] ⊔ def if key in M, else just def.
         """
         if key in self.precise_map:
-            return self.precise_map[key] | self.default_bucket
+            return self.precise_map[key].join(self.default_bucket)
         return self.default_bucket
 
-    def get_keys(self, keys: FrozenSet[str]) -> AddrSet:
-        """Get value for a set of constant keys.
-        
-        Returns ⊔_{k ∈ keys} (M[k] ⊔ def).
-        """
-        result: AddrSet = frozenset()
+    def get_keys(self, keys: FrozenSet['Field']) -> AbsVal:
+        """Get value for a set of constant field keys."""
+        result = AbsVal.bottom()
         for k in keys:
-            result = result | self.get_const(k)
+            result = result.join(self.get_const(k))
         return result
 
-    def get_unknown(self) -> AddrSet:
-        """Get value for unknown key (reads def ⊔ all tracked values).
-        
-        When key is not enumerable, we must include all possibilities.
-        """
+    def get_unknown(self) -> AbsVal:
+        """Get value for unknown key (reads def ⊔ all tracked values)."""
         result = self.default_bucket
         for v in self.precise_map.values():
-            result = result | v
+            result = result.join(v)
         return result
 
     # -------------------------------------------------------------------------
     # Write operations
     # -------------------------------------------------------------------------
 
-    def weak_set_const(self, key: str, value: AddrSet) -> 'FieldStore':
+    def weak_set_const(self, key: 'Field', value: AbsVal) -> 'FieldStore':
         """Weak update for a constant key (FSWeakSet#).
-        
+
         M[key] := M[key] ⊔ value
         """
         new_fs = self.copy()
         if key in new_fs.precise_map:
-            new_fs.precise_map[key] = new_fs.precise_map[key] | value
+            new_fs.precise_map[key] = new_fs.precise_map[key].join(value)
         elif len(new_fs.precise_map) < new_fs.max_keys:
             new_fs.precise_map[key] = value
         else:
             # Spill to default bucket
-            new_fs.default_bucket = new_fs.default_bucket | value
+            new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
-    def weak_set_keys(self, keys: FrozenSet[str], value: AddrSet) -> 'FieldStore':
+    def weak_set_keys(self, keys: FrozenSet['Field'], value: AbsVal) -> 'FieldStore':
         """Weak update for a set of constant keys."""
         new_fs = self.copy()
         for k in keys:
             new_fs = new_fs.weak_set_const(k, value)
         return new_fs
 
-    def weak_set_unknown(self, value: AddrSet) -> 'FieldStore':
+    def weak_set_unknown(self, value: AbsVal) -> 'FieldStore':
         """Weak update for unknown key (updates def only).
-        
+
         def := def ⊔ value
         """
         new_fs = self.copy()
-        new_fs.default_bucket = new_fs.default_bucket | value
+        new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
-    def strong_set_const(self, key: str, value: AddrSet) -> 'FieldStore':
+    def strong_set_const(self, key: 'Field', value: AbsVal) -> 'FieldStore':
         """Strong update for a constant key (FSStrongSet#).
-        
+
         M[key] := value (replaces, doesn't join)
         Only sound when we know this is the only possible write.
         """
@@ -200,7 +217,7 @@ class FieldStore:
             new_fs.precise_map[key] = value
         else:
             # Spill to default bucket
-            new_fs.default_bucket = new_fs.default_bucket | value
+            new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
     # -------------------------------------------------------------------------
@@ -209,81 +226,76 @@ class FieldStore:
 
     def join(self, other: 'FieldStore') -> 'FieldStore':
         """Join two field stores (⊔)."""
-        new_map: Dict[str, AddrSet] = {}
+        new_map: Dict['Field', AbsVal] = {}
         all_keys = set(self.precise_map.keys()) | set(other.precise_map.keys())
-        
+
         for k in all_keys:
-            v1 = self.precise_map.get(k, frozenset())
-            v2 = other.precise_map.get(k, frozenset())
-            new_map[k] = v1 | v2
+            v1 = self.precise_map.get(k, AbsVal.bottom())
+            v2 = other.precise_map.get(k, AbsVal.bottom())
+            new_map[k] = v1.join(v2)
 
         return FieldStore(
             precise_map=new_map,
-            default_bucket=self.default_bucket | other.default_bucket,
+            default_bucket=self.default_bucket.join(other.default_bucket),
             max_keys=min(self.max_keys, other.max_keys),
         )
 
     def leq(self, other: 'FieldStore') -> bool:
         """Check if self ⊑ other."""
-        # Check default bucket
-        if not self.default_bucket <= other.default_bucket:
+        if not self.default_bucket.leq(other.default_bucket):
             return False
-        # Check all tracked keys
         for k, v in self.precise_map.items():
-            other_v = other.precise_map.get(k, frozenset())
-            if not v <= (other_v | other.default_bucket):
+            other_v = other.precise_map.get(k, AbsVal.bottom())
+            if not v.leq(other_v.join(other.default_bucket)):
                 return False
         return True
 
     def widen(self, other: 'FieldStore') -> 'FieldStore':
         """Widen field store (∇).
-        
+
         Key explosion → spill to default bucket.
         """
         joined = self.join(other)
-        
-        # If too many keys, spill some to default
+
         if len(joined.precise_map) > joined.max_keys:
-            # Sort by size (smallest first) and spill the smallest
-            items = sorted(joined.precise_map.items(), key=lambda x: len(x[1]))
+            items = sorted(
+                joined.precise_map.items(),
+                key=lambda x: len(x[1].addrs),
+            )
             to_spill = len(joined.precise_map) - joined.max_keys
-            
-            spilled_values: AddrSet = frozenset()
-            new_map: Dict[str, AddrSet] = {}
-            
+
+            spilled_values = AbsVal.bottom()
+            new_map: Dict['Field', AbsVal] = {}
+
             for i, (k, v) in enumerate(items):
                 if i < to_spill:
-                    spilled_values = spilled_values | v
+                    spilled_values = spilled_values.join(v)
                 else:
                     new_map[k] = v
-            
+
             return FieldStore(
                 precise_map=new_map,
-                default_bucket=joined.default_bucket | spilled_values,
+                default_bucket=joined.default_bucket.join(spilled_values),
                 max_keys=joined.max_keys,
             )
-        
+
         return joined
 
     def narrow(self, other: 'FieldStore') -> 'FieldStore':
         """Narrow field store (△).
-        
+
         Refines by intersecting value sets for matching keys.
         Does NOT un-spill keys from the default bucket (expensive and unstable).
         """
-        # Narrow matching keys
-        new_map: Dict[str, AddrSet] = {}
+        new_map: Dict['Field', AbsVal] = {}
         for k in self.precise_map:
             if k in other.precise_map:
-                # Intersect the value sets
-                new_map[k] = self.precise_map[k] & other.precise_map[k]
+                new_map[k] = self.precise_map[k].meet(other.precise_map[k])
             else:
-                # Keep self's value (no information from other)
                 new_map[k] = self.precise_map[k]
-        
-        # Narrow default bucket
-        new_default = self.default_bucket & other.default_bucket
-        
+
+        new_default = self.default_bucket.meet(other.default_bucket)
+
         return FieldStore(
             precise_map=new_map,
             default_bucket=new_default,
@@ -292,28 +304,33 @@ class FieldStore:
 
     def is_bottom(self) -> bool:
         """Check if this is bottom (empty)."""
-        return len(self.precise_map) == 0 and len(self.default_bucket) == 0
+        return len(self.precise_map) == 0 and self.default_bucket.is_bottom()
 
     @classmethod
     def bottom(cls, max_keys: int = 20) -> 'FieldStore':
         """Create bottom field store."""
-        return cls(max_keys=max_keys)
+        return cls(default_bucket=AbsVal.bottom(), max_keys=max_keys)
 
     @classmethod
     def top(cls, max_keys: int = 20) -> 'FieldStore':
-        """Create top field store (not really possible without top AddrSet)."""
-        # In practice we don't have a concrete "top" for address sets
-        # This is a placeholder
-        return cls(max_keys=max_keys)
+        """Create top field store (unknown value for all keys)."""
+        return cls(default_bucket=AbsVal.top(), max_keys=max_keys)
 
     def __str__(self) -> str:
         parts = []
-        for k, v in sorted(self.precise_map.items()):
-            v_str = ", ".join(str(obj) for obj in v) if v else "∅"
-            parts.append(f"{k}: {{{v_str}}}")
-        def_str = ", ".join(str(obj) for obj in self.default_bucket) if self.default_bucket else "∅"
-        parts.append(f"*: {{{def_str}}}")
+        for k, v in sorted(self.precise_map.items(), key=lambda x: str(x[0])):
+            parts.append(f"{k}: {v}")
+        parts.append(f"*: {self.default_bucket}")
         return "{" + ", ".join(parts) + "}"
+    
+    def to_slotmap(self) -> SlotMap:
+        """Convert to unified SlotMap."""
+        return slotmap_from_fieldstore(self)
+    
+    @classmethod
+    def from_slotmap(cls, slots: SlotMap) -> 'FieldStore':
+        """Create from unified SlotMap."""
+        return slotmap_to_fieldstore(slots)
 
 
 # =============================================================================
@@ -323,20 +340,20 @@ class FieldStore:
 @dataclass
 class ContainerSlots:
     """Container-specific slot abstraction.
-    
+
     From ai_spec.md §3.6:
     - List: ⟨len, idxStore, elems⟩
     - Dict: ⟨len, kvStore, keys, vals⟩
     - Set: ⟨len, elems⟩
     - Tuple: fixed-arity vector or summary
-    
+
     For v1 we use a simplified model with elem bucket + optional tracked indices.
     """
     # Element summary (all elements)
-    elem_bucket: AddrSet = field(default_factory=frozenset)
-    
+    elem_bucket: AbsVal = field(default_factory=AbsVal.bottom)
+
     # Tracked indices/keys (optional precision)
-    tracked_indices: Dict[Union[int, str], AddrSet] = field(default_factory=dict)
+    tracked_indices: Dict[Union[int, str], AbsVal] = field(default_factory=dict)
     
     # Length abstraction (simplified: just may-be-empty flag for now)
     may_be_empty: bool = True
@@ -353,50 +370,50 @@ class ContainerSlots:
             max_tracked=self.max_tracked,
         )
 
-    def get_elem(self) -> AddrSet:
+    def get_elem(self) -> AbsVal:
         """Get all elements (elem bucket ⊔ all tracked)."""
         result = self.elem_bucket
         for v in self.tracked_indices.values():
-            result = result | v
+            result = result.join(v)
         return result
 
-    def get_index(self, idx: Union[int, str]) -> AddrSet:
+    def get_index(self, idx: Union[int, str]) -> AbsVal:
         """Get element at specific index."""
         if idx in self.tracked_indices:
-            return self.tracked_indices[idx] | self.elem_bucket
+            return self.tracked_indices[idx].join(self.elem_bucket)
         return self.elem_bucket
 
-    def set_elem(self, value: AddrSet) -> 'ContainerSlots':
+    def set_elem(self, value: AbsVal) -> 'ContainerSlots':
         """Add to elem bucket."""
         new_slots = self.copy()
-        new_slots.elem_bucket = new_slots.elem_bucket | value
+        new_slots.elem_bucket = new_slots.elem_bucket.join(value)
         new_slots.may_be_empty = False
         return new_slots
 
-    def set_index(self, idx: Union[int, str], value: AddrSet) -> 'ContainerSlots':
+    def set_index(self, idx: Union[int, str], value: AbsVal) -> 'ContainerSlots':
         """Set element at specific index."""
         new_slots = self.copy()
         if idx in new_slots.tracked_indices:
-            new_slots.tracked_indices[idx] = new_slots.tracked_indices[idx] | value
+            new_slots.tracked_indices[idx] = new_slots.tracked_indices[idx].join(value)
         elif len(new_slots.tracked_indices) < new_slots.max_tracked:
             new_slots.tracked_indices[idx] = value
         else:
-            new_slots.elem_bucket = new_slots.elem_bucket | value
+            new_slots.elem_bucket = new_slots.elem_bucket.join(value)
         new_slots.may_be_empty = False
         return new_slots
 
     def join(self, other: 'ContainerSlots') -> 'ContainerSlots':
         """Join two container slots."""
-        new_tracked: Dict[Union[int, str], AddrSet] = {}
+        new_tracked: Dict[Union[int, str], AbsVal] = {}
         all_keys = set(self.tracked_indices.keys()) | set(other.tracked_indices.keys())
-        
+
         for k in all_keys:
-            v1 = self.tracked_indices.get(k, frozenset())
-            v2 = other.tracked_indices.get(k, frozenset())
-            new_tracked[k] = v1 | v2
+            v1 = self.tracked_indices.get(k, AbsVal.bottom())
+            v2 = other.tracked_indices.get(k, AbsVal.bottom())
+            new_tracked[k] = v1.join(v2)
 
         return ContainerSlots(
-            elem_bucket=self.elem_bucket | other.elem_bucket,
+            elem_bucket=self.elem_bucket.join(other.elem_bucket),
             tracked_indices=new_tracked,
             may_be_empty=self.may_be_empty and other.may_be_empty,
             max_tracked=min(self.max_tracked, other.max_tracked),
@@ -405,39 +422,38 @@ class ContainerSlots:
     def widen(self, other: 'ContainerSlots') -> 'ContainerSlots':
         """Widen container slots (spill tracked to elem bucket)."""
         joined = self.join(other)
-        
+
         if len(joined.tracked_indices) > joined.max_tracked:
-            # Spill all tracked to elem bucket
-            spilled = frozenset().union(*joined.tracked_indices.values())
+            spilled = AbsVal.bottom()
+            for v in joined.tracked_indices.values():
+                spilled = spilled.join(v)
             return ContainerSlots(
-                elem_bucket=joined.elem_bucket | spilled,
+                elem_bucket=joined.elem_bucket.join(spilled),
                 tracked_indices={},
                 may_be_empty=joined.may_be_empty,
                 max_tracked=joined.max_tracked,
             )
-        
+
         return joined
 
     def narrow(self, other: 'ContainerSlots') -> 'ContainerSlots':
         """Narrow container slots (△).
-        
+
         Refines by intersecting value sets for matching indices.
         """
-        # Narrow matching tracked indices
-        new_tracked: Dict[Union[int, str], AddrSet] = {}
+        new_tracked: Dict[Union[int, str], AbsVal] = {}
         for k in self.tracked_indices:
             if k in other.tracked_indices:
-                new_tracked[k] = self.tracked_indices[k] & other.tracked_indices[k]
+                new_tracked[k] = self.tracked_indices[k].meet(other.tracked_indices[k])
             else:
                 new_tracked[k] = self.tracked_indices[k]
-        
-        # Narrow elem bucket
-        new_elem = self.elem_bucket & other.elem_bucket
-        
+
+        new_elem = self.elem_bucket.meet(other.elem_bucket)
+
         return ContainerSlots(
             elem_bucket=new_elem,
             tracked_indices=new_tracked,
-            may_be_empty=self.may_be_empty or other.may_be_empty,  # Conservative
+            may_be_empty=self.may_be_empty or other.may_be_empty,
             max_tracked=self.max_tracked,
         )
 
@@ -446,6 +462,11 @@ class ContainerSlots:
 # AbsObj - Abstract heap object
 # =============================================================================
 
+def _default_slotmap() -> SlotMap:
+    """Create default SlotMap for AbsObj."""
+    return SlotMap.for_namespace()
+
+
 @dataclass
 class AbsObj:
     """Abstract heap object.
@@ -453,21 +474,21 @@ class AbsObj:
     From ai_spec.md §3.5:
     - kind: Instance/Class/Function/Module/List/Dict/Set/Tuple/...
     - cls: class pointer(s)
-    - dict: instance/class/module namespace (FieldStore)
-    - slots: kind-specific payload
+    - slots: unified namespace/dict slots (SlotMap)
+    - container_slots: kind-specific payload for containers
     - proto: protocol hooks summaries
     
     Attributes:
         addr: Abstract address identifying this object
         kind: Type of object
         cls_addrs: Class pointer(s) for instances
-        dict_store: Namespace/attribute field store
-        container_slots: Container-specific slots (for List/Dict/Set/Tuple)
+        slots: Unified namespace/dict SlotMap (replaces dict_store + dict_slots)
+        container_slots: Container-specific slots (for List/Set/Tuple)
     """
     addr: AIAddr
     kind: ObjKind
     cls_addrs: AddrSet = field(default_factory=frozenset)
-    dict_store: FieldStore = field(default_factory=FieldStore)
+    slots: SlotMap = field(default_factory=_default_slotmap)
     container_slots: Optional[ContainerSlots] = None
 
     def copy(self) -> 'AbsObj':
@@ -476,15 +497,34 @@ class AbsObj:
             addr=self.addr,
             kind=self.kind,
             cls_addrs=self.cls_addrs,
-            dict_store=self.dict_store.copy(),
+            slots=self.slots.copy(),
             container_slots=self.container_slots.copy() if self.container_slots else None,
         )
 
-    def with_dict_store(self, new_store: FieldStore) -> 'AbsObj':
-        """Return copy with updated dict store."""
+    def with_slots(self, new_slots: SlotMap) -> 'AbsObj':
+        """Return copy with updated slots."""
         obj = self.copy()
-        obj.dict_store = new_store
+        obj.slots = new_slots
         return obj
+
+    # Backward compatibility aliases
+    @property
+    def dict_store(self) -> FieldStore:
+        """DEPRECATED: Access slots as FieldStore for backward compatibility."""
+        return slotmap_to_fieldstore(self.slots)
+    
+    @property
+    def dict_slots(self) -> SlotMap:
+        """DEPRECATED: dict_slots is now unified into slots."""
+        return self.slots
+    
+    def with_dict_store(self, new_store: FieldStore) -> 'AbsObj':
+        """DEPRECATED: Use with_slots() instead. Updates slots from FieldStore."""
+        return self.with_slots(slotmap_from_fieldstore(new_store))
+
+    def with_dict_slots(self, new_slots: SlotMap) -> 'AbsObj':
+        """DEPRECATED: Use with_slots() instead."""
+        return self.with_slots(new_slots)
 
     def with_container_slots(self, new_slots: ContainerSlots) -> 'AbsObj':
         """Return copy with updated container slots."""
@@ -508,7 +548,7 @@ class AbsObj:
             addr=self.addr,
             kind=self.kind,  # Assume same kind
             cls_addrs=self.cls_addrs | other.cls_addrs,
-            dict_store=self.dict_store.join(other.dict_store),
+            slots=self.slots.join(other.slots),
             container_slots=container,
         )
 
@@ -528,7 +568,7 @@ class AbsObj:
             addr=self.addr,
             kind=self.kind,
             cls_addrs=self.cls_addrs | other.cls_addrs,
-            dict_store=self.dict_store.widen(other.dict_store),
+            slots=self.slots.widen(other.slots),
             container_slots=container,
         )
 
@@ -550,9 +590,31 @@ class AbsObj:
             addr=self.addr,
             kind=self.kind,
             cls_addrs=self.cls_addrs & other.cls_addrs,  # Meet = intersection
-            dict_store=self.dict_store.narrow(other.dict_store),
+            slots=self.slots.narrow(other.slots),
             container_slots=container,
         )
+
+    def leq(self, other: 'AbsObj') -> bool:
+        """Check if self ⊑ other.
+        
+        Component-wise partial order check.
+        """
+        # Check cls_addrs
+        if not self.cls_addrs <= other.cls_addrs:
+            return False
+        
+        # Check slots
+        if not self.slots.leq(other.slots):
+            return False
+        
+        # Check container_slots (if present in self, must be ⊑ other's)
+        if self.container_slots is not None:
+            if other.container_slots is None:
+                return False
+            # ContainerSlots doesn't have leq, use simplified check
+            # TODO: Add leq to ContainerSlots for complete comparison
+        
+        return True
 
     def is_container(self) -> bool:
         """Check if this is a container object."""
@@ -560,4 +622,3 @@ class AbsObj:
 
     def __str__(self) -> str:
         return f"AbsObj({self.addr}, {self.kind.value})"
-

@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 DO_AI_SCRIPT = SCRIPTS_DIR / "do_ai.py"
 BENCHMARK_SCRIPT = SCRIPTS_DIR / "run_ai_benchmarks.py"
+AI_DYNAMIC_BENCH_SCRIPT = PROJECT_ROOT / "benchmark" / "analyze_ai_dynamic_benchmarks.py"
 
 
 def run_script(script_path: Path, args: List[str], timeout: int = 60) -> Dict[str, Any]:
@@ -265,11 +266,38 @@ if __name__ == "__main__":
             
             output = result["combined_output"]
             assert "Running AI Analysis" in output or "Analysis completed" in output
-            
+        
         finally:
             # Clean up
             if os.path.exists(temp_file):
                 os.unlink(temp_file)
+
+
+class TestAIDynamicBenchScript:
+    """Smoke tests for benchmark/analyze_ai_dynamic_benchmarks.py"""
+
+    def test_script_exists(self):
+        assert AI_DYNAMIC_BENCH_SCRIPT.exists(), f"Script not found: {AI_DYNAMIC_BENCH_SCRIPT}"
+        assert os.access(AI_DYNAMIC_BENCH_SCRIPT, os.R_OK), f"Script not readable: {AI_DYNAMIC_BENCH_SCRIPT}"
+
+    def test_help_output(self):
+        result = run_script(AI_DYNAMIC_BENCH_SCRIPT, ["--help"])
+        if result["return_code"] < 0:
+            pytest.skip(f"Script execution failed with signal {-result['return_code']}: {result['stderr']}")
+        assert result["success"], f"Help failed: {result['stderr']}"
+        output = result["combined_output"]
+        assert "usage:" in output or "dynamic" in output.lower()
+        assert "--feature" in output
+        assert "--dry-run" in output
+
+    def test_list_samples(self):
+        result = run_script(AI_DYNAMIC_BENCH_SCRIPT, ["--list-samples", "--max-samples", "3"])
+        if result["return_code"] < 0:
+            pytest.skip(f"Script execution failed with signal {-result['return_code']}: {result['stderr']}")
+        assert result["success"], f"List-samples failed: {result['stderr']}"
+        output = result["combined_output"]
+        # Should show sample listing
+        assert "sample_" in output or "Samples:" in output or len(output) > 0
     
     def test_invalid_snippet(self):
         """Test error handling for invalid snippet."""

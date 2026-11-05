@@ -29,7 +29,8 @@ from .context_selector import ContextPolicy, ContextSelector, parse_policy
 from .object import AllocKind, AllocSite, AbstractObject, SuperObject, ObjectFactory
 from .variable import VariableKind, Variable
 from .heap_model import FieldKind, Field, attr, elem, unknown
-from .state import PointsToSet, PointerAnalysisState
+from .state import PointerAnalysisState
+from .points_to_set import PointsToSet, reset_object_table
 from .solver import PointerSolver
 from .ir_translator import IRTranslator
 from .constraints import (
@@ -82,6 +83,7 @@ __all__ = [
     "PointsToSet",
     "PointerAnalysisState",
     "PointerSolver",
+    "reset_object_table",
     
     # Constraints
     "Constraint",

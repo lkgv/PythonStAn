@@ -4,8 +4,15 @@ This module defines:
 - PtaQuery: Protocol for AI to query PTA's points-to information
 - AISummary: Result of AI analysis (returns, writes, effects)
 - AISummaryEngine: Entry point for PTA to invoke AI on a callee/scope
+
+Exception Handling:
+- All exceptions are caught at the AISummaryEngine boundary (analyze_callee/analyze_intrinsic).
+- When budget.strict_exceptions=True, exceptions are re-raised with full traceback.
+- When budget.strict_exceptions=False (default), exceptions are logged with context
+  and a conservative summary is returned.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import (
@@ -21,6 +28,8 @@ from typing import (
     Union,
     runtime_checkable,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pythonstan.ir.ir_statements import IRFunc, IRScope
@@ -116,6 +125,53 @@ class PtaQuery(Protocol):
             
         Returns:
             True if the object may have the attribute
+        """
+        ...
+
+    def select_call_context(
+        self,
+        callsite_id: str,
+        argc: int,
+        caller_ctx: 'AbstractContext',
+        receiver_obj: Optional['AbstractObject'],
+        params: Optional[Tuple['AbstractObject', ...]] = None,
+    ) -> Optional['AbstractContext']:
+        """Select context for a call site (kcfa policy aware).
+        
+        Returns None if context selection is not available.
+        """
+        ...
+
+    def get_function_cell_vars(
+        self,
+        func_obj: 'AbstractObject',
+    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        """Get cell variable bindings captured by a function object.
+        
+        Cell variables are variables from enclosing scopes that are captured
+        by the function for use in its body (closure variables).
+        
+        Args:
+            func_obj: Function object to query
+            
+        Returns:
+            Dict mapping cell variable names to their captured points-to sets
+        """
+        ...
+
+    def get_function_global_vars(
+        self,
+        func_obj: 'AbstractObject',
+    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        """Get global variable bindings accessible by a function object.
+        
+        Global variables are module-level names that the function may read/write.
+        
+        Args:
+            func_obj: Function object to query
+            
+        Returns:
+            Dict mapping global variable names to their points-to sets
         """
         ...
 
@@ -234,7 +290,7 @@ class ArgBinding:
     Attributes:
         param_name: Formal parameter name
         points_to: Points-to set from caller arguments (fallback if value is None)
-        value: Optional full AbsVal including domain facts (str_const, bool_val, etc.)
+        value: Optional full AbsVal including domain components
     """
     param_name: str
     points_to: FrozenSet['AbstractObject']
@@ -249,9 +305,11 @@ class AnalysisBudget:
         max_iterations: Maximum fixpoint iterations
         max_stmt_visits: Maximum statement visits per block
         max_recursion_depth: Maximum recursive AI calls
+        strict_exceptions: Re-raise internal exceptions instead of masking
         max_addr_set_size: Cap for address set widening
         max_field_keys: Cap for field store key tracking
         max_const_strings: Cap for string domain const set
+        max_ho_tokens: Cap for higher-order token set
         enable_narrowing: Whether to run narrowing pass
         narrowing_iterations: Number of narrowing iterations
         
@@ -259,13 +317,31 @@ class AnalysisBudget:
         enable_value_partition: Whether to refine states on branches
         max_value_partitions: Max partitions per variable before merging
         value_partition_str_cap: Max string constants to enumerate for partitioning
+        
+        Tuple/Int Indexing:
+        max_const_ints: Max int constants to enumerate for subscript access
+        max_tuple_len_exact: Max tuple length to materialize exactly
+        max_tuple_alts: Max tuple shape alternatives before merging
+        max_star_expand_len: Max tuple length for *args expansion
+        max_star_expand_alts: Max tuple alternatives for *args expansion
+        
+        Dict Modeling (Route A):
+        max_dict_parts: Max key partitions per dict before spilling to default
+        max_dict_key_const_strs: Max constant strings to track as distinct keys
+        max_dict_key_const_ints: Max constant ints to track as distinct keys
+        max_dict_key_tuple_len: Max tuple length for tuple key decomposition
+        max_dict_key_tuple_alts: Max tuple alternatives for tuple keys
+        enable_dict_identity_keys: Enable identity-based key partitioning
+        max_dict_identity_keys: Max identity keys before spilling to default
     """
     max_iterations: int = 100
     max_stmt_visits: int = 50
     max_recursion_depth: int = 3
+    strict_exceptions: bool = False
     max_addr_set_size: int = 50
     max_field_keys: int = 20
     max_const_strings: int = 10
+    max_ho_tokens: int = 20
     enable_narrowing: bool = True
     narrowing_iterations: int = 2
     
@@ -273,6 +349,22 @@ class AnalysisBudget:
     enable_value_partition: bool = True  # Enable branch refinement (on by default)
     max_value_partitions: int = 4  # Max partitions per variable
     value_partition_str_cap: int = 4  # Max strings to enumerate for partitioning
+    
+    # Tuple/int indexing settings
+    max_const_ints: int = 4  # Max int constants for subscript (e.g., t[0], t[1])
+    max_tuple_len_exact: int = 8  # Max tuple length to materialize exactly
+    max_tuple_alts: int = 4  # Max tuple shape alternatives before merging
+    max_star_expand_len: int = 8  # Max tuple length for *args expansion
+    max_star_expand_alts: int = 4  # Max tuple alternatives for *args expansion
+    
+    # Dict modeling settings (Route A)
+    max_dict_parts: int = 20  # Max key partitions per dict
+    max_dict_key_const_strs: int = 10  # Max constant string keys to track
+    max_dict_key_const_ints: int = 10  # Max constant int keys to track
+    max_dict_key_tuple_len: int = 4  # Max tuple length for tuple key decomposition
+    max_dict_key_tuple_alts: int = 2  # Max tuple alternatives for tuple keys
+    enable_dict_identity_keys: bool = True  # Enable identity key partitioning
+    max_dict_identity_keys: int = 10  # Max identity keys
 
 
 # =============================================================================
@@ -300,8 +392,11 @@ class AISummaryEngine:
             pta_query: Interface to query PTA
             budget: Analysis budget limits
         """
+        from .value_domain import configure_registry
+
         self.pta_query = pta_query
         self.budget = budget or AnalysisBudget()
+        configure_registry(max_ho_tokens=self.budget.max_ho_tokens)
         self._summary_cache: Dict[Tuple[Any, ...], AISummary] = {}
 
     def analyze_callee(
@@ -315,6 +410,11 @@ class AISummaryEngine:
         """Analyze a callee scope and produce a summary.
         
         This is the main entry point for PTA to invoke AI.
+        
+        Exception Handling:
+        - All exceptions are caught at this boundary.
+        - When budget.strict_exceptions=True, exceptions are re-raised.
+        - Otherwise, exceptions are logged and a conservative summary is returned.
         
         Args:
             scope_ir: IR of the callee (IRFunc, IRClass, etc.)
@@ -334,28 +434,48 @@ class AISummaryEngine:
         if cache_key in self._summary_cache:
             return self._summary_cache[cache_key]
 
-        # Create initial state from arg bindings
-        initial_state = AIState.from_arg_bindings(
-            arg_bindings,
-            self.pta_query,
-            self.budget,
-        )
+        try:
+            # Create initial state from arg bindings
+            initial_state = AIState.from_arg_bindings(
+                arg_bindings,
+                self.pta_query,
+                self.budget,
+            )
 
-        # Run the solver
-        solver = AISolver(
-            scope_ir=scope_ir,
-            initial_state=initial_state,
-            pta_query=self.pta_query,
-            budget=self.budget,
-            caller_scope=caller_scope,
-            call_context=call_context,
-            recursion_depth=recursion_depth,
-        )
-        summary = solver.solve()
+            # Run the solver
+            solver = AISolver(
+                scope_ir=scope_ir,
+                initial_state=initial_state,
+                pta_query=self.pta_query,
+                budget=self.budget,
+                caller_scope=caller_scope,
+                call_context=call_context,
+                recursion_depth=recursion_depth,
+            )
+            summary = solver.solve()
 
-        # Cache and return
-        self._summary_cache[cache_key] = summary
-        return summary
+            # Cache and return
+            self._summary_cache[cache_key] = summary
+            return summary
+        except Exception as e:
+            # Exception boundary: decide whether to re-raise or return conservative
+            if self.budget.strict_exceptions:
+                raise
+            # Log with context for debugging
+            scope_name = "<unknown>"
+            try:
+                if hasattr(scope_ir, "get_qualname"):
+                    scope_name = scope_ir.get_qualname()
+                elif hasattr(scope_ir, "name"):
+                    scope_name = scope_ir.name
+            except Exception:
+                pass
+            logger.warning(
+                "AI analysis failed for scope %s (context=%s, depth=%d): %s",
+                scope_name, call_context, recursion_depth, e,
+                exc_info=True,
+            )
+            return self._conservative_summary()
 
     def _make_cache_key(
         self,
@@ -366,7 +486,7 @@ class AISummaryEngine:
         """Create a cache key for memoization.
         
         Includes fingerprint of ArgBinding.value when present to ensure
-        different constant values (str_const, bool_val, etc.) don't reuse summaries.
+        different constant values don't reuse summaries.
         """
         # Use frozensets for arg bindings to make them hashable
         bindings_key = tuple(
@@ -380,26 +500,28 @@ class AISummaryEngine:
         
         Includes the full AbsVal fingerprint when value is present.
         """
-        from .state import AbsVal
-        
         base_key: Tuple[Any, ...] = (binding.param_name, binding.points_to)
         
         if binding.value is not None:
-            # Include the relevant AbsVal components in the key
-            val = binding.value
-            value_fingerprint: Tuple[Any, ...] = (
-                val.addrs,  # Already a frozenset
-                val.str_const,  # Already a frozenset or None
-                val.may_be_none,
-                val.bool_val,
-            )
-            return base_key + (value_fingerprint,)
+            # Include the full AbsVal fingerprint in the key
+            return base_key + (binding.value.fingerprint(),)
         
         return base_key
 
     def invalidate_cache(self) -> None:
         """Clear the summary cache."""
         self._summary_cache.clear()
+
+    def _conservative_summary(self) -> AISummary:
+        """Return a conservative summary when analysis fails."""
+        return AISummary(
+            ret=frozenset(),
+            writes=(),
+            reads=(),
+            calls=(),
+            unknown_effects=(),
+            may_raise=frozenset({"Exception"}),
+        )
 
     def analyze_intrinsic(
         self,
@@ -413,6 +535,11 @@ class AISummaryEngine:
         
         This is used for getattr/setattr/hasattr where we can directly invoke
         the AI interpreter's builtin handler without building a full CFG.
+        
+        Exception Handling:
+        - All exceptions are caught at this boundary.
+        - When budget.strict_exceptions=True, exceptions are re-raised.
+        - Otherwise, exceptions are logged and a conservative summary is returned.
         
         Args:
             builtin_name: Name of builtin (getattr, setattr, hasattr)
@@ -428,80 +555,92 @@ class AISummaryEngine:
         from .summary import SummaryAccumulator
         from .interpreter import IRInterpreter
 
-        # Create initial state from arg bindings
-        initial_state = AIState.from_arg_bindings(
-            arg_bindings,
-            self.pta_query,
-            self.budget,
-        )
-
-        # Create summary accumulator
-        summary_acc = SummaryAccumulator()
-
-        # Create interpreter
-        interpreter = IRInterpreter(
-            pta_query=self.pta_query,
-            budget=self.budget,
-            caller_scope=caller_scope,
-            call_context=call_context,
-        )
-
-        # Create a stub IRCall-like object for the interpreter
-        class IntrinsicCallStub:
-            """Minimal stub mimicking IRCall interface for builtin handlers."""
-            
-            def __init__(stub_self, target: Optional[str], func_name: str, bindings: List[ArgBinding]):
-                stub_self._target = target
-                stub_self._func_name = func_name
-                stub_self._bindings = bindings
-            
-            def get_target(stub_self) -> Optional[str]:
-                return stub_self._target
-            
-            def get_func_name(stub_self) -> str:
-                return stub_self._func_name
-            
-            def get_args(stub_self) -> List[Tuple[str, bool]]:
-                # Return (param_name, is_starred) pairs
-                return [(b.param_name, False) for b in stub_self._bindings]
-            
-            def get_keywords(stub_self) -> List:
-                return []
-
-        stub = IntrinsicCallStub(target_name, builtin_name, arg_bindings)
-
-        # Dispatch to appropriate handler
-        if builtin_name == "getattr":
-            result = interpreter._handle_getattr(stub, initial_state, summary_acc)
-        elif builtin_name == "setattr":
-            result = interpreter._handle_setattr(stub, initial_state, summary_acc)
-        elif builtin_name == "hasattr":
-            result = interpreter._handle_hasattr(stub, initial_state, summary_acc)
-        else:
-            # Unknown builtin, return empty summary
-            return AISummary()
-
-        # Extract return value addresses from the result state
-        ret_addrs: FrozenSet['AbstractObject'] = frozenset()
-        if target_name and result.states:
-            # Get the first (and typically only) result state
-            _, final_state = result.states[0]
-            target_val = final_state.get_var(target_name)
-            ret_addrs = target_val.addrs
-
-        # Build and return AISummary
-        ai_summary = summary_acc.to_summary()
-        
-        # Merge in return addresses
-        if ret_addrs:
-            ai_summary = AISummary(
-                ret=ai_summary.ret | ret_addrs,
-                writes=ai_summary.writes,
-                reads=ai_summary.reads,
-                calls=ai_summary.calls,
-                unknown_effects=ai_summary.unknown_effects,
-                may_raise=ai_summary.may_raise,
+        try:
+            # Create initial state from arg bindings
+            initial_state = AIState.from_arg_bindings(
+                arg_bindings,
+                self.pta_query,
+                self.budget,
             )
 
-        return ai_summary
+            # Create summary accumulator
+            summary_acc = SummaryAccumulator()
+
+            # Create interpreter
+            interpreter = IRInterpreter(
+                pta_query=self.pta_query,
+                budget=self.budget,
+                scope_ir=None,
+                caller_scope=caller_scope,
+                call_context=call_context,
+            )
+
+            # Create a stub IRCall-like object for the interpreter
+            class IntrinsicCallStub:
+                """Minimal stub mimicking IRCall interface for builtin handlers."""
+                
+                def __init__(stub_self, target: Optional[str], func_name: str, bindings: List[ArgBinding]):
+                    stub_self._target = target
+                    stub_self._func_name = func_name
+                    stub_self._bindings = bindings
+                
+                def get_target(stub_self) -> Optional[str]:
+                    return stub_self._target
+                
+                def get_func_name(stub_self) -> str:
+                    return stub_self._func_name
+                
+                def get_args(stub_self) -> List[Tuple[str, bool]]:
+                    # Return (param_name, is_starred) pairs
+                    return [(b.param_name, False) for b in stub_self._bindings]
+                
+                def get_keywords(stub_self) -> List:
+                    return []
+
+            stub = IntrinsicCallStub(target_name, builtin_name, arg_bindings)
+
+            # Dispatch to appropriate handler
+            if builtin_name == "getattr":
+                result = interpreter._handle_getattr(stub, initial_state, summary_acc)
+            elif builtin_name == "setattr":
+                result = interpreter._handle_setattr(stub, initial_state, summary_acc)
+            elif builtin_name == "hasattr":
+                result = interpreter._handle_hasattr(stub, initial_state, summary_acc)
+            else:
+                # Unknown builtin, return empty summary
+                return AISummary()
+
+            # Extract return value addresses from the result state
+            ret_addrs: FrozenSet['AbstractObject'] = frozenset()
+            if target_name and result.states:
+                # Get the first (and typically only) result state
+                _, final_state = result.states[0]
+                target_val = final_state.get_var(target_name)
+                ret_addrs = target_val.addrs
+
+            # Build and return AISummary
+            ai_summary = summary_acc.to_summary()
+            
+            # Merge in return addresses
+            if ret_addrs:
+                ai_summary = AISummary(
+                    ret=ai_summary.ret | ret_addrs,
+                    writes=ai_summary.writes,
+                    reads=ai_summary.reads,
+                    calls=ai_summary.calls,
+                    unknown_effects=ai_summary.unknown_effects,
+                    may_raise=ai_summary.may_raise,
+                )
+
+            return ai_summary
+        except Exception as e:
+            # Exception boundary: decide whether to re-raise or return conservative
+            if self.budget.strict_exceptions:
+                raise
+            logger.warning(
+                "AI intrinsic analysis failed for %s (context=%s): %s",
+                builtin_name, call_context, e,
+                exc_info=True,
+            )
+            return self._conservative_summary()
 

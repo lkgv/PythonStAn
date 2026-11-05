@@ -25,6 +25,28 @@ class ClosureAnalysis(AnalysisDriver):
         self.world = World()
 
         super().__init__(config)
+
+        # Builtins should not be treated as closure cells unless shadowed.
+        
+        from pythonstan.analysis.pointer.kcfa.builtin_api_handler import BUILTIN_FUNCTIONS
+        self._builtin_names = BUILTIN_FUNCTIONS
+
+    def _filter_builtin_cells(self, scope: IRScope, cell_vars: Set[str]) -> None:
+        if not cell_vars:
+            return
+        ir = self.world.scope_manager.get_ir(scope, "ir")
+        defined: Set[str] = set()
+        if ir is not None:
+            for stmt in ir:
+                defined.update(stmt.get_stores())
+        if isinstance(scope, IRFunc):
+            defined.update(scope.get_arg_names())
+        # Drop builtins that are not explicitly defined in this scope.
+        to_remove = {
+            name for name in cell_vars
+            if name in self._builtin_names and name not in defined
+        }
+        cell_vars.difference_update(to_remove)
     
     def analyze(self, scope: IRScope, prev_results):
         scope_manager = self.world.scope_manager
@@ -57,6 +79,7 @@ class ClosureAnalysis(AnalysisDriver):
                 if isinstance(scope, IRFunc):
                     arguments = scope.get_arg_names()
                     cell_vars.difference_update(arguments)
+                self._filter_builtin_cells(scope, cell_vars)
                 if not isinstance(scope, IRModule):
                     scope.cell_vars = cell_vars
 

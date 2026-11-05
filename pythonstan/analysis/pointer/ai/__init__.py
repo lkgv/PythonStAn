@@ -9,8 +9,8 @@ PTA can compile into constraints.
 Architecture:
 - api: PtaQuery protocol, AISummary, AISummaryEngine entry point
 - state: AIState (env, heap, exn state for intraprocedural interpretation)
-- heap: FieldStore (bounded map + default bucket), AbsObj
-- domains: Pluggable value domains (strings, containers, bool)
+- heap: SlotMap (unified namespace/dict), FieldStore (legacy), AbsObj
+- domains: Pluggable value domains (strings, bool, ints, none, type)
 - interpreter: IR transfer functions per ai_spec.md §7
 - solver: Worklist + SCC fixpoint solver with widening/narrowing
 - summary: Summary extraction in PTA-compatible form
@@ -46,6 +46,8 @@ from .heap import (
 from .summary import SummaryAccumulator
 from .interpreter import IRInterpreter, TransferResult
 from .solver import AISolver, SolverConfig
+from .config import Config
+from .analysis import AIAnalysisDriver, AIAnalysisResult
 
 __all__ = [
     # API
@@ -73,4 +75,8 @@ __all__ = [
     # Solver
     "AISolver",
     "SolverConfig",
+    # Driver/config
+    "Config",
+    "AIAnalysisDriver",
+    "AIAnalysisResult",
 ]

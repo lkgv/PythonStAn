@@ -45,12 +45,14 @@ class SummaryAccumulator:
         ret_addrs: Return value address sets
         writes: List of (obj_addrs, field, value_addrs) tuples
         reads: List of (obj_addrs, field) tuples
+        calls: List of (callsite_id, callee_addrs) tuples
         unknown_effects: List of scoped effects
         may_raise: Exception types that may be raised
     """
     ret_addrs: Set['AbstractObject'] = field(default_factory=set)
     writes: List[Tuple[AddrSet, 'Field', AddrSet]] = field(default_factory=list)
     reads: List[Tuple[AddrSet, 'Field']] = field(default_factory=list)
+    calls: List[Tuple[str, AddrSet]] = field(default_factory=list)
     unknown_effects: List[UnknownEffect] = field(default_factory=list)
     may_raise: Set[str] = field(default_factory=set)
 
@@ -83,6 +85,11 @@ class SummaryAccumulator:
         if len(obj_addrs) > 0:
             self.reads.append((obj_addrs, field_key))
 
+    def add_call(self, callsite_id: str, callee_addrs: AddrSet) -> None:
+        """Record a call edge discovered during AI."""
+        if callsite_id and len(callee_addrs) > 0:
+            self.calls.append((callsite_id, frozenset(callee_addrs)))
+
     def add_unknown_effect(
         self,
         kind: str,
@@ -113,6 +120,7 @@ class SummaryAccumulator:
         new_acc.ret_addrs = self.ret_addrs | other.ret_addrs
         new_acc.writes = self.writes + other.writes
         new_acc.reads = self.reads + other.reads
+        new_acc.calls = self.calls + other.calls
         new_acc.unknown_effects = self.unknown_effects + other.unknown_effects
         new_acc.may_raise = self.may_raise | other.may_raise
         return new_acc
@@ -146,11 +154,23 @@ class SummaryAccumulator:
 
         reads_tuple = tuple(consolidated_reads)
 
+        # Consolidate calls by callsite_id
+        consolidated_calls: Dict[str, Set['AbstractObject']] = {}
+        for callsite_id, callee_addrs in self.calls:
+            if callsite_id not in consolidated_calls:
+                consolidated_calls[callsite_id] = set()
+            consolidated_calls[callsite_id].update(callee_addrs)
+
+        calls_tuple = tuple(
+            (callsite_id, frozenset(addrs))
+            for callsite_id, addrs in consolidated_calls.items()
+        )
+
         return AISummary(
             ret=frozenset(self.ret_addrs),
             writes=field_writes,
             reads=reads_tuple,
-            calls=(),  # Not tracked in v1
+            calls=calls_tuple,
             unknown_effects=tuple(self.unknown_effects),
             may_raise=frozenset(self.may_raise),
         )
@@ -160,7 +180,8 @@ class SummaryAccumulator:
         return (
             len(self.ret_addrs) == 0 and
             len(self.writes) == 0 and
-            len(self.unknown_effects) == 0
+            len(self.unknown_effects) == 0 and
+            len(self.calls) == 0
         )
 
     def __str__(self) -> str:
@@ -171,6 +192,8 @@ class SummaryAccumulator:
             parts.append(f"writes={len(self.writes)}")
         if self.reads:
             parts.append(f"reads={len(self.reads)}")
+        if self.calls:
+            parts.append(f"calls={len(self.calls)}")
         if self.unknown_effects:
             parts.append(f"effects={len(self.unknown_effects)}")
         return f"SummaryAcc({', '.join(parts)})"

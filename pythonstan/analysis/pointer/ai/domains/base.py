@@ -23,7 +23,9 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from ..state import AbsVal, AIState
+    from ..value_domain import AbsVal, AddrSet
+    from ..state import AIState
+    from ..api import AnalysisBudget
 
 __all__ = ["Domain", "DomainRegistry", "Fact"]
 
@@ -156,6 +158,36 @@ class Domain(ABC, Generic[D]):
         return elem
 
     # -------------------------------------------------------------------------
+    # Address-based normalization (for deriving domain elements from addrs)
+    # -------------------------------------------------------------------------
+
+    def on_reduce_value(
+        self,
+        var: str,
+        addrs: "AddrSet",
+        elem: D,
+        registry: "DomainRegistry",
+        budget: Optional["AnalysisBudget"] = None,
+    ) -> D:
+        """Hook invoked during value reduction to normalize based on addrs.
+        
+        Override this to derive domain elements from the address set.
+        For example, a callable domain can derive tokens from function objects
+        in the address set.
+        
+        Args:
+            var: Variable name being reduced
+            addrs: Points-to set (AbstractObject frozenset)
+            elem: Current domain element after fact exchange
+            registry: The domain registry
+            budget: Optional analysis budget for caps
+            
+        Returns:
+            Refined domain element
+        """
+        return elem
+
+    # -------------------------------------------------------------------------
     # Utilities
     # -------------------------------------------------------------------------
 
@@ -234,20 +266,73 @@ class DomainRegistry:
 
         return new_components
 
+    def reduce_value(
+        self,
+        var: str,
+        addrs: "AddrSet",
+        components: Dict[str, Any],
+        budget: Optional["AnalysisBudget"] = None,
+    ) -> Dict[str, Any]:
+        """Run full value reduction: fact exchange + address-based normalization.
+        
+        This is the primary reduction entry point that:
+        1. Runs fact exchange between domains (via reduce())
+        2. Runs on_reduce_value for each domain to derive from addrs
+        
+        Args:
+            var: Variable name
+            addrs: Points-to set (AbstractObject frozenset)
+            components: {domain_name: element} mapping
+            budget: Optional analysis budget for caps
+            
+        Returns:
+            Refined components after full reduction
+        """
+        # Step 1: fact exchange
+        reduced = self.reduce(var, components)
+        
+        # Step 2: address-based normalization
+        for domain_name, elem in reduced.items():
+            domain = self._domains.get(domain_name)
+            if domain:
+                reduced[domain_name] = domain.on_reduce_value(
+                    var, addrs, elem, self, budget
+                )
+        
+        return reduced
+
 
 # =============================================================================
 # Default registry with standard domains
 # =============================================================================
 
 def create_default_registry() -> DomainRegistry:
-    """Create a registry with default domains (strings, containers, bool)."""
+    """Create a registry with default domains.
+    
+    Registers:
+    - strings: String domain for reflective attribute names
+    - bool: Boolean domain for branch refinement
+    - none: None-ness domain
+    - int: Integer domain for numeric precision
+    - callable: Callable tokens (functions, methods, bound methods)
+    - type: Type/class tokens
+    - descriptor: Descriptor tokens (minimal)
+    """
     from .strings import StringDomain
-    from .containers import ContainerDomain
     from .bool import BoolDomain
+    from .none import NoneDomain
+    from .ints import IntDomain
+    from .callable import CallableDomain
+    from .type_domain import TypeDomain
+    from .descriptor import DescriptorDomain
 
     registry = DomainRegistry()
     registry.register(StringDomain())
-    registry.register(ContainerDomain())
     registry.register(BoolDomain())
+    registry.register(NoneDomain())
+    registry.register(IntDomain())
+    registry.register(CallableDomain())
+    registry.register(TypeDomain())
+    registry.register(DescriptorDomain())
     return registry
 

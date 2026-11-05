@@ -76,7 +76,7 @@ class CallGraphAnalyzer:
             
             # Find all callees
             for edge in self.call_graph.get_edges():
-                if edge.callsite.content.scope == current:
+                if edge.callsite.scope == current:
                     callee = edge.callee
                     if callee not in reachable:
                         reachable.add(callee)
@@ -122,7 +122,7 @@ class CallGraphAnalyzer:
         # Process all edges
         for edge in self.call_graph.get_edges():
             # Get caller and callee names
-            caller_node = edge.callsite.content.scope
+            caller_node = edge.callsite.scope
             callee_node = edge.callee
             
             caller_name = str(caller_node.stmt.get_qualname() if hasattr(caller_node.stmt, 'get_qualname') else caller_node.stmt)
@@ -170,7 +170,7 @@ class CallGraphAnalyzer:
         failed_call_sites = []
         for constraint in all_call_constraints:
             if hasattr(constraint, 'call_site'):
-                call_site = constraint.call_site
+                call_site = str(constraint.call_site)
                 if call_site not in successful_call_sites:
                     failed_call_sites.append(call_site)
         
@@ -236,7 +236,7 @@ class CallGraphAnalyzer:
         for edge in self.call_graph.get_edges():
             if edge.callee == node:
                 has_callers = True
-                caller_node = edge.callsite.content.scope
+                caller_node = edge.callsite.scope
                 self._dfs_paths(caller_node, visited, current_path[:], all_paths, max_depth)
         
         # If no callers, this is a complete path

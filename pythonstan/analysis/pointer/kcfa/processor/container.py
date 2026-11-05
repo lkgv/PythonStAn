@@ -84,15 +84,12 @@ class ContainerProcessor(Processor):
         all container values are visible through the generic element field (soundness).
         We also add key-specific constraints for constant indices (precision).
         """
-        unknown_index = False
         for index_obj in pts:
             if isinstance(index_obj, ConstantObject):
                 field = key(index_obj.value)
                 solver.add_constraint(scope, scope.context, LoadConstraint(c.base, field, c.target))
-            else:
-                unknown_index = True
-        if unknown_index:
-            solver.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
+        # Always include elem() for soundness (dict/list append/update, etc.)
+        solver.add_constraint(scope, scope.context, LoadConstraint(c.base, elem(), c.target))
         return True
     
     def _apply_store_subscr(self, solver: 'PointerSolver', scope: 'Scope', variable: 'Ctx', c: 'StoreSubscrConstraint', pts: 'PointsToSet'):
@@ -100,13 +97,15 @@ class ContainerProcessor(Processor):
         
         state = solver.state
         unknown_index = False
+        stored_elem = False
         for index_obj in pts:
             if isinstance(index_obj, ConstantObject):
                 field = key(index_obj.value)
                 solver.add_constraint(scope, scope.context, StoreConstraint(c.base, field, c.source))
+                stored_elem = True
             else:
                 unknown_index = True
-        if unknown_index:
+        if unknown_index or stored_elem:
             solver.add_constraint(scope, scope.context, StoreConstraint(c.base, elem(), c.source))
         return True
     

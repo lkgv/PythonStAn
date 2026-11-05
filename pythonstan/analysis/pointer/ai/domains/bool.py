@@ -174,11 +174,35 @@ class BoolDomain(Domain[BoolLattice]):
         return facts
 
     def consume_fact(self, elem: BoolLattice, fact: Fact) -> BoolLattice:
-        """Consume a fact to refine boolean abstraction."""
+        """Consume a fact to refine boolean abstraction.
+
+        Consumes facts from other domains to refine bool:
+        - is_true/is_false: direct boolean facts
+        - is_none: None is falsy -> False
+        - is_zero: 0 is falsy -> False
+        - is_nonzero: non-zero ints are truthy -> True
+        - is_singleton_int with value 0: falsy -> False
+        - is_singleton_int with non-zero value: truthy -> True
+        """
         if fact.kind == "is_true":
             return self.meet(elem, BoolLattice.true_())
         if fact.kind == "is_false":
             return self.meet(elem, BoolLattice.false_())
+        if fact.kind == "is_none":
+            # None is falsy; refine to False
+            return self.meet(elem, BoolLattice.false_())
+        if fact.kind == "is_zero":
+            # 0 is falsy; refine to False
+            return self.meet(elem, BoolLattice.false_())
+        if fact.kind == "is_nonzero":
+            # Non-zero integers are truthy; refine to True
+            return self.meet(elem, BoolLattice.true_())
+        if fact.kind == "is_singleton_int" and isinstance(fact.data, int):
+            # Singleton int: 0 is falsy, non-zero is truthy
+            if fact.data == 0:
+                return self.meet(elem, BoolLattice.false_())
+            else:
+                return self.meet(elem, BoolLattice.true_())
         return elem
 
     # -------------------------------------------------------------------------

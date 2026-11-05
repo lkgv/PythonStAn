@@ -1,5 +1,6 @@
 """Tests for constraints and constraint management."""
 
+import ast
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     Constraint,
@@ -12,7 +13,14 @@ from pythonstan.analysis.pointer.kcfa import (
     ConstraintManager,
     AllocKind,
 )
+from pythonstan.analysis.pointer.kcfa.context import CallSite
 from pythonstan.analysis.pointer.kcfa.heap_model import attr, elem
+from pythonstan.ir.ir_statements import IRCall
+
+
+def _make_call_site(scope_name: str = "test") -> CallSite:
+    call_stmt = IRCall(ast.parse("callsite()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name)
 
 
 class TestCopyConstraint:
@@ -255,23 +263,30 @@ class TestCallConstraint:
         target = variable_factory("result")
         
         constraint = CallConstraint(
-            callee,
-            (arg1, arg2),
-            target,
-            "test.py:10:0:call"
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("test.py")
         )
         
         assert constraint.callee == callee
         assert constraint.args == (arg1, arg2)
         assert constraint.target == target
-        assert constraint.call_site == "test.py:10:0:call"
+        assert isinstance(constraint.call_site, CallSite)
     
     def test_creation_without_return(self, variable_factory):
         """Test creating call constraint without return value."""
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "test.py:10:0:call")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("test.py")
+        )
         
         assert constraint.target is None
     
@@ -282,7 +297,13 @@ class TestCallConstraint:
         arg2 = variable_factory("arg2")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (arg1, arg2), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 4
@@ -296,7 +317,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 2
@@ -310,7 +337,13 @@ class TestCallConstraint:
         arg2 = variable_factory("arg2")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (arg1, arg2), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         constraint_str = str(constraint)
         
         assert "=" in constraint_str
@@ -323,7 +356,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         constraint_str = str(constraint)
         
         assert "=" not in constraint_str
@@ -335,7 +374,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 2
@@ -345,7 +390,13 @@ class TestCallConstraint:
     def test_frozen(self, variable_factory):
         """Test that CallConstraint is immutable."""
         callee = variable_factory("func")
-        constraint = CallConstraint(callee, (), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         
         with pytest.raises(AttributeError):
             constraint.callee = variable_factory("other")

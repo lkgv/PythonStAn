@@ -53,6 +53,7 @@ class ContextSelector:
         Args:
             policy: Context sensitivity policy
         """
+        print(f"ContextSelector initialized with policy: {policy}")
         self.policy = policy
         self._empty_context = self._create_empty_context()
     
@@ -123,7 +124,7 @@ class ContextSelector:
             New context for the called function
         """
         if self.policy == ContextPolicy.INSENSITIVE:
-            return caller_ctx
+            return self.empty_context
         
         elif self.policy in (ContextPolicy.CALL_1, ContextPolicy.CALL_2, ContextPolicy.CALL_3):
             if isinstance(caller_ctx, CallStringContext):
@@ -195,6 +196,9 @@ class ContextSelector:
         Returns:
             Context for the allocated object
         """
+        if self.policy == ContextPolicy.INSENSITIVE:
+            return self.empty_context
+        
         if self.policy in (ContextPolicy.OBJ_1, ContextPolicy.OBJ_2, ContextPolicy.OBJ_3):
             if isinstance(current_ctx, ObjectContext):
                 return current_ctx.append(alloc_site)
@@ -203,11 +207,13 @@ class ContextSelector:
                 return ctx.append(alloc_site)
         
         elif self.policy in (ContextPolicy.TYPE_1, ContextPolicy.TYPE_2, ContextPolicy.TYPE_3):
+            # For TYPE-sensitive policies, use alloc_type if provided, otherwise alloc_site
+            type_elem = alloc_type if alloc_type is not None else alloc_site
             if isinstance(current_ctx, TypeContext):
-                return current_ctx.append(alloc_site.get_type())
+                return current_ctx.append(type_elem)
             else:
                 ctx = TypeContext((), self._get_depth())
-                return ctx.append(alloc_site.get_type())
+                return ctx.append(type_elem)
         
         elif self.policy in (ContextPolicy.HYBRID_CALL1_OBJ1,
                             ContextPolicy.HYBRID_CALL2_OBJ1,

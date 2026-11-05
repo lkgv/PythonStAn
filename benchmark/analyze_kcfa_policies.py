@@ -15,8 +15,9 @@ import sys
 import time
 import tracemalloc
 import traceback
+import os
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 # Add pythonstan to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -24,6 +25,57 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from benchmark.metrics_collector import AnalysisMetrics, MetricsCollector, save_results
 from pythonstan.world.pipeline import Pipeline
 from pythonstan.analysis.pointer.kcfa import PointerAnalysis, Config
+
+
+def _strip_line_suffix(path_str: str) -> str:
+    if ":" not in path_str:
+        return path_str
+    head, tail = path_str.rsplit(":", 1)
+    if tail.isdigit():
+        return head
+    return path_str
+
+
+def _resolve_test_path(raw_path: str) -> Path:
+    cleaned = _strip_line_suffix(raw_path)
+    path = Path(cleaned)
+    if not path.is_absolute():
+        base = Path(__file__).parent.parent
+        path = (base / path).resolve()
+    return path
+
+
+def _discover_test_files(test_path: Path) -> List[Path]:
+    if test_path.is_file():
+        return [test_path]
+    if test_path.is_dir():
+        files = set(test_path.rglob("test_*.py"))
+        files.update(test_path.rglob("*_test.py"))
+        return sorted(p for p in files if p.is_file())
+    raise FileNotFoundError(f"Test path not found: {test_path}")
+
+
+def _module_name_for_path(test_file: Path, test_root: Path) -> Optional[str]:
+    rel = test_file.relative_to(test_root)
+    if rel.name == "__init__.py":
+        rel = rel.parent
+        if not rel.parts:
+            return None
+    else:
+        rel = rel.with_suffix("")
+    return ".".join((test_root.name,) + rel.parts)
+
+
+def _build_test_entry_file(test_files: List[Path], test_root: Path, entry_dir: Path) -> Path:
+    module_names = []
+    for test_file in test_files:
+        mod_name = _module_name_for_path(test_file, test_root)
+        if mod_name:
+            module_names.append(mod_name)
+    module_names = sorted(set(module_names))
+    entry_path = entry_dir / "__pythonstan_test_entry__.py"
+    entry_path.write_text("\n".join(f"import {name}" for name in module_names) + "\n", encoding="utf-8")
+    return entry_path
 
 
 # All 16 context sensitivity policies
@@ -44,6 +96,11 @@ ALL_POLICIES = [
     "2-type",   # 2-type sensitive
     "3-type",   # 3-type sensitive
     
+    # Param sensitivity
+    "1-param",   # 1-param sensitive
+    "2-param",   # 2-param sensitive
+    "3-param",   # 3-param sensitive
+    
     # Receiver sensitivity
     "1-rcv",    # 1-receiver sensitive
     "2-rcv",    # 2-receiver sensitive
@@ -58,22 +115,54 @@ ALL_POLICIES = [
 
 # Project configurations
 PROJECT_CONFIGS = {
-    "flask": {
-        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src/flask/__init__.py",
-        "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src",
+    "fastapi": {
+        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/fastapi/fastapi/__init__.py",
+        "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/fastapi",
+        "import_level": 10,
+        "time_count": True,
+        "max_iterations": 5000000,
         "library_paths": [
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.10/site-packages",
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.10",
+            "/mnt/data_fast/code/PythonStAn/benchmark/projects/starlette",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9/site-packages",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9",
+        ],
+        "analysis": []  # No pipeline analyses needed
+    },
+    "airflow": {
+        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/airflow/airflow/__main__.py",
+        "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/airflow",
+        "import_level": 5,
+        "time_count": True,
+        "max_iterations": 5000000,
+        "library_paths": [
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9/site-packages",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9",
+        ],
+        "analysis": []  # No pipeline analyses needed
+    },
+    
+    "flask": {
+        "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src/flask/__main__.py",
+        "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/src",
+        "test_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/tests",
+        "import_level": 10,
+        "time_count": True,
+        "max_iterations": 5000000,
+        "library_paths": [
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9/site-packages",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/flask/.venv/lib/python3.9",
         ],
         "analysis": []  # No pipeline analyses needed
     },
     "werkzeug": {
         "filename": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src/werkzeug/__init__.py",
         "project_path": "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/src",
-        "import_level": 2,
+        "import_level": 20,
+        "time_count": True,
+        "index_sensitive": True,
         "library_paths": [
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10/site-packages",
-            "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10/site-packages",
+            # "/mnt/data_fast/code/PythonStAn/benchmark/projects/werkzeug/.venv/lib/python3.10",
         ],        
         "analysis": []
     }
@@ -82,17 +171,24 @@ PROJECT_CONFIGS = {
 class PolicyBenchmark:
     """Benchmark runner for pointer analysis policies."""
     
-    def __init__(self, project_name: str, policies: List[str]):
+    def __init__(self, project_name: str, policies: List[str], debug_config: Optional[Dict[str, Any]] = None,
+                 test_path: Optional[str] = None):
         """Initialize benchmark.
         
         Args:
             project_name: Project name (flask, werkzeug)
             policies: List of policy strings to test
+            debug_config: Optional debug configuration dictionary
         """
         self.project_name = project_name
         self.policies = policies
         self.config = PROJECT_CONFIGS[project_name]
         self.results: List[AnalysisMetrics] = []
+        self.test_path = self.config.get('test_path', None)
+        
+        # Store debug config
+        self._debug_enabled = debug_config.get('enabled', False) if debug_config else False
+        self._debug_config = debug_config or {}
     
     def run_all(self) -> List[AnalysisMetrics]:
         """Run benchmark for all policies.
@@ -105,9 +201,11 @@ class PolicyBenchmark:
         print(f"Testing {len(self.policies)} policies")
         print(f"{'='*80}\n")
         
+        policies = ["0-cfa", "1-cfa", "1-obj", "1-param"]
         # for i, policy in enumerate(self.policies, 1):
+        # for i, policy in enumerate(policies, 1):
         for i in [2]:
-            policy = "2-cfa"
+            policy = "0-cfa"
             
             print(f"[{i}/{len(self.policies)}] Testing policy: {policy}")
             print("-" * 80)
@@ -123,14 +221,18 @@ class PolicyBenchmark:
                     print(f"  Iterations: {metrics.solver_iterations}")
                     print(f"  Variables: {metrics.num_variables}")
                     print(f"  Objects: {metrics.num_objects}")
+                    print(f"  Call edges: {metrics.call_edges}")
+                    print(f"  Heap locations: {metrics.num_heap_locations}")
                     print(f"  Unknowns: {metrics.total_unknowns}")
                 else:
                     print(f"✗ FAILED: {metrics.error_message}")
                     
             except KeyboardInterrupt:
                 print("\n\nBenchmark interrupted by user. Saving partial results...")
+                traceback.print_exc()
                 break
             except Exception as e:
+                raise e
                 print(f"✗ UNEXPECTED ERROR: {e}")
                 traceback.print_exc()
                 # Create failed metrics
@@ -173,17 +275,45 @@ class PolicyBenchmark:
             print(f"  Loading {self.project_name} with Pipeline...")
             pipeline_start = time.perf_counter()
             
+            # Get debug flags from args if available
+            debug_enabled = getattr(self, '_debug_enabled', False)
+            debug_config = getattr(self, '_debug_config', {})
+            
+            local_config = dict(self.config)
+            local_config["analysis"] = list(self.config.get("analysis", []))
+            local_config["library_paths"] = list(self.config.get("library_paths", []))
+
+            test_root = None
+            test_files: List[Path] = []
+            entry_filename = local_config["filename"]
+            if self.test_path:
+                resolved_test_path = _resolve_test_path(self.test_path)
+                test_files = _discover_test_files(resolved_test_path)
+                test_root = resolved_test_path if resolved_test_path.is_dir() else resolved_test_path.parent
+                entry_filename = str(_build_test_entry_file(test_files, test_root, Path(local_config["project_path"])))
+                test_root_parent = str(test_root.parent)
+                if test_root_parent not in local_config["library_paths"]:
+                    local_config["library_paths"].append(test_root_parent)
+
             pta_config = Config(
                 context_policy=policy,
-                max_iterations=10000,
+                max_iterations=200000,
                 verbose=False,
                 log_level="INFO",  # Reduce noise
                 track_unknowns=True,
                 build_class_hierarchy=True,
                 use_mro_resolution=True,
-                project_path=self.config['project_path'],
-                library_paths=self.config.get('library_paths', []),
-                max_import_depth=2
+                project_path=local_config['project_path'],
+                library_paths=local_config.get('library_paths', []),
+                max_import_depth=local_config.get('import_level', 2),
+                index_sensitive=False,
+                # Debug monitoring options
+                enable_debug_monitor=debug_enabled,
+                debug_log_interval=debug_config.get('monitor_interval', 1000),
+                track_object_flow=debug_config.get('track_object_flow', False),
+                track_pfg_activation=debug_config.get('track_pfg', False),
+                export_debug_data=debug_config.get('export_debug', False),
+                debug_output_dir=debug_config.get('debug_output_dir', 'debug_output')
             )
             
             analyzer_config = {
@@ -193,8 +323,13 @@ class PolicyBenchmark:
                 "prev_analysis": ["ir"],
                 "options": pta_config.to_dict()
             }
+
+            if test_root:
+                analyzer_config["options"]["test_root"] = str(test_root)
+                analyzer_config["options"]["test_files"] = [str(p) for p in test_files]
+                analyzer_config["options"]["test_entry_file"] = entry_filename
             
-            self.config['analysis'].append(analyzer_config)
+            local_config['analysis'].append(analyzer_config)
             
             # TODO add the pointer analyzer into ppl
             
@@ -206,7 +341,8 @@ class PolicyBenchmark:
             print(f"  Running pointer analysis with {policy}...")
             analysis_start = time.perf_counter()
             
-            ppl = Pipeline(config=self.config)
+            local_config["filename"] = entry_filename
+            ppl = Pipeline(config=local_config)
             ppl.run()
                         
             # Run analysis
@@ -244,6 +380,7 @@ class PolicyBenchmark:
             return metrics
             
         except Exception as e:
+            raise e
             print(traceback.format_exc())
             # Stop memory tracking if still running
             if tracemalloc.is_tracing():
@@ -288,7 +425,7 @@ def main():
     )
     parser.add_argument(
         "project",
-        choices=["flask", "werkzeug", "both"],
+        choices=["flask", "werkzeug", "pycg", "both", "airflow", "fastapi"],
         help="Project to benchmark"
     )
     parser.add_argument(
@@ -302,6 +439,44 @@ def main():
         type=str,
         default="benchmark/results",
         help="Output directory for results"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug monitoring"
+    )
+    parser.add_argument(
+        "--monitor-interval",
+        type=int,
+        default=1000,
+        help="Debug monitoring snapshot interval (default: 1000)"
+    )
+    parser.add_argument(
+        "--track-object-flow",
+        action="store_true",
+        help="Track object creation and propagation"
+    )
+    parser.add_argument(
+        "--track-pfg",
+        action="store_true",
+        help="Track PFG edge activation"
+    )
+    parser.add_argument(
+        "--export-debug",
+        action="store_true",
+        help="Export debug data to files"
+    )
+    parser.add_argument(
+        "--debug-output-dir",
+        type=str,
+        default="debug_output",
+        help="Debug output directory (default: debug_output)"
+    )
+    parser.add_argument(
+        "--test-path",
+        type=str,
+        default=None,
+        help="Test file or directory path (optional :line suffix supported)"
     )
     
     args = parser.parse_args()
@@ -321,16 +496,37 @@ def main():
     # Run benchmarks
     projects = ["flask", "werkzeug"] if args.project == "both" else [args.project]
     
+    # Prepare debug config
+    debug_config = None
+    if args.debug or args.export_debug or args.track_object_flow or args.track_pfg:
+        debug_config = {
+            'enabled': args.debug or args.export_debug,
+            'monitor_interval': args.monitor_interval,
+            'track_object_flow': args.track_object_flow,
+            'track_pfg': args.track_pfg,
+            'export_debug': args.export_debug,
+            'debug_output_dir': args.debug_output_dir
+        }
+        
+        print(f"\nDebug monitoring enabled:")
+        print(f"  - Output directory: {args.debug_output_dir}")
+        print(f"  - Monitor interval: {args.monitor_interval}")
+        print(f"  - Track object flow: {args.track_object_flow}")
+        print(f"  - Track PFG: {args.track_pfg}")
+        print(f"  - Export debug data: {args.export_debug}")
+        print()
+    
     for project in projects:
         try:
-            benchmark = PolicyBenchmark(project, policies)
+            benchmark = PolicyBenchmark(project, policies, debug_config, test_path=args.test_path)
             results = benchmark.run_all()
             
             # Save results
             output_file = output_dir / f"{project}_validation.json"
             benchmark.save_results(str(output_file))
             
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as e:
+            traceback.print_exc()
             print("\nBenchmark interrupted. Exiting...")
             return 130
         except Exception as e:
