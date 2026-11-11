@@ -87,7 +87,7 @@ def validate_budget_options(options: Dict[str, Any]) -> Dict[str, Any]:
     known = {f.name for f in fields(AnalysisBudget)}
     if set(options) - known:
         raise ValueError(f"Unknown AI budget options: {sorted(set(options) - known)}")
-    zero_allowed = {"max_iterations", "max_stmt_visits", "max_recursion_depth", "narrowing_iterations"}
+    zero_allowed = {"max_iterations", "max_stmt_visits", "max_recursion_depth", "narrowing_iterations", "max_value_partitions"}
     for name, value in options.items():
         default = getattr(defaults, name)
         if type(value) is not type(default):

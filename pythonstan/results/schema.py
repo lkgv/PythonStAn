@@ -311,6 +311,13 @@ class AnalysisResult:
         elif kind == "property":
             payload = data.get("proof", {}).get("queries", {}).get(query_key(normalized)) or data.get("proof", {}).get("properties", {}).get(normalized["property"],
                         {"status": "unknown", "reason": "No closed certificate for the requested property"})
+        elif kind == "relations":
+            payload=[]
+            for module,symbols in data.get("values",{}).items():
+                for symbol,value in symbols.items():
+                    payload.extend({**thaw_snapshot(row),"module":module,"symbol":symbol,"qualname":module+'.'+symbol,"observation_point":"module_exit"} for row in value.get("relations",()))
+            for function,value in data.get("returns",{}).items():
+                payload.extend({**thaw_snapshot(row),"module":_module_for_qualname(function,data),"qualname":function,"observation_point":"function_exit"} for row in value.get("relations",()))
         elif kind == "summary":
             payload = {"modules": len(data.get("inventory", ())), "entry_contract": data["entry_contract"],
                        "calls": len(data.get("calls", ())), "obligations": len(data.get("obligations", ())),

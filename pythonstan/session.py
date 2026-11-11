@@ -20,6 +20,11 @@ class AnalysisSession:
         try:
             self.config = resolve_config(target, config, overrides, queries=queries, output=output)
             self.snapshot = snapshot_target(target, self.config) if _snapshot is None else _snapshot
+            for binding in self.config["inputs"]["bindings"]:
+                module,_,symbol=binding.rpartition(".")
+                if module not in self.snapshot.module_map or not symbol.isidentifier():
+                    from pythonstan.inputs import InputError
+                    raise InputError(f"Abstract input {binding!r} does not identify an inventoried module and global")
             self.queries = tuple(normalize_query(q) for q in self.config["queries"])
             self.output = output or OutputSpec(**self.config["output"])
             from pythonstan.frontend.source import parse_sources

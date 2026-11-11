@@ -178,8 +178,9 @@ class RefinementController:
                     selected = after
                 else:
                     row.update(status="retained_baseline", reason="Reanalysis did not retain the established convergence/coverage")
-            except (ConfigurationError, ValueError, TypeError) as exc:
+            except Exception as exc:
                 row["reason"] = str(exc)
+                row["error_kind"] = type(exc).__name__
                 if reserved_work and not finished_work:
                     # An aborted engine/export does not have a trustworthy
                     # final counter. Reserve its entire authorized window so

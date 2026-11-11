@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "--import-mode=importlib",
+    "-q",
+    "tests/refactor/contracts/test_contracts.py",
+    "tests/refactor/domains/test_domain_repair.py",
+    "tests/refactor/contracts/test_legacy_source_snapshot.py"
+  ],
+  "exit": 0,
+  "seconds": 1.0304370029998609
+}

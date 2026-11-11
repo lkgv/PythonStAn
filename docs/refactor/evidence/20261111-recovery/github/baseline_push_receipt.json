@@ -1,0 +1,10 @@
+{
+  "local_source_commit": "3c565ee1c36429d58d69d0e45a7d8c4ca46f1db6",
+  "github_commit": "1c478b686ada0cb34efb406e37535c8d7159d864",
+  "github_branch": "dev-cocktail-analysis",
+  "repository": "lkgv/PythonStAn",
+  "files_byte_verified": 733,
+  "mismatches": [],
+  "scope": "Runtime/tests/configs/tools/specs; full historical bulky evidence remains in durable Git bundle",
+  "publication": "Restored checkpoint; later lost5c4 modifications undergoing real recovery, no earlier1179/90/36 claim for restored source"
+}

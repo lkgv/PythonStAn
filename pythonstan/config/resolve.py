@@ -104,10 +104,43 @@ def _validate(path, value):
             raise ConfigurationError(f"{path} must be an array of names or null")
     if option.choices and value not in option.choices:
         raise ConfigurationError(f"Unsupported {path}: {value!r}; choose {option.choices}")
+    if path in {"inputs.source_roots","inputs.entries","inputs.exclusions","output.views","output.modules","output.functions","output.regions","output.contexts","output.fields"}:
+        if any(type(item) is not str for item in value):raise ConfigurationError(f"{path} must contain strings")
     if option.minimum is not None and value < option.minimum:
         raise ConfigurationError(f"{path} must be >= {option.minimum}")
     if not option.configurable and value != option.default:
         raise ConfigurationError(f"{path} is fixed/unsupported; supported value: {option.default!r}")
+
+
+def _validate_bindings(bindings):
+    def scalar(value):
+        return type(value) in {str, bool, int, type(None)} or type(value) is float and math.isfinite(value)
+    sorts={"str":str,"int":int,"bool":bool,"float":float,"none":type(None)}
+    for name, descriptor in bindings.items():
+        if not isinstance(name,str) or "." not in name or not name.rsplit(".",1)[1].isidentifier():
+            raise ConfigurationError("Input bindings use module.global names")
+        if scalar(descriptor):continue
+        if not isinstance(descriptor,Mapping):raise ConfigurationError(f"{name}: input must be a scalar or abstract descriptor")
+        if set(descriptor)-{"type","top","value","constants","input_contract"}:
+            raise ConfigurationError(f"{name}: unsupported abstract input fields")
+        sort=descriptor.get("type")
+        if sort is not None and sort not in {*sorts,"any","object","list","tuple","dict","set","function"}:
+            raise ConfigurationError(f"{name}: unsupported abstract input sort")
+        if "top" in descriptor and type(descriptor["top"]) is not bool:
+            raise ConfigurationError(f"{name}: top must be boolean")
+        finite=[key for key in ("value","constants") if key in descriptor]
+        if len(finite)>1 or finite and descriptor.get("top"):
+            raise ConfigurationError(f"{name}: finite and Top input forms conflict")
+        values=descriptor.get("constants",[descriptor["value"]] if "value" in descriptor else [])
+        if not isinstance(values,(list,tuple)) or any(not scalar(value) for value in values):
+            raise ConfigurationError(f"{name}: constants must be finite JSON scalars")
+        if finite and not values:raise ConfigurationError(f"{name}: empty finite input bound")
+        if sort in sorts and any(type(value) is not sorts[sort] for value in values):
+            raise ConfigurationError(f"{name}: scalar type conflicts with declared sort")
+        if not finite and not descriptor.get("top") and sort is None:
+            raise ConfigurationError(f"{name}: abstract input requires a finite value or explicit covering Top")
+        if "input_contract" in descriptor and (not isinstance(descriptor["input_contract"],str) or finite):
+            raise ConfigurationError(f"{name}: a finite sample cannot claim an arbitrary input contract")
 
 
 @dataclass(frozen=True)
@@ -159,7 +192,9 @@ def resolve_config(target=None, config=None, overrides=None, *, queries=None, ou
     raw = _normalize_aliases(raw)
     preset = raw.get("preset", "balanced")
     if preset not in ("balanced", "precise", "fast"): raise ConfigurationError(f"Unknown preset: {preset}")
-    precise = {"andersen.context_policy": "3-cfa"} if raw.get("engine", "native") == "native" else {"abstract.max_const_strings": 50, "abstract.int_domain_max_consts": 20}
+    normalized_overrides=_normalize_aliases(overrides) if isinstance(overrides,Mapping) else {}
+    preset_engine=normalized_overrides.get("engine",raw.get("engine",defaults["engine"]))
+    precise = {"andersen.context_policy": "3-cfa"} if preset_engine == "native" else {"abstract.max_const_strings": 50, "abstract.int_domain_max_consts": 20}
     presets = {"balanced": {}, "precise": precise,
                "fast": {"resources.max_work": 10000}}
     for key, value in presets[preset].items():
@@ -169,6 +204,8 @@ def resolve_config(target=None, config=None, overrides=None, *, queries=None, ou
         for key, value in _flatten(_normalize_aliases(raw_values)):
             if key in seen: raise ConfigurationError(f"Duplicate canonical configuration key: {key}")
             seen.add(key)
+            if key in {"inputs.project_root","andersen.project_path","andersen.debug_output_dir"} and isinstance(value,os.PathLike): value=os.fspath(value)
+            elif key=="inputs.source_roots" and isinstance(value,(tuple,list)):value=[os.fspath(item) if isinstance(item,os.PathLike) else item for item in value]
             _validate(key, value)
             _set(defaults, key, value); provenance[key] = origin
     apply(raw, "config:" + str(path) if path else "explicit" if config is not None else "builtin")
@@ -220,13 +257,9 @@ def resolve_config(target=None, config=None, overrides=None, *, queries=None, ou
             raise ConfigurationError(f"solver_options.{key} is outside its supported range")
     if "widen_delay" in solver and "loop_unroll" in solver and solver["widen_delay"] != solver["loop_unroll"]:
         raise ConfigurationError("widen_delay and loop_unroll aliases conflict")
-    budget_fields = {key.rsplit(".", 1)[-1]: option for key, option in CATALOG.items()
-                     if key.startswith("abstract.") and key.rsplit(".", 1)[-1] not in
-                     {"context_depth", "relations", "int_domain_max_consts", "context_policy", "pta_analysis_name",
-                      "plan_scopes", "entry_scope", "type", "log_level", "solver_options"}}
-    for name, value in defaults["andersen"]["ai_budget"].items():
-        if name not in budget_fields: raise ConfigurationError(f"Unknown AI budget option: {name}")
-        _validate("abstract." + name, value)
+    from pythonstan.analysis.contracts.budgets import validate_budget_options
+    try: validate_budget_options(defaults["andersen"]["ai_budget"])
+    except (ValueError,TypeError) as exc:raise ConfigurationError(str(exc)) from exc
     for key in ("heap_context_depth",):
         v = defaults["andersen"][key]
         if v is not None and (type(v) is not int or not 0 <= v <= 3): raise ConfigurationError(f"{key} must be 0..3 or null")
@@ -238,6 +271,11 @@ def resolve_config(target=None, config=None, overrides=None, *, queries=None, ou
     # round-trip compatibility, but never silently accept an inactive override.
     from importlib.resources import files
     metadata = json.loads(files(__package__).joinpath("control_metadata.json").read_text())
+    for row in metadata["ai_budget_options"]:
+        name=row["old_name"]
+        if row.get("legacy_status")=="retired_reject_nondefault" and name in defaults["andersen"]["ai_budget"] and defaults["andersen"]["ai_budget"][name]!=row["old_default"]:
+            raise ConfigurationError(f"andersen.ai_budget.{name} is retired for the shared core")
+    _validate_bindings(defaults["inputs"]["bindings"])
     engine = defaults["engine"]
     builtin = default_config()
     for row in metadata["native_options"]:
@@ -274,4 +312,10 @@ def resolve_config(target=None, config=None, overrides=None, *, queries=None, ou
         _set(defaults, rel_key, _get(defaults, partition_key))
     if engine == "native" and defaults["llm"]["enabled"]:
         raise ConfigurationError("LLM policies and checked summaries require native_then_ai, ai_primary, or hybrid")
+    from pythonstan.results import normalize_query
+    from pythonstan.results.schema import VIEWS
+    try:
+        for query in defaults["queries"]:normalize_query(query)
+    except (ValueError,TypeError,KeyError) as exc:raise ConfigurationError(str(exc)) from exc
+    if set(defaults["output"]["views"])-set(VIEWS):raise ConfigurationError("Unknown output views")
     return EffectiveConfig(json.dumps(defaults, sort_keys=True), json.dumps(provenance, sort_keys=True), str(path) if path else None)

@@ -1,0 +1,38 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "--import-mode=importlib",
+    "-q",
+    "tests/refactor/api",
+    "tests/refactor/llm"
+  ],
+  "exit": 0,
+  "seconds": 3.292429975000232,
+  "owned_source_before": {
+    "pyproject.toml": "4168881487cf176cd65a33b3f2f06122fbff931f39215560818275caf815783f",
+    "pythonstan/config/catalog.py": "e58eb334cc7c4b9431af54c89aeb103aad19defadcb9531d08be980c7a1f0b7b",
+    "pythonstan/config/resolve.py": "2c48811a893ef397d9d11d012b6f494139d4892ac4ed8df64743ce3200c33071",
+    "pythonstan/inputs/snapshot.py": "2ece634ff47c529a162d137ddde43fd4a8bf55eae3883bbcb24249872b77c2f9",
+    "pythonstan/llm/strategy.py": "e8555f0cdb8c2beba9b52adfd558b5e436168191e8859df3c03fba0385568973",
+    "pythonstan/results/schema.py": "a2033639dde98d65992aee1a74e1aa9ac42d94e56941c4a5997b5e82a44e3aaf",
+    "pythonstan/session.py": "740221d069bc5a9aaecc112357121f40b15da25bf2f956840aacaf603d503815",
+    "pythonstan/analysis/contracts/budgets.py": "4a75f3da9ca5ffea68c56157faedbb837e90ed12596467b8202f33457b895b6f",
+    "tests/refactor/api/test_recovery_controls.py": "2c5dff5537dfc6fc31a54039a05f73852e2d33291bd263af47d9435e816aaf3d"
+  },
+  "owned_source_after": {
+    "pyproject.toml": "4168881487cf176cd65a33b3f2f06122fbff931f39215560818275caf815783f",
+    "pythonstan/config/catalog.py": "e58eb334cc7c4b9431af54c89aeb103aad19defadcb9531d08be980c7a1f0b7b",
+    "pythonstan/config/resolve.py": "2c48811a893ef397d9d11d012b6f494139d4892ac4ed8df64743ce3200c33071",
+    "pythonstan/inputs/snapshot.py": "2ece634ff47c529a162d137ddde43fd4a8bf55eae3883bbcb24249872b77c2f9",
+    "pythonstan/llm/strategy.py": "e8555f0cdb8c2beba9b52adfd558b5e436168191e8859df3c03fba0385568973",
+    "pythonstan/results/schema.py": "a2033639dde98d65992aee1a74e1aa9ac42d94e56941c4a5997b5e82a44e3aaf",
+    "pythonstan/session.py": "740221d069bc5a9aaecc112357121f40b15da25bf2f956840aacaf603d503815",
+    "pythonstan/analysis/contracts/budgets.py": "4a75f3da9ca5ffea68c56157faedbb837e90ed12596467b8202f33457b895b6f",
+    "tests/refactor/api/test_recovery_controls.py": "2c5dff5537dfc6fc31a54039a05f73852e2d33291bd263af47d9435e816aaf3d"
+  },
+  "owned_unchanged": true,
+  "global_source_frozen": false,
+  "scope": "Root API/config/input/L1/result recovery slice; other agents may edit disjoint runtime code concurrently. Full freeze gate will follow."
+}

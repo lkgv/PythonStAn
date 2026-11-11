@@ -99,7 +99,9 @@ def _build():
             consumer = ("analysis.pointer.kcfa.config.Config" if group == "andersen"
                         else "analysis.pointer.ai.config.Config")
             extra = {"configurable": configurable}
-            if type(default) is int and name.startswith("max_"): extra["minimum"] = 1
+            if type(default) is int and name.startswith("max_"):
+                extra["minimum"] = 0 if group == "abstract" and name in {"max_iterations", "max_stmt_visits"} else 1
+            if group == "abstract" and name == "narrowing_iterations": extra["minimum"] = 0
             if name == "context_policy":
                 extra["choices"] = CONTEXT_POLICIES + (("inherit",) if group == "abstract" else ())
             result.append(_descriptor(group + "." + name, default, consumer, **extra))
@@ -107,7 +109,9 @@ def _build():
         _descriptor("andersen.heap_context_policy", None, "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context"),
         _descriptor("andersen.heap_context_depth", None, "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context"),
         _descriptor("abstract.context_depth", 2, "analysis.engines.abstract.driver.InterproceduralDriver", minimum=0),
-        _descriptor("abstract.relations", True, "analysis.engines.abstract.driver.InterproceduralDriver"),
+        _descriptor("abstract.relations", True, "config.resolve.resolve_config", note="Alias of enable_value_partition; conflicting explicit values reject."),
+        _descriptor("abstract.refine_booleans", True, "analysis.engines.abstract.transfer.Transfer.refine_test", note="State cofactoring; protocol truth evaluation always executes."),
+        _descriptor("abstract.attribute_name_limit", 256, "analysis.engines.abstract.transfer.Transfer.getattr", minimum=0, note="Reflective name enumeration window with covering residuals."),
         _descriptor("abstract.int_domain_max_consts", 10, "analysis.domains.bundle.DomainBundle", minimum=1),
         _descriptor("abstract.max_scalar_pairs", 256, "analysis.domains.values.ValueOperations.scalar_binary", minimum=1),
         _descriptor("abstract.max_range_size", 1000, "analysis.engines.abstract.transfer.Transfer.builtin", minimum=1),
@@ -125,6 +129,8 @@ def _build():
             option = replace(option, engines=engines,
                              consumer=row.get("actual_consumer", row.get("consumer", option.consumer)),
                              note=row.get("meaning", ""))
+            if row.get("public_recommendation")=="reject_nondefault_or_explicit_entry_contract":
+                option=replace(option,configurable=False)
         row = abstract.get(option.path)
         if row:
             active = row["new_ai_status"] in {"supported", "supported_subset"}
@@ -166,9 +172,21 @@ def json_schema():
         parts = option.path.split(".")
         for part in parts[:-1]:
             node = node.setdefault("properties", {}).setdefault(part, {"type": "object", "additionalProperties": False, "properties": {}})
-        value = {"default": copy.deepcopy(option.default), "description": option.note or option.consumer}
+        value = {"default": copy.deepcopy(option.default), "description": option.note or option.consumer, "x-supported-engines":list(option.engines), "x-configurable":option.configurable}
         if option.kind != "nullable": value["type"] = option.kind
+        elif option.path in {"inputs.project_root","andersen.project_path","andersen.debug_output_dir"}: value["type"]=["null","string"]
+        elif option.path == "andersen.heap_context_depth": value["type"]=["null","integer"];value["minimum"]=0;value["maximum"]=3
+        elif option.path == "andersen.heap_context_policy": value["type"]=["null","string"];value["enum"]=[None,*CONTEXT_POLICIES]
+        elif option.path in {"andersen.entry_points","andersen.library_paths","abstract.plan_scopes"}: value["type"]=["null","array"]
         if option.choices: value["enum"] = list(option.choices)
         if option.minimum is not None: value["minimum"] = option.minimum
         node.setdefault("properties", {})[parts[-1]] = value
+    for option in OPTIONS:
+        unsupported=[engine for engine in ENGINES if engine not in option.engines]
+        if not unsupported:continue
+        condition={"properties":{"engine":{"enum":unsupported}},"required":["engine"]}
+        if CATALOG["engine"].default in unsupported:condition={"anyOf":[condition,{"not":{"required":["engine"]}}]}
+        leaf={"const":copy.deepcopy(option.default)}
+        for part in reversed(option.path.split('.')):leaf={"properties":{part:leaf}}
+        result.setdefault('allOf',[]).append({"if":condition,"then":leaf})
     return result

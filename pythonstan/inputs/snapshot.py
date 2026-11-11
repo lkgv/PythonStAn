@@ -129,6 +129,7 @@ def snapshot_target(target, config):
     if isinstance(target, Source):
         roots = [Path(p).expanduser().resolve() for p in target.import_roots]
         if target.project_root is not None: roots.append(Path(target.project_root).expanduser().resolve())
+        if options["project_root"] is not None:roots.append(Path(options["project_root"]).expanduser().resolve())
         roots += [Path(p).expanduser().resolve() for p in options["source_roots"]]
         try: tree = ast.parse(target.code, filename=target.filename, type_comments=True, feature_version=(3, 12))
         except SyntaxError as exc: raise InputError(str(exc)) from exc
@@ -146,7 +147,7 @@ def snapshot_target(target, config):
         if not path.is_file(): raise InputError(f"File not found: {path}")
         root = path.parent
         while (root / "__init__.py").is_file(): root = root.parent
-        roots = [root] + [Path(p).expanduser().resolve() for p in options["source_roots"]]
+        roots = [root] + ([Path(options["project_root"]).expanduser().resolve()] if options["project_root"] is not None else []) + [Path(p).expanduser().resolve() for p in options["source_roots"]]
         roots_digest = stable_digest([str(p) for p in roots])
         main = target.module or _module_name(path, root)
         modules[main] = _read(path, main, path.name == "__init__.py", roots_digest, parsed_trees)
@@ -156,6 +157,7 @@ def snapshot_target(target, config):
     else:
         root = Path(target.root).expanduser().resolve()
         if not root.is_dir(): raise InputError(f"Project not found: {root}")
+        if options["project_root"] is not None and Path(options["project_root"]).expanduser().resolve()!=root: raise InputError("Conflicting project roots")
         explicit_roots = target.source_roots or tuple(options["source_roots"])
         roots = [Path(p).resolve() if Path(p).is_absolute() else (root / p).resolve() for p in explicit_roots] if explicit_roots else [root / "src" if (root / "src").is_dir() else root]
         roots_digest = stable_digest([str(p) for p in roots])

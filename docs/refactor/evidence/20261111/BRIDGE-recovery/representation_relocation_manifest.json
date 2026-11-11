@@ -1,0 +1,187 @@
+{
+  "relocated_compat_modules": 18,
+  "neutral_modules": 2,
+  "method": "Source preserving import-span normalization only; executable body AST unchanged",
+  "rows": [
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/api.py",
+      "new_path": "pythonstan/compat/legacy_ai/api.py",
+      "old_sha256": "4207022eb7c6da0820ce3adb4bc41047ecc193c6d7c788f2295388f14f9d424e",
+      "new_sha256": "ef7b3fedb337a0e8bb3e57d30c16a6bc9b22b63e4c677af1afe0722599c7ffd5",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "cb53921b161f705c9c3fa28e4d2a670a65ae0a1e4909e7d2543f46ed3b3e21af",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/analysis.py",
+      "new_path": "pythonstan/compat/legacy_ai/analysis.py",
+      "old_sha256": "50b764e4fbd8669dd9549ad363a63ff06395188cbc94d53b8deeabee3ca318e2",
+      "new_sha256": "2607e370d2c1f95115e0597c3ecc7cbc6a6466f5af51482f5468fd64380f9eff",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "7ee4de65ee32903e5d511685cab3c6aea537b4d17809ddf88cdc8a2d3dc77545",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/config.py",
+      "new_path": "pythonstan/compat/legacy_ai/config.py",
+      "old_sha256": "70f3d43a20c9e1b7bd6256ecf72e17641cd4344330dc28e2a194dc9006de8294",
+      "new_sha256": "943c19b8e064e96d2dd6e22bae69e9ed7b2d9cda330d33dab7526ca2c814d248",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "0610dd3d3d5bb3c433bff1f0782d8e160f0296306bc07e3b032e2e4b35784ee7",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/plan.py",
+      "new_path": "pythonstan/compat/legacy_ai/plan.py",
+      "old_sha256": "f9a3197b7c84517521c9dfdc50be0a92e94fe94f31d93eb0741cd6274d3c888c",
+      "new_sha256": "cd6c3eec828de8171e9fdd6c4984d755f02c6107f0a8c0eba793f83dc16ec367",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "fc738915d5cd20f51e9b214a6ff4e8b9ecf60d4aed65eb46f985619da2420a13",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/heap.py",
+      "new_path": "pythonstan/compat/legacy_ai/heap.py",
+      "old_sha256": "7990ee7d8053ee7dbbdc1bd443481efb976ee90cfdb382fda6fc4769bc60bdef",
+      "new_sha256": "a81c6c4b95510e0c353b4228b3f63f32a0837030308e880fcbcab81be602d1d2",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "148e48767d9c308cb6f00ee3919a8f90fbd65e8b3c8633ffbbe4a26c1134537c",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/state.py",
+      "new_path": "pythonstan/compat/legacy_ai/state.py",
+      "old_sha256": "c2fae80dab323b61e9329b70377e20d57fdfa80a25f68a2e482c605f5a02c69a",
+      "new_sha256": "3ece47f412a35be093d2abb72f2667ac8b3967ecd595d6c30f91235e817a3b03",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "371e7eff5e0808a55da22172015050093273e6baa9cf05dbd75e36062c4d8f38",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/value_domain.py",
+      "new_path": "pythonstan/compat/legacy_ai/value_domain.py",
+      "old_sha256": "dd731eb56e2d2cd194e04766ce899f72498eb44915921a9bb9319e3bb7812517",
+      "new_sha256": "c4433a8efeaeceee68966037940fd0b9272d2fbcae1b9e683d77865fb35edb2e",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "0237ac000457dc80d6a6e0e6e532763479cd4ef0de9826b7cfaf7350530ec4ce",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/summary.py",
+      "new_path": "pythonstan/compat/legacy_ai/summary.py",
+      "old_sha256": "f34a04c6fd9d898a67d0c509f47494ae333573d61d2a9cfb135a8113ad624b28",
+      "new_sha256": "ba4ba878310a81fb90010320516f85a4d72d0929042de6079ad59cdc179b215b",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "bc1d344abc9b7857db4f9f7fd18b091b52e6a4c2bc77257501f58391c2d14537",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/_cfg_adapter.py",
+      "new_path": "pythonstan/compat/legacy_ai/_cfg_adapter.py",
+      "old_sha256": "06a2350fa8c453c250568e58ea64b0bcbe3b48b210764d8bd7fcabf9403e5a98",
+      "new_sha256": "06a2350fa8c453c250568e58ea64b0bcbe3b48b210764d8bd7fcabf9403e5a98",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "bf3bac0cedab387d0786fad45a9777d23bd1c68cb244ef953ca443bc04c86523",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/_trace_partition.py",
+      "new_path": "pythonstan/compat/legacy_ai/_trace_partition.py",
+      "old_sha256": "fa14d40daa8b003e3fa7c8ad512a0da774b088a2adde02dc003a7b621df63a0f",
+      "new_sha256": "363592a3ef21b0b800f50307ac9cb234baedfd36699b18970605690e19e04409",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "668236e105c37254db23adf0df7f46093d3fb94326e278c891891bd9f93eda8f",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/base.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/base.py",
+      "old_sha256": "8ff1805fcb3ddc0afa37d5f715231dc2bb40f4febc20257f65ab0ebba8c05c7a",
+      "new_sha256": "06eb17ea856754c95c7385ab4de683082fe05fd6e2790f9be9effe2f8254b5a1",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "a251a4eeab85dd866222f1b913d8f0904d0a9bfcba873a416bde5966c3401e9d",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/binding.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/binding.py",
+      "old_sha256": "54f2c2217a72f5ccbbd7c6c7582695f204f9beb1b98931c318317d6265d3be4c",
+      "new_sha256": "0e576d063cd14910b69ab0d9bba8bf8a5e756b3b22499a21754836a3bd59368d",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "133f5080e6b617efa76be40606383fe1087a77f113a30ad300889ff2e5d28c87",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/callable.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/callable.py",
+      "old_sha256": "36d15f653ad255e9a84950e0671590beee6f632f8f02b02ddb53fab032524a84",
+      "new_sha256": "c3fce6bb29b2feefbf3c416a0335348afab76f469afcb78b2599c26fd6792dcf",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "26cf72e16d7def2995b3e9556573fbae79272060ddc24512c521049458fde783",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/type_domain.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/type_domain.py",
+      "old_sha256": "6bf14b20efe2bbafa01b933272ef260784d56e3a18dbe7989e1ebabc881cac05",
+      "new_sha256": "f831e317d3ef74f58fd71d9de63d3611a51f5c1b4e5845ff8d6a8f4c68d8539a",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "d5b30f3690e8961557bcb4b4a2f0f4936854d0e4bf11f32077f3a08f63002dd8",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/descriptor.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/descriptor.py",
+      "old_sha256": "42d49e04f5bcd2adaf0e7a4e2949423391ce6e905936c64c250dbae50d40013c",
+      "new_sha256": "2de98c75c866d3da5659ffb7c26d67634fe8e420f356d7a83f4507d5994942f8",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "3e5345c05085de3f2fb80e7c4bcc315d5041b6a9e4373d8bcb2046d8eb21aeac",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/mapslots.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/mapslots.py",
+      "old_sha256": "8920c60173304a1553eb1dacfde339b7d7482eefa6eaf5445c47de82d7dd5389",
+      "new_sha256": "20611e28c4f9822ed668d3092fa94f8cd3d377f936342232d759c3989fdfa90b",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "5eb39c0af51a4651f3d99caaef41c9d40827137cdedb247e5f0a9a0f02d39260",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/tuples.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/tuples.py",
+      "old_sha256": "f205852f29e756ae1298841299fc015e5567b6c196d0317f8326b7d9b2ee2937",
+      "new_sha256": "d3412647be8dda157aeeb485c1c1545b17e51bf0710f00003e23cf2d7cd7e1cc",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "42d85bd6efa04e41ae1fe7ccda27e3f45eb53788ee7ded395577efed3c604eda",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/kwargs.py",
+      "new_path": "pythonstan/compat/legacy_ai/domains/kwargs.py",
+      "old_sha256": "d3fa7aae5f85a4e07a2559f6867033349715010db500117a6e30146bf4e231e0",
+      "new_sha256": "aab9d66f747bc61688d2c968b12940cc9e48b85e22ac12fae35793e7eccf48a1",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "286e98637af39da1745e106f9c7b5df2104758098dc8c4489f6f8203781ce386",
+      "neutral": false
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/bool.py",
+      "new_path": "pythonstan/analysis/domains/bool.py",
+      "old_sha256": "44361bd7f191178f5b4c7c9bdc1c557322aef5a1d8a6cc61affe62fc489f1494",
+      "new_sha256": "6a5859f1719f2dc442b14098fa1d576b8fdf244f52142f461e1469eaa668467a",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "5e41c0b3faa5d005586edc1e1f73dd66fc4346376723fe29b2919211486362d4",
+      "neutral": true
+    },
+    {
+      "old_path": "pythonstan/analysis/pointer/ai/domains/none.py",
+      "new_path": "pythonstan/analysis/domains/none.py",
+      "old_sha256": "23cdec6586e5277129e73e0ac73f090f41f880fb096770284c4716b36f82dd8f",
+      "new_sha256": "34e4d3a6cdbcbd7a4b1c9322c30c29da0274e63d263711802d39e67e97267f8d",
+      "body_ast_unchanged": true,
+      "old_alias_sha256": "e21ab5561c7f1e27c599bded0d00900473088076092fc3cc21a6c9893da3d4b4",
+      "neutral": true
+    }
+  ]
+}
