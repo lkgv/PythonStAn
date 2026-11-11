@@ -23,6 +23,8 @@ class DictionaryViews:
         result=[]
         for ref in owner.refs:
             current=store.copy();obj=current.heap.get(ref)
+            if obj is not None and obj.metadata.get('summarized_keys'):
+                result.extend(self.t.unknown(current,node,'summarized_dictionary_key_iteration',havoc=False));continue
             if obj is None or obj.kind!='dict' or obj.havoc or not obj.singleton or obj.maybe_missing or not obj.default.is_bottom():
                 result.extend(self.t.unknown(current,node,'abstract_dictionary_view_iteration'));continue
             metadata={'container':Value.ref(ref),'dictionary_iteration':kind,'dictionary_keys':tuple(obj.fields),'index':0}
@@ -35,6 +37,8 @@ class DictionaryViews:
         if item.metadata.get('dictionary_exhausted'):return [self.t.continuations.stop(store,frame,node)]
         for owner in item.metadata['container'].refs:
             current=store.copy();source=current.heap.get(owner)
+            if source is not None and source.metadata.get('summarized_keys'):
+                result.extend(self.t.unknown(current,node,'summarized_dictionary_key_iteration',havoc=False));continue
             if source is None or source.havoc or not source.singleton or source.maybe_missing or not source.default.is_bottom():
                 result.extend(self.t.unknown(current,node,'abstract_dictionary_iterator_state'));continue
             keys=tuple(source.fields);initial=item.metadata['dictionary_keys']

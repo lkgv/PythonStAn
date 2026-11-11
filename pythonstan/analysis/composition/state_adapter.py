@@ -36,17 +36,36 @@ class BoundaryState:
     havoc_imports:bool=False
     guards:dict=field(default_factory=dict)
     identity_epoch:int=0
+    # Private in-process anchor. Flat fields remain authoritative for engines
+    # which replace maps or add BoundaryObjects; this keeps embedded root refs.
+    _store_root:Any=field(default=None,repr=False,compare=False)
 
 from pythonstan.analysis.engines.abstract.state_transform import detached_payload,semantic_payload_equal as payload_equal,PayloadTransformer
 
 
+class _BoundaryPayload(PayloadTransformer):
+    def __init__(self,source_type,target_type):
+        super().__init__();self.source_type=source_type;self.target_type=target_type
+    def visit(self,value):
+        if isinstance(value,self.source_type):
+            if id(value) in self.memo:return self.memo[id(value)]
+            result=object.__new__(self.target_type);self.memo[id(value)]=result
+            for name in ('kind','fields','default','maybe_missing','singleton','class_ids','metadata','havoc'):
+                setattr(result,name,self.visit(getattr(value,name)))
+            return result
+        return super().visit(value)
+
+
 class FullStateAdapter:
     def encode(self,flow):
-        state=detached_payload(flow.store)
-        return BoundaryState(dict(state.cells),{key:BoundaryObject(obj.kind,dict(obj.fields),obj.default,set(obj.maybe_missing),obj.singleton,obj.class_ids,dict(obj.metadata),obj.havoc) for key,obj in state.heap.items()},dict(state.initialized),set(state.writes),tuple(state.events),state.obligations,flow.kind,flow.value,flow.exception,detached_payload(flow.continuation),detached_payload(flow.cleanups),detached_payload(flow.resume_target),state.havoc_namespaces,state.havoc_imports,dict(state.guards),state.identity_epoch)
+        copied=_BoundaryPayload(HeapObject,BoundaryObject).visit(flow);state=copied.store
+        return BoundaryState(state.cells,state.heap,state.initialized,state.writes,state.events,state.obligations,copied.kind,copied.value,copied.exception,copied.continuation,copied.cleanups,copied.resume_target,state.havoc_namespaces,state.havoc_imports,state.guards,state.identity_epoch,state)
     def decode(self,boundary):
-        state=Store(dict(boundary.cells),{key:HeapObject(obj.kind,dict(obj.fields),obj.default,set(obj.maybe_missing),obj.singleton,obj.class_ids,detached_payload(obj.metadata),obj.havoc) for key,obj in boundary.heap.items()},dict(boundary.initialized),set(boundary.writes),boundary.events,boundary.obligations,boundary.havoc_namespaces,boundary.havoc_imports,dict(boundary.guards),boundary.identity_epoch)
-        return Flow(state,boundary.completion,boundary.value,boundary.exception,detached_payload(boundary.continuation),detached_payload(boundary.cleanups),detached_payload(boundary.resume_target))
+        copied=_BoundaryPayload(BoundaryObject,HeapObject).visit(boundary)
+        state=copied._store_root if copied._store_root is not None else Store()
+        for name in ('cells','heap','initialized','writes','events','obligations','havoc_namespaces','havoc_imports','guards','identity_epoch'):
+            setattr(state,name,getattr(copied,name))
+        return Flow(state,copied.completion,copied.value,copied.exception,copied.continuation,copied.cleanups,copied.resume_target)
     def check_roundtrip(self,flow,ops):
         decoded=self.decode(self.encode(flow))
         return (flow.kind==decoded.kind and flow.exception==decoded.exception and payload_equal(flow.store,decoded.store)

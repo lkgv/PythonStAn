@@ -857,7 +857,9 @@ class Transfer:
             if obj and obj.havoc:unknown=True;continue
             if obj and obj.kind in ("list","tuple","set","range") and "length" in obj.metadata:
                 sequences.append([obj.fields.get(i,obj.default) for i in range(obj.metadata["length"])])
-            elif obj and obj.kind=="dict" and obj.default.is_bottom() and not obj.havoc:sequences.append([Value.constant(k) for k in obj.fields])
+            elif obj and obj.kind=="dict" and obj.default.is_bottom() and not obj.havoc:
+                if obj.metadata.get('summarized_keys'):unknown=True
+                else:sequences.append([Value.constant(k) for k in obj.fields])
             else:unknown=True
         strs=value.strings.get_consts()
         if strs is not None:
@@ -1056,6 +1058,9 @@ class Transfer:
             if obj.kind=="dict_view":
                 result.extend(self.dictionary_views.length(obj,store.copy(),frame,node));continue
             if obj.kind in {"list","tuple","dict","set","range"}:
+                if obj.kind=='dict' and obj.metadata.get('summarized_keys'):
+                    self.d.open('summarized_dictionary_key_cardinality',store,node)
+                    result.append(Flow(store.copy(),value=Value(ints=self.ops.integer.top())));continue
                 if isinstance(obj.metadata.get("length_value"),Value):result.append(Flow(store.copy(),value=obj.metadata["length_value"]));continue
                 if obj.kind=="dict":
                     if obj.default.is_bottom() and not obj.maybe_missing:answer=Value.constant(len(obj.fields))

@@ -52,6 +52,7 @@ class PayloadTransformer:
     def __init__(self,mapping=None,ops=None,scalar=None,epoch=None,memo=None,charge=None):
         self.mapping={} if mapping is None else mapping;self.ops=ops;self.scalar=scalar;self.epoch=epoch
         self.memo={} if memo is None else memo;self.work=0;self.charge=charge
+        self._dict_roles={};self._dict_active=set()
 
     def address(self,identifier):return resolve_mapping(identifier,self.mapping)
 
@@ -62,17 +63,47 @@ class PayloadTransformer:
         # Plain strings, enum labels and numeric dictionary keys are literals.
         return key
 
+    def value_map(self,data,key_map,collisions=None):
+        return self.mapped_dict(data,'cells' if key_map==self.address else 'values',collisions)
+
     def metadata(self,data):
-        if id(data) in self.memo:return self.memo[id(data)]
-        result={};self.memo[id(data)]=result
-        for key,value in data.items():
-            if key in _ADDRESS_METADATA and isinstance(value,str):mapped=self.address(value)
-            elif key in {'mro','bases','class_ids'} and isinstance(value,(list,tuple,set,frozenset)):
-                mapped=type(value)(self.address(item) if isinstance(item,str) else self.visit(item) for item in value)
-            elif key=='closure' and isinstance(value,(list,tuple)):
-                mapped=type(value)((name,self.address(cell)) for name,cell in value)
-            else:mapped=self.visit(value)
-            result[self.key(key)]=mapped
+        return self.mapped_dict(data,'metadata')
+
+    def mapped_dict(self,data,role='plain',collisions=None):
+        """Upgrade an earlier literal-map alias in place when its schema arrives."""
+        identity=id(data)
+        if role!='plain':self._dict_roles[identity]=role
+        role=self._dict_roles.get(identity,role)
+        result=self.memo.setdefault(identity,{})
+        if identity in self._dict_active:return result
+        result.clear();self._dict_active.add(identity);started_role=role
+        try:
+            for key,value in data.items():
+                mapped=self.visit(value)
+                role=self._dict_roles.get(identity,role)
+                mapped_key=self.address(key) if role in {'cells','heap'} else self.key(key)
+                if role=='metadata':
+                    if key in _ADDRESS_METADATA and isinstance(value,str):mapped=self.address(value)
+                    elif key in {'mro','bases','class_ids'} and isinstance(value,(list,tuple,set,frozenset)):
+                        mapped=type(value)(self.address(item) if isinstance(item,str) else self.visit(item) for item in value)
+                    elif key=='closure' and isinstance(value,(list,tuple)):
+                        mapped=type(value)((name,self.address(cell)) for name,cell in value)
+                if role=='heap' and mapped_key!=key:mapped.singleton=False
+                if mapped_key in result:
+                    if collisions is not None:collisions.add(mapped_key)
+                    previous=result[mapped_key]
+                    if previous is not mapped:
+                        if self.ops is None:raise ValueError('Key collision requires domain operations')
+                        if isinstance(previous,Value) and isinstance(mapped,Value):mapped=self.ops.join(previous,mapped)
+                        elif role=='heap':mapped=previous.join(mapped,self.ops);mapped.singleton=False
+                        else:raise ValueError('Unrepresentable non-Value key collision')
+                result[mapped_key]=mapped
+        finally:self._dict_active.remove(identity)
+        # A root Store reached through a cycle can register the heap/cell role
+        # while a generic alias is still being copied. Rebuild the same memo
+        # object after that walk so no old address keys survive beside aliases.
+        if self._dict_roles.get(identity,started_role)!=started_role:
+            return self.mapped_dict(data,self._dict_roles[identity],collisions)
         return result
 
     def visit(self,value):
@@ -87,17 +118,12 @@ class PayloadTransformer:
         if id(value) in self.memo:return self.memo[id(value)]
         if isinstance(value,Store):
             result=object.__new__(Store);self.memo[id(value)]=result
-            result.cells={self.address(k):self.visit(v) for k,v in value.cells.items()}
-            result.heap={}
-            for old,obj in value.heap.items():
-                new=self.address(old);mapped=self.visit(obj)
-                if new!=old:mapped.singleton=False
-                if new in result.heap:
-                    if self.ops is None:raise ValueError('Address collision requires domain operations')
-                    mapped=result.heap[new].join(mapped,self.ops);mapped.singleton=False
-                result.heap[new]=mapped
-            result.initialized=dict(value.initialized)
-            result.writes={(kind,self.address(owner) if kind in {'heap','heap_default','heap_meta','cell'} else owner,self.key(key)) for kind,owner,key in value.writes}
+            result.cells=self.value_map(value.cells,self.address)
+            result.heap=self.mapped_dict(value.heap,'heap')
+            result.initialized=self.visit(value.initialized)
+            result.writes=self.memo.setdefault(id(value.writes),set())
+            result.writes.clear()
+            result.writes.update((kind,self.address(owner) if kind in {'heap','heap_default','heap_meta','cell'} else owner,self.key(key)) for kind,owner,key in value.writes)
             result.events=self.visit(value.events);result.obligations=value.obligations
             result.havoc_namespaces=value.havoc_namespaces;result.havoc_imports=value.havoc_imports
             result.guards={} if self.mapping else self.visit(getattr(value,'guards',{}))
@@ -105,10 +131,17 @@ class PayloadTransformer:
             return result
         if isinstance(value,HeapObject):
             result=object.__new__(HeapObject);self.memo[id(value)]=result
-            result.kind=value.kind;result.fields={self.key(k):self.visit(v) for k,v in value.fields.items()}
-            result.default=self.visit(value.default);result.maybe_missing={self.key(k) for k in value.maybe_missing}
+            collisions=set()
+            result.kind=value.kind;result.fields=self.value_map(value.fields,self.key,collisions)
+            result.default=self.visit(value.default);result.maybe_missing=self.visit(value.maybe_missing)
             result.singleton=value.singleton;result.class_ids=frozenset(self.address(k) for k in value.class_ids)
             result.metadata=self.metadata(value.metadata);result.havoc=value.havoc
+            if collisions:
+                # One abstract key can now stand for multiple concrete entries.
+                # Keep useful field values and owner cardinality, but do not
+                # turn the quotient field count into an exact iteration size.
+                result.metadata['summarized_keys']=frozenset((*result.metadata.get('summarized_keys',()),*collisions))
+                result.metadata.pop('length',None);result.metadata.pop('length_value',None)
             return result
         if isinstance(value,Frame):
             result=object.__new__(Frame);self.memo[id(value)]=result
@@ -128,9 +161,7 @@ class PayloadTransformer:
                 setattr(result,f.name,item)
             return result
         if isinstance(value,dict):
-            result={};self.memo[id(value)]=result
-            for key,item in value.items():result[self.key(key)]=self.visit(item)
-            return result
+            return self.mapped_dict(value)
         if isinstance(value,list):
             result=[];self.memo[id(value)]=result;result.extend(self.visit(item) for item in value);return result
         if isinstance(value,tuple):

@@ -437,6 +437,8 @@ class ContinuationEngine:
                         if not got.is_bottom():values.append(got)
                         missing|=absent
                     elif source and source.kind=="dict":
+                        if source.metadata.get('summarized_keys'):
+                            result.extend(self.t.unknown(current,node,'summarized_dictionary_key_iteration',havoc=False));missing=True;continue
                         keys=list(source.fields)
                         if index<len(keys):values.append(Value.constant(keys[index]))
                         else:missing=True

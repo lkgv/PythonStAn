@@ -32,7 +32,13 @@ class HeapObject:
         # store order. If distinct metadata cannot be represented jointly, the
         # object becomes a declared conservative havoc object; consumers must
         # not reuse the retained representative as an exact execution state.
-        metadata_changed=not semantic_payload_equal(self.metadata,other.metadata)
+        summarized_keys=frozenset((*self.metadata.get('summarized_keys',()),*other.metadata.get('summarized_keys',())))
+        abstract_keys={'summarized_keys','length','length_value'} if summarized_keys else {'summarized_keys'}
+        metadata_changed=not semantic_payload_equal({k:v for k,v in self.metadata.items() if k not in abstract_keys},
+            {k:v for k,v in other.metadata.items() if k not in abstract_keys})
+        if summarized_keys:
+            result.metadata['summarized_keys']=summarized_keys
+            result.metadata.pop('length',None);result.metadata.pop('length_value',None)
         incompatible=self.kind!=other.kind or self.kind=="class" and self.class_ids!=other.class_ids
         result.havoc=self.havoc or other.havoc or metadata_changed or incompatible
         if incompatible:result.kind="summary";result.singleton=False
@@ -91,6 +97,9 @@ class Store:
 
     def read_slot(self, objid, key, ops):
         self.ensure_current(ops);objid=ops.arena.resolve(objid)
+        if ops.arena.aliases:
+            from .state_transform import PayloadTransformer
+            key=PayloadTransformer(ops.arena.aliases,ops).key(key)
         obj=self.heap.get(objid)
         if obj is None: return Value.unknown(),True
         value=obj.fields.get(key,obj.default)
@@ -99,7 +108,10 @@ class Store:
 
     def write_slot(self, objid, key, value, ops, *, weak=False):
         self.ensure_current(ops);objid=ops.arena.resolve(objid);value=ops.normalize(value)
-        obj=self.heap[objid];weak=weak or not obj.singleton
+        if ops.arena.aliases:
+            from .state_transform import PayloadTransformer
+            key=PayloadTransformer(ops.arena.aliases,ops).key(key)
+        obj=self.heap[objid];weak=weak or not obj.singleton or key in obj.metadata.get('summarized_keys',())
         was_missing=key not in obj.fields or key in obj.maybe_missing
         if weak:value=ops.join(obj.fields.get(key,obj.default),value)
         obj.fields[key]=value
@@ -146,7 +158,13 @@ class Store:
             if not obj.class_ids<=rhs.class_ids and not shape_cover:return False
             if obj.havoc and not rhs.havoc: return False
             if not obj.singleton and rhs.singleton:return False
-            if not rhs.havoc and not semantic_payload_equal(obj.metadata,rhs.metadata):return False
+            if not rhs.havoc:
+                left_keys=frozenset(obj.metadata.get('summarized_keys',()))
+                right_keys=frozenset(rhs.metadata.get('summarized_keys',()))
+                if not left_keys<=right_keys:return False
+                ignored={'summarized_keys','length','length_value'} if right_keys else {'summarized_keys'}
+                if not semantic_payload_equal({k:v for k,v in obj.metadata.items() if k not in ignored},
+                        {k:v for k,v in rhs.metadata.items() if k not in ignored}):return False
             if not ops.leq(obj.default,rhs.default): return False
             for field in obj.fields.keys()|rhs.fields.keys()|obj.maybe_missing|rhs.maybe_missing:
                 if not ops.leq(obj.fields.get(field,obj.default),rhs.fields.get(field,rhs.default)): return False
