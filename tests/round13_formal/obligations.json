@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "unit_scope": "four finite Python protocol source units, not whole-project gold",
+  "authoring_order": "Source and desired obligations frozen before this independent reviewer executes any analyzer prediction for these cases.",
+  "gold_basis": "Python native protocol semantics; controlled CPython observations are separate witnesses, never analyzer-derived targets.",
+  "whole_project_goals_discharged": 0,
+  "whole_program_soundness_proved": false,
+  "cases": [
+    {
+      "id": "sync_bare_yield",
+      "source": "sources/sync_bare_yield.py",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [
+        {
+          "scope": "subject",
+          "name": "item",
+          "value": null
+        }
+      ],
+      "required_edges": [],
+      "forbidden_edges": [],
+      "assumptions": [
+        "one native generator advance",
+        "bare yield produces None"
+      ],
+      "runtime_cleanup": "none",
+      "source_sha256": "60749d7fe2febbc421227de962466aaded91f25d4031ab0e7d6bdc97882a5d04"
+    },
+    {
+      "id": "async_bare_yield",
+      "source": "sources/async_bare_yield.py",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [
+        {
+          "scope": "subject.consume",
+          "name": "item",
+          "value": null
+        }
+      ],
+      "required_edges": [],
+      "forbidden_edges": [],
+      "assumptions": [
+        "explicit native coroutine first send(None)",
+        "await native anext of fresh async generator",
+        "bare yield produces None"
+      ],
+      "runtime_cleanup": "native coroutine completes in the fixture",
+      "source_sha256": "62429b418082bd275d0ebd3a9177d5c1da3ae94011d8f775e09282dcc478de46"
+    },
+    {
+      "id": "async_step_intermediate",
+      "source": "sources/async_step_intermediate.py",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [],
+      "required_edges": [
+        [
+          "subject",
+          "subject.suspension_callback"
+        ]
+      ],
+      "forbidden_edges": [
+        [
+          "subject",
+          "subject.item_callback"
+        ]
+      ],
+      "negative_interpretation": "bounded normal-return channel precision, not global unreachability",
+      "assumptions": [
+        "direct asend/__anext__ awaitable send(None) yields the inner await suspension token normally",
+        "async-generator item instead completes the step via StopIteration.value"
+      ],
+      "runtime_cleanup": "outside the frozen source, finish step with one send(None), check item callback identity without invoking it, then drive generator.aclose()",
+      "source_sha256": "5dbe58ee87e01171cba6138d58e5a1a7161581498bb23fd5e170f673425fbe95"
+    },
+    {
+      "id": "custom_await_completion",
+      "source": "sources/custom_await_completion.py",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [],
+      "required_edges": [
+        [
+          "subject.consume",
+          "subject.completed_callback"
+        ]
+      ],
+      "forbidden_edges": [
+        [
+          "subject.consume",
+          "subject.yielded_callback"
+        ]
+      ],
+      "negative_interpretation": "yielded iterator token must not be an await expression completion result",
+      "assumptions": [
+        "native generator returned by source __await__",
+        "two explicit outer coroutine sends",
+        "return value is StopIteration.value"
+      ],
+      "runtime_cleanup": "native coroutine completes in the fixture",
+      "source_sha256": "160e2e58ecc8a60c0d9150a44c5fe2e96e58cb4340dc05586d520ebcd29c9ca3"
+    }
+  ]
+}

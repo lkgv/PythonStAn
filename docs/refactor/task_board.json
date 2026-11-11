@@ -1,0 +1,3710 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "task_count": 46,
+  "instruction": "本任务板与主prompt为规范文件；planning_reviews为非规范的专业推导，冲突以主prompt与本任务板为准。wave仅是组织标签，不是barrier；contributes_to_gates是贡献关系，不是启动或verified前置。实际实施须填写当前基线、命令、状态与证据。",
+  "audited_baseline": {
+    "archive_version": 17,
+    "revision": "603c5c0a0b9f0ed347c216689654978b11a905c2",
+    "core_sha256": "1bc0b3a8205121e38f9b00f11e64cef396fed2195c4bd1bf04b65e7fe61fe8a0"
+  },
+  "topological_order": [
+    "BOOT-01",
+    "SPEC-01",
+    "ARCH-01",
+    "CFG-01",
+    "RESULT-01",
+    "INPUT-01",
+    "SESSION-01",
+    "API-01",
+    "CLI-01",
+    "DOM-01",
+    "DOM-02",
+    "DOM-03",
+    "DOM-04",
+    "DOM-05",
+    "SEM-01",
+    "SEM-02",
+    "SEM-03",
+    "SEM-04",
+    "SEM-05",
+    "PTA-01",
+    "PTA-02",
+    "PTA-03",
+    "PTA-04",
+    "AI-01",
+    "AI-02",
+    "AI-03",
+    "AI-04",
+    "AI-05",
+    "SEM-06",
+    "CTRL-01",
+    "CTRL-02",
+    "HYB-01",
+    "CTRL-03",
+    "CTRL-04",
+    "CTRL-05",
+    "VERIFY-01",
+    "QUERY-01",
+    "LLM-01",
+    "LLM-02",
+    "LLM-03",
+    "OBS-01",
+    "TEST-01",
+    "EVAL-01",
+    "EVAL-02",
+    "MIG-01",
+    "RELEASE-01"
+  ],
+  "tasks": [
+    {
+      "id": "BOOT-01",
+      "title": "冻结当前基线、重放缺陷并建立可恢复账本",
+      "wave": "W0",
+      "owner_role": "协调/基线",
+      "reviewer_role": "独立复现",
+      "dependencies": [],
+      "read_symbols": [
+        "PROJECT_MANIFEST.json",
+        "pyproject.toml",
+        "prior_audit综合报告与证据ZIP",
+        "仓库AGENTS.md及未提交diff"
+      ],
+      "write_scope": [
+        "docs/refactor/baseline.json",
+        "docs/refactor/defect_ledger.json",
+        "docs/refactor/task_board.json"
+      ],
+      "target_interfaces": [
+        "BaselineIdentity",
+        "DefectRecord(A01..A18)"
+      ],
+      "implementation_steps": [
+        "核对实际仓库与v17差异，保存工作树和环境身份",
+        "按证据等级复跑最小反例，验证断言读取正确engine",
+        "建立文件owner、任务状态和checkpoint，记录哪些历史实验未重跑"
+      ],
+      "acceptance": [
+        "18项均有current状态与证据或明确不能复现原因",
+        "保留用户改动，无原件覆盖",
+        "中断后可仅靠checkpoint恢复"
+      ],
+      "forbidden_shortcuts": [
+        "不能把旧绿色日志当新结果",
+        "不能为重现旧bug回退用户较新修复"
+      ],
+      "audit_items": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A18"
+      ],
+      "contributes_to_gates": [
+        "G0"
+      ],
+      "status": "verified",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/BOOT-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+        "commands": [],
+        "evidence": [
+          "docs/refactor/baseline.json",
+          "docs/refactor/evidence/20261110/BOOT-01/boot_status.json",
+          "docs/refactor/evidence/20261110/BOOT-01/independent_review.json"
+        ],
+        "reviewer": "/root/architecture",
+        "review_result": "Independent review completion conditions satisfied: all18 current classifications, native budget labels preserved.",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/architecture",
+      "commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "evidence": [
+        "docs/refactor/baseline.json",
+        "docs/refactor/evidence/20261110/BOOT-01/boot_status.json",
+        "docs/refactor/evidence/20261110/BOOT-01/independent_review.json"
+      ],
+      "review_notes": "Independent review completion conditions satisfied: all18 current classifications, native budget labels preserved."
+    },
+    {
+      "id": "SPEC-01",
+      "title": "冻结语义profile、客户查询与可信合同",
+      "wave": "W0",
+      "owner_role": "语义/理论架构",
+      "reviewer_role": "独立算法专家",
+      "dependencies": [
+        "BOOT-01"
+      ],
+      "read_symbols": [
+        "audit_round2/main_report.txt",
+        "现有AISummary/AIState/ResidualEffectConstraint",
+        "closed-call-effects-v2规格"
+      ],
+      "write_scope": [
+        "docs/specs/semantic-profile.md",
+        "docs/specs/state-summary-contracts.md",
+        "docs/refactor/query-gold.json"
+      ],
+      "target_interfaces": [
+        "SemanticProfile",
+        "Outcome[V,S]",
+        "ProcedureSummary[V,H]",
+        "GuaranteeLedger"
+      ],
+      "implementation_steps": [
+        "定义supported/open边界、入口输入与concretization",
+        "冻结mandatory_supported_fixtures与required_open_behavior_fixtures，禁止后续重分类逃避必修项",
+        "固定正常/异常/挂起/前缀效果、fresh/frame和组合义务",
+        "预先定义路由关联、cache身份、cleanup及L2非平凡收益实例族，不强求同域最小解额外精度"
+      ],
+      "acceptance": [
+        "每个Verified含具体性质/profile/输入和义务",
+        "bottom、None、Unknown、无正常出口定义无混用",
+        "新gold不由待测solver生成"
+      ],
+      "forbidden_shortcuts": [
+        "不得宣称全Python已sound",
+        "不得在实现失败后删难例或放宽gold"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G0",
+        "G2"
+      ],
+      "status": "verified",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "95a39dbf361bacf93d2cb1379b62eeb272fd0da84c1fb31aadde5a9f2d63cff9",
+        "owner": "/root/spec_contracts",
+        "compatibility_evidence": [
+          "tests/refactor/contracts/test_contracts.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SPEC-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "6579e0c",
+        "commands": [],
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json"
+        ],
+        "reviewer": "/root/architecture",
+        "review_result": null,
+        "open_obligations": []
+      },
+      "owner": "/root/spec_contracts",
+      "commit": "6579e0c",
+      "reviewer": "/root/architecture",
+      "evidence": [
+        "docs/refactor/evidence/20261110/SPEC-01/independent_review.json"
+      ]
+    },
+    {
+      "id": "ARCH-01",
+      "title": "冻结模块地图、依赖与渐进迁移路线",
+      "wave": "W0",
+      "owner_role": "总架构",
+      "reviewer_role": "Native+AI双审",
+      "dependencies": [
+        "BOOT-01"
+      ],
+      "read_symbols": [
+        "pythonstan/analysis及world完整import graph",
+        "Analysis.__init_subclass__/AnalysisManager",
+        "scope/closure.py与scripts/do_closure.py"
+      ],
+      "write_scope": [
+        "docs/refactor/module_map.json",
+        "docs/refactor/dependency_rules.json",
+        "scripts/refactor/check_architecture.py"
+      ],
+      "target_interfaces": [
+        "Engine protocol",
+        "SourceId/RegionId/ObjectId",
+        "单向compat边界"
+      ],
+      "implementation_steps": [
+        "按active/adapter/legacy/retire登记全部模块、消费者与负责人",
+        "确定contracts/域/语义/engine/composition/results允许依赖",
+        "按垂直路径规划搬迁，将机械移动与行为修改分提交"
+      ],
+      "acceptance": [
+        "每个活动旧模块有去向和验收",
+        "检查能发现engine互相import、core依赖Inspector、双closure来源",
+        "新目录有实际职责，兼容清单包含用户入口和脚本"
+      ],
+      "forbidden_shortcuts": [
+        "禁止先全仓搬家再修bug",
+        "不得靠延迟import掩盖循环",
+        "不得以文件更少作为成功证据"
+      ],
+      "audit_items": [
+        "A18"
+      ],
+      "contributes_to_gates": [
+        "G0",
+        "G7"
+      ],
+      "status": "verified",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/ARCH-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "e62e103",
+        "commands": [],
+        "evidence": [
+          "docs/refactor/evidence/20261110/ARCH-01/implementation_record.json",
+          "tests/refactor/contracts/test_architecture.py"
+        ],
+        "reviewer": "root",
+        "review_result": null,
+        "open_obligations": []
+      },
+      "owner": "/root/architecture",
+      "commit": "e62e103",
+      "reviewer": "root",
+      "evidence": [
+        "docs/refactor/evidence/20261110/ARCH-01/implementation_record.json",
+        "tests/refactor/contracts/test_architecture.py"
+      ]
+    },
+    {
+      "id": "CFG-01",
+      "title": "统一严格配置解析与版本化默认",
+      "wave": "W1",
+      "owner_role": "配置owner",
+      "reviewer_role": "API/域专家",
+      "dependencies": [
+        "SPEC-01",
+        "ARCH-01"
+      ],
+      "read_symbols": [
+        "world/config.py::Config",
+        "project/analysis.py::ProjectConfig",
+        "kcfa/config.py::Config",
+        "ai/config.py::Config"
+      ],
+      "write_scope": [
+        "pythonstan/config/{schema,resolve,defaults,catalog}.py",
+        "配置迁移映射与测试"
+      ],
+      "target_interfaces": [
+        "resolve_config(target, config, overrides)->EffectiveConfig",
+        "OptionDescriptor"
+      ],
+      "implementation_steps": [
+        "建立唯一schema与YAML/JSON加载，正规化aliases和路径",
+        "落实默认/preset/文件/override优先级与每叶来源",
+        "在构建solver前拒绝未知键、冲突与unsupported组合，提供旧配置迁移诊断"
+      ],
+      "acceptance": [
+        "无配置可分析；同一显式配置跨API/CLI/benchmark等效",
+        "Source不读任意cwd配置；两个默认配置冲突明确报错",
+        "三套旧默认差异逐项记载且不隐式随输入类型改变"
+      ],
+      "forbidden_shortcuts": [
+        "字段被接受不算生效",
+        "不得静默忽略未知字段或用dict.get隐藏拼写错误"
+      ],
+      "audit_items": [
+        "A14",
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1",
+        "G4"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CFG-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "strict resolution, config identity, per-engine operational controls implemented; new control review pending",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "RESULT-01",
+      "title": "建立稳定结果及三轴保证账本",
+      "wave": "W1",
+      "owner_role": "结果合同owner",
+      "reviewer_role": "soundness/客户端",
+      "dependencies": [
+        "SPEC-01",
+        "ARCH-01"
+      ],
+      "read_symbols": [
+        "ai/api.py::AISummary",
+        "kcfa/solver.py::SolverQuery",
+        "project/analysis.py结果生成",
+        "Inspector现有schema"
+      ],
+      "write_scope": [
+        "pythonstan/results/{schema,status,snapshot}.py",
+        "analysis/contracts/outcomes.py"
+      ],
+      "target_interfaces": [
+        "AnalysisResult",
+        "QueryAnswer",
+        "SolverStatus/CoverageStatus/ProofStatus"
+      ],
+      "implementation_steps": [
+        "区分收敛、覆盖、性质证明以及not_requested/截断",
+        "冻结source/entry/config/model/policy身份与只读快照",
+        "定义旧is_complete投影和may反例的非Verified含义"
+      ],
+      "acceptance": [
+        "空ret不推导None；无entry不完整",
+        "只导出calls仍保留相关heap/exn残余",
+        "第二次运行后旧结果可独立读取序列化"
+      ],
+      "forbidden_shortcuts": [
+        "不得把converged转为verified",
+        "不得将potential counterexample直接标refuted"
+      ],
+      "audit_items": [
+        "A01",
+        "A10",
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1",
+        "G2"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/RESULT-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "three-axis immutable result implemented; final projection refinements in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "INPUT-01",
+      "title": "统一字符串、文件、项目和入口场景",
+      "wave": "W1",
+      "owner_role": "输入/前端",
+      "reviewer_role": "Python import专家",
+      "dependencies": [
+        "CFG-01",
+        "SPEC-01",
+        "ARCH-01"
+      ],
+      "read_symbols": [
+        "project/analysis.py::_inventory/_activate_exported_entries",
+        "world/namespace.py",
+        "world/pipeline.py::build_scope_graph",
+        "entry_contracts.py"
+      ],
+      "write_scope": [
+        "pythonstan/inputs/{targets,snapshot,inventory,entries}.py",
+        "frontend/source_map.py"
+      ],
+      "target_interfaces": [
+        "Source/File/Project",
+        "SourceSnapshot",
+        "EntryScenario",
+        "SourceProvider"
+      ],
+      "implementation_steps": [
+        "实现显式Target和内存源，不按字符串猜路径",
+        "复用inventory的模块身份/包/排除并冻结源码版本",
+        "默认module-initializers按独立根场景或受证合并，显式entry解析与参数覆盖分别记录"
+      ],
+      "acceptance": [
+        "同程序三种载体可比；编码/语法/重复模块/无入口有明确结果",
+        "循环import a/b两个根覆盖b.seen=a-start与a-done",
+        "解析与入口发现不exec/import目标，临时文件删除不损坏结果"
+      ],
+      "forbidden_shortcuts": [
+        "不得把源码文件拼成单模块",
+        "不得以解析所有文件宣称应用入口全覆盖"
+      ],
+      "audit_items": [
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1",
+        "G3"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/INPUT-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "three input forms, static inventory, encoding, independent cyclic import roots implemented",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SESSION-01",
+      "title": "消除运行级可变全局状态",
+      "wave": "W1",
+      "owner_role": "会话/Native状态",
+      "reviewer_role": "独立隔离审阅",
+      "dependencies": [
+        "CFG-01",
+        "RESULT-01",
+        "INPUT-01",
+        "ARCH-01"
+      ],
+      "read_symbols": [
+        "world/world.py::World",
+        "Pipeline.__init__",
+        "kcfa/points_to_set.py::_ObjectIdTable/reset_object_table",
+        "PointerAnalysisState/IRTranslator"
+      ],
+      "write_scope": [
+        "pythonstan/session.py",
+        "各服务显式session参数",
+        "compat/legacy_runner.py"
+      ],
+      "target_interfaces": [
+        "AnalysisSession",
+        "SessionServices",
+        "SessionObjectArena"
+      ],
+      "implementation_steps": [
+        "归属World服务、对象编号、bitmask解释表、域、缓存和统计",
+        "保留points-to lane转换，禁止跨arena混算",
+        "旧模式临时进程隔离；新路径移除可变singleton依赖"
+      ],
+      "acceptance": [
+        "A→B→查询A不变；同module/name不同值不串",
+        "两个新session交错/并行独立；失败取消后下一次正常",
+        "快照不持有可被reset重解释的SolverQuery"
+      ],
+      "forbidden_shortcuts": [
+        "全局锁/reset不是最终隔离",
+        "不得复制整个仓库来伪装session"
+      ],
+      "audit_items": [
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SESSION-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "isolated Native child and independent AI state; source preparation and global budget counted",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "API-01",
+      "title": "实现一条可实际运行的公共Python入口",
+      "wave": "W1",
+      "owner_role": "公共API",
+      "reviewer_role": "输入/用户体验审阅",
+      "dependencies": [
+        "SESSION-01",
+        "RESULT-01",
+        "INPUT-01",
+        "CFG-01"
+      ],
+      "read_symbols": [
+        "world/pipeline.py::Pipeline.run",
+        "project/analysis.py::analyze_project",
+        "pythonstan/__init__.py"
+      ],
+      "write_scope": [
+        "pythonstan/api.py",
+        "pythonstan/__init__.py",
+        "compat入口适配",
+        "三种输入示例"
+      ],
+      "target_interfaces": [
+        "analyze(Target,config=None,overrides=None,queries=None,output=None)->AnalysisResult"
+      ],
+      "implementation_steps": [
+        "唯一runner统一归一化/plan/session/execute/freeze步骤",
+        "queries=None继承配置、()清空额外查询，显式output替换；str config明确为路径",
+        "初期legacy模式明确actual_engine，后续切换engine不改公共接口",
+        "默认不print或写文件，便捷函数只构造Target"
+      ],
+      "acceptance": [
+        "Source/File/Project均可无配置运行",
+        "实际跑核心分析并返回非空有用结果",
+        "错误类型/异常/资源关闭语义一致；同输入配置只走一条管线"
+      ],
+      "forbidden_shortcuts": [
+        "不得只写wrapper桩",
+        "不得私有query._state泄漏为公共API"
+      ],
+      "audit_items": [
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/API-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/installed_wheel_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "actual public facade and wheel installed, post-change package rerun pending",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CLI-01",
+      "title": "安装入口、配置检查与稳定输出通道",
+      "wave": "W1",
+      "owner_role": "CLI/打包",
+      "reviewer_role": "API审阅",
+      "dependencies": [
+        "API-01",
+        "RESULT-01",
+        "CFG-01"
+      ],
+      "read_symbols": [
+        "pyproject.toml scripts",
+        "scripts/do_pipeline.py",
+        "pythonstan_inspector/cli.py"
+      ],
+      "write_scope": [
+        "pythonstan/cli.py",
+        "pythonstan/__main__.py",
+        "pyproject.toml",
+        "CLI功能测试"
+      ],
+      "target_interfaces": [
+        "main(argv=None)->int",
+        "analyze/config show-effective/config list-options/plan"
+      ],
+      "implementation_steps": [
+        "互斥--code/--stdin/--file/--project，复用API",
+        "stdout数据stderr日志；错误与质量门退出码固定",
+        "安装wheel后测试console script和python -m入口，保留Inspector命令"
+      ],
+      "acceptance": [
+        "三个目标输入和stdin均工作且JSON可解析",
+        "API/CLI状态、effective config、query投影等价",
+        "未知配置exit2；内部失败exit3；显式未达质量门exit4"
+      ],
+      "forbidden_shortcuts": [
+        "不得在CLI复制第二套分析流程",
+        "不得用源码目录恰好在sys.path掩盖坏安装"
+      ],
+      "audit_items": [
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G1",
+        "G7"
+      ],
+      "status": "implementation_done",
+      "interface_ready_milestone": {
+        "ready": true,
+        "interface_digest": "f7be5f9159f7419a6a6b97ccf17a3c444768becc9b6860e8b143b3211b3a9e09",
+        "owner": "root",
+        "compatibility_evidence": [
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CLI-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/installed_wheel_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "reviewer": "/root/boot_replay",
+      "evidence": [
+        "tests/refactor/api/test_public_contract.py"
+      ],
+      "implementation_progress": "installed console, stdin/file/project, exit statuses and configuration commands implemented",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "DOM-01",
+      "title": "run-local DomainBundle及精度预算贯通",
+      "wave": "W2",
+      "owner_role": "域集成owner",
+      "reviewer_role": "隔离/配置专家",
+      "dependencies": [
+        "SPEC-01",
+        "CFG-01",
+        "SESSION-01"
+      ],
+      "read_symbols": [
+        "ai/domains/base.py::DomainRegistry",
+        "value_domain.py::get_default_registry/configure_registry",
+        "AnalysisBudget/Config.to_budget"
+      ],
+      "write_scope": [
+        "analysis/domains/bundle.py",
+        "各域/slot/state/summary构造与运算调用点"
+      ],
+      "target_interfaces": [
+        "DomainBundle immutable",
+        "DomainPolicy",
+        "ReductionContext"
+      ],
+      "implementation_steps": [
+        "从规范配置一次构造bundle并绑定版本",
+        "让值、嵌套heap槽、summary和reduction消费同一bundle",
+        "拆域容量与操作枚举cap，禁止全局mutable配置"
+      ],
+      "acceptance": [
+        "cap10/20/50在所有声明消费者一致",
+        "交错两个配置run无串扰",
+        "不支持的域产品启动拒绝；reduction限额不会丢行为"
+      ],
+      "forbidden_shortcuts": [
+        "不能只在AIState最外层传cap",
+        "不存在生产串扰证据时不可歪曲旧根因"
+      ],
+      "audit_items": [
+        "A07",
+        "A12",
+        "A14"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/DOM-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/domains/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "run-local old-domain bundle; new active capacities traced; unsupported public product changes rejected",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "DOM-02",
+      "title": "修复字符串格与覆盖性压缩",
+      "wave": "W2",
+      "owner_role": "字符串域",
+      "reviewer_role": "独立格oracle",
+      "dependencies": [
+        "DOM-01"
+      ],
+      "read_symbols": [
+        "ai/domains/strings.py::StrLattice/StringDomain",
+        "AbsVal.widen",
+        "AIState.widen"
+      ],
+      "write_scope": [
+        "analysis/domains/strings.py",
+        "strings有限oracle/状态集成测试"
+      ],
+      "target_interfaces": [
+        "gamma/order/join/assume/widen/narrow contracts"
+      ],
+      "implementation_steps": [
+        "每个压缩前候选必须被保留模式或top覆盖",
+        "修复嵌套prefix/suffix和不可表示交的API合同",
+        "将bundle容量贯穿并检验widen/narrow消费者"
+      ],
+      "acceptance": [
+        "a..j与k的widen覆盖两侧",
+        "a*与ab*、a*与*b、混合孤立常量全部覆盖正确",
+        "常量/可表示前缀金样例保持精度，不以全top通过"
+      ],
+      "forbidden_shortcuts": [
+        "不得用生产leq作为独立gamma真值",
+        "不把字符串分量bottom误称whole AbsVal bottom"
+      ],
+      "audit_items": [
+        "A07"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/DOM-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/domains/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "coverage-preserving string widening and conjunctive prefix/suffix meet/narrow implemented",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "DOM-03",
+      "title": "统一整数表示、包含与精确枚举",
+      "wave": "W2",
+      "owner_role": "整数域",
+      "reviewer_role": "独立数值域审阅",
+      "dependencies": [
+        "DOM-01"
+      ],
+      "read_symbols": [
+        "ai/domains/ints.py::IntLattice/IntDomain",
+        "conditions/subscripts/mapslots/interpreter整数消费者"
+      ],
+      "write_scope": [
+        "analysis/domains/ints.py",
+        "整数消费者与有限oracle测试"
+      ],
+      "target_interfaces": [
+        "Bottom/Finite/Interval/Top表示或等价无歧义标签",
+        "ExactEnumeration"
+      ],
+      "implementation_steps": [
+        "冻结唯一gamma，精确有限集与区间不混用",
+        "widen变无界时消除exact枚举标志",
+        "修leq/refine/reduction/facts和bool-int键桥接"
+      ],
+      "acceptance": [
+        "{0,3}和[0,3]语义明确且消费者一致",
+        "widen(0,1)后neq0不漏2；负数镜像通过",
+        "正常set_var reduction与raw域分别验证"
+      ],
+      "forbidden_shortcuts": [
+        "不能仅改docstring掩盖枚举漏值",
+        "不宣称已证明旧普通solver假固定点"
+      ],
+      "audit_items": [
+        "A12"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/DOM-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/domains/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "exact-vs-interval integer concretization and type-directed reduction implemented",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "DOM-04",
+      "title": "统一SlotMap有效槽、存在性和字典结果流",
+      "wave": "W2",
+      "owner_role": "容器域",
+      "reviewer_role": "Python dict专家",
+      "dependencies": [
+        "DOM-01",
+        "DOM-03"
+      ],
+      "read_symbols": [
+        "mapslots.py::SlotMap/KeyDecomposer/SlotMapSemantics/DictSemantics",
+        "SubscriptSemantics.load_subscr"
+      ],
+      "write_scope": [
+        "analysis/domains/slots.py",
+        "analysis/semantics/containers.py",
+        "纯域与Native映射adapter分拆"
+      ],
+      "target_interfaces": [
+        "effective_slot/matching_slots",
+        "ItemOutcome(value,exception,presence)"
+      ],
+      "implementation_steps": [
+        "定义tracked/default和presence的统一含义",
+        "未知读写聚合所有匹配槽，拆分partition继承有效旧值",
+        "join覆盖两侧，bool等值键和KeyError传播贯通上层"
+      ],
+      "acceptance": [
+        "cap1 known:A/spilled:B未知读含A/B；未知写C后known含C",
+        "default分拆保留A/B；ABSENT/MAYBE join覆盖双方",
+        "精确和宽key两套测试；{1:A}[True]；缺失分支KeyError可见"
+      ],
+      "forbidden_shortcuts": [
+        "不得仅增max_dict_parts",
+        "不得统一addr_top而没有精确金样例"
+      ],
+      "audit_items": [
+        "A08"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/DOM-04/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/domains/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "tracked/default/presence key semantics and KeyError result flows implemented",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "DOM-05",
+      "title": "全状态堆汇总与未来依赖迁移",
+      "wave": "W2",
+      "owner_role": "堆/别名",
+      "reviewer_role": "域与依赖双审",
+      "dependencies": [
+        "DOM-01",
+        "DOM-04",
+        "SPEC-01"
+      ],
+      "read_symbols": [
+        "AbsVal._summarize_addrs_by_alloc_site",
+        "AIState.widen/leq/read_field_value/add_overlay_write",
+        "PtaQueryAdapter summary读取"
+      ],
+      "write_scope": [
+        "analysis/domains/heap.py",
+        "analysis/composition/state_adapter.py",
+        "AI state reabstraction接线"
+      ],
+      "target_interfaces": [
+        "ReabstractState(state,map)->state",
+        "AddressRemap",
+        "CardinalityProof"
+      ],
+      "implementation_steps": [
+        "建立old→summary映射，覆盖env/heap/overlay/havoc/内嵌引用/cell/receiver",
+        "迁移正负依赖和未来写通知",
+        "leq按有效状态语义比较，strong update要求单例证明"
+      ],
+      "acceptance": [
+        "AI-local-only A/B写汇总后仍可读且无上游遮盖",
+        "自环/互环/tuple-key/cell地址不丢",
+        "后续summary写唤醒已订阅读；单地址多实例禁止错误强写"
+      ],
+      "forbidden_shortcuts": [
+        "只改env或地址格不算完成",
+        "不得删除已有正确PTA summary读取"
+      ],
+      "audit_items": [
+        "A09"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/DOM-05/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/composition-review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": [
+          "New host whole-session remap and future subscriber epoch migration being implemented; prior component acceptance excludes it."
+        ]
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "old full-state coarsening repaired; new whole-session remap/dependency epoch implementation in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-01",
+      "title": "完整值的读取、返回与正常出口",
+      "wave": "W2",
+      "owner_role": "值/基本语义",
+      "reviewer_role": "AI与域双审",
+      "dependencies": [
+        "DOM-01",
+        "DOM-02",
+        "DOM-03",
+        "RESULT-01"
+      ],
+      "read_symbols": [
+        "ai/analysis.py::_build_arg_bindings",
+        "IRInterpreter._transfer_return/_transfer_call",
+        "SummaryAccumulator",
+        "invoke_callee"
+      ],
+      "write_scope": [
+        "analysis/semantics/values.py",
+        "AI summary/return/read adapter",
+        "Native scalar桥接"
+      ],
+      "target_interfaces": [
+        "AbstractValue return",
+        "ReadValue",
+        "Normal/Exceptional/Suspended Outcome"
+      ],
+      "implementation_steps": [
+        "统一literal/TAC-temp/local/global/closure的读取路径",
+        "完整值穿过参数/返回/摘要，落尾才产生None",
+        "删除complete+empty addresses→None捷径，桥接需显示标量投影"
+      ],
+      "acceptance": [
+        "outer(after)、inner(literal)、local对照均保留after",
+        "None显式/隐式与只raise/只suspend明确不同",
+        "查询直接读取AI出口而非Native.constants"
+      ],
+      "forbidden_shortcuts": [
+        "不能把Native结果并回每个AI return掩盖bug",
+        "不能只改is_complete"
+      ],
+      "audit_items": [
+        "A01",
+        "A02"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "full scalar/reference values and explicit no-normal-return outcomes in old and new paths",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-02",
+      "title": "统一Python实参求值与参数绑定",
+      "wave": "W2",
+      "owner_role": "调用语义",
+      "reviewer_role": "Native/AI双审",
+      "dependencies": [
+        "SEM-01",
+        "DOM-04",
+        "SPEC-01"
+      ],
+      "read_symbols": [
+        "NormalCallProcessor._match_parameters/_materialize_default",
+        "IRInterpreter._build_arg_vals_for_scope",
+        "KwShape/expand_kwargs"
+      ],
+      "write_scope": [
+        "analysis/semantics/binding.py",
+        "Native/AI binding adapters",
+        "参数语义测试"
+      ],
+      "target_interfaces": [
+        "BindArguments(signature,evaluated_args,state)->BindingOutcomes"
+      ],
+      "implementation_steps": [
+        "保留求值顺序与default定义时身份",
+        "支持pos-only/kw-only/*tuple/**mapping/receiver/collector和异常分支",
+        "Native保留persistent key load，AI使用完整抽象形状"
+      ],
+      "acceptance": [
+        "default、局部kwargs与显式keyword结果一致",
+        "重复/缺失参数TypeError；collector结构正确",
+        "默认可变对象跨调用共享；late kwargs keys唤醒绑定"
+      ],
+      "forbidden_shortcuts": [
+        "不能跳过kw_name=None",
+        "不能用值并集冒充*args tuple"
+      ],
+      "audit_items": [
+        "A03"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "shared binder, defaults/kwargs/collectors; per-state defaults repaired",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-03",
+      "title": "名称解析、cell和闭包身份",
+      "wave": "W2",
+      "owner_role": "词法语义",
+      "reviewer_role": "跨过程/别名专家",
+      "dependencies": [
+        "SEM-01",
+        "DOM-05",
+        "SESSION-01"
+      ],
+      "read_symbols": [
+        "IRTransformer.visit_Global/visit_Nonlocal",
+        "ClosureAnalysis",
+        "ScopeSemantics.write_name/with_cell_store",
+        "IRCopy/assign"
+      ],
+      "write_scope": [
+        "frontend/bindings.py",
+        "analysis/semantics/names.py",
+        "AI closure环境与所有写入点"
+      ],
+      "target_interfaces": [
+        "CellId/ClosureEnvironment",
+        "read_name/write_name/delete_name"
+      ],
+      "implementation_steps": [
+        "所有名称操作使用binding-aware位置",
+        "共享闭包cell穿过调用与摘要，记录读写依赖",
+        "不同outer activation按抽象区分，default value和cell引用分开"
+      ],
+      "acceptance": [
+        "nonlocal outer返回2；两个闭包共享写可见",
+        "两个outer实例不意外串cell",
+        "unpack/import/except/del/global路径覆盖，未绑定异常保留"
+      ],
+      "forbidden_shortcuts": [
+        "不能只修一个IRCopy特例",
+        "不能靠全局字典存所有closure cells"
+      ],
+      "audit_items": [
+        "A11"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "shared closure cells, scope identity, unknown callback cell havoc and namespace default behavior",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-04",
+      "title": "显式完成状态、异常、finally与with清理",
+      "wave": "W2",
+      "owner_role": "前端控制流",
+      "reviewer_role": "Python语义/AI双审",
+      "dependencies": [
+        "SPEC-01",
+        "ARCH-01",
+        "SEM-01"
+      ],
+      "read_symbols": [
+        "IRTransformer.visit_Try/Return/Raise/Break/Continue/_visit_context_manager",
+        "BlockCFGBuilder",
+        "AI return/raise transfer"
+      ],
+      "write_scope": [
+        "pythonstan/ir completion相关类型",
+        "frontend/lowering与cfg",
+        "semantics/control.py"
+      ],
+      "target_interfaces": [
+        "Completion(normal,return,raise,break,continue,suspend)",
+        "UnwindPlan"
+      ],
+      "implementation_steps": [
+        "protected region为可能抛异常的操作连handler/cleanup边",
+        "先求return表达式再保存pending completion",
+        "finally新completion覆盖旧值；正常cleanup恢复原出口；with suppression显式分支"
+      ],
+      "acceptance": [
+        "finally return2和必写效果端到端通过",
+        "嵌套finally/new raise/break/continue/with清理顺序独立oracle",
+        "raise类与构造异常变体分别检查，不靠不可达residual保证覆盖"
+      ],
+      "forbidden_shortcuts": [
+        "IR有finally节点不等于语义正确",
+        "永久incomplete不能关闭已承诺子语言"
+      ],
+      "audit_items": [
+        "A10"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-04/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/SEM-04/frontend_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "architecture",
+      "implementation_progress": "pending completion and actual frontend cleanup paths plus heldout finally/with/original source tests",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-05",
+      "title": "属性、描述符、定义与类构造共享规划",
+      "wave": "W2",
+      "owner_role": "对象协议",
+      "reviewer_role": "Native+AI语义审阅",
+      "dependencies": [
+        "SEM-02",
+        "SEM-03",
+        "DOM-05"
+      ],
+      "read_symbols": [
+        "AttributeSemanticsProcessor/ClassProtocolProcessor",
+        "construction_hooks",
+        "IRTranslator._translate_function_def/_translate_class_def",
+        "AI attributes/descriptor/type_domain"
+      ],
+      "write_scope": [
+        "analysis/semantics/{attributes,definitions,construction}.py",
+        "models/builtins",
+        "引擎协议adapters"
+      ],
+      "target_interfaces": [
+        "ResolveAttributePlan",
+        "DefineFunction/Class",
+        "ConstructPlan"
+      ],
+      "implementation_steps": [
+        "共享descriptor precedence/MRO/special lookup规则",
+        "保留defaults/decorators求值与真实导出callable",
+        "构造hook、class修改依赖与unknown fallback声明profile"
+      ],
+      "acceptance": [
+        "data descriptor优先级、__getattr__fallback、bound receiver",
+        "set_name/init_subclass/装饰器默认值顺序",
+        "未知类变动使旧结论失效；两引擎均有后端独立验收"
+      ],
+      "forbidden_shortcuts": [
+        "不能按函数源码名替代decorator导出对象",
+        "不能把已有Native模型直接标AI已实现"
+      ],
+      "audit_items": [
+        "A15"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-05/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "new definition/protocol/descriptor paths; shared builtin attribute models and exception models",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "PTA-01",
+      "title": "有限上下文原子与有序参数token",
+      "wave": "W2",
+      "owner_role": "上下文算法",
+      "reviewer_role": "独立终止性/格专家",
+      "dependencies": [
+        "SPEC-01",
+        "CFG-01",
+        "ARCH-01"
+      ],
+      "read_symbols": [
+        "ContextSelector.select_call_context/select_alloc_context",
+        "ParamContext.append/ObjectContext.append/HybridContext.append_object",
+        "NormalCallProcessor"
+      ],
+      "write_scope": [
+        "analysis/engines/andersen/context与selector",
+        "context有限性规格和反例测试"
+      ],
+      "target_interfaces": [
+        "MethodContextPolicy",
+        "FiniteContextAtom",
+        "OrderedBindingToken"
+      ],
+      "implementation_steps": [
+        "定义有限token宇宙，禁止嵌完整Ctx/receiver上下文",
+        "k截断真实有限结构，参数位置/名称保留",
+        "明确19旧策略映射与不支持范围，记录精度变化"
+      ],
+      "acceptance": [
+        "终止递归小例在更大预算下状态数稳定且有结构论证",
+        "1/2/3-param、2/3-obj、1c2o受影响组合回归",
+        "first(a,b)/first(b,a)按策略区分；无预算截断掩盖"
+      ],
+      "forbidden_shortcuts": [
+        "不能统一退回0-CFA关闭问题",
+        "一次timeout不是不终止证明"
+      ],
+      "audit_items": [
+        "A05"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/PTA-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/PTA-01/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "native_repairs",
+      "implementation_progress": "finite context atoms with crafted nested-atom rejection and ordered binding tokens",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "PTA-02",
+      "title": "独立heap策略与全部分配种类覆盖",
+      "wave": "W2",
+      "owner_role": "heap/context",
+      "reviewer_role": "对象身份专家",
+      "dependencies": [
+        "PTA-01",
+        "SESSION-01",
+        "CFG-01"
+      ],
+      "read_symbols": [
+        "PointerSolver._alloc_function/_alloc_class/_alloc_module/_alloc_constant/_handle_class_instantiation",
+        "ContainerProcessor._alloc_*",
+        "generator/builtin allocations"
+      ],
+      "write_scope": [
+        "analysis/engines/andersen/allocation.py",
+        "policies/context.py",
+        "allocation-kind catalog"
+      ],
+      "target_interfaces": [
+        "HeapContextPolicy",
+        "AllocationPolicyRegistry",
+        "selective method/object policy"
+      ],
+      "implementation_steps": [
+        "拆method与heap depth和选择性规则",
+        "各allocation-kind接同一选择接口或声明固定语义身份",
+        "记录有效决策，汇总时不丢现有/未来facts和订阅"
+      ],
+      "acceptance": [
+        "class/list/tuple/dict/function/closure/generator工厂对照",
+        "独立改heap策略改变对应身份但覆盖不损",
+        "规范常量不被误造fresh；消费者目录无漏项"
+      ],
+      "forbidden_shortcuts": [
+        "只有class instance可控不算所有分配贯通",
+        "不能简单丢第N个对象"
+      ],
+      "audit_items": [
+        "A05",
+        "A14"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/PTA-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/PTA-02/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "native_repairs",
+      "implementation_progress": "independent heap strategies and audited synthetic/allocation paths",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "PTA-03",
+      "title": "拆分Native求解职责并保留增量闭包",
+      "wave": "W2",
+      "owner_role": "Native solver",
+      "reviewer_role": "独立数据流专家",
+      "dependencies": [
+        "SESSION-01",
+        "PTA-01",
+        "ARCH-01",
+        "RESULT-01"
+      ],
+      "read_symbols": [
+        "PointerSolver._register_dynamic_constraint/_register_builtin_dependencies/_select_work_kind/_finalize_unknowns_at_fixpoint",
+        "PointerAnalysisState._add_points_flow_edge",
+        "SolverQuery"
+      ],
+      "write_scope": [
+        "engines/andersen/{solver,scheduler,facts,query}.py",
+        "builtin按协议族拆分",
+        "composition/intrinsics.py"
+      ],
+      "target_interfaces": [
+        "FactStore",
+        "ConstraintDispatcher",
+        "IntrinsicProvider",
+        "ReadOnlyNativeQuery"
+      ],
+      "implementation_steps": [
+        "保留delta、late-edge/constraint/builtin replay与四队列闭包",
+        "query与调度/协议分离，intrinsic经注入bridge",
+        "统一bootstrap/selected/total work计量和续跑身份"
+      ],
+      "acceptance": [
+        "late base/field/callee、新实参/keys/callback均传播",
+        "可收敛小例不同公平调度语义相容",
+        "pending非空不称固定点；关闭Inspector不变"
+      ],
+      "forbidden_shortcuts": [
+        "不得将persistent依赖改一次性snapshot",
+        "不能丢已有正确replay换取更少工作"
+      ],
+      "audit_items": [
+        "A18"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/PTA-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "native_repairs",
+      "implementation_progress": "actual Native scheduler/query extraction, shared nested budget, read-only field/MRO queries; final review pending",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "PTA-04",
+      "title": "未知行为对heap、callback与异常的真实影响",
+      "wave": "W2",
+      "owner_role": "边界语义",
+      "reviewer_role": "soundness/查询专家",
+      "dependencies": [
+        "SPEC-01",
+        "RESULT-01",
+        "SEM-04",
+        "PTA-03",
+        "DOM-05"
+      ],
+      "read_symbols": [
+        "ResidualEffectConstraint",
+        "PointerSolver._finalize_unknowns_at_fixpoint",
+        "未知call/builtin处理",
+        "AI unknown effects"
+      ],
+      "write_scope": [
+        "analysis/semantics/unknown.py",
+        "两引擎unknown adapters",
+        "保证账本consumer"
+      ],
+      "target_interfaces": [
+        "UnknownEffects",
+        "HavocReachability",
+        "OpenObligationPropagation"
+      ],
+      "implementation_steps": [
+        "区分真正top/havoc、部分观察和不支持",
+        "未知返回、触达堆、globals、callbacks与异常进入后续consumer",
+        "不能确定非干扰时保持相关查询开放"
+      ],
+      "acceptance": [
+        "eval/未知callback写字段后读不保留错误精确旧值",
+        "不用未知返回值也不忽略副作用",
+        "unknown异常经finally；仅calls输出仍显示相关义务"
+      ],
+      "forbidden_shortcuts": [
+        "只记录日志不算建模",
+        "不能用不完整callgraph证明未知与查询无关"
+      ],
+      "audit_items": [
+        "A06"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/PTA-04/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/PTA-04/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "native_repairs",
+      "implementation_progress": "actual persistent Top sources for heap/global/cells and callback/exception effects",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "AI-01",
+      "title": "调用边界传完整状态并应用分出口效果",
+      "wave": "W3",
+      "owner_role": "跨过程AI",
+      "reviewer_role": "Python调用/heap专家",
+      "dependencies": [
+        "SEM-01",
+        "SEM-02",
+        "SEM-03",
+        "SEM-04",
+        "DOM-05",
+        "SESSION-01"
+      ],
+      "read_symbols": [
+        "IRInterpreter._transfer_call/invoke_callee",
+        "AISummaryEngine",
+        "AIState.from_arg_bindings",
+        "InvokeCalleeFunc"
+      ],
+      "write_scope": [
+        "engines/abstract/call_boundary.py",
+        "contracts/calls.py",
+        "summary应用接口"
+      ],
+      "target_interfaces": [
+        "CallRequest(caller_state,callee,args,continuation)",
+        "CallBoundary.enter/leave"
+      ],
+      "implementation_steps": [
+        "caller heap/overlay/cell/global/alias作为callee输入",
+        "callee normal/exn/suspend分别更新caller后继，保留frame",
+        "receiver与参数alternatives全部处理；取消无状态局部engine捷径"
+      ],
+      "acceptance": [
+        "审计direct/nested overlay一致覆盖after",
+        "callee写后caller读、nonlocal/global写可见",
+        "两个receiver、kwargs异常、仅异常出口均不丢分支"
+      ],
+      "forbidden_shortcuts": [
+        "不能把Native已知事实当caller状态",
+        "不得丢writes只累加摘要"
+      ],
+      "audit_items": [
+        "A04",
+        "A11"
+      ],
+      "contributes_to_gates": [
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/AI-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "full Store and per-exit call propagation; no Native constants substituted",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "AI-02",
+      "title": "全程序entry/block/exit/summary共同固定点",
+      "wave": "W3",
+      "owner_role": "AI求解器",
+      "reviewer_role": "固定点专家",
+      "dependencies": [
+        "AI-01",
+        "PTA-01",
+        "RESULT-01"
+      ],
+      "read_symbols": [
+        "AISolver.solve/_update_state_for_item",
+        "AIAnalysisDriver",
+        "invoke_callee递归路径"
+      ],
+      "write_scope": [
+        "engines/abstract/{driver,worklist,dependencies,scc}.py",
+        "local transfer与host调度分离"
+      ],
+      "target_interfaces": [
+        "InterproceduralDriver",
+        "EntryStore/ExitStore",
+        "CallDependencies",
+        "SCCScheduler"
+      ],
+      "implementation_steps": [
+        "callee输入join触发调度，caller订阅各出口",
+        "新增callee/summary/heap依赖反向唤醒，动态递归SCC共同求解",
+        "共享全局预算与可恢复队列，局部solver不自行封闭跨过程世界"
+      ],
+      "acceptance": [
+        "互递归经多轮新增值更新早期caller",
+        "晚发现callee/新输入/递归heap写均到达",
+        "固定点重跑无变化；预算停有pending和开放原因"
+      ],
+      "forbidden_shortcuts": [
+        "增大max_recursion_depth不算全程序固定点",
+        "缓存递归中间结果不能替代方程迭代"
+      ],
+      "audit_items": [
+        "A15"
+      ],
+      "contributes_to_gates": [
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/AI-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "joint source equation queue with input growth, summary consumers, recursion and pending states",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "AI-03",
+      "title": "AI独立定义、对象、import与可达调用发现",
+      "wave": "W3",
+      "owner_role": "AI对象/模块语义",
+      "reviewer_role": "Native桥接审阅",
+      "dependencies": [
+        "AI-02",
+        "SEM-05",
+        "INPUT-01",
+        "SESSION-01"
+      ],
+      "read_symbols": [
+        "IRFunc/IRClass handlers",
+        "_get_pta_addrs_for_lval/_get_callee_scope_ir",
+        "AIAnalysisDriver query._state依赖"
+      ],
+      "write_scope": [
+        "engines/abstract/definitions.py",
+        "semantics/modules.py",
+        "AI独立allocation/import adapters"
+      ],
+      "target_interfaces": [
+        "AIObjectFactory",
+        "ModuleInitializationStore",
+        "NoPTAProvider"
+      ],
+      "implementation_steps": [
+        "从IR自建函数/class/default/closure/module对象",
+        "实现模块缓存/部分初始化/root scenarios及实际callee发现",
+        "把旧driver保留为明确native_then_ai，独立ai无隐含Native前置"
+      ],
+      "acceptance": [
+        "Native构造/solve/private-query哨兵启用时ai仍通过字符串/类方法/closure/跨文件测试",
+        "循环import两根场景正确",
+        "无目标执行，无entry/unsupported有明确状态"
+      ],
+      "forbidden_shortcuts": [
+        "禁止预跑KCFA再改mode",
+        "不能把IRFunc/IRClass pass保留并声称独立"
+      ],
+      "audit_items": [
+        "A15",
+        "A17"
+      ],
+      "contributes_to_gates": [
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/AI-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "independent definitions/classes/objects/imports; Native prepass prohibited in D",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "AI-04",
+      "title": "关系摘要、新鲜性与稳定缓存失效",
+      "wave": "W3",
+      "owner_role": "摘要/依赖",
+      "reviewer_role": "组合验证专家",
+      "dependencies": [
+        "AI-02",
+        "AI-03",
+        "DOM-05"
+      ],
+      "read_symbols": [
+        "AISummaryEngine._make_cache_key/_cache_dependency_token",
+        "SummaryAccumulator",
+        "PTA adapter token防线"
+      ],
+      "write_scope": [
+        "engines/abstract/summary.py",
+        "composition/dependencies.py",
+        "summary cache/fresh应用测试"
+      ],
+      "target_interfaces": [
+        "VersionedSummary",
+        "FreshTemplate/FrameMap",
+        "DependencyIndex",
+        "StableCache"
+      ],
+      "implementation_steps": [
+        "分开迭代中的方程变量与已稳定可缓存摘要",
+        "先全session epoch安全失效，再按source/IR/heap/cell/MRO/callee/model/policy细化",
+        "应用时重新实例化fresh并保留出口关系；失效唤醒所有消费者"
+      ],
+      "acceptance": [
+        "同参数不同heap不误复用；源码/global/cell/MRO变化重算",
+        "factory两次返回的fresh关系正确，summary地址不证明singleton",
+        "无稳定token禁缓存；cache on/off语义相容"
+      ],
+      "forbidden_shortcuts": [
+        "只clear cache不唤醒consumer不算完成",
+        "不能由id(IR)代替不可变IR版本"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G3",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/AI-04/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "source-bound allocation and per-state defaults/closures; broad compatibility bridge migration remains in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "AI-05",
+      "title": "循环、trace与narrowing结果贯通",
+      "wave": "W3",
+      "owner_role": "AI循环/域",
+      "reviewer_role": "独立固定点审阅",
+      "dependencies": [
+        "AI-02",
+        "AI-04",
+        "DOM-02",
+        "DOM-03",
+        "DOM-05"
+      ],
+      "read_symbols": [
+        "solver.py::_update_state_for_item/solve",
+        "_narrowing.py",
+        "_trace_partition.py",
+        "AIState.widen/narrow"
+      ],
+      "write_scope": [
+        "engines/abstract/loops.py",
+        "policies/widening.py",
+        "公开summary重建"
+      ],
+      "target_interfaces": [
+        "LoopPolicy",
+        "TraceStore",
+        "PostFixpointCheck",
+        "PublishSummary"
+      ],
+      "implementation_steps": [
+        "widen点/延迟/阈值与reabstraction一致",
+        "trace合并/淘汰后重排survivor，不丢待消费事实",
+        "narrowing重建可见summary并核验；失败回退已成立旧近似"
+      ],
+      "acceptance": [
+        "容量与trace预算在真实路径生效",
+        "narrow后query变化有状态支撑且覆盖正常/异常/前缀效果",
+        "同一loop在足够预算下稳定，超限保留开放原因"
+      ],
+      "forbidden_shortcuts": [
+        "不能丢弃临时accumulator后声称公开精度提升",
+        "不能未验证就从旧may摘要删效果"
+      ],
+      "audit_items": [
+        "A07",
+        "A09",
+        "A13"
+      ],
+      "contributes_to_gates": [
+        "G3",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/AI-05/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "loop work, widening and checked narrowing with visible outcomes",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "SEM-06",
+      "title": "迭代器与generator/async分阶段状态",
+      "wave": "W3",
+      "owner_role": "continuation语义",
+      "reviewer_role": "前端/heap专家",
+      "dependencies": [
+        "AI-02",
+        "AI-03",
+        "AI-04",
+        "SEM-04",
+        "SEM-05"
+      ],
+      "read_symbols": [
+        "kcfa/processor/generator.py",
+        "builtin_api_handler generator send/throw/close/coroutine await",
+        "AI generator_protocol/iterators"
+      ],
+      "write_scope": [
+        "analysis/semantics/{iteration,suspension}.py",
+        "两引擎continuation adapters",
+        "frame域"
+      ],
+      "target_interfaces": [
+        "IteratorState",
+        "SuspendedFrame",
+        "Resume/Close/Throw outcomes"
+      ],
+      "implementation_steps": [
+        "区分创建、首次执行、挂起、恢复与关闭",
+        "保持container identity/index、locals/cells及pending cleanup",
+        "为声明子语言实现next/send/throw/close/yield-from/await基本路径；其它async外部边界保守开放"
+      ],
+      "acceptance": [
+        "只创建不运行body的正例保留",
+        "close/throw经finally；多个frame不串",
+        "list iterator读取当前容器；unsupported cancellation不假闭合"
+      ],
+      "forbidden_shortcuts": [
+        "不能把Native may阶段并集用于顺序证明",
+        "不能把对象创建当body已执行"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G2",
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/SEM-06/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "iterator state, source-bound input partitions, generator cleanup; late heldouts under review",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CTRL-01",
+      "title": "完成全选项消费者目录及配置生成",
+      "wave": "W4",
+      "owner_role": "配置owner",
+      "reviewer_role": "各engine/domain负责人",
+      "dependencies": [
+        "CFG-01",
+        "DOM-01",
+        "PTA-02",
+        "AI-05"
+      ],
+      "read_symbols": [
+        "旧31字段/19context/25budget目录",
+        "各solver options和benchmark脚本实际投影"
+      ],
+      "write_scope": [
+        "config/catalog.py",
+        "生成schema/defaults/reference",
+        "old_to_new_options.json"
+      ],
+      "target_interfaces": [
+        "OptionDescriptor.consumer/evidence",
+        "CapabilityRegistry",
+        "validate_plan"
+      ],
+      "implementation_steps": [
+        "逐项迁移或明确拒绝/退役，不混同语义容量与枚举阈值",
+        "修identity-key早分支绕过cap等消费者",
+        "帮助/文档/默认/schema从唯一目录生成，显式supported菜单"
+      ],
+      "acceptance": [
+        "每项有真实consumer和state/metric见证或明确不变性测试",
+        "无效enum/alias冲突/旧缺字段启动失败",
+        "CPU时间/iterations单位和阶段预算可解释"
+      ],
+      "forbidden_shortcuts": [
+        "接受配置但结果没消费者不算支持",
+        "不能承诺所有理论上可能的AI策略"
+      ],
+      "audit_items": [
+        "A14"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CTRL-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": [
+          "New address coarsening consumer pending; unsupported options explicitly reject nondefault."
+        ]
+      },
+      "owner": "root",
+      "implementation_progress": "31 Native/25 legacy budget/8 solver options traced; silent inactive public overrides rejected; address control awaits real consumer",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CTRL-02",
+      "title": "函数/SCC区域策略及可解释计划",
+      "wave": "W4",
+      "owner_role": "区域planner",
+      "reviewer_role": "前端/递归求解专家",
+      "dependencies": [
+        "CTRL-01",
+        "AI-02",
+        "ARCH-01",
+        "INPUT-01"
+      ],
+      "read_symbols": [
+        "AIPlan.scopes/missing",
+        "SourceMap/IR/CFG",
+        "context策略注册"
+      ],
+      "write_scope": [
+        "composition/plan.py",
+        "policies/regions.py",
+        "CLI explain-plan投影"
+      ],
+      "target_interfaces": [
+        "RegionSelector",
+        "EffectiveRegionPlan",
+        "BoundaryRequirements"
+      ],
+      "implementation_steps": [
+        "稳定source/qualname/IR身份绑定用户选择",
+        "定义优先级与冲突拒绝，未选区域有保守处理",
+        "递归SCC异构策略受联合求解能力约束，实际执行登记engine/domain"
+      ],
+      "acceptance": [
+        "不同函数真实采用不同策略而非只改日志",
+        "过期source selector/重叠冲突失败",
+        "SCC内部不支持组合提升到SCC或明确拒绝"
+      ],
+      "forbidden_shortcuts": [
+        "人工scope list不等于区域路由",
+        "禁止把没有选中的源码静默跳过"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CTRL-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/composition-review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "real source-bound function/loop/block policies and SCC rejection",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "HYB-01",
+      "title": "可覆盖的增量PTA oracle与双向依赖",
+      "wave": "W4",
+      "owner_role": "组合算法",
+      "reviewer_role": "Native/AI双审",
+      "dependencies": [
+        "AI-03",
+        "AI-04",
+        "PTA-02",
+        "PTA-03",
+        "PTA-04",
+        "DOM-05"
+      ],
+      "read_symbols": [
+        "PtaQueryAdapter",
+        "Native intrinsic桥",
+        "KCFA查询与AI状态private依赖"
+      ],
+      "write_scope": [
+        "composition/oracle.py",
+        "composition/native_ai_bridge.py",
+        "engine provider注入"
+      ],
+      "target_interfaces": [
+        "CandidateAnswer(values,coverage,version,provenance)",
+        "CandidateOracle",
+        "ChangeSubscription"
+      ],
+      "implementation_steps": [
+        "定义标量/地址/对象身份/context映射和coverage合同",
+        "AI新对象/调用更新oracle，oracle新候选按依赖唤醒AI",
+        "partial/unknown/empty区分，未证明的候选不剪枝"
+      ],
+      "acceptance": [
+        "禁用provider与partial/空provider均不漏AI本来可发现callee",
+        "两方向各有一次实际新value/call/effect被下游消费，不能只统计通知；重复delivery幂等",
+        "source/profile不同拒绝复用，预算不同保留开放状态"
+      ],
+      "forbidden_shortcuts": [
+        "两个黑盒反复整仓运行不算增量组合",
+        "并集两个漏行为结果不能直接授予soundness"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/HYB-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/composition-review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "incremental inclusion candidate kernel, bidirectional dependencies; no partial exclusions",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CTRL-03",
+      "title": "基本块/循环级异构策略与全状态适配",
+      "wave": "W4",
+      "owner_role": "跨域组合",
+      "reviewer_role": "heap/控制流专家",
+      "dependencies": [
+        "CTRL-02",
+        "HYB-01",
+        "DOM-05",
+        "SEM-06",
+        "AI-05"
+      ],
+      "read_symbols": [
+        "function/SCC计划",
+        "reabstract adapter",
+        "Call/Completion/Continuation合同"
+      ],
+      "write_scope": [
+        "composition/state_adapter.py",
+        "composition/region_scheduler.py",
+        "边界覆盖测试"
+      ],
+      "target_interfaces": [
+        "StateAdapter[A,B]",
+        "NativeRegionEngine.analyze(region,boundary_state)",
+        "BoundarySummary",
+        "RegionDependencies"
+      ],
+      "implementation_steps": [
+        "登记真实支持的block级engine/domain组合和有限语言片段",
+        "每条正常/异常/挂起/回边经过适配，维持gamma包含和identity",
+        "跨区域循环、call-return、latefacts共同调度，未支持组合提前拒绝"
+      ],
+      "acceptance": [
+        "同函数AI→Andersen→AI真实engine边界通过，另有同engine不同domain见证",
+        "声明支持的跨边界scalar/cell/heap/fresh/exception/resume覆盖；不支持组合明确拒绝而非静默跳过",
+        "故意只改env的变异adapter被测试发现；未选区域不消失"
+      ],
+      "forbidden_shortcuts": [
+        "函数级支持不能关闭用户要求的代码块级任务",
+        "不能用全Native预跑偷换异构执行"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CTRL-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/composition-review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "actual finite Native region execution and complete state adapter; 47 suite / 23 independent witnesses",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CTRL-04",
+      "title": "实现有意义的值关联分区与关系查询",
+      "wave": "W4",
+      "owner_role": "关系域专家",
+      "reviewer_role": "独立查询oracle",
+      "dependencies": [
+        "DOM-04",
+        "DOM-05",
+        "AI-04",
+        "AI-05",
+        "CTRL-01"
+      ],
+      "read_symbols": [
+        "当前conditions/trace value partition",
+        "TAJS value partitioning原文",
+        "目标route/cache gold"
+      ],
+      "write_scope": [
+        "analysis/domains/relations.py",
+        "policies/partitions.py",
+        "键值/闭包查询consumer"
+      ],
+      "target_interfaces": [
+        "PartitionToken",
+        "KeyValueRelation",
+        "RelationReduction"
+      ],
+      "implementation_steps": [
+        "将全状态trace与每值关系token分开",
+        "首批保留dict键→handler及需要的输入/返回关联",
+        "分区join/merge/cap按覆盖性退化，赋值/读写/摘要应用正确传token"
+      ],
+      "acceptance": [
+        "read→read_handler、write→write_handler不出现无依据交叉配对",
+        "未参与开发的别名/循环/closure变体仍覆盖",
+        "关开关系域有可归因精度变化，预算耗尽不删行为"
+      ],
+      "forbidden_shortcuts": [
+        "不能把字符串枚举更多称为value partitioning",
+        "不能用运行时trace硬编码配对"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G4",
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CTRL-04/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/composition-review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "ai_primary",
+      "implementation_progress": "actual key/handler partitions, capacity fallback and exported relation rows",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "CTRL-05",
+      "title": "策略变化、版本隔离与正确重分析",
+      "wave": "W4",
+      "owner_role": "依赖/增量owner",
+      "reviewer_role": "组合验证专家",
+      "dependencies": [
+        "CTRL-03",
+        "CTRL-04",
+        "AI-04"
+      ],
+      "read_symbols": [
+        "DependencyIndex",
+        "RegionPlan",
+        "Native单调事实库",
+        "模型/策略hash"
+      ],
+      "write_scope": [
+        "composition/reanalysis.py",
+        "policy version/state epoch管理"
+      ],
+      "target_interfaces": [
+        "ReanalysisPlan",
+        "PolicyEpoch",
+        "InvalidateAndReschedule"
+      ],
+      "implementation_steps": [
+        "先实现保守干净重跑作为参考语义",
+        "增量版覆盖正负依赖、producer/SCC/consumer闭包",
+        "粗→细不能原地删除旧facts；新状态未闭合不覆盖旧保证"
+      ],
+      "acceptance": [
+        "latecallee/field/MRO/cell/global/source变化触发足够重算",
+        "相同新policy干净重跑与增量结果语义相容",
+        "依赖不全时退全量而非静默过期缓存"
+      ],
+      "forbidden_shortcuts": [
+        "重复添加约束不会恢复丢失关系",
+        "只清缓存而不处理已消费结果不能通过"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/CTRL-05/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/LLM-01-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "implementation_progress": "source/policy-bound plans and clean frozen-source L1 reruns; dependency epoch remap in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "VERIFY-01",
+      "title": "迁移现有受限验证核并显式TCB",
+      "wave": "W5",
+      "owner_role": "验证核",
+      "reviewer_role": "独立soundness审阅",
+      "dependencies": [
+        "SPEC-01",
+        "ARCH-01",
+        "RESULT-01"
+      ],
+      "read_symbols": [
+        "ai/certified/checker.py::_load_program/_Validator/_Transfer/_apply/infer_candidate/check_source",
+        "driver.py",
+        "llm.py"
+      ],
+      "write_scope": [
+        "analysis/verification/closed_effects",
+        "llm/candidates.py",
+        "TCB与profile规格"
+      ],
+      "target_interfaces": [
+        "Candidate/VerificationResult",
+        "SourceObligationGenerator",
+        "ClosedEffectsChecker"
+      ],
+      "implementation_steps": [
+        "候选provider与可信核分层，保持现有profile范围",
+        "核对source hash/schema/full function vector/postfixpoint与前缀效果",
+        "候选缓存命中仍核验，预算失败返回unknown"
+      ],
+      "acceptance": [
+        "旧38探针按当前版本分类复跑",
+        "正确候选接受；删函数/event/exception/错hash拒绝",
+        "生成与验证共用transfer的TCB明确，fallback身份保留"
+      ],
+      "forbidden_shortcuts": [
+        "不能把测试计数当soundness分数",
+        "不得改profile名字扩大语义claim"
+      ],
+      "audit_items": [
+        "A16"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/VERIFY-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/VERIFY-01/independent_review_addendum.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "architecture",
+      "implementation_progress": "byte-identical old verifier moved separately; original38 probes and adversarial suites retained",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "QUERY-01",
+      "title": "有用客户查询、输出投影与序列化",
+      "wave": "W4",
+      "owner_role": "结果/客户端",
+      "reviewer_role": "API+语义审阅",
+      "dependencies": [
+        "RESULT-01",
+        "API-01",
+        "AI-03",
+        "AI-04",
+        "HYB-01"
+      ],
+      "read_symbols": [
+        "SolverQuery/AI summaries",
+        "现有security/dataflow clients",
+        "Inspector结果投影"
+      ],
+      "write_scope": [
+        "analysis/clients/{calls,values,effects,properties}.py",
+        "results/{views,export}.py"
+      ],
+      "target_interfaces": [
+        "QuerySpec/ValueQuery",
+        "OutputSpec",
+        "ReadOnlyResultView"
+      ],
+      "implementation_steps": [
+        "query在plan中登记需求与预算，formatter只投影冻结结果",
+        "实现summary/calls/values/returns/effects/diagnostics/stats/proof视图",
+        "筛选/字段/格式/文件/流与截断metadata稳定，语义点和后端近似明确"
+      ],
+      "acceptance": [
+        "只选calls仍带相关残余和三轴状态",
+        "ValueQuery读取AI自己数据，Native流不敏感答案有标签",
+        "同一结果text/json/NDJSON若实现保持相同保证；formatter失败不污染solver"
+      ],
+      "forbidden_shortcuts": [
+        "导出不能触发隐式分析",
+        "未请求数据返回not_requested而非空完整"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G1",
+        "G4"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/QUERY-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/API-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "own AI values and may labels; final serialization selector/bounds refinement in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "LLM-01",
+      "title": "L1策略提案、执行和收益反馈闭环",
+      "wave": "W5",
+      "owner_role": "LLM策略",
+      "reviewer_role": "配置/查询独立审阅",
+      "dependencies": [
+        "CTRL-05",
+        "CTRL-04",
+        "QUERY-01",
+        "VERIFY-01"
+      ],
+      "read_symbols": [
+        "当前AIPlan/profile",
+        "策略catalog",
+        "查询失精度与成本记录"
+      ],
+      "write_scope": [
+        "llm/strategy.py",
+        "composition/refinement_controller.py",
+        "offline record/replay providers"
+      ],
+      "target_interfaces": [
+        "PolicyProposal",
+        "StrategyProposer",
+        "RefinementDecision"
+      ],
+      "implementation_steps": [
+        "默认off，提供离线确定性/recorded/adversarial provider",
+        "校验注册策略/region/依赖/预算后实际重跑",
+        "记录before/after query质量与成本，循环去重/停止条件受资源约束"
+      ],
+      "acceptance": [
+        "至少一次目标关联查询在有效策略下改善且保留覆盖",
+        "恶意删除入口、零预算、无效策略、无限切换不获成功结论",
+        "没有LLM/服务失败仍可正常运行核心"
+      ],
+      "forbidden_shortcuts": [
+        "只输出配置JSON不算闭环",
+        "LLM文字理由不能替代可信planner"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/LLM-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/LLM-01-independent/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "root",
+      "implementation_progress": "offline accepted/rejected proposals, bounded clean reruns and useful 4-to-2 relation precision change; 13 independently reviewed tests",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "LLM-02",
+      "title": "定义guarded-dispatch-v1候选DSL和语义",
+      "wave": "W5",
+      "owner_role": "关系摘要/DSL",
+      "reviewer_role": "独立语义专家",
+      "dependencies": [
+        "VERIFY-01",
+        "CTRL-04",
+        "AI-04",
+        "SPEC-01"
+      ],
+      "read_symbols": [
+        "现有ReadProposal/ResidualState/closed_heap/finite_entry",
+        "route/identity/fresh目标gold"
+      ],
+      "write_scope": [
+        "analysis/verification/guarded_dispatch/{language,semantics,profile}.py",
+        "DSL规格和解析测试"
+      ],
+      "target_interfaces": [
+        "GuardedSummary(Pre,Relation,Fresh,Effects,Outcomes,Deps)",
+        "FiniteGuardDSL"
+      ],
+      "implementation_steps": [
+        "固定exact builtin dict+finite known keys→source-bound函数profile",
+        "identity handler返回payload，box(payload)返回{'value':payload}，关系为Slot(FreshBox,'value')=Input(payload)",
+        "定义未知键/handler补集、caller guard依据与相关callee全集；不支持循环递归明确拒绝"
+      ],
+      "acceptance": [
+        "DSL可判定且非法表达式拒绝，无任意Python执行",
+        "关系/别名/fresh/异常/前缀语义可独立解释",
+        "候选由source/IR/model/policy身份绑定，不靠函数名或注释信任"
+      ],
+      "forbidden_shortcuts": [
+        "仅扩event字母表不算关系摘要",
+        "不能把LLM自报完整map当guard事实"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/LLM-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/LLM-02/implementation_record.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "architecture",
+      "implementation_progress": "finite guarded dispatch DSL/source and dependency obligations",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "LLM-03",
+      "title": "可信义务生成、候选检查与覆盖性应用",
+      "wave": "W5",
+      "owner_role": "验证核+应用器分工",
+      "reviewer_role": "独立证明/客户oracle",
+      "dependencies": [
+        "LLM-02",
+        "VERIFY-01",
+        "CTRL-03",
+        "CTRL-05",
+        "PTA-04",
+        "QUERY-01"
+      ],
+      "read_symbols": [
+        "guarded_dispatch DSL",
+        "read_specialization.check_list_read",
+        "finite_entry/closed_heap",
+        "Summary应用"
+      ],
+      "write_scope": [
+        "verification/guarded_dispatch/{obligations,checker,apply}.py",
+        "certificate cache",
+        "四臂验收"
+      ],
+      "target_interfaces": [
+        "check_source_candidate",
+        "GuardEvidence/PointCoverageProof",
+        "entails_guard",
+        "apply_verified_summary",
+        "ResidualCover"
+      ],
+      "implementation_steps": [
+        "从源码重建全部相关语句与callee义务，检查归纳/refinement",
+        "分别验证候选在Pre下有效与调用点完整输入entails Pre；partial worklist/PTA/未证bottom不是完整输入",
+        "覆盖性split的补集fallback/开放保留；fresh/frame/alias/outcome和正负依赖版本在消费时重查"
+      ],
+      "acceptance": [
+        "baseline/正确/恶意/合法粗top四臂；非平凡实例有预定义质量或总成本收益，简单精确小例不强求额外精度",
+        "错误key-handler、漏callee、遗漏写异常前缀、staleIR/alias修改均拒绝或失效",
+        "只见read但pending仍有box、缺边、未证bottom不能获全查询Verified；later input必须重查适用性",
+        "checker只检半个向量即耗尽必须unknown；独立完整证书不改原solver_status；发散前缀效果保留"
+      ],
+      "forbidden_shortcuts": [
+        "有限测试不能当证书",
+        "不能用当前有缺口baseline的fallback自动宣称sound",
+        "拒绝全部候选不能通过有用性门"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/LLM-03/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/LLM-03/independent_review/independent_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "architecture",
+      "implementation_progress": "checked actual apply/fresh frame paths, scoped proof queries, 36 raw four-arm runs with total validation costs",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "OBS-01",
+      "title": "稳定只读事件、Inspector迁移与错误定位",
+      "wave": "W5",
+      "owner_role": "Inspector/观测",
+      "reviewer_role": "核心算法独立审阅",
+      "dependencies": [
+        "RESULT-01",
+        "PTA-03",
+        "AI-02",
+        "QUERY-01"
+      ],
+      "read_symbols": [
+        "pythonstan_inspector adapter/runner/core/checker/collector_view/contract",
+        "Native现有observer接口"
+      ],
+      "write_scope": [
+        "analysis/contracts/observation.py",
+        "core sink接口",
+        "pythonstan_inspector适配"
+      ],
+      "target_interfaces": [
+        "ObservationSink",
+        "ImmutableSnapshot",
+        "CausalEvent/SourceRef"
+      ],
+      "implementation_steps": [
+        "复用并版本化事实/规则/work/summary/adapter/cache/obligation事件",
+        "Inspector外置只读，截断/失败影响observation不影响语义账本",
+        "演示从错误query追溯到source/transfer/summary依赖"
+      ],
+      "acceptance": [
+        "无Inspector source/file/project仍正常",
+        "相同确定work预算下on/off语义和义务一致",
+        "错误sink/截断输出不删work；记录观测开销"
+      ],
+      "forbidden_shortcuts": [
+        "不能让Inspector补齐核心语义",
+        "不得把内部类repr当稳定事件ID"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/OBS-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/OBS-01/final_source_identity.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "domain_repairs",
+      "implementation_progress": "bounded immutable sink and Inspector reader, 6 invariance tests with overhead records",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "TEST-01",
+      "title": "独立oracle、反例与有用性门的统一测试层",
+      "wave": "W0",
+      "owner_role": "独立测试负责人",
+      "reviewer_role": "语义/验证双审",
+      "dependencies": [
+        "BOOT-01",
+        "SPEC-01"
+      ],
+      "read_symbols": [
+        "prior_audit所有probe及原始结果",
+        "现有tests的Native/AI读取路径",
+        "query-gold"
+      ],
+      "write_scope": [
+        "tests/refactor/{domains,semantics,engines,api,contracts,clients}/",
+        "scripts/refactor/replay_cases.py"
+      ],
+      "target_interfaces": [
+        "BackendSpecificOracle",
+        "ConcreteWitness",
+        "CoverageAndPrecisionGate"
+      ],
+      "implementation_steps": [
+        "整理A项和未参与修复的变体，独立实现有限gamma/oracle",
+        "红阶段明确预期失败，修复后移除临时xfail并验证目标engine",
+        "测试子进程与分析运行隔离，输出包含状态/实际阶段/来源"
+      ],
+      "acceptance": [
+        "故意引入empty-ret、env-only-remap、漏finally变异能被发现",
+        "全部top虽保守也不能过有用gold",
+        "旧测试读取Native.constants掩盖AI错误的路径被改正"
+      ],
+      "forbidden_shortcuts": [
+        "不能只断言无异常/非空或退出0",
+        "测试green不授予全Python证明"
+      ],
+      "audit_items": [
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13"
+      ],
+      "contributes_to_gates": [
+        "G0",
+        "G2",
+        "G3"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/TEST-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/integration-checkpoint/validation.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "development_exception": {
+        "authorized_by": "root",
+        "basis": "Implementation against frozen SPEC/ARCH/public facade interface milestones; consumers cannot verify until dependencies verified.",
+        "evidence": [
+          "docs/refactor/evidence/20261110/SPEC-01/independent_review.json",
+          "tests/refactor/api/test_public_contract.py"
+        ]
+      },
+      "owner": "boot_replay",
+      "implementation_progress": "frozen mandatory/open gold unchanged, heldouts and preserved red tests; current A01-A18 consolidation in progress",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "EVAL-01",
+      "title": "同版本A-E实验工具和成本记账",
+      "wave": "W6",
+      "owner_role": "benchmark工程",
+      "reviewer_role": "独立实验方法审阅",
+      "dependencies": [
+        "TEST-01",
+        "CLI-01",
+        "QUERY-01",
+        "AI-03",
+        "HYB-01",
+        "CFG-01"
+      ],
+      "read_symbols": [
+        "scripts/run_ai_benchmarks.py",
+        "现有native cohort/profile数据",
+        "project inventory/entry合同"
+      ],
+      "write_scope": [
+        "benchmark/refactor/manifest与runner",
+        "统一统计/质量汇总器",
+        "实验protocol"
+      ],
+      "target_interfaces": [
+        "Mode A/B/C/D/E",
+        "ExperimentManifest",
+        "PhaseCost/QualityRecord"
+      ],
+      "implementation_steps": [
+        "统一源码/入口/profile/model/query/预算并固定revision",
+        "记录PTA前置、AI、bridge、LLM和总成本；保存actual phase trace",
+        "超时/预算/残余/no-entry分开，支持小中大逐级运行"
+      ],
+      "acceptance": [
+        "D模式Native哨兵证明无预跑，E无隐藏整仓前置",
+        "A-E相同输入合同；历史数据明确独立不混合",
+        "聚合器从原始数据重算，少边不自动更精确"
+      ],
+      "forbidden_shortcuts": [
+        "不能漏计PTA成本",
+        "不能用发现文件数当已分析规模"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/EVAL-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/EVAL-runner-independent/review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": []
+      },
+      "owner": "boot_replay",
+      "implementation_progress": "18-case 90-arm runner, pinned source checks, full costs, failure/identity-safe aggregation",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "EVAL-02",
+      "title": "真实大规模AI-primary与客户问题评估",
+      "wave": "W6",
+      "owner_role": "实验负责人",
+      "reviewer_role": "独立语义/性能专家",
+      "dependencies": [
+        "EVAL-01",
+        "AI-05",
+        "SEM-06",
+        "CTRL-05",
+        "PTA-04"
+      ],
+      "read_symbols": [
+        "当前14项目cohort manifest",
+        "受控Web route/cache/cleanup fixtures",
+        "A-E runner"
+      ],
+      "write_scope": [
+        "docs/refactor/evidence/<run>/scale/",
+        "结果报告与必要热点修复任务"
+      ],
+      "target_interfaces": [
+        "Correctness/Precision/Cost/Openness四分报告"
+      ],
+      "implementation_steps": [
+        "先小语义集/中型包再14项目，所有模式同一版本",
+        "至少一条AI-primary真实大项目路径运行并分析瓶颈；全失败则定位修复再测",
+        "客户查询用有限独立事实及明确边界，保留timeout和不支持数据"
+      ],
+      "acceptance": [
+        "声明功能的gold有用，原始日志/环境/命令可复跑",
+        "给出AI在大规模的真实覆盖、成本、热点与开放项",
+        "无有用答案的配置不能仅以跑过宣称可用"
+      ],
+      "forbidden_shortcuts": [
+        "不能提高全部预算掩盖算法问题",
+        "不能删除失败项目或改入口美化统计"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/EVAL-02/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/EVAL-preliminary-scale3/django/D/record.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": [
+          "Official final-commit 90-row cohort not yet complete. Django useful query is partial/Open, not whole-project proof."
+        ]
+      },
+      "owner": "boot_replay",
+      "implementation_progress": "full909file Django D produced fixed useful query in8s budget; partial roots and budget stop retained; official same-version matrix pending",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "MIG-01",
+      "title": "完成模块迁移、旧路径适配与客户端兼容",
+      "wave": "W6",
+      "owner_role": "迁移/集成",
+      "reviewer_role": "架构与用户接口审阅",
+      "dependencies": [
+        "ARCH-01",
+        "PTA-03",
+        "AI-03",
+        "SEM-06",
+        "VERIFY-01",
+        "CTRL-03",
+        "QUERY-01",
+        "OBS-01"
+      ],
+      "read_symbols": [
+        "module_map",
+        "旧Pipeline/AnalysisManager/ProjectConfig",
+        "scripts/do_closure.py",
+        "deprecated_ai/security/dataflow消费者"
+      ],
+      "write_scope": [
+        "目标目录剩余迁移",
+        "compat薄委托",
+        "旧脚本适配",
+        "包导出与迁移文档"
+      ],
+      "target_interfaces": [
+        "CompatibilityMap",
+        "SingleImplementationInvariant"
+      ],
+      "implementation_steps": [
+        "按批次迁移消费者并执行architecture checks",
+        "统一closure来源，确认无支持消费者后退役deprecated实现",
+        "核心只依赖新路径，旧API保留薄委托及明确弃用；日志移出源码"
+      ],
+      "acceptance": [
+        "安装包新旧支持入口正常，核心无旧路径/Inspector反向依赖",
+        "无重复算法实现、循环shim或隐藏World依赖",
+        "每个活动旧模块均已映射，行为变化在迁移说明可追溯"
+      ],
+      "forbidden_shortcuts": [
+        "不能只移动文件却留下双实现",
+        "不能按目录名直接删掉仍支持的客户端"
+      ],
+      "audit_items": [
+        "A18"
+      ],
+      "contributes_to_gates": [
+        "G7"
+      ],
+      "status": "running",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/MIG-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": "b098157",
+        "commands": [
+          "python -m pytest --import-mode=importlib tests/refactor -q"
+        ],
+        "evidence": [
+          "docs/refactor/evidence/20261110/MIG-01/independent_frontend_review.json"
+        ],
+        "reviewer": "independent reviewer identified in linked record",
+        "review_result": "See exact linked scope; full task/gate acceptance not inferred from subset tests",
+        "open_obligations": [
+          "G7 release architecture check still fails legacy reverse dependencies and full second AI implementation. Real bridge migration in progress."
+        ]
+      },
+      "owner": "spec_contracts",
+      "implementation_progress": "one Closure and builtin catalogue, real frontend and Native services extracted; legacy second interpreter migration incomplete",
+      "dependency_execution_note": "Parallel implementation used frozen public contracts and source-bound tests. Dependencies are not treated as verified merely because this downstream slice runs; final verification remains cumulative."
+    },
+    {
+      "id": "RELEASE-01",
+      "title": "最终交叉审阅、默认推广与完整交付",
+      "wave": "W6",
+      "owner_role": "协调/发布",
+      "reviewer_role": "非作者总审阅",
+      "dependencies": [
+        "CLI-01",
+        "DOM-02",
+        "DOM-03",
+        "DOM-04",
+        "DOM-05",
+        "SEM-01",
+        "SEM-02",
+        "SEM-03",
+        "SEM-04",
+        "SEM-05",
+        "SEM-06",
+        "PTA-01",
+        "PTA-02",
+        "PTA-03",
+        "PTA-04",
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "AI-04",
+        "AI-05",
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05",
+        "HYB-01",
+        "VERIFY-01",
+        "LLM-01",
+        "LLM-02",
+        "LLM-03",
+        "QUERY-01",
+        "OBS-01",
+        "EVAL-02",
+        "MIG-01"
+      ],
+      "read_symbols": [
+        "全部gate/任务板/缺陷账本",
+        "实际wheel/CLI/API",
+        "最终源树与实验身份"
+      ],
+      "write_scope": [
+        "默认balanced配置",
+        "用户指南/算法说明/限制",
+        "final_report/task_board/evidence索引"
+      ],
+      "target_interfaces": [
+        "ReleaseCapabilityManifest",
+        "DefaultPromotionRecord"
+      ],
+      "implementation_steps": [
+        "复核G0-G7，核心语义作者外审且实际执行目标API示例",
+        "合格后balanced推广AI驱动hybrid，实际mode可见",
+        "交付源码/patch、规格、任务/commit/evidence映射、开放边界和简明使用说明"
+      ],
+      "acceptance": [
+        "三种输入无配置可用，定制输出和新默认均真实通过",
+        "全部必修项关闭或本任务明确允许的profile外残余逐项说明",
+        "无空壳策略、全Unknown验收、历史实验冒充新测、未审核Verified"
+      ],
+      "forbidden_shortcuts": [
+        "某阶段完成不能替代整体验收",
+        "关键gate未达则继续修复或如实部分交付，不改门槛"
+      ],
+      "audit_items": [],
+      "contributes_to_gates": [
+        "G7"
+      ],
+      "status": "pending_dependencies",
+      "interface_ready_milestone": {
+        "ready": false,
+        "interface_digest": null,
+        "owner": null,
+        "compatibility_evidence": []
+      },
+      "baseline": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+      "evidence_path": "docs/refactor/evidence/<run-id>/RELEASE-01/",
+      "command_policy": "owner在实现前冻结真实命令、输入、预期和oracle；代码卡新增或复用对应tests/refactor测试，文档/迁移卡执行结构核验；不得只检查进程退出码",
+      "shared_file_policy": "write_scope涉及公共contracts/IR/schema/registry时由该文件登记owner集成，禁止并发覆盖",
+      "completion_record": {
+        "commit": null,
+        "commands": [],
+        "evidence": [],
+        "reviewer": null,
+        "review_result": null,
+        "open_obligations": [
+          "G4/G6/G7 not yet closed. Default remains transitional Native until new-default qualification and legacy retirement."
+        ]
+      }
+    }
+  ],
+  "run_id": "20261110",
+  "initial_tree_sha256": "bac17ecf6f664b952f1613a217bf0baefafd8c862ec6f511e94d4f5c0a893b67",
+  "last_checkpoint": {
+    "commit": "b098157",
+    "stage": "reviewed functional integration, not final release",
+    "preserved_gold_sha256": "ace61498c7680dfd19000d8157d4554e158bf41998058d09ace415b9451f3fdb",
+    "next_critical_path": [
+      "DOM-05 new host remap",
+      "MIG-01 real old-to-shared execution bridge",
+      "official A-E matrix",
+      "strict architecture release gate"
+    ]
+  }
+}

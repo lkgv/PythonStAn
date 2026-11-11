@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "scope": "Finite storage-admission and queued-fallback lifetime controls",
+  "authoring_order": "Frozen after source review but before executing these candidate predictions",
+  "whole_project_goals_discharged": 0,
+  "cases": [
+    {"id": "custom_environment_callback", "setup": "Keep exact native State methods but install a recording dict subclass as its environment before initialization", "required": ["Eager admission declines", "Store callbacks do not run early", "Ordinary queued solving still delivers original seed facts"]},
+    {"id": "environment_identity_replacement", "setup": "After admitted eager publication, replace the environment by an equal new exact dict", "required": ["The lifetime contract refuses before work begins", "Restoring the original mapping does not clear sticky invalidity"]},
+    {"id": "queued_fallback_raw_watch", "setup": "A custom processor forces all seed admissions to queued fallback, solve, then register a new raw watcher", "required": ["Fallback has zero eager publications", "Raw-watch notification behavior remains the queued control's behavior unless a separately declared replay-semantics contract replaces this expectation"]}
+  ],
+  "fault_injection_note": "Partial native-transfer failure tests may deliberately rebind the private certified method snapshot inside the test. That bypass is a test-only exception-handler oracle and never certifies custom storage callbacks as supported."
+}

@@ -1,5 +1,6 @@
 """Tests for context types and context abstractions."""
 
+import ast
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     CallSite,
@@ -10,6 +11,7 @@ from pythonstan.analysis.pointer.kcfa import (
     ReceiverContext,
     HybridContext,
 )
+from pythonstan.ir.ir_statements import IRCall
 
 
 class TestCallSite:
@@ -17,47 +19,51 @@ class TestCallSite:
     
     def test_basic_creation(self):
         """Test creating basic call site."""
-        cs = CallSite("test.py:10:5:call", "my_func")
-        assert cs.site_id == "test.py:10:5:call"
-        assert cs.fn == "my_func"
-        assert cs.bb is None
-        assert cs.idx == 0
+        call_stmt = IRCall(ast.parse("foo()").body[0].value)
+        cs = CallSite(statement=call_stmt, scope_name="my_func", index=0)
+        assert cs.statement is call_stmt
+        assert cs.scope_name == "my_func"
+        assert cs.index == 0
     
-    def test_creation_with_bb(self):
-        """Test creating call site with basic block."""
-        cs = CallSite("test.py:10:5:call", "my_func", "bb0", 3)
-        assert cs.bb == "bb0"
-        assert cs.idx == 3
+    def test_creation_with_index(self):
+        """Test creating call site with custom index."""
+        call_stmt = IRCall(ast.parse("bar()").body[0].value)
+        cs = CallSite(statement=call_stmt, scope_name="my_func", index=3)
+        assert cs.index == 3
     
     def test_string_representation_without_bb(self):
         """Test __str__ without basic block."""
-        cs = CallSite("test.py:10:5:call", "my_func")
+        call_stmt = IRCall(ast.parse("foo()").body[0].value)
+        cs = CallSite(statement=call_stmt, scope_name="my_func")
         cs_str = str(cs)
-        assert "test.py:10:5:call" in cs_str
+        assert "my_func" in cs_str
+        assert "foo()" in cs_str
         assert "#0" in cs_str
     
-    def test_string_representation_with_bb(self):
-        """Test __str__ with basic block."""
-        cs = CallSite("test.py:10:5:call", "my_func", "bb0", 3)
+    def test_string_representation_with_index(self):
+        """Test __str__ with custom index."""
+        call_stmt = IRCall(ast.parse("bar()").body[0].value)
+        cs = CallSite(statement=call_stmt, scope_name="my_func", index=3)
         cs_str = str(cs)
-        assert "test.py:10:5:call" in cs_str
-        assert "bb0" in cs_str
+        assert "my_func" in cs_str
+        assert "bar()" in cs_str
         assert "#3" in cs_str
     
     def test_equality(self):
         """Test call site equality."""
-        cs1 = CallSite("test.py:10:5:call", "func")
-        cs2 = CallSite("test.py:10:5:call", "func")
-        cs3 = CallSite("test.py:11:5:call", "func")
+        call_stmt = IRCall(ast.parse("foo()").body[0].value)
+        cs1 = CallSite(statement=call_stmt, scope_name="func")
+        cs2 = CallSite(statement=call_stmt, scope_name="func")
+        cs3 = CallSite(statement=IRCall(ast.parse("bar()").body[0].value), scope_name="func")
         
         assert cs1 == cs2
         assert cs1 != cs3
     
     def test_frozen(self):
         """Test that CallSite is immutable."""
-        cs = CallSite("test.py:10:5:call", "func")
+        cs = CallSite(statement=IRCall(ast.parse("foo()").body[0].value), scope_name="func")
         with pytest.raises(AttributeError):
-            cs.site_id = "other"
+            cs.scope_name = "other"
 
 
 class TestCallStringContext:
@@ -73,7 +79,7 @@ class TestCallStringContext:
     def test_string_representation_empty(self):
         """Test __str__ for empty context."""
         ctx = CallStringContext((), 2)
-        assert str(ctx) == "[]"
+        assert ctx.to_string() == "[]"
     
     def test_append_to_empty(self, call_site_factory):
         """Test appending to empty context."""
@@ -129,7 +135,7 @@ class TestCallStringContext:
         cs2 = call_site_factory("caller2")
         
         ctx = ctx.append(cs1).append(cs2)
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         
         assert "[" in ctx_str
         assert "]" in ctx_str
@@ -188,7 +194,7 @@ class TestObjectContext:
     def test_string_representation_empty(self):
         """Test __str__ for empty context."""
         ctx = ObjectContext((), 2)
-        assert str(ctx) == "<>"
+        assert ctx.to_string() == "<>"
     
     def test_append_to_empty(self):
         """Test appending allocation site to empty context."""
@@ -225,7 +231,7 @@ class TestObjectContext:
         ctx = ctx.append("test.py:10:0:obj:MyClass")
         ctx = ctx.append("test.py:20:0:obj:OtherClass")
         
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         assert "<" in ctx_str
         assert ">" in ctx_str
         assert "," in ctx_str
@@ -262,7 +268,7 @@ class TestTypeContext:
     def test_string_representation_empty(self):
         """Test __str__ for empty context."""
         ctx = TypeContext((), 2)
-        assert str(ctx) == "<:>"
+        assert ctx.to_string() == "<:>"
     
     def test_append_to_empty(self):
         """Test appending type to empty context."""
@@ -299,7 +305,7 @@ class TestTypeContext:
         ctx = ctx.append("BaseClass")
         ctx = ctx.append("DerivedClass")
         
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         assert "<" in ctx_str
         assert ">" in ctx_str
         assert ":" in ctx_str
@@ -330,7 +336,7 @@ class TestReceiverContext:
     def test_string_representation_empty(self):
         """Test __str__ for empty context."""
         ctx = ReceiverContext((), 2)
-        assert str(ctx) == "<rcv:>"
+        assert ctx.to_string() == "<rcv:>"
     
     def test_append_to_empty(self):
         """Test appending receiver site to empty context."""
@@ -367,7 +373,7 @@ class TestReceiverContext:
         ctx = ctx.append("test.py:10:0:obj:Receiver1")
         ctx = ctx.append("test.py:20:0:obj:Receiver2")
         
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         assert "<rcv:" in ctx_str
         assert ">" in ctx_str
         assert "," in ctx_str
@@ -397,7 +403,7 @@ class TestHybridContext:
     def test_string_representation_empty(self):
         """Test __str__ for empty context."""
         ctx = HybridContext((), (), 1, 1)
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         assert "[]" in ctx_str
         assert "<>" in ctx_str
     
@@ -463,7 +469,7 @@ class TestHybridContext:
         ctx = ctx.append_call(cs)
         ctx = ctx.append_object("alloc1")
         
-        ctx_str = str(ctx)
+        ctx_str = ctx.to_string()
         assert "[" in ctx_str
         assert "]" in ctx_str
         assert "<" in ctx_str
@@ -492,7 +498,7 @@ class TestHybridContext:
         contexts = {ctx1, ctx2}
         assert len(contexts) == 1
     
-    def test_is_empty_checks_both_components(self):
+    def test_is_empty_checks_both_components(self, call_site_factory):
         """Test is_empty checks both call and object components."""
         ctx1 = HybridContext((), (), 1, 1)
         assert ctx1.is_empty()
@@ -500,7 +506,7 @@ class TestHybridContext:
         ctx2 = HybridContext((), ("alloc1",), 1, 1)
         assert not ctx2.is_empty()
         
-        cs = CallSite("test", "func")
+        cs = call_site_factory("func")
         ctx3 = HybridContext((cs,), (), 1, 1)
         assert not ctx3.is_empty()
 

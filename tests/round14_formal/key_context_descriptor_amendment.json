@@ -1,0 +1,57 @@
+{
+  "amends": "key_context_obligations.json (all seven original source/gold rows unchanged)",
+  "authoring_order": "Frozen before this reviewer predicts either new source",
+  "base_policies": [
+    "0-cfa",
+    "2-cfa"
+  ],
+  "cases": [
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "descriptor_function",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "descriptor",
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/descriptor_function.py.txt",
+      "source_sha256": "b6f4b9027ebd6558f102218aa9251a55c6c2b733b043350f2e360004568616f9"
+    },
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "descriptor_callable",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "descriptor",
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/descriptor_callable.py.txt",
+      "source_sha256": "4902988113cc6835824a05c12989f3c30835759c0f1f9aef8e441247b8308726"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Two finite actual descriptor-return mapping getters in the explicit receiver_key_v1 arm",
+  "whole_project_goals_discharged": 0
+}

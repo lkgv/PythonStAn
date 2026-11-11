@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
     from .context import CallSite, AbstractContext, Scope
 
-__all__ = ["PointerFlowGraph", "PointerFlowEdge", "PointerFlowNode", "NormalNode", "GuardNode", "SelectorNode", "PointerFlowKind"]
+__all__ = ["PointerFlowGraph", "PointerFlowEdge", "PointerFlowNode", "NormalNode", "GuardNode", "SelectorNode", "InheritanceSelectorNode", "PointerFlowKind"]
 
 
 class PointerFlowKind(Enum):
@@ -140,6 +140,20 @@ class SelectorNode(PointerFlowNode):
         else:
             # Block flow from higher-index edges (lower priority in MRO)
             return PointsToSet.empty()
+
+
+class InheritanceSelectorNode(SelectorNode):
+    """Join inherited may-values without inferring must-presence.
+
+    One abstract class/base may represent executions where a field is absent.
+    A nonempty may set on an earlier base therefore cannot suppress a later
+    base. Keep the declared order metadata, but require a separate must domain
+    before using it to remove candidates.
+    """
+
+    def flow_through(self, edge: PointerFlowEdge, pts: 'PointsToSet') -> 'PointsToSet':
+        assert edge in self.edges
+        return pts
 
 
 class PointerFlowGraph:

@@ -1,8 +1,8 @@
 from typing import Dict, List, Any, Tuple, Literal, Generator
-from queue import Queue
 import time
 
 from pythonstan.analysis import AnalysisDriver, AnalysisConfig
+from pythonstan.analysis.analysis import order_analysis_configs
 from pythonstan.ir import IRModule
 
 # Analysis drivers
@@ -53,6 +53,10 @@ class AnalysisManager:
     results: Dict[str, Any]
     time_count: bool
 
+    def __init__(self):
+        self.time_count = False
+        self.reset()
+
     def reset(self):
         self.prev_analyzers = {}
         self.next_analyzers = {}
@@ -62,9 +66,7 @@ class AnalysisManager:
 
     def build(self, configs: List[AnalysisConfig]):
         self.reset()
-        for config in DEFAULT_ANALYSIS:
-            self.add_analyzer(config)
-        for config in configs:
+        for config in order_analysis_configs([*DEFAULT_ANALYSIS, *configs]):
             self.add_analyzer(config)
     
     def set_time_count(self, time_count: bool):
@@ -72,14 +74,16 @@ class AnalysisManager:
 
     def add_analyzer(self, config: AnalysisConfig):
         name = config.name
+        if name in self.analyzers:
+            raise ValueError(f"Duplicate analysis name: {name}")
         analyzer = self.gen_analyzer(config)
         self.analysis_configs.append(config)
         self.analyzers[name] = analyzer
         self.prev_analyzers[name] = []
-        self.next_analyzers[name] = []
+        self.next_analyzers.setdefault(name, [])
         for prev_name in config.prev_analysis:
             self.prev_analyzers[name].append(prev_name)
-            self.next_analyzers[prev_name].append(name)
+            self.next_analyzers.setdefault(prev_name, []).append(name)
 
     def gen_analyzer(self, config: AnalysisConfig) -> AnalysisDriver:
         if config.type == "transform":
@@ -90,6 +94,9 @@ class AnalysisManager:
             analyzer = PointerAnalysisDriver(config)
         elif config.type == "ai analysis":
             analyzer = AIAnalysisDriver(config)
+        elif config.type == "certified analysis":
+            from pythonstan.analysis.pointer.ai.certified.driver import SourceCertificateDriver
+            analyzer = SourceCertificateDriver(config)
         elif config.type == "closure analysis":
             analyzer = ClosureAnalysis(config)
         else:
@@ -118,22 +125,12 @@ class AnalysisManager:
         self.results[analyzer.config.name] = analyzer.results
 
     def generator(self) -> Generator[AnalysisDriver, None, None]:
-        visited = {*()}
-        queue = Queue()
-        for name, _ in self.analyzers.items():
-            if len(self.prev_analyzers[name]) == 0:
-                queue.put(name)
-        while not queue.empty():
-            cur_name = queue.get()
-            visited.add(cur_name)
-            cur_analyzer = self.analyzers[cur_name]
-            
-            if cur_analyzer.config not in DEFAULT_ANALYSIS:
-                yield cur_analyzer
-                
-            for succ in self.next_analyzers[cur_name]:
-                if succ not in visited:
-                    queue.put(succ)
+        # Materialize the whole order before yielding, so an invalid graph
+        # cannot run a prefix of analysis passes before reporting the error.
+        ordered = order_analysis_configs(self.analysis_configs)
+        for config in ordered:
+            if config not in DEFAULT_ANALYSIS:
+                yield self.analyzers[config.name]
 
     def get_analyzer(self, name):
         return self.analyzers[name]

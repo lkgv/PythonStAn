@@ -132,7 +132,7 @@ class Logger:
         self._log(level, msg, args, kwargs.get('exc_info'))
 
 
-_loggers = {}
+_loggers = {"default": Logger("", 0)}
 
 
 def getLogger(name=None):

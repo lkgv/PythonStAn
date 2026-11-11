@@ -1,7 +1,7 @@
 from typing import Dict, Type, Any
 
 from pythonstan.ir import IRScope
-from ..analysis import Analysis, AnalysisConfig, AnalysisDriver
+from ..analysis import Analysis, AnalysisConfig, AnalysisDriver, get_scope_result
 from .transform import Transform
 
 
@@ -18,7 +18,7 @@ class TransformDriver(AnalysisDriver):
         analyzer = self.transform(self.config)
         for prev in self.config.prev_analysis:
             if prev in prev_results:
-                analyzer.set_input(prev, prev_results[prev][scope])
+                analyzer.set_input(prev, get_scope_result(prev_results[prev], scope, prev))
         analyzer.transform(scope)
         if hasattr(analyzer, "results"):
             self.results[scope] = analyzer.results

@@ -1,4 +1,5 @@
 import ast
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
 
 from .processor import Processor
@@ -9,12 +10,13 @@ from ..constraints import (
     StoreConstraint,
     CallConstraint,
     AllocConstraint,
+    Constraint,
 )
 from ..context import Ctx
 from ..heap_model import Field, FieldKind, attr, unknown
-from ..object import AllocKind, AllocSite, InstanceObject
+from ..object import (AllocKind, AllocSite, ClassObject, InstanceObject,
+                      BuiltinInstanceObject, FunctionObject, MethodObject, SuperObject)
 from ..points_to_set import PointsToSet
-from ..pointer_flow_graph import GuardNode, NormalNode, PointerFlowEdge, PointerFlowKind, SelectorNode
 from ..variable import Variable, VariableKind
 from pythonstan.ir.ir_statements import IRAssign
 
@@ -27,6 +29,46 @@ if TYPE_CHECKING:
 __all__ = ["AttributeSemanticsProcessor"]
 
 
+@dataclass(frozen=True)
+class _DescriptorAccessConstraint(Constraint):
+    """A persistent join between an access and each class-field candidate.
+
+    Hook loads created from this rule remain subscribed when the descriptor's
+    class or inherited method facts arrive later. Absence in the current
+    points-to set is never used as a proof that a hook does not exist.
+    """
+
+    receiver: Any
+    owner: ClassObject
+    method: str
+    call_site: Any
+    token: str
+    target: Optional[Variable] = None
+    source: Optional[Variable] = None
+
+    def variables(self):
+        return {var for var in (self.target, self.source) if var is not None}
+
+    def __str__(self):
+        return f"DescriptorAccessConstraint: {self.method}@{self.call_site.short_id()}"
+
+
+@dataclass(frozen=True)
+class ClassMethodBindConstraint(Constraint):
+    """Join wrapped callable facts with the actual owner of __get__."""
+
+    function: Variable
+    arguments: tuple
+    target: Variable
+    call_site: Any
+
+    def variables(self):
+        return {self.function, self.target, *self.arguments}
+
+    def __str__(self):
+        return f"ClassMethodBindConstraint: {self.target}@{self.call_site.short_id()}"
+
+
 class AttributeSemanticsProcessor(Processor):
     _READ_INTERCEPT_SKIP = {"__getattribute__", "__getattr__"}
     _WRITE_INTERCEPT_SKIP = {"__setattr__"}
@@ -36,19 +78,18 @@ class AttributeSemanticsProcessor(Processor):
     
     def handle_new_constraint(self, solver: 'PointerSolver', scope: 'Scope', constraint: 'Constraint') -> bool:
         state = solver.state
+        if isinstance(constraint, ClassMethodBindConstraint):
+            for var in (constraint.function, *constraint.arguments):
+                trigger = state.get_variable(scope, scope.context, var)
+                solver._register_dynamic_constraint(scope, trigger, constraint)
+            return True
         if isinstance(constraint, AttrReadConstraint):
             base_ctx = state.get_variable(scope, scope.context, constraint.base)
-            state.constraints.add(scope, base_ctx, constraint)
-            base_pts = state.get_points_to(base_ctx)
-            if not base_pts.is_empty():
-                self._apply_attr_read(solver, scope, base_ctx, constraint, base_pts)
+            solver._register_dynamic_constraint(scope, base_ctx, constraint)
             return True
         if isinstance(constraint, AttrWriteConstraint):
             base_ctx = state.get_variable(scope, scope.context, constraint.base)
-            state.constraints.add(scope, base_ctx, constraint)
-            base_pts = state.get_points_to(base_ctx)
-            if not base_pts.is_empty():
-                self._apply_attr_write(solver, scope, base_ctx, constraint, base_pts)
+            solver._register_dynamic_constraint(scope, base_ctx, constraint)
             return True
         return False
     
@@ -60,6 +101,12 @@ class AttributeSemanticsProcessor(Processor):
         constraint: 'Constraint',
         pts: 'PointsToSet',
     ) -> bool:
+        if isinstance(constraint, ClassMethodBindConstraint):
+            self._apply_classmethod_binding(solver, scope, constraint)
+            return True
+        if isinstance(constraint, _DescriptorAccessConstraint):
+            self._apply_descriptor_candidates(solver, scope, constraint, pts)
+            return True
         if isinstance(constraint, AttrReadConstraint):
             self._apply_attr_read(solver, scope, target, constraint, pts)
             return True
@@ -88,6 +135,13 @@ class AttributeSemanticsProcessor(Processor):
                     target_var=constraint.target,
                     call_site=constraint.call_site,
                 )
+            elif isinstance(base_obj, ClassObject):
+                self._apply_class_attr_read(solver, scope, base_obj, attr_field,
+                                           attr_name, constraint.target,
+                                           constraint.call_site)
+            elif isinstance(base_obj, SuperObject):
+                self._apply_super_attr_read(solver, scope, base_obj, attr_field,
+                                           attr_name, constraint.target, constraint.call_site)
             else:
                 solver._apply_load(
                     scope,
@@ -133,193 +187,47 @@ class AttributeSemanticsProcessor(Processor):
                 )
     
     def _apply_instance_attr_read(
-        self,
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        base_obj: InstanceObject,
-        attr_field: Field,
-        attr_name: str,
-        target_var: Variable,
-        call_site,
-    ) -> None:
+        self, solver, scope, base_obj, attr_field, attr_name, target_var, call_site,
+    ):
         state = solver.state
         context = scope.context
-        target_ctx = state.get_variable(scope, context, target_var)
-        attr_token = self._attr_token(attr_name)
-        
-        inst_var = self._make_object_var(
-            solver,
-            scope,
-            base_obj,
-            "attr_self",
-            call_site,
-            f"{attr_token}@{id(base_obj)}",
-        )
-        class_obj = base_obj.class_obj
-        class_var = self._make_object_var(
-            solver,
-            scope,
-            class_obj,
-            "attr_cls",
-            call_site,
-            f"{attr_token}@{id(class_obj)}",
-        )
-        name_var = self._make_const_name_var(solver, scope, attr_name, call_site)
-        
-        if attr_name not in self._READ_INTERCEPT_SKIP:
-            getattribute_var = self._make_temp_var("getattribute", call_site, f"{attr_token}@{id(base_obj)}")
-            solver.add_constraint(
-                scope,
-                context,
-                LoadConstraint(
-                    base=inst_var,
-                    field=attr("__getattribute__"),
-                    target=getattribute_var,
-                ),
-            )
-            solver.add_constraint(
-                scope,
-                context,
-                CallConstraint(
-                    callee=getattribute_var,
-                    args=(name_var,),
-                    kwargs=frozenset(),
-                    target=target_var,
-                    call_site=call_site,
-                ),
-            )
-        
-        selector = SelectorNode()
-        state._add_points_flow_edge(
-            PointerFlowEdge(selector, NormalNode(target_ctx), PointerFlowKind.NORMAL)
-        )
-        
-        class_field = self._get_class_field(solver, scope, class_obj, attr_field)
+        token = f"{self._attr_token(attr_name)}@{id(base_obj)}"
+        target = state.get_variable(scope, context, target_var)
+        if attr_name == "__dict__":
+            from .heap_mapping import instance_namespace_view
+            view = instance_namespace_view(state, scope, base_obj)
+            solver.handle_new_points_to(target, scope, PointsToSet.singleton(view))
+            state._residual_effects[(scope, call_site, "instance_namespace")] = {
+                "origin": str(call_site), "context": str(context),
+                "reason": "Own-namespace may view leaves slots, custom __dict__, replacement and deletion open",
+                "effects": ["namespace_presence", "custom_descriptor", "deletion", "may_raise"],
+            }
         instance_field = state.get_field(scope, context, base_obj, attr_field)
-        guard = GuardNode(
-            lambda edge, pts, state=state, class_field=class_field: pts - state.get_points_to(class_field)
+        # May-points-to membership is not a must-presence proof. A priority
+        # selector here would suppress ordinary values for other concrete
+        # alternatives and make the result depend on worklist order.
+        state._add_var_points_flow(instance_field, target)
+        class_field = self._get_class_field(solver, scope, base_obj.class_obj, attr_field)
+        self._register_descriptor_access(
+            solver, scope, class_field, base_obj, base_obj.class_obj, "__get__",
+            call_site, self._attr_token(attr_name), target=target_var,
         )
-        state._add_points_flow_edge(
-            PointerFlowEdge(NormalNode(instance_field), guard, PointerFlowKind.NORMAL)
-        )
-        instance_edge = PointerFlowEdge(guard, selector, PointerFlowKind.NORMAL)
-        selector.add_edge(instance_edge, 1)
-        state._add_points_flow_edge(instance_edge)
-        
-        data_desc_var = self._make_temp_var("descriptor_data", call_site, f"{attr_token}@{id(base_obj)}")
-        data_desc_ctx = state.get_variable(scope, context, data_desc_var)
-        data_guard = GuardNode(
-            lambda edge, pts, solver=solver, scope=scope, self=self: PointsToSet.from_objects(
-                [obj for obj in pts if self._is_data_descriptor(solver, scope, obj)]
-            )
-        )
-        state._add_points_flow_edge(
-            PointerFlowEdge(NormalNode(class_field), data_guard, PointerFlowKind.NORMAL)
-        )
-        state._add_points_flow_edge(
-            PointerFlowEdge(data_guard, NormalNode(data_desc_ctx), PointerFlowKind.NORMAL)
-        )
-        
-        data_get_var = self._make_temp_var("descriptor_data_get", call_site, f"{attr_token}@{id(base_obj)}")
-        solver.add_constraint(
-            scope,
-            context,
-            LoadConstraint(
-                base=data_desc_var,
-                field=attr("__get__"),
-                target=data_get_var,
-            ),
-        )
-        data_result_var = self._make_temp_var("descriptor_data_result", call_site, f"{attr_token}@{id(base_obj)}")
-        solver.add_constraint(
-            scope,
-            context,
-            CallConstraint(
-                callee=data_get_var,
-                args=(inst_var, class_var),
-                kwargs=frozenset(),
-                target=data_result_var,
-                call_site=call_site,
-            ),
-        )
-        data_result_ctx = state.get_variable(scope, context, data_result_var)
-        data_edge = PointerFlowEdge(NormalNode(data_result_ctx), selector, PointerFlowKind.NORMAL)
-        selector.add_edge(data_edge, 0)
-        state._add_points_flow_edge(data_edge)
-        
-        nondata_desc_var = self._make_temp_var("descriptor_nond_data", call_site, f"{attr_token}@{id(base_obj)}")
-        nondata_desc_ctx = state.get_variable(scope, context, nondata_desc_var)
-        nondata_guard = GuardNode(
-            lambda edge, pts, solver=solver, scope=scope, self=self: PointsToSet.from_objects(
-                [obj for obj in pts if not self._is_data_descriptor(solver, scope, obj)]
-            )
-        )
-        state._add_points_flow_edge(
-            PointerFlowEdge(NormalNode(class_field), nondata_guard, PointerFlowKind.NORMAL)
-        )
-        state._add_points_flow_edge(
-            PointerFlowEdge(nondata_guard, NormalNode(nondata_desc_ctx), PointerFlowKind.NORMAL)
-        )
-        
-        nondata_get_var = self._make_temp_var("descriptor_nond_data_get", call_site, f"{attr_token}@{id(base_obj)}")
-        solver.add_constraint(
-            scope,
-            context,
-            LoadConstraint(
-                base=nondata_desc_var,
-                field=attr("__get__"),
-                target=nondata_get_var,
-            ),
-        )
-        nondata_result_var = self._make_temp_var("descriptor_nond_data_result", call_site, f"{attr_token}@{id(base_obj)}")
-        solver.add_constraint(
-            scope,
-            context,
-            CallConstraint(
-                callee=nondata_get_var,
-                args=(inst_var, class_var),
-                kwargs=frozenset(),
-                target=nondata_result_var,
-                call_site=call_site,
-            ),
-        )
-        nondata_result_ctx = state.get_variable(scope, context, nondata_result_var)
-        nondata_edge = PointerFlowEdge(NormalNode(nondata_result_ctx), selector, PointerFlowKind.NORMAL)
-        selector.add_edge(nondata_edge, 2)
-        state._add_points_flow_edge(nondata_edge)
-        
-        class_edge = PointerFlowEdge(NormalNode(class_field), selector, PointerFlowKind.NORMAL)
-        selector.add_edge(class_edge, 3)
-        state._add_points_flow_edge(class_edge)
-        
         if attr_name not in self._READ_INTERCEPT_SKIP:
-            getattr_var = self._make_temp_var("getattr", call_site, f"{attr_token}@{id(base_obj)}")
-            solver.add_constraint(
-                scope,
-                context,
-                LoadConstraint(
-                    base=inst_var,
-                    field=attr("__getattr__"),
-                    target=getattr_var,
-                ),
+            instance_var = self._make_object_var(
+                solver, scope, base_obj, "attr_self", call_site, token,
             )
-            getattr_result = self._make_temp_var("getattr_result", call_site, f"{attr_token}@{id(base_obj)}")
-            solver.add_constraint(
-                scope,
-                context,
-                CallConstraint(
-                    callee=getattr_var,
-                    args=(name_var,),
-                    kwargs=frozenset(),
-                    target=getattr_result,
-                    call_site=call_site,
-                ),
-            )
-            getattr_ctx = state.get_variable(scope, context, getattr_result)
-            getattr_edge = PointerFlowEdge(NormalNode(getattr_ctx), selector, PointerFlowKind.NORMAL)
-            selector.add_edge(getattr_edge, 4)
-            state._add_points_flow_edge(getattr_edge)
-    
+            name_var = self._make_const_name_var(solver, scope, attr_name, call_site)
+            for hook, prefix in (("__getattribute__", "getattribute"),
+                                 ("__getattr__", "getattr")):
+                hook_var = self._make_temp_var(prefix, call_site, token)
+                solver.add_constraint(scope, context, LoadConstraint(
+                    base=instance_var, field=attr(hook), target=hook_var,
+                ))
+                solver.add_constraint(scope, context, CallConstraint(
+                    callee=hook_var, args=(name_var,), kwargs=frozenset(),
+                    target=target_var, call_site=call_site,
+                ))
+
     def _apply_instance_attr_write(
         self,
         solver: 'PointerSolver',
@@ -347,46 +255,15 @@ class AttributeSemanticsProcessor(Processor):
         
         class_obj = base_obj.class_obj
         class_field = self._get_class_field(solver, scope, class_obj, attr_field)
-        class_pts = state.get_points_to(class_field)
-        
-        has_non_descriptor = False
-        for desc_obj in class_pts:
-            if not self._descriptor_has_method(solver, scope, desc_obj, "__set__"):
-                has_non_descriptor = True
-                continue
-            desc_var = self._make_object_var(
-                solver,
-                scope,
-                desc_obj,
-                "descriptor",
-                call_site,
-                f"{attr_token}@{id(desc_obj)}",
-            )
-            set_var = self._make_temp_var("descriptor_set", call_site, f"{attr_token}@{id(desc_obj)}")
-            solver.add_constraint(
-                scope,
-                context,
-                LoadConstraint(
-                    base=desc_var,
-                    field=attr("__set__"),
-                    target=set_var,
-                ),
-            )
-            solver.add_constraint(
-                scope,
-                context,
-                CallConstraint(
-                    callee=set_var,
-                    args=(inst_var, source_var),
-                    kwargs=frozenset(),
-                    target=None,
-                    call_site=call_site,
-                ),
-            )
-        
-        if class_pts.is_empty() or has_non_descriptor:
-            instance_field = state.get_field(scope, context, base_obj, attr_field)
-            state._add_var_points_flow(source_ctx, instance_field)
+        self._register_descriptor_access(
+            solver, scope, class_field, base_obj, class_obj, "__set__",
+            call_site, attr_token, source=source_var,
+        )
+        # Weak fallback is deliberately retained: growing may-facts cannot
+        # prove that every concrete class alternative has a data descriptor.
+        # Proving descriptor priority requires a separate must/absence domain.
+        instance_field = state.get_write_field(scope, context, base_obj, attr_field)
+        state._add_var_points_flow(source_ctx, instance_field)
         
         if attr_name not in self._WRITE_INTERCEPT_SKIP:
             setattr_var = self._make_temp_var("setattr", call_site, f"{attr_token}@{id(base_obj)}")
@@ -410,6 +287,154 @@ class AttributeSemanticsProcessor(Processor):
                     call_site=call_site,
                 ),
             )
+
+    def _apply_class_attr_read(self, solver, scope, class_obj, attr_field,
+                              attr_name, target_var, call_site):
+        from .class_protocol import apply_class_metaclass_read
+        class_field = self._get_class_field(solver, scope, class_obj, attr_field)
+        target = solver.state.get_variable(scope, scope.context, target_var)
+        # Ordinary values and functions retain their existing inherited binding.
+        # Descriptor results join this may-value; no speculative fact is killed.
+        solver.state._add_var_points_flow(class_field, target)
+        self._register_descriptor_access(
+            solver, scope, class_field, None, class_obj, "__get__",
+            call_site, self._attr_token(attr_name), target=target_var,
+        )
+        apply_class_metaclass_read(solver, scope, class_obj, attr_field,
+                                  target_var, call_site)
+
+    def _register_descriptor_access(self, solver, scope, class_field, receiver,
+                                    owner, method, call_site, token,
+                                    target=None, source=None):
+        rule = _DescriptorAccessConstraint(
+            receiver, owner, method, call_site, token, target, source,
+        )
+        solver._register_dynamic_constraint(scope, class_field, rule)
+
+    def _apply_super_attr_read(self, solver, scope, proxy, attr_field,
+                              attr_name, target_var, call_site):
+        """Join descriptor results from the super suffix with actual receivers.
+
+        A super proxy is not the instance passed to ``descriptor.__get__``.
+        Its source field includes late ancestor candidates; retain a persistent
+        descriptor subscription as well as ordinary function/value may facts.
+        """
+        from ..pointer_flow_graph import GuardNode, NormalNode, PointerFlowEdge, PointerFlowKind
+        from .class_protocol import METACLASS_FIELD
+
+        state = solver.state
+        class_field = state.get_field(scope, scope.context, proxy, attr_field)
+        target = state.get_variable(scope, scope.context, target_var)
+        state._add_var_points_flow(class_field, target)
+        receiver = proxy.instance_obj
+        token = "super_" + self._attr_token(attr_name) + "@" + str(id(proxy))
+        if isinstance(receiver, InstanceObject):
+            self._register_descriptor_access(solver, scope, class_field, receiver,
+                receiver.class_obj, "__get__", call_site, token, target=target_var)
+        elif isinstance(receiver, ClassObject):
+            # On super(T, C), C may be a subclass of T or an instance of a
+            # metaclass subtype. Until that distinction is proved, keep both
+            # unbound class access and bound metaclass access possibilities.
+            seen = set()
+            def install(owner):
+                if not isinstance(owner, ClassObject) or owner in seen:
+                    return
+                seen.add(owner)
+                for actual in (None, receiver):
+                    self._register_descriptor_access(solver, scope, class_field, actual,
+                        owner, "__get__", call_site, token, target=target_var)
+            install(receiver)
+            metadata = state.get_field(scope, scope.context, receiver, METACLASS_FIELD)
+            def observe(_edge, points):
+                for owner in points:
+                    install(owner)
+                return PointsToSet.empty()
+            state._add_points_flow_edge(PointerFlowEdge(NormalNode(metadata), GuardNode(observe), PointerFlowKind.NORMAL))
+            for owner in state.get_points_to(metadata):
+                install(owner)
+        elif isinstance(proxy.current_class, ClassObject):
+            # Lexical fallback only; unknown receiver/type/descriptor behavior
+            # remains an explicit super lookup residual.
+            self._register_descriptor_access(solver, scope, class_field, receiver,
+                proxy.current_class, "__get__", call_site, token, target=target_var)
+
+    def _apply_descriptor_candidates(self, solver, scope, rule, candidates):
+        for descriptor in candidates:
+            # Function/MethodObject binding is already represented by the PFG.
+            # User and builtin descriptor objects need an actual protocol call.
+            if not isinstance(descriptor, (InstanceObject, BuiltinInstanceObject)):
+                continue
+            token = f"{rule.token}@{id(descriptor)}@{id(rule.receiver)}@{id(rule.owner)}"
+            descriptor_var = self._make_object_var(
+                solver, scope, descriptor, "descriptor_candidate", rule.call_site, token,
+            )
+            hook_var = self._make_temp_var("descriptor_hook_" + rule.method,
+                                           rule.call_site, token)
+            solver.add_constraint(scope, scope.context, LoadConstraint(
+                base=descriptor_var, field=attr(rule.method), target=hook_var,
+            ))
+            if rule.receiver is None:
+                receiver_var = self._make_none_var(solver, scope, rule.call_site)
+            else:
+                receiver_var = self._make_object_var(
+                    solver, scope, rule.receiver, "descriptor_receiver", rule.call_site, token,
+                )
+            if rule.method == "__get__":
+                owner_var = self._make_object_var(
+                    solver, scope, rule.owner, "descriptor_owner", rule.call_site, token,
+                )
+                args = (receiver_var, owner_var)
+            else:
+                args = (receiver_var, rule.source)
+            solver.add_constraint(scope, scope.context, CallConstraint(
+                callee=hook_var, args=args, kwargs=frozenset(),
+                target=rule.target, call_site=rule.call_site,
+            ))
+
+    def _make_none_var(self, solver, scope, call_site):
+        name = f"$const_descriptor_none_{call_site.short_id()}"
+        var = Variable(name=name, kind=VariableKind.TEMPORARY)
+        site = self._const_alloc_sites.get(name)
+        if site is None:
+            statement = IRAssign(ast.Assign(
+                targets=[ast.Name(id=name, ctx=ast.Store())], value=ast.Constant(value=None),
+            ))
+            site = AllocSite.from_ir_node(statement, AllocKind.CONSTANT)
+            self._const_alloc_sites[name] = site
+        solver.add_constraint(scope, scope.context, AllocConstraint(target=var, alloc_site=site))
+        return var
+
+    @staticmethod
+    def _apply_classmethod_binding(solver, scope, rule):
+        state = solver.state
+        functions = state.get_points_to(state.get_variable(scope, scope.context, rule.function))
+        owners = set()
+        if len(rule.arguments) > 1:
+            owner_pts = state.get_points_to(state.get_variable(scope, scope.context, rule.arguments[1]))
+            owners.update(obj for obj in owner_pts if isinstance(obj, ClassObject))
+        # __get__(instance) and __get__(instance, None) use type(instance).
+        # Joining this alternative is conservative when the optional owner may
+        # itself be imprecise, without dropping any explicit owner candidate.
+        if rule.arguments:
+            instances = state.get_points_to(state.get_variable(scope, scope.context, rule.arguments[0]))
+            owners.update(obj.class_obj for obj in instances if isinstance(obj, InstanceObject))
+        target = state.get_variable(scope, scope.context, rule.target)
+        for function in functions:
+            if not isinstance(function, FunctionObject):
+                # Wrapped user descriptor/callable support is a separate
+                # protocol obligation. Retain the existing may-value fallback.
+                solver.handle_new_points_to(target, scope, PointsToSet.singleton(function))
+                state._residual_effects[(scope, rule, function)] = {
+                    "origin": str(rule.call_site),
+                    "reason": "classmethod binding for a non-function wrapped object is unmodeled",
+                    "context": str(scope.context),
+                    "effects": ["descriptor_binding", "may_invoke_callbacks", "may_raise"],
+                }
+                continue
+            for owner in owners:
+                bound = MethodObject(function.context, function.alloc_site,
+                                     function.container_scope, function.ir, owner, owner)
+                solver.handle_new_points_to(target, scope, PointsToSet.singleton(bound))
     
     @staticmethod
     def _resolve_attr(attr_value: Any) -> Tuple[Field, str]:
@@ -477,27 +502,6 @@ class AttributeSemanticsProcessor(Processor):
         ctx_var = solver.state.get_variable(scope, scope.context, var)
         solver.handle_new_points_to(ctx_var, scope, PointsToSet.singleton(obj))
         return var
-    
-    @staticmethod
-    def _descriptor_has_method(
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        obj: 'AbstractObject',
-        method_name: str,
-    ) -> bool:
-        field_access = solver.state.get_field(scope, scope.context, obj, attr(method_name))
-        return not solver.state.get_points_to(field_access).is_empty()
-
-    def _is_data_descriptor(
-        self,
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        obj: 'AbstractObject',
-    ) -> bool:
-        return (
-            self._descriptor_has_method(solver, scope, obj, "__set__")
-            or self._descriptor_has_method(solver, scope, obj, "__delete__")
-        )
     
     @staticmethod
     def _get_class_field(

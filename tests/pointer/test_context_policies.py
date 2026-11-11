@@ -5,15 +5,31 @@ work correctly and produce different contexts as expected.
 """
 
 import pytest
-from pythonstan.analysis.pointer.kcfa2.context import (
+import ast
+from pythonstan.ir.ir_statements import IRCall
+from tests.pointer.kcfa.builders import make_site, make_scope
+from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+
+def _call(label, scope):
+    statement = IRCall(ast.parse("invoke()").body[0].value)
+    _, line, column, _ = label.split(":")
+    statement.get_ast().lineno = int(line)
+    statement.get_ast().col_offset = int(column)
+    return CallSite(statement, scope_name=scope)
+
+def _receiver(label):
+    return AbstractObject(CallStringContext((), 2), make_site(name=label))
+
+from pythonstan.analysis.pointer.kcfa.context import (
     CallSite,
+    FiniteContextAtom,
     CallStringContext,
     ObjectContext,
     TypeContext,
     ReceiverContext,
     HybridContext,
 )
-from pythonstan.analysis.pointer.kcfa2.context_selector import (
+from pythonstan.analysis.pointer.kcfa.context_selector import (
     ContextPolicy,
     ContextSelector,
     parse_policy,
@@ -28,12 +44,12 @@ class TestCallStringContext:
         ctx = CallStringContext((), 2)
         assert ctx.is_empty()
         assert len(ctx) == 0
-        assert str(ctx) == "[]"
+        assert ctx.to_string() == "[]"
     
     def test_append_call_site(self):
         """Test appending call sites."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
         ctx = CallStringContext((), 2)
         ctx = ctx.append(cs1)
@@ -45,9 +61,9 @@ class TestCallStringContext:
     
     def test_k_limiting(self):
         """Test that context is limited to k call sites."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
-        cs3 = CallSite("file.py:30:3:call", "baz")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
+        cs3 = _call("file.py:30:3:call", "baz")
         
         ctx = CallStringContext((), 2)
         ctx = ctx.append(cs1)
@@ -62,8 +78,8 @@ class TestCallStringContext:
     
     def test_context_insensitive(self):
         """Test context-insensitive mode (k=0)."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
         ctx = CallStringContext((), 0)
         ctx = ctx.append(cs1)
@@ -74,8 +90,8 @@ class TestCallStringContext:
     
     def test_equality_and_hash(self):
         """Test context equality and hashing."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
         ctx1 = CallStringContext((cs1, cs2), 2)
         ctx2 = CallStringContext((cs1, cs2), 2)
@@ -93,7 +109,7 @@ class TestObjectContext:
         """Test empty object context."""
         ctx = ObjectContext((), 2)
         assert ctx.is_empty()
-        assert str(ctx) == "<>"
+        assert ctx.to_string() == "<>"
     
     def test_append_alloc_site(self):
         """Test appending allocation sites."""
@@ -126,7 +142,7 @@ class TestTypeContext:
         """Test empty type context."""
         ctx = TypeContext((), 2)
         assert ctx.is_empty()
-        assert str(ctx) == "<:>"
+        assert ctx.to_string() == "<:>"
     
     def test_append_type(self):
         """Test appending types."""
@@ -146,7 +162,7 @@ class TestReceiverContext:
         """Test empty receiver context."""
         ctx = ReceiverContext((), 2)
         assert ctx.is_empty()
-        assert str(ctx) == "<rcv:>"
+        assert ctx.to_string() == "<rcv:>"
     
     def test_append_receiver(self):
         """Test appending receiver allocation sites."""
@@ -166,7 +182,7 @@ class TestHybridContext:
     
     def test_append_call_and_object(self):
         """Test appending both call sites and allocation sites."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
+        cs1 = _call("file.py:10:5:call", "foo")
         
         ctx = HybridContext((), (), 1, 1)
         ctx = ctx.append_call(cs1)
@@ -178,8 +194,8 @@ class TestHybridContext:
     
     def test_separate_limiting(self):
         """Test that call and object dimensions are limited separately."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
         ctx = HybridContext((), (), 1, 2)
         ctx = ctx.append_call(cs1)
@@ -249,21 +265,13 @@ class TestContextSelector:
         selector = ContextSelector(ContextPolicy.CALL_2)
         ctx = selector.empty_context()
         
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs1,
-            callee="foo"
-        )
+        ctx = selector.select_call_context(cs1, ctx, None)
         assert len(ctx.call_sites) == 1
         
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs2,
-            callee="bar"
-        )
+        ctx = selector.select_call_context(cs2, ctx, None)
         assert len(ctx.call_sites) == 2
     
     def test_select_call_context_object(self):
@@ -271,85 +279,62 @@ class TestContextSelector:
         selector = ContextSelector(ContextPolicy.OBJ_1)
         ctx = selector.empty_context()
         
-        cs1 = CallSite("file.py:10:5:call", "method")
+        cs1 = _call("file.py:10:5:call", "method")
         
         # Method call with receiver
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs1,
-            callee="method",
-            receiver_alloc="file.py:5:3:Dog"
-        )
+        ctx = selector.select_call_context(cs1, ctx, _receiver("file.py:5:3:Dog"))
         assert isinstance(ctx, ObjectContext)
-        assert "file.py:5:3:Dog" in ctx.alloc_sites
+        assert len(ctx.alloc_sites) == 1
+        assert isinstance(ctx.alloc_sites[0], FiniteContextAtom)
     
     def test_select_call_context_type(self):
         """Test call context selection for type sensitivity."""
         selector = ContextSelector(ContextPolicy.TYPE_1)
         ctx = selector.empty_context()
         
-        cs1 = CallSite("file.py:10:5:call", "method")
+        cs1 = _call("file.py:10:5:call", "method")
         
         # Method call with receiver type
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs1,
-            callee="method",
-            receiver_type="Dog"
-        )
+        ctx = selector.select_call_context(cs1, ctx, make_scope("Dog", "class").obj)
         assert isinstance(ctx, TypeContext)
-        assert "Dog" in ctx.types
+        assert [atom.source.stmt.name for atom in ctx.types] == ["Dog"]
     
     def test_select_call_context_receiver(self):
         """Test call context selection for receiver sensitivity."""
         selector = ContextSelector(ContextPolicy.RECEIVER_1)
         ctx = selector.empty_context()
         
-        cs1 = CallSite("file.py:10:5:call", "method")
-        cs2 = CallSite("file.py:20:8:call", "function")
+        cs1 = _call("file.py:10:5:call", "method")
+        cs2 = _call("file.py:20:8:call", "function")
         
         # Method call - should change context
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs1,
-            callee="method",
-            receiver_alloc="file.py:5:3:Dog"
-        )
+        ctx = selector.select_call_context(cs1, ctx, _receiver("file.py:5:3:Dog"))
         assert not ctx.is_empty()
         
         # Regular function call - should NOT change context
-        ctx2 = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs2,
-            callee="function",
-            receiver_alloc=None
-        )
-        assert ctx2 == ctx  # Same context
+        ctx2 = selector.select_call_context(cs2, ctx, None)
+        assert ctx2.receivers == (cs2,)  # Free calls use their IR identity.
     
     def test_select_call_context_insensitive(self):
         """Test call context selection for context-insensitive."""
         selector = ContextSelector(ContextPolicy.INSENSITIVE)
         ctx = selector.empty_context()
         
-        cs1 = CallSite("file.py:10:5:call", "foo")
+        cs1 = _call("file.py:10:5:call", "foo")
         
-        ctx = selector.select_call_context(
-            caller_ctx=ctx,
-            call_site=cs1,
-            callee="foo"
-        )
+        ctx = selector.select_call_context(cs1, ctx, None)
         assert ctx.is_empty()  # Should stay empty
     
-    def test_backward_compatibility(self):
-        """Test backward compatibility with k parameter."""
+    def test_k_policy_configuration(self):
+        """Test each supported k through the public policy configuration."""
         # No policy specified, use k
-        selector = ContextSelector(policy=None, k=2)
+        selector = ContextSelector(parse_policy("2-cfa"))
         assert selector.policy == ContextPolicy.CALL_2
         
-        selector = ContextSelector(policy=None, k=1)
+        selector = ContextSelector(parse_policy("1-cfa"))
         assert selector.policy == ContextPolicy.CALL_1
         
-        selector = ContextSelector(policy=None, k=0)
+        selector = ContextSelector(parse_policy("0-cfa"))
         assert selector.policy == ContextPolicy.INSENSITIVE
 
 
@@ -358,19 +343,19 @@ class TestContextIntegration:
     
     def test_different_policies_produce_different_contexts(self):
         """Test that different policies produce different contexts for same calls."""
-        cs1 = CallSite("file.py:10:5:call", "foo")
-        cs2 = CallSite("file.py:20:8:call", "bar")
+        cs1 = _call("file.py:10:5:call", "foo")
+        cs2 = _call("file.py:20:8:call", "bar")
         
         # 1-CFA vs 2-CFA
         sel1 = ContextSelector(ContextPolicy.CALL_1)
         ctx1 = sel1.empty_context()
-        ctx1 = sel1.select_call_context(ctx1, cs1, "foo")
-        ctx1 = sel1.select_call_context(ctx1, cs2, "bar")
+        ctx1 = sel1.select_call_context(cs1, ctx1, None)
+        ctx1 = sel1.select_call_context(cs2, ctx1, None)
         
         sel2 = ContextSelector(ContextPolicy.CALL_2)
         ctx2 = sel2.empty_context()
-        ctx2 = sel2.select_call_context(ctx2, cs1, "foo")
-        ctx2 = sel2.select_call_context(ctx2, cs2, "bar")
+        ctx2 = sel2.select_call_context(cs1, ctx2, None)
+        ctx2 = sel2.select_call_context(cs2, ctx2, None)
         
         # 1-CFA should have only 1 call site, 2-CFA should have 2
         assert len(ctx1.call_sites) == 1
@@ -378,20 +363,17 @@ class TestContextIntegration:
     
     def test_object_vs_call_sensitivity(self):
         """Test that object sensitivity differs from call sensitivity."""
-        cs1 = CallSite("file.py:10:5:call", "method")
+        cs1 = _call("file.py:10:5:call", "method")
         
         # Call-string sensitivity
         sel_call = ContextSelector(ContextPolicy.CALL_1)
         ctx_call = sel_call.empty_context()
-        ctx_call = sel_call.select_call_context(ctx_call, cs1, "method")
+        ctx_call = sel_call.select_call_context(cs1, ctx_call, None)
         
         # Object sensitivity
         sel_obj = ContextSelector(ContextPolicy.OBJ_1)
         ctx_obj = sel_obj.empty_context()
-        ctx_obj = sel_obj.select_call_context(
-            ctx_obj, cs1, "method",
-            receiver_alloc="file.py:5:3:Dog"
-        )
+        ctx_obj = sel_obj.select_call_context(cs1, ctx_obj, _receiver("file.py:5:3:Dog"))
         
         # Different types of contexts
         assert type(ctx_call) != type(ctx_obj)

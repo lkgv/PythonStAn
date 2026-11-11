@@ -1,62 +1,42 @@
-import ast
+"""Print closure facts using the maintained static source frontend pipeline."""
+from __future__ import annotations
 
-from pythonstan.ir.three_address import ThreeAddressTransformer
-from pythonstan.graph.cfg.builder import CFGBuilder, StmtCFGTransformer
-from pythonstan.graph.cfg.models import CFGModule, CFGFunc, CFGClass
-from pythonstan.analysis.dataflow import DataflowAnalysisDriver
-from pythonstan.analysis.analysis import AnalysisConfig
-from pythonstan.graph.cfg.visualize import draw_module, new_digraph
-from pythonstan.analysis.scope import ClosureAnalysis
+import argparse
+import contextlib
+import io
+import json
+from pathlib import Path
+import sys
 
 
-ta_trans = ThreeAddressTransformer()
-cfg_trans = CFGBuilder()
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("file", type=Path)
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    args = parser.parse_args(argv)
+    path = args.file.resolve()
+    if not path.is_file():
+        parser.error("file does not exist: " + str(path))
+    from pythonstan.world import World
+    from pythonstan.world.pipeline import Pipeline
+    captured = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(captured):
+            Pipeline(config={"filename": str(path), "project_path": str(path.parent),
+                             "library_paths": [], "import_level": 0, "mock_libs": False,
+                             "time_count": False, "analysis": []})
+        rows = [{"qualname": scope.get_qualname(), "cell_variables": sorted(scope.get_cell_vars())}
+                for scope in sorted(World().scope_manager.get_scopes(), key=lambda item: item.get_qualname())]
+    except (OSError, SyntaxError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    if args.format == "json":
+        print(json.dumps({"schema_version": 1, "file": str(path), "scopes": rows}, sort_keys=True))
+    else:
+        for row in rows:
+            print(row["qualname"] + ": " + ", ".join(row["cell_variables"]))
+    return 0
 
-'''
-for src_str in srcs:
-    ta_trans.reset()
 
-    src = ast.parse(src_str)
-    ta_src = ta_trans.visit(src)
-    cfg_mod = cfg_trans.build_module(ta_src.body)
-
-    ta_src = ast.fix_missing_locations(ta_src)
-
-    print(f"\nParse: {{ {src_str} }}")
-    # print(ast.dump(res, indent=4))
-
-    print(ast.unparse(ta_src))
-    print(cfg_mod)
-
-flist = ['/home/codergwy/code/HiTyper/hityper/tdg.py',
-         '/home/codergwy/code/pynguin/pynguin/configuration.py',
-]
-'''
-
-flist = ['/home/codergwy/code/test/test.py']
-config = AnalysisConfig("closure", "ClosureAnalysis", options={'in_place':True})
-
-def out_closure(scope):
-    if isinstance(scope, CFGFunc):
-        print(f"{scope.get_name()}: {scope.func_def.cell_vars}")
-    if isinstance(scope, CFGClass):
-        print(f"{scope.get_name()}: {scope.class_def.cell_vars}")
-    for cls in scope.classes:
-        out_closure(cls)
-    for fn in scope.funcs:
-        out_closure(fn)
-
-# anal = ClosureAnalysis()
-for fname in flist:
-    with open(fname, 'r') as f:
-        ta_trans.reset()
-        src = ast.parse(f.read())
-        ta_src = ta_trans.visit(src)
-        cfg_mod = cfg_trans.build_module(ta_src.body)
-        # cfg_mod = StmtCFGTransformer().trans(cfg_mod)
-        anal = ClosureAnalysis(config)
-        clos = anal.analyze_module(cfg_mod)
-        print(clos)
-        out_closure(cfg_mod)
-
-        
+if __name__ == "__main__":
+    raise SystemExit(main())

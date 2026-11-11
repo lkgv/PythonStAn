@@ -6,6 +6,7 @@ for attribute access, container elements, and dictionary values.
 
 from dataclasses import dataclass
 from enum import Enum
+from re import T
 from typing import Optional, Dict, Tuple, Set, TYPE_CHECKING
 
 from yaml import NodeEvent
@@ -17,9 +18,9 @@ if TYPE_CHECKING:
     from .variable import Variable, FieldAccess
     from .context import AbstractContext, Ctx, Scope, AllocSite
 
-__all__ = ["FieldKind", "Field", "attr", "elem", "key", "value", "unknown", "HeapModel"]
+__all__ = ["FieldKind", "Field", "attr", "elem", "key", "value", "unknown", "wildcard_key", "HeapModel"]
 
-_SHARED_TEMPORARY_NAMES = frozenset({"$return"})
+_FUNCTION_TEMPORARY_NAMES = frozenset({"$return"})
 
 
 class FieldKind(Enum):
@@ -31,6 +32,10 @@ class FieldKind(Enum):
     UNKNOWN = "unknown"
     POSITION = "position"
     KEY = "key"
+    WILDCARD_KEY = "wildcard_key"
+    CLASS_METADATA = "class_metadata"
+    OWN_ATTRIBUTE = "own_attribute"
+    OWN_UNKNOWN = "own_unknown"
 
 
 @dataclass(frozen=True)
@@ -51,16 +56,17 @@ class Field:
     kind: FieldKind
     name: Optional[str] = None
     index: Optional[int] = None
+    key_type: Optional[str] = None
     
     def __post_init__(self):
         """Validate field constraints."""
-        if self.kind == FieldKind.ATTRIBUTE and self.name is None:
+        if self.kind in {FieldKind.ATTRIBUTE, FieldKind.OWN_ATTRIBUTE} and self.name is None:
             raise ValueError("ATTRIBUTE field must have name")
         if self.kind == FieldKind.KEY and self.name is None:
             raise ValueError("KEY field must have name")
         if self.kind == FieldKind.POSITION and self.index is None:
             raise ValueError("POSITION field must have index")
-        if self.kind in [FieldKind.ELEMENT, FieldKind.VALUE, FieldKind.UNKNOWN]:
+        if self.kind in [FieldKind.ELEMENT, FieldKind.VALUE, FieldKind.UNKNOWN, FieldKind.WILDCARD_KEY, FieldKind.OWN_UNKNOWN]:
             if self.name is not None or self.index is not None:
                 raise ValueError(f"{self.kind.value} field should not have name or index")
     
@@ -68,6 +74,8 @@ class Field:
         """String representation for debugging."""
         if self.kind == FieldKind.ATTRIBUTE:
             return f".{self.name}"
+        if self.kind == FieldKind.OWN_ATTRIBUTE:
+            return f".own({self.name})"
         if self.kind == FieldKind.POSITION:
             return f"[{self.index}]"
         if self.kind == FieldKind.KEY:
@@ -85,9 +93,21 @@ def key(key_name: str) -> Field:
     Returns:
         Field for specific key access
     """
-    if not isinstance(key_name, str):
+    # Python's numeric keys share a hash/equality class: True, 1, and 1.0
+    # select the same dictionary entry. Keep that class intact before encoding.
+    key_type = None
+    if isinstance(key_name, (bool, int)):
+        key_type = "number"
+        key_name = str(int(key_name))
+    elif isinstance(key_name, float) and key_name.is_integer():
+        key_type = "number"
+        key_name = str(int(key_name))
+    elif isinstance(key_name, complex) and key_name.imag == 0:
+        return key(key_name.real)
+    elif not isinstance(key_name, str):
+        key_type = "number" if isinstance(key_name, (float, complex)) else type(key_name).__name__
         key_name = str(key_name)
-    return Field(FieldKind.KEY, key_name, None)
+    return Field(FieldKind.KEY, key_name, None, key_type=key_type)
 
 
 def attr(name: str) -> Field:
@@ -151,6 +171,11 @@ def unknown() -> Field:
     return Field(FieldKind.UNKNOWN, None, None)
 
 
+def wildcard_key() -> Field:
+    """Dictionary writes whose key is not represented by a finite key field."""
+    return Field(FieldKind.WILDCARD_KEY)
+
+
 class HeapModel:
     """Heap model for pointer analysis.
     
@@ -188,19 +213,23 @@ class HeapModel:
         registers[var.name] = ctx_var  # TODO whether use context or scope.context?
     
     def _get_var_key(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable'):
+        # if var.kind == VariableKind.GLOBAL:
+        #     return (scope.module.stmt,)
+        # return (context, scope.stmt)
+    
         if var.kind == VariableKind.TEMPORARY:
-            if var.name in _SHARED_TEMPORARY_NAMES:
-                # Share select temporaries (e.g., $return) across contexts per function.
+            if var.name in _FUNCTION_TEMPORARY_NAMES:
+                # Distinct call contexts must not exchange returned closures.
                 func_obj = getattr(scope, "obj", None)
                 if func_obj is not None:
-                    return (func_obj,)
+                    return (context, func_obj)
                 # For module-level temporaries
-                return (scope.module if scope.module else scope,)
-            return (context, scope.module)
+                return (context, scope.module.stmt if scope.module else scope.stmt)
+            return (context, scope.stmt)
         
         if var.kind == VariableKind.GLOBAL:
-            return (scope.module,)
-        return (context, scope.module)
+            return (scope.module.stmt,)
+        return (context, scope.stmt)
 
     def get_all_variables(self, scope: 'Scope', context: 'AbstractContext') -> Set['Ctx[Variable]']:
         ctx_key = (scope, )

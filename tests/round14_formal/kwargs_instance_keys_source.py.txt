@@ -1,0 +1,16 @@
+events = []
+def keys_hook():
+    events.append("instance-keys")
+    return ("callback",)
+def chosen():
+    events.append("chosen")
+    return 7
+class RequestMapping:
+    def __init__(self):
+        self.keys = keys_hook
+    def __getitem__(self, name):
+        events.append("getitem")
+        return chosen
+def consume(*, callback):
+    return callback()
+result = consume(**RequestMapping())

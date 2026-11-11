@@ -1,6 +1,6 @@
 from typing import Generic, TypeVar, Tuple, Dict, Type
 from abc import ABC, abstractmethod
-from queue import Queue
+from collections import deque
 
 from .analysis import DataflowAnalysis
 from pythonstan.graph.cfg import BaseBlock
@@ -98,6 +98,8 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                         if src not in out_facts:
                             out_facts[src] = analysis.new_init_fact()
                         in_facts[node] = out_facts[src]
+                    else:
+                        in_facts[node] = analysis.new_init_fact()
                 else:
                     in_facts[node] = analysis.new_init_fact()
                 if node not in out_facts:
@@ -109,12 +111,14 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                       in_facts: Dict[BaseBlock, Fact],
                       out_facts: Dict[BaseBlock, Fact]):
         cfg = analysis.get_cfg()
-        work_list = Queue()
-        for blk in cfg.blks:
-            if blk != cfg.entry_blk:
-                work_list.put(blk)
-        while not work_list.empty():
-            cur = work_list.get()
+        work_list = deque(sorted((blk for blk in cfg.blks if blk != cfg.entry_blk),
+                                 key=lambda blk: blk.idx))
+        pending = set(work_list)
+        while work_list:
+            cur = work_list.popleft()
+            # A self-loop or a fact arriving during transfer must be able to
+            # schedule this block again. Only duplicate *pending* work is joined.
+            pending.remove(cur)
             fact_in = in_facts[cur]
             if cfg.in_degree_of(cur) > 0:
                 for e in cfg.in_edges_of(cur):
@@ -127,7 +131,9 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
             if fact_out != out_facts[cur]:
                 out_facts[cur] = fact_out
                 for succ in cfg.succs_of(cur):
-                    work_list.put(succ)
+                    if succ not in pending:
+                        pending.add(succ)
+                        work_list.append(succ)
 
     @classmethod
     def init_backward(cls, analysis: DataflowAnalysis[Fact]
@@ -146,6 +152,8 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                         if tgt not in in_facts:
                             in_facts[tgt] = analysis.new_init_fact()
                         out_facts[node] = in_facts[tgt]
+                    else:
+                        out_facts[node] = analysis.new_init_fact()
                 else:
                     out_facts[node] = analysis.new_init_fact()
                 if node not in in_facts:
@@ -157,12 +165,12 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
                        in_facts: Dict[BaseBlock, Fact],
                        out_facts: Dict[BaseBlock, Fact]):
         cfg = analysis.get_cfg()
-        work_list = Queue()
-        for blk in cfg.blks:
-            if blk != cfg.super_exit_blk:
-                work_list.put(blk)
-        while not work_list.empty():
-            cur = work_list.get()
+        work_list = deque(sorted((blk for blk in cfg.blks if blk != cfg.super_exit_blk),
+                                 key=lambda blk: blk.idx, reverse=True))
+        pending = set(work_list)
+        while work_list:
+            cur = work_list.popleft()
+            pending.remove(cur)
             fact_out = out_facts[cur]
             if cfg.out_degree_of(cur) > 0:
                 for e in cfg.out_edges_of(cur):
@@ -175,4 +183,6 @@ class WorklistSolver(Generic[Fact], Solver[Fact]):
             if fact_in != in_facts[cur]:
                 in_facts[cur] = fact_in
                 for pred in cfg.preds_of(cur):
-                    work_list.put(pred)
+                    if pred not in pending:
+                        pending.add(pred)
+                        work_list.append(pred)

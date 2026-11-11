@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "scope": "Finite native dictionary delegation source and one controlled late key publication; not whole-project gold",
+  "authoring_order": "Frozen before this reviewer's static prediction",
+  "source": "dict_delegate_source.py.txt",
+  "source_unit_gold": {
+    "required_edges": [["<module>", "chosen"]],
+    "forbidden_edges": [["<module>", "poison"], ["<module>", "late"]],
+    "required_event_values": ["chosen", null],
+    "required_local_value": {"scope": "subject.delegated", "name": "completion", "value": null}
+  },
+  "late_publication_control": {
+    "concrete_companion": "Insert mapping[late] = poison immediately before the for loop",
+    "required_companion_events": ["chosen", "late", null],
+    "engine_transition": "After the base source reaches a fixed point, publish its existing late FunctionObject into the mapping's existing native key provenance field, solve, seal a new bundle",
+    "required_after_edges": [["<module>", "chosen"], ["<module>", "late"]],
+    "forbidden_after_edges": [["<module>", "poison"]],
+    "required_after_event_values": ["chosen", "late", null]
+  },
+  "whole_project_goals_discharged": 0,
+  "boundaries": [
+    "Key identities are distinct from dictionary values",
+    "Native default completion None is distinct from yielded callback objects",
+    "A private field transition tests dependency replay; the concrete companion separately checks the actual insertion producer",
+    "No insertion order, removal/key presence, concurrent mutation or precise exhaustion proof is claimed"
+  ]
+}

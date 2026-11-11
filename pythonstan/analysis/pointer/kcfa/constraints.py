@@ -6,7 +6,7 @@ provides efficient storage and indexing for constraint-based solving.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING, Union
+from typing import Set, Dict, Type, Tuple, Optional, List, FrozenSet, TYPE_CHECKING, Union, Iterable
 from collections import defaultdict
 
 if TYPE_CHECKING:
@@ -18,10 +18,16 @@ if TYPE_CHECKING:
     from .pointer_flow_graph import SelectorNode
     from .object import AllocSite
     from .context import Ctx, Scope
+    from .protocol_context import KeywordPartition
 
 __all__ = [
     "Constraint",
+    "ResidualEffectConstraint",
+    "TruthTestConstraint",
+    "OperatorProtocolConstraint",
+    "SpecialMethodLookupConstraint",
     "CopyConstraint",
+    "MappingCopyConstraint",
     "InheritanceConstraint",
     "LoadConstraint",
     "AttrReadConstraint",
@@ -61,6 +67,71 @@ class Constraint(ABC):
 
 
 @dataclass(frozen=True)
+class ResidualEffectConstraint(Constraint):
+    """An obligation the current abstraction does not discharge.
+
+    It is retained independently of optional diagnostic tracking. It adds no
+    fabricated call edges and must not be treated as a semantic top transfer.
+    """
+    location: str
+    reason: str
+    effects: Tuple[str, ...]
+
+    def variables(self):
+        return set()
+
+    def __str__(self):
+        return f"ResidualEffectConstraint: {self.location}: {self.reason}"
+
+
+@dataclass(frozen=True)
+class TruthTestConstraint(Constraint):
+    """Subscribe to implicit type-level truth callback effects of a value."""
+    base: 'Variable'
+    call_site: 'CallSite'
+
+    def variables(self):
+        return {self.base}
+
+    def __str__(self):
+        return f"TruthTestConstraint: truth({self.base}) at {self.call_site}"
+
+
+@dataclass(frozen=True)
+class OperatorProtocolConstraint(Constraint):
+    """One type-level arithmetic method candidate with explicit operands."""
+    base: 'Variable'
+    method: str
+    arguments: Tuple['Variable', ...]
+    target: Optional['Variable']
+    call_site: 'CallSite'
+
+    def variables(self):
+        return {self.base, *self.arguments}
+
+    def __str__(self):
+        return f"OperatorProtocolConstraint: type({self.base}).{self.method}"
+
+
+@dataclass(frozen=True)
+class SpecialMethodLookupConstraint(Constraint):
+    """Read an ordinary special method from the receiver's type, unbound.
+
+    Unlike instance attribute access, this bypasses instance fields/hooks.
+    Custom descriptor binding and non-instance receiver types remain residual.
+    """
+    base: 'Variable'
+    method: str
+    target: 'Variable'
+
+    def variables(self):
+        return {self.base, self.target}
+
+    def __str__(self):
+        return f"SpecialMethodLookupConstraint: {self.target} = type({self.base}).{self.method}"
+
+
+@dataclass(frozen=True)
 class CopyConstraint(Constraint):
     """Copy constraint: target = source.
     
@@ -80,6 +151,24 @@ class CopyConstraint(Constraint):
     
     def __str__(self) -> str:
         return f"CopyConstraint: {self.target} = {self.source}"
+
+
+@dataclass(frozen=True)
+class MappingCopyConstraint(Constraint):
+    """Persistently copy mapping fields into a distinct, already known object.
+
+    Used for **kwargs collection. Excluded finite names were consumed by
+    named parameters; unknown-key values remain conservatively included.
+    """
+    source: 'Variable'
+    target_object: object
+    excluded_keys: FrozenSet[str] = frozenset()
+
+    def variables(self):
+        return {self.source}
+
+    def __str__(self):
+        return f"MappingCopyConstraint: {self.target_object} <- fields({self.source})"
 
 
 @dataclass(frozen=True)
@@ -281,6 +370,7 @@ class StoreConstraint(Constraint):
     field: Optional['Field']
     source: 'Variable'
     index: Optional['Variable'] = None
+    summary_only: bool = False
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
@@ -369,6 +459,7 @@ class CallConstraint(Constraint):
     kwargs: FrozenSet[Tuple[str, 'Variable']]
     target: Optional['Variable']
     call_site: 'CallSite'
+    semantic_partition: Optional['KeywordPartition'] = None
     
     @property
     def stmt(self) -> 'IRStatement':
@@ -461,15 +552,32 @@ class AwaitConstraint(Constraint):
     
     awaitable: 'Variable'
     target: Optional['Variable']
+    call_site: Optional['CallSite'] = None
+    operation: str = "await"
+    completion_target: Optional['Variable'] = None
+    sent_value: Optional['Variable'] = None
+    suspension_target: Optional['Variable'] = None
+
+    def __post_init__(self):
+        if self.operation not in {"await", "iter", "next", "advance", "aiter", "anext", "async_resume", "await_complete", "delegate", "delegate_iterator"}:
+            raise ValueError("unsupported suspension operation")
     
     def variables(self) -> Set['Variable']:
         """Get variables involved."""
         vars = {self.awaitable}
         if self.target:
             vars.add(self.target)
+        if self.completion_target:
+            vars.add(self.completion_target)
+        if self.sent_value:
+            vars.add(self.sent_value)
+        if self.suspension_target:
+            vars.add(self.suspension_target)
         return vars
     
     def __str__(self) -> str:
+        if self.operation != "await":
+            return f"SuspensionConstraint[{self.operation}]: {self.awaitable} -> {self.target}"
         if self.target:
             return f"AwaitConstraint: {self.target} = await {self.awaitable}"
         return f"AwaitConstraint: await {self.awaitable}"
@@ -488,55 +596,37 @@ class ConstraintManager:
         self._by_type: Dict[Type[Constraint], List[Tuple['Scope', Constraint]]] = defaultdict(list)
     
     def add(self, scope, var, constraint: Constraint) -> bool:
-        """Add constraint to manager.
-        
-        Args:
-            constraint: Constraint to add
-        
-        Returns:
-            True if constraint was new (not duplicate)
-        """
-        if (scope, constraint) in self._constraints:
-            return False
-   
-        self._constraints.add((scope, constraint))
-        self._by_variable[var].append((scope, constraint))
-        self._by_type[type(constraint)].append((scope, constraint))
+        """Register one trigger; return whether this subscription is new.
 
-        return True
-    
-    def remove(self, scope, var, constraint: Constraint) -> bool:
-        """Remove constraint from manager.
-        
-        Args:
-            constraint: Constraint to remove
-        
-        Returns:
-            True if constraint existed
+        A scoped constraint can depend on several qualified variables. The
+        canonical and type indexes contain it once, independently of the number
+        of trigger subscriptions.
         """
-        if (scope, constraint) not in self._constraints:
+        entry = (scope, constraint)
+        if entry in self._by_variable.get(var, ()):
             return False
-        
-        self._constraints.remove((scope, constraint))
-        
-        # Remove from variable index
-        for involved_var in constraint.variables():
-            scoped_list = self._by_variable.get(involved_var)
-            if not scoped_list:
-                continue
-            self._by_variable[involved_var] = [
-                (s, c) for (s, c) in scoped_list if not (s == scope and c == constraint)
-            ]
-        
-        # Remove from type index
-        scoped_list = self._by_type.get(type(constraint))
-        if scoped_list:
-            self._by_type[type(constraint)] = [
-                (s, c) for (s, c) in scoped_list if not (s == scope and c == constraint)
-            ]
-        
+        self._by_variable[var].append(entry)
+        if entry not in self._constraints:
+            self._constraints.add(entry)
+            self._by_type[type(constraint)].append(entry)
         return True
-    
+
+    def remove(self, scope, var, constraint: Constraint) -> bool:
+        """Remove exactly one trigger subscription, retaining other triggers."""
+        entry = (scope, constraint)
+        subscriptions = self._by_variable.get(var, [])
+        if entry not in subscriptions:
+            return False
+        subscriptions.remove(entry)
+        if not subscriptions:
+            self._by_variable.pop(var, None)
+        if not any(entry in entries for entries in self._by_variable.values()):
+            self._constraints.remove(entry)
+            self._by_type[type(constraint)].remove(entry)
+            if not self._by_type[type(constraint)]:
+                self._by_type.pop(type(constraint))
+        return True
+
     def get_by_variable(self, var: 'Variable') -> List[Constraint]:
         """Get all constraints involving variable.
         
@@ -551,6 +641,12 @@ class ConstraintManager:
     def iter_scoped_by_variable(self, var: 'Variable') -> List[Tuple['Scope', Constraint]]:
         """Iterate constraints with their defining scope for a variable."""
         return list(self._by_variable.get(var, list()))
+
+    def iter_scoped(self) -> Iterable[Tuple['Variable', 'Scope', Constraint]]:
+        """Iterate all constraints with their trigger variables and scopes."""
+        for var, scoped_constraints in self._by_variable.items():
+            for scope, constraint in scoped_constraints:
+                yield var, scope, constraint
     
     def get_by_type(self, constraint_type: Type[Constraint]) -> List[Constraint]:
         """Get all constraints of given type.

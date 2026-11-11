@@ -12,6 +12,8 @@ __all__ = [
     'IRStatement',
     'IRAbstractStmt',
     'IRAstStmt',
+    'IRContextEnter',
+    'IRContextExit',
     'Label',
     'IRCatchException',
     'Goto',
@@ -70,6 +72,11 @@ class IRStatement(ABC):
     @abstractmethod
     def get_ast(self) -> ast.AST:
         """Exposes the backing AST node produced by ``IRTransformer``."""
+
+    def get_semantic_residuals(self):
+        """Obligations retained on this statement's original lowered AST."""
+        from .semantic_residuals import get_frontend_residuals
+        return get_frontend_residuals(self.get_ast())
 
     def rename(
         self,
@@ -173,6 +180,35 @@ class IRAstStmt(IRAbstractStmt):
         """Applies ``RenameTransformer`` to the underlying AST."""
         renamer = RenameTransformer(old_name, new_name, ctxs)
         self.stmt = renamer.visit(self.stmt)
+
+
+class IRContextEnter(IRAstStmt):
+    """Context-manager entry marker; the body remains separate IR statements.
+
+    This is a protocol boundary, not a claim that exceptional CFG edges have
+    been implemented. Consumers must explicitly account for those obligations.
+    """
+    def __init__(self, item, origin, is_async=False):
+        self.item = item
+        self.origin = origin
+        self.is_async = is_async
+        node_type = ast.AsyncWith if is_async else ast.With
+        header = node_type(items=[item], body=[])
+        ast.copy_location(header, origin)
+        super().__init__(header)
+
+    def __str__(self):
+        return f"context-enter {ast.unparse(self.item.context_expr)}"
+
+
+class IRContextExit(IRAstStmt):
+    """Cleanup marker paired with a context-manager entry."""
+    def __init__(self, entry):
+        self.entry = entry
+        super().__init__(entry.stmt)
+
+    def __str__(self):
+        return f"context-exit {ast.unparse(self.entry.item.context_expr)}"
 
 
 class Label(IRAbstractStmt):
@@ -397,7 +433,7 @@ class IRYield(IRAbstractStmt):
         yield_value = stmt.value.value
         assert isinstance(yield_value, ast.Name) or yield_value is None
         self.value = yield_value
-        self._is_yield_from = isinstance(self.value, ast.YieldFrom)
+        self._is_yield_from = isinstance(stmt.value, ast.YieldFrom)
         ast.fix_missing_locations(self.stmt)
         self.load_collector = VarCollector("load")
         self.load_collector.visit(self.stmt)
@@ -1268,6 +1304,13 @@ class IRScope(ABC):
         self.global_vars = set()
         self.nonlocal_vars = set()
         self.cell_vars = set()
+        # Legacy TAC mutates AST bodies in place. Source consumers must use
+        # the producer's immutable module snapshot rather than this AST.
+        self.source_module = None
+
+    def get_source_snapshot(self):
+        """Return original source when a trusted producer supplied it."""
+        return getattr(self.source_module, "source_snapshot", None)
 
     def get_qualname(self) -> str:
         """Returns the fully-qualified scope name."""
@@ -1308,7 +1351,8 @@ class IRModule(IRScope, IRStatement):
     stmt: Module
     #: Parsed module AST.
 
-    def __init__(self, qualname: str, module: Module, name: str = "", filename: Optional[str] = None):
+    def __init__(self, qualname: str, module: Module, name: str = "", filename: Optional[str] = None,
+                 *, source_snapshot=None):
         """Stores parsed module metadata for later IR passes."""
         super().__init__(qualname)
         self.name = name
@@ -1317,6 +1361,17 @@ class IRModule(IRScope, IRStatement):
         else:
             self.filename = filename
         self.stmt = module
+        if source_snapshot is not None:
+            from pythonstan.analysis.contracts import SourceModule
+            if not isinstance(source_snapshot, SourceModule) or source_snapshot.module != qualname:
+                raise ValueError("IRModule source snapshot must match its module identity")
+        self._source_snapshot = source_snapshot
+        self.source_module = self
+
+    @property
+    def source_snapshot(self):
+        """Immutable original source; absent for AST-only synthetic modules."""
+        return self._source_snapshot
 
     def get_name(self) -> str:
         """Returns the import-style string shown in dumps."""
@@ -1351,12 +1406,26 @@ class IRModule(IRScope, IRStatement):
     @classmethod
     def load_module(cls, name: str, filename: str, content: Optional[str] = None) -> 'IRModule':
         """Parses raw source and wraps it in an ``IRModule``."""
+        from hashlib import sha256
+        import io
+        import tokenize
+        from pythonstan.analysis.contracts import SourceModule
+        filename = str(filename)
         if content is None:
-            with open(filename, 'r') as f:
-                content = f.read()
-        mod_ast = ast.parse(content, filename)
-        mod = cls(mod_ast, name=name, filename=filename)
-        return mod
+            with open(filename, 'rb') as file:
+                raw = file.read()
+            encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
+            content = raw.decode(encoding)
+        else:
+            if not isinstance(content, str):
+                raise TypeError("IRModule content must be decoded source text")
+            raw, encoding = content.encode("utf-8"), "utf-8"
+        snapshot = SourceModule(name, filename, content,
+            is_package=filename.replace("\\", "/").rsplit("/", 1)[-1] == "__init__.py",
+            original_bytes_digest=sha256(raw).hexdigest(), encoding=encoding)
+        mod_ast = ast.parse(content, filename, type_comments=True, feature_version=(3, 12))
+        return cls(name, mod_ast, name=name.rsplit(".", 1)[-1], filename=filename,
+                   source_snapshot=snapshot)
 
 
 class IRFunc(IRScope, IRStatement):
@@ -1407,7 +1476,7 @@ class IRFunc(IRScope, IRStatement):
         self.name = fn.name
         self.args = fn.args
         self.arg_names = set()
-        for arg in fn.args.args:
+        for arg in (*fn.args.posonlyargs, *fn.args.args):
             self.arg_names.add(arg.arg)
         for arg in fn.args.kwonlyargs:
             self.arg_names.add(arg.arg)
@@ -1418,7 +1487,7 @@ class IRFunc(IRScope, IRStatement):
 
         self.decorator_list = fn.decorator_list
         self.is_static_method = self.is_class_method = self.is_setter = self.is_getter = False
-        for decr in fn.decorator_list:
+        for decr in getattr(fn, '_original_decorators', fn.decorator_list):
             if isinstance(decr, ast.Name):
                 if decr.id == 'staticmethod':
                     self.is_static_method = True

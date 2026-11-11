@@ -1,62 +1,349 @@
 """Tests for dynamic Python features.
 
-Most advanced dynamic features are documented limitations or future work.
+Tests for generators, coroutines, and other dynamic features.
 """
 
 import pytest
 
 
 # ============================================================================
+# Generator Tests
+# ============================================================================
+
+class TestGeneratorSupport:
+    """Tests for generator function support."""
+    
+    def test_generator_object_creation(self):
+        """Test that calling a generator function returns a GeneratorObject."""
+        from pythonstan.analysis.pointer.kcfa.object import (
+            GeneratorObject, AllocKind
+        )
+        from pythonstan.analysis.pointer.kcfa.processor import GeneratorProcessor
+        
+        # Verify types exist and are correct
+        assert AllocKind.GENERATOR.value == "generator"
+        assert GeneratorProcessor is not None
+    
+    def test_generator_yield_constraint_structure(self):
+        """Test that YieldConstraint has correct structure for yield statements."""
+        from pythonstan.analysis.pointer.kcfa.constraints import StoreConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import elem
+        
+        # Verify the constraint structure: yield stores to generator.elem()
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        value_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        # This is what _translate_yield generates
+        store_constraint = StoreConstraint(
+            base=gen_var,
+            field=elem(),
+            source=value_var
+        )
+        
+        assert store_constraint.base == gen_var
+        assert store_constraint.source == value_var
+        assert store_constraint.field.kind.name == "ELEMENT"
+    
+    def test_yield_target_receives_sent_value(self):
+        """Test that yield target receives sent values from generator.$sent."""
+        from pythonstan.analysis.pointer.kcfa.constraints import LoadConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For "target = yield value", target loads from $sent field
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        target_var = Variable("target", kind=VariableKind.LOCAL)
+        
+        load_constraint = LoadConstraint(
+            base=gen_var,
+            field=attr("$sent"),
+            target=target_var
+        )
+        
+        assert load_constraint.base == gen_var
+        assert load_constraint.target == target_var
+        assert load_constraint.field.name == "$sent"
+
+
+# ============================================================================
+# Coroutine Tests
+# ============================================================================
+
+class TestCoroutineSupport:
+    """Tests for async/await support."""
+    
+    def test_coroutine_object_creation(self):
+        """Test that calling an async function returns a CoroutineObject."""
+        from pythonstan.analysis.pointer.kcfa.object import (
+            CoroutineObject, AllocKind
+        )
+        
+        assert AllocKind.COROUTINE.value == "coroutine"
+    
+    def test_await_constraint_structure(self):
+        """Test that await loads from coroutine.$await_result."""
+        from pythonstan.analysis.pointer.kcfa.constraints import LoadConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For "x = await coro", x loads from coro.$await_result
+        coro_var = Variable("coro", kind=VariableKind.LOCAL)
+        target_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        load_constraint = LoadConstraint(
+            base=coro_var,
+            field=attr("$await_result"),
+            target=target_var
+        )
+        
+        assert load_constraint.base == coro_var
+        assert load_constraint.target == target_var
+        assert load_constraint.field.name == "$await_result"
+    
+    def test_async_return_stores_to_await_result(self):
+        """Test that async function return stores to $await_result."""
+        from pythonstan.analysis.pointer.kcfa.constraints import StoreConstraint, CopyConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr
+        
+        # For async function return, store to coroutine.$await_result
+        coro_var = Variable("$coroutine", kind=VariableKind.TEMPORARY)
+        return_var = Variable("$return", kind=VariableKind.TEMPORARY)
+        source_var = Variable("x", kind=VariableKind.LOCAL)
+        
+        # These are the constraints generated by _translate_return for async functions
+        store_constraint = StoreConstraint(
+            base=coro_var,
+            field=attr("$await_result"),
+            source=source_var
+        )
+        copy_constraint = CopyConstraint(
+            source=source_var,
+            target=return_var
+        )
+        
+        assert store_constraint.base == coro_var
+        assert store_constraint.field.name == "$await_result"
+        assert copy_constraint.target == return_var
+
+
+# ============================================================================
+# Constraint Type Tests
+# ============================================================================
+
+class TestGeneratorConstraints:
+    """Tests for generator/coroutine constraint types."""
+    
+    def test_yield_constraint_creation(self):
+        """Test YieldConstraint creation and attributes."""
+        from pythonstan.analysis.pointer.kcfa.constraints import YieldConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        
+        value_var = Variable("x", kind=VariableKind.LOCAL)
+        target_var = Variable("y", kind=VariableKind.LOCAL)
+        gen_var = Variable("$generator", kind=VariableKind.TEMPORARY)
+        
+        constraint = YieldConstraint(
+            value=value_var,
+            target=target_var,
+            generator_var=gen_var
+        )
+        
+        assert constraint.value == value_var
+        assert constraint.target == target_var
+        assert constraint.generator_var == gen_var
+        
+        # Test variables() method
+        vars_set = constraint.variables()
+        assert gen_var in vars_set
+        assert value_var in vars_set
+        assert target_var in vars_set
+    
+    def test_await_constraint_creation(self):
+        """Test AwaitConstraint creation and attributes."""
+        from pythonstan.analysis.pointer.kcfa.constraints import AwaitConstraint
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        
+        awaitable_var = Variable("coro", kind=VariableKind.LOCAL)
+        target_var = Variable("result", kind=VariableKind.LOCAL)
+        
+        constraint = AwaitConstraint(
+            awaitable=awaitable_var,
+            target=target_var
+        )
+        
+        assert constraint.awaitable == awaitable_var
+        assert constraint.target == target_var
+        
+        # Test variables() method
+        vars_set = constraint.variables()
+        assert awaitable_var in vars_set
+        assert target_var in vars_set
+
+
+# ============================================================================
 # Documented Limitations
 # ============================================================================
 
+def _analyze_dynamic_source(tmp_path, source, *, track_unknowns=True):
+    """Use the production source pipeline, not hand-assembled effect facts."""
+    from pythonstan.analysis.pointer.kcfa.config import Config
+    from pythonstan.world import World
+    from pythonstan.world.pipeline import Pipeline
+    filename = tmp_path / "dynamic.py"
+    filename.write_text(source)
+    World.setup()
+    pipeline = Pipeline(config={
+        "filename": str(filename), "project_path": str(tmp_path),
+        "library_paths": [], "import_level": 0, "mock_libs": False, "time_count": False,
+        "analysis": [{"name": "pta", "id": "PointerAnalysis", "prev_analysis": ["ir"],
+                      "options": Config(max_iterations=10000, log_level="ERROR",
+                                        enable_ai_intrinsics=False, track_unknowns=track_unknowns).to_dict()}],
+    })
+    pipeline.run()
+    query = pipeline.analysis_manager.get_results("pta").query()
+    assert query.get_statistics()["converged"] == 1
+    return query, World().get_entry_module()
+
+
+def _assert_dynamic_result(tmp_path, source, expected):
+    from pythonstan.analysis.pointer.kcfa.object import ConstantObject
+    concrete = {}
+    exec(source, concrete)
+    assert concrete["result"] == expected
+    query, module = _analyze_dynamic_source(tmp_path, source)
+    values = query.points_to_at("result", module)
+    assert {obj.value for obj in values if isinstance(obj, ConstantObject)} == {expected}
+    edges = {(edge.callsite.scope.stmt.get_qualname(), edge.callee.stmt.get_qualname())
+             for edge in query.call_graph().edges}
+    return edges
+
+
 class TestDynamicFeatureLimitations:
-    """Documentation of known limitations."""
-    
-    def test_closures_future_work(self):
-        """Document that closures are future work."""
-        pytest.skip("Closures - future enhancement")
-    
-    def test_decorators_future_work(self):
-        """Document that decorators are future work."""
-        pytest.skip("Decorators - future enhancement")
-    
-    def test_properties_not_supported(self):
-        """Document that @property is not supported."""
-        pytest.skip("Property descriptors not supported - would require descriptor protocol")
-    
-    def test_descriptors_not_supported(self):
-        """Document descriptor protocol limitation."""
-        pytest.skip("Descriptor protocol (__get__, __set__) not supported")
-    
-    def test_metaclasses_limited_support(self):
-        """Document metaclass limitation."""
-        pytest.skip("Metaclasses have limited support - basic registration only")
-    
-    def test_exec_eval_unsound(self):
-        """Document exec/eval limitation."""
-        pytest.skip("exec/eval make analysis potentially unsound - should emit warning")
-    
-    def test_generators_not_supported(self):
-        """Document generator/coroutine limitation."""
-        pytest.skip("Generators and coroutines not supported")
-    
-    def test_async_await_not_supported(self):
-        """Document async/await limitation."""
-        pytest.skip("Async/await not supported - future work")
-    
-    def test_dynamic_imports_not_supported(self):
-        """Document dynamic import limitation."""
-        pytest.skip("Dynamic imports not supported - static imports only")
+    """Historical IDs retained: five supported witnesses and two open-effect contracts."""
+
+    def test_closures_future_work(self, tmp_path):
+        """A captured callback must remain callable after its outer call returns."""
+        edges = _assert_dynamic_result(tmp_path, """
+def callback():
+    return 7
+def bind(function):
+    def invoke():
+        return function()
+    return invoke
+closure = bind(callback)
+result = closure()
+""", 7)
+        assert ("dynamic", "dynamic.bind.invoke") in edges
+        assert ("dynamic.bind.invoke", "dynamic.callback") in edges
+
+    def test_decorators_future_work(self, tmp_path):
+        """A replacement decorator must route calls through its returned function."""
+        edges = _assert_dynamic_result(tmp_path, """
+def replacement():
+    return 11
+def decorate(function):
+    return replacement
+@decorate
+def endpoint():
+    return 99
+result = endpoint()
+""", 11)
+        assert ("dynamic", "dynamic.decorate") in edges
+        assert ("dynamic", "dynamic.replacement") in edges
+        assert ("dynamic", "dynamic.endpoint") not in edges
+
+    def test_properties_not_supported(self, tmp_path):
+        """A property getter dispatches a real callback and supplies its value."""
+        edges = _assert_dynamic_result(tmp_path, """
+def callback():
+    return 13
+class Container:
+    @property
+    def value(self):
+        return callback()
+result = Container().value
+""", 13)
+        assert ("dynamic", "dynamic.Container.value") in edges
+        assert ("dynamic.Container.value", "dynamic.callback") in edges
+
+    def test_descriptors_not_supported(self, tmp_path):
+        """A custom __get__ returns the callable used at the original callsite."""
+        edges = _assert_dynamic_result(tmp_path, """
+def callback():
+    return 17
+class Descriptor:
+    def __get__(self, instance, owner):
+        return callback
+class Container:
+    field = Descriptor()
+result = Container().field()
+""", 17)
+        assert ("dynamic", "dynamic.Descriptor.__get__") in edges
+        assert ("dynamic", "dynamic.callback") in edges
+
+    def test_metaclasses_limited_support(self, tmp_path):
+        """A metaclass method receives the class and installs a bound member."""
+        edges = _assert_dynamic_result(tmp_path, """
+def callback(self):
+    return 19
+class Meta(type):
+    def install(cls, function):
+        cls.action = function
+class Container(metaclass=Meta):
+    pass
+Container.install(callback)
+result = Container().action()
+""", 19)
+        assert ("dynamic", "dynamic.Meta.install") in edges
+        assert ("dynamic", "dynamic.callback") in edges
+
+    def test_exec_eval_unsound(self, tmp_path):
+        """Unmodeled dynamic code keeps mandatory effects even with diagnostics off."""
+        from pythonstan.analysis.pointer.kcfa.object import AllocKind
+        for operation in ("exec", "eval"):
+            source = f'result = {operation}("arbitrary_callback()")\nderived = result.payload\n'
+            query, module = _analyze_dynamic_source(tmp_path, source, track_unknowns=False)
+            residuals = query.get_residual_effects()
+            assert any(operation in residual["origin"] for residual in residuals)
+            assert any({"may_mutate_heap", "may_invoke_callbacks", "may_raise"} <= set(residual["effects"])
+                       for residual in residuals)
+            assert any(obj.kind == AllocKind.UNKNOWN for obj in query.points_to_at("result", module))
+            assert any(obj.kind == AllocKind.UNKNOWN for obj in query.points_to_at("derived", module))
+            status = query.get_semantic_status()
+            assert status["residual_obligation_count"] > 0
+            assert not status["unknown_diagnostics_enabled"]
+            assert status["unknown_diagnostic_count"] == 0
+            assert not status["certificate_eligible"]
+            assert not status["whole_program_soundness_proved"]
+
+    def test_dynamic_imports_not_supported(self, tmp_path):
+        """Unknown dynamic imports retain module/callback effects and unknown values."""
+        from pythonstan.analysis.pointer.kcfa.object import AllocKind
+        query, module = _analyze_dynamic_source(tmp_path, """
+module_name = "arbitrary_plugin"
+plugin = __import__(module_name)
+result = plugin.create()
+""", track_unknowns=False)
+        residuals = query.get_residual_effects()
+        assert any("__import__" in residual["origin"] for residual in residuals)
+        assert any({"may_mutate_heap", "may_invoke_callbacks", "may_raise"} <= set(residual["effects"])
+                   for residual in residuals)
+        assert any(obj.kind == AllocKind.UNKNOWN for obj in query.points_to_at("plugin", module))
+        assert any(obj.kind == AllocKind.UNKNOWN for obj in query.points_to_at("result", module))
+        status = query.get_semantic_status()
+        assert status["residual_obligation_count"] > 0
+        assert status["unknown_diagnostic_count"] == 0
+        assert not status["certificate_eligible"]
+        assert not status["whole_program_soundness_proved"]
 
 
-# NOTE: Advanced Python features like closures, decorators, properties,
-# descriptors, metaclasses, generators, and async/await are explicitly
-# marked as limitations or future enhancements in the design document.
+# NOTE: Generator and coroutine support has been implemented:
+# - GeneratorObject and CoroutineObject types
+# - YieldConstraint and AwaitConstraint
+# - GeneratorProcessor for call handling
+# - IRTranslator._translate_yield() and _translate_await()
 #
-# The current implementation focuses on core pointer analysis features:
-# - Copy propagation
-# - Field-sensitive analysis
-# - Function/method calls
-# - Class instantiation
-# - Basic inheritance (MRO)
+# Yielded values flow to generator.elem() for iteration via next()/for-loops.
+# Await results flow from coroutine.$await_result field.

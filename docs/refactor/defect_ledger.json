@@ -1,0 +1,794 @@
+{
+  "schema_version": 1,
+  "run_id": "20261110",
+  "records": [
+    {
+      "id": "A01",
+      "current_status": "repaired",
+      "evidence_kind": "pipeline",
+      "observation": "string_identity concrete after; Native after; AI ret empty and complete. Integer 7 control succeeds.",
+      "evidence": [
+        "replay/root_review/observations.json",
+        "replay/ai_engine/isolate_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "string_identity concrete after; Native after; AI ret empty and complete. Integer 7 control succeeds.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Original string scalar return is useful, typed and non-Top in independently run public AI and legacy Pipeline regressions.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy/green.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/cases.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "string_identity concrete after; Native after; AI ret empty and complete. Integer 7 control succeeds.",
+        "evidence": [
+          "replay/root_review/observations.json",
+          "replay/ai_engine/isolate_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "test_gold.py::test_frozen_source_gold[A01_scalar_return]",
+        "tests/refactor/semantics/test_legacy_pipeline.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/domains/values.py": "4a93bb08df70097a8a44a4630cefbaaa180a29cc9e7e3f9e3ea8449cd75e5020",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/pointer/ai/summary.py": "f34a04c6fd9d898a67d0c509f47494ae333573d61d2a9cfb135a8113ad624b28"
+      },
+      "remaining_or_limits": [
+        "Finite witnesses; later source changes require final frozen regression run."
+      ]
+    },
+    {
+      "id": "A02",
+      "current_status": "repaired",
+      "evidence_kind": "pipeline",
+      "observation": "literal_call loses after while local_call retains after; isolated pre-transfer event records lexical vs local name lookup. Distinct from scalar summary projection A01.",
+      "evidence": [
+        "replay/root_review/observations.json",
+        "replay/ai_engine/isolate_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "literal_call loses after while local_call retains after; isolated pre-transfer event records lexical vs local name lookup. Distinct from scalar summary projection A01.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Lifted literal and local-name control both preserve after; legacy AI ret_value/exit_state bridge does not substitute Native return results.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy/green.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "literal_call loses after while local_call retains after; isolated pre-transfer event records lexical vs local name lookup. Distinct from scalar summary projection A01.",
+        "evidence": [
+          "replay/root_review/observations.json",
+          "replay/ai_engine/isolate_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "A02_lifted_literal",
+        "A02_local_control",
+        "tests/refactor/semantics/test_legacy_pipeline.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/pointer/ai/summary.py": "f34a04c6fd9d898a67d0c509f47494ae333573d61d2a9cfb135a8113ad624b28",
+        "pythonstan/analysis/pointer/ai/interpreter.py": "23b0b27bf7cfa17814725fcb7a4f2ebf57447dbdb5f660b64318bcbcde5f7207"
+      },
+      "remaining_or_limits": [
+        "Current stage has two AI implementations; G7 migration is A15/A18 debt."
+      ]
+    },
+    {
+      "id": "A03",
+      "current_status": "repaired",
+      "evidence_kind": "pipeline",
+      "observation": "local_kwargs_identity and default_identity have empty AI ret with complete=true; explicit local keyword control retains after. Full binder feature matrix remains implementation obligation.",
+      "evidence": [
+        "replay/ai_engine/isolate_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "local_kwargs_identity and default_identity have empty AI ret with complete=true; explicit local keyword control retains after. Full binder feature matrix remains implementation obligation.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Frozen source matrix covers keyword/default/**kwargs/posonly/*args/bound receiver/shared definition-time defaults and binding errors; independent public gold green at its pinned version.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/replay.command.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "local_kwargs_identity and default_identity have empty AI ret with complete=true; explicit local keyword control retains after. Full binder feature matrix remains implementation obligation.",
+        "evidence": [
+          "replay/ai_engine/isolate_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/semantics/test_gold.py A03_* fixtures",
+        "tests/refactor/semantics/heldout_cases.json"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/pointer/ai/analysis.py": "50b764e4fbd8669dd9549ad363a63ff06395188cbc94d53b8deeabee3ca318e2"
+      },
+      "remaining_or_limits": [
+        "Unknown nonfinite expansions remain honest Open, not a claim all dynamic binders are exact."
+      ]
+    },
+    {
+      "id": "A04",
+      "current_status": "repaired",
+      "evidence_kind": "component_composition",
+      "observation": "AI incoming overlay after is visible in direct read; nested caller->callee read returns before only, while direct returns before+after. No altered PTA baseline.",
+      "evidence": [
+        "replay/ai_engine/handoff/observation.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "AI incoming overlay after is visible in direct read; nested caller->callee read returns before only, while direct returns before+after. No altered PTA baseline.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Trusted AI-only caller overlay absent from source/Native now reaches nested legacy callee, and scalar callee writes return to caller. Independently reviewed seven state-boundary cases.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/pytest.stdout.txt"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "AI incoming overlay after is visible in direct read; nested caller->callee read returns before only, while direct returns before+after. No altered PTA baseline.",
+        "evidence": [
+          "replay/ai_engine/handoff/observation.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "test_caller_local_overlay_reaches_nested_callee_without_pta_masking",
+        "test_pure_scalar_callee_write_changes_the_caller_state"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/pointer/ai/api.py": "4207022eb7c6da0820ce3adb4bc41047ecc193c6d7c788f2295388f14f9d424e",
+        "pythonstan/analysis/pointer/ai/analysis.py": "50b764e4fbd8669dd9549ad363a63ff06395188cbc94d53b8deeabee3ca318e2",
+        "pythonstan/analysis/pointer/ai/interpreter.py": "23b0b27bf7cfa17814725fcb7a4f2ebf57447dbdb5f660b64318bcbcde5f7207",
+        "pythonstan/analysis/engines/abstract/state.py": "54d681a1b39b44058bdd4f6976613baf722b00c3cc00186e2df31132be2b6cd9"
+      },
+      "remaining_or_limits": [
+        "General address-coarsening subscriber migration is separate A09 open debt."
+      ]
+    },
+    {
+      "id": "A05",
+      "current_status": "repaired",
+      "evidence_kind": "bounded_native_and_structure",
+      "observation": "Terminating source: 1-param at budgets 700/1000 creates 209/309 edges and nested context depth at least 500; 2-obj creates 21/32 edges depth65/98. Solver correctly reports converged=0 and pending work. 28-policy matrix includes 1/2/3-param,2/3-obj,1c2o and swap witness. Growth witnesses and nested representation, not universal nontermination proof.",
+      "evidence": [
+        "replay/native/context_probes.jsonl",
+        "replay/native/terminating_context_probes.json",
+        "replay/root_review/observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "Terminating source: 1-param at budgets 700/1000 creates 209/309 edges and nested context depth at least 500; 2-obj creates 21/32 edges depth65/98. Solver correctly reports converged=0 and pending work. 28-policy matrix includes 1/2/3-param,2/3-obj,1c2o and swap witness. Growth witnesses and nested representation, not universal nontermination proof.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Independent Native review accepts finite flat origins and constructor validation;19 policies and recursive context counts stabilize without relying on timeout. Ordered args/keywords/repeated origins preserved.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/PTA-01/independent_review.json",
+        "docs/refactor/evidence/20261110/PTA-01/review_fix.json",
+        "docs/refactor/evidence/20261110/PTA-02/independent_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "Terminating source: 1-param at budgets 700/1000 creates 209/309 edges and nested context depth at least 500; 2-obj creates 21/32 edges depth65/98. Solver correctly reports converged=0 and pending work. 28-policy matrix includes 1/2/3-param,2/3-obj,1c2o and swap witness. Growth witnesses and nested representation, not universal nontermination proof.",
+        "evidence": [
+          "replay/native/context_probes.jsonl",
+          "replay/native/terminating_context_probes.json",
+          "replay/root_review/observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/engines/test_native_context.py",
+        "tests/refactor/engines/test_native_heap_policy.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/pointer/kcfa/context.py": "92ab4a7d99fc0bbbd970488e3dade28dec1df414fd408391dccc6a6c1d2c20cb",
+        "pythonstan/analysis/pointer/kcfa/context_selector.py": "87ccf8f7a9f8008d82e286cf57cf867170fe2bfb093ce3c259441ef6fe1f62a0",
+        "pythonstan/analysis/pointer/kcfa/allocation.py": "2ba26607295fd2f12f313cfeb1c463ba725261b173c51b2e4c4d98eb90d6fd13"
+      },
+      "remaining_or_limits": [
+        "Finite source/model inventory assumption; this does not prove arbitrary dynamic-code termination."
+      ]
+    },
+    {
+      "id": "A06",
+      "current_status": "repaired",
+      "evidence_kind": "current_source_plus_historical_witness",
+      "observation": "Current _mark_unknown_call explicitly records may_mutate_heap/may_invoke_callbacks/may_raise ledger but documents not full havoc; effects consumer likewise. Previous audit end-to-end witness is historical, not rerun here. Current code gap confirmed structurally; no fresh end-to-end A06 claim.",
+      "evidence": [
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "Current _mark_unknown_call explicitly records may_mutate_heap/may_invoke_callbacks/may_raise ledger but documents not full havoc; effects consumer likewise. Previous audit end-to-end witness is historical, not rerun here. Current code gap confirmed structurally; no fresh end-to-end A06 claim.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Unknown effects are consumed as semantic havoc including future subscriptions in Native; public required-open eval and independent reachable nonlocal callback witness preserve effects/exception openness instead of only ledger labels.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/PTA-04/independent_review.json",
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/unknown_callback_cells/red.command.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "Current _mark_unknown_call explicitly records may_mutate_heap/may_invoke_callbacks/may_raise ledger but documents not full havoc; effects consumer likewise. Previous audit end-to-end witness is historical, not rerun here. Current code gap confirmed structurally; no fresh end-to-end A06 claim.",
+        "evidence": [
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/engines/test_native_unknown_effects.py",
+        "test_unknown_dynamic_code_havoc_is_consumed",
+        "test_unknown_callback_havocs_reachable_closure_cells"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/pointer/kcfa/unknown_effects.py": "37d61d61ce0108c86ea98e52565b7f90561a71d8f4b519a5d8fc39def5743aab",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/engines/abstract/state.py": "54d681a1b39b44058bdd4f6976613baf722b00c3cc00186e2df31132be2b6cd9"
+      },
+      "remaining_or_limits": [
+        "Havoc supports declared reachable modeled frames; callback event order is not proven and unknown behavior remains Open."
+      ]
+    },
+    {
+      "id": "A07",
+      "current_status": "repaired",
+      "evidence_kind": "finite_component_oracle_and_state",
+      "observation": "11 different one-character strings widen to string bottom; cap20/50 state results still lose candidates. Finite oracle finds widen72/meet22/narrow22 failures at max_consts2; no claim whole AbsVal is bottom.",
+      "evidence": [
+        "replay/domains/results.json",
+        "replay/domains/manifest.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "11 different one-character strings widen to string bottom; cap20/50 state results still lose candidates. Finite oracle finds widen72/meet22/narrow22 failures at max_consts2; no claim whole AbsVal is bottom.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Independent regex language oracle covers overlapping prefix/suffix and Unicode, widening upper coverage and useful common prefix. Reviewer found false produce_facts predicate on conjunction disjuncts; author fixed it.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/domains/independent_review.json",
+        "docs/refactor/evidence/20261110/domains/independent_review.stdout.txt",
+        "docs/refactor/evidence/20261110/domains/tagged-domain-tests.log"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "11 different one-character strings widen to string bottom; cap20/50 state results still lose candidates. Finite oracle finds widen72/meet22/narrow22 failures at max_consts2; no claim whole AbsVal is bottom.",
+        "evidence": [
+          "replay/domains/results.json",
+          "replay/domains/manifest.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/domains/test_domain_repair.py",
+        "tests/refactor/domains/test_independent_review.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/domains/strings.py": "f25f458a81607b80a0a885ff9a08d6831dce19ea144c68a533eb5697d15774bc"
+      },
+      "remaining_or_limits": [
+        "Local domain review is not a universal lattice proof; changed current hashes are explicitly recorded in evidence comparisons."
+      ]
+    },
+    {
+      "id": "A08",
+      "current_status": "repaired",
+      "evidence_kind": "component_and_subscript_integration",
+      "observation": "Unknown dict read loses tracked A, unknown write C misses tracked known, partition split loses default A, absent/default join loses presence, bool/int key bridge drops A; KeyError not forwarded by subscript. Width masking explicitly controlled.",
+      "evidence": [
+        "replay/domains/results.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "Unknown dict read loses tracked A, unknown write C misses tracked known, partition split loses default A, absent/default join loses presence, bool/int key bridge drops A; KeyError not forwarded by subscript. Width masking explicitly controlled.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Tracked slot reads/writes include unknown spill and prior known values; bool/int key and missing-key source fixtures pass; KeyError is carried into completion handling.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/domains/independent_review.json",
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy/green.command.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "Unknown dict read loses tracked A, unknown write C misses tracked known, partition split loses default A, absent/default join loses presence, bool/int key bridge drops A; KeyError not forwarded by subscript. Width masking explicitly controlled.",
+        "evidence": [
+          "replay/domains/results.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/domains/test_independent_review.py::test_dictionary_spill_and_unknown_writes_cover_concrete_maps",
+        "A08_bool_int_key",
+        "A08_missing_key"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/pointer/ai/domains/mapslots.py": "8920c60173304a1553eb1dacfde339b7d7482eefa6eaf5445c47de82d7dd5389",
+        "pythonstan/analysis/pointer/ai/domains/subscripts.py": "41449b84eb8a4616fafc7eb2be02aa8296eb66d69f3ccb37bd2d6d1e185162c4",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf"
+      },
+      "remaining_or_limits": [
+        "Scalar/slot component and finite source completion evidence do not certify arbitrary user mapping protocols."
+      ]
+    },
+    {
+      "id": "A09",
+      "current_status": "partial",
+      "evidence_kind": "component_state_composition",
+      "observation": "AI-local heap/overlay after address widen loses A/B; old_state.leq(new) true, summarized receiver has no corresponding remapped cell. No PTA top rescue; pure address algebra negative control passes.",
+      "evidence": [
+        "replay/domains/results.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "AI-local heap/overlay after address widen loses A/B; old_state.leq(new) true, summarized receiver has no corresponding remapped cell. No PTA top rescue; pure address algebra negative control passes.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Local full-state reabstraction/adapter copy and exact completion boundaries are implemented and independently exercised; address coarsening still lacks established host dependency/subscriber migration proof.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/composition-review/independent_review.json",
+        "docs/refactor/evidence/20261110/domains/scalar-slots-state.log",
+        "docs/refactor/evidence/20261110/domains/domain-contract-tests.log"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "AI-local heap/overlay after address widen loses A/B; old_state.leq(new) true, summarized receiver has no corresponding remapped cell. No PTA top rescue; pure address algebra negative control passes.",
+        "evidence": [
+          "replay/domains/results.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/contracts/test_architecture.py",
+        "tests/refactor/composition/test_independent_review.py",
+        "A09_full_state_reabstract"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/composition/state_adapter.py": "0385518349a9ee205874f6d95b813288c6cc12b4eeb7184100fc217218106d90",
+        "pythonstan/analysis/engines/abstract/state.py": "54d681a1b39b44058bdd4f6976613baf722b00c3cc00186e2df31132be2b6cd9",
+        "pythonstan/analysis/engines/abstract/driver.py": "8a52f0dccdee33ad226cbdbc23f3431739d43e88d166112717bdb2de9810cfb8"
+      },
+      "remaining_or_limits": [
+        "Do not mark full address-coarsening preservation closed from scalar-domain reabstraction or detached state-copy tests.",
+        "Positive/negative dependency migration across merged addresses is a release blocker until independently exercised."
+      ]
+    },
+    {
+      "id": "A10",
+      "current_status": "repaired",
+      "evidence_kind": "pipeline",
+      "observation": "finally return2 miniature concrete2; AI ret1 and complete; Native may1,2. Caught exception constructor variant is separately incomplete, not same claim.",
+      "evidence": [
+        "replay/root_review/frontend/observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "finally return2 miniature concrete2; AI ret1 and complete; Native may1,2. Caught exception constructor variant is separately incomplete, not same claim.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Finally override/write/nested cleanup witnesses now preserve completion precedence; lowering captures with manager/exit before reassignment and invokes suppression/cleanup.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy/green.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json",
+        "docs/refactor/evidence/20261110/SEM-04/frontend_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "finally return2 miniature concrete2; AI ret1 and complete; Native may1,2. Caught exception constructor variant is separately incomplete, not same claim.",
+        "evidence": [
+          "replay/root_review/frontend/observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "A10_finally_override",
+        "A10_finally_write",
+        "A10_nested_override",
+        "tests/refactor/semantics/test_cleanup_lowering.py",
+        "test_with_captures_manager_and_runs_exit_before_suppressed_continuation"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/transform/block_cfg.py": "f3c287d760367ff6210528603bfa631a41a511a741e9777358a6f7e62c742c2b",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/pointer/ai/interpreter.py": "23b0b27bf7cfa17814725fcb7a4f2ebf57447dbdb5f660b64318bcbcde5f7207"
+      },
+      "remaining_or_limits": [
+        "Async cancellation and full dynamic exception/protocol families remain explicit semantic boundaries.",
+        "Late independent handler-alias/exception-subclass witnesses require current revalidation; do not extrapolate original finally fix to every exception form."
+      ]
+    },
+    {
+      "id": "A11",
+      "current_status": "repaired",
+      "evidence_kind": "pipeline",
+      "observation": "nonlocal writer miniature concrete2; AI ret1 and complete, Native may1,2.",
+      "evidence": [
+        "replay/root_review/frontend/observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "nonlocal writer miniature concrete2; AI ret1 and complete, Native may1,2.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Shared closure cells, nonlocal writes and activation isolation are preserved by source gold and independent legacy state-boundary caller-only data witnesses.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json",
+        "docs/refactor/evidence/20261110/TEST-01/unknown_callback_cells/red.command.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "nonlocal writer miniature concrete2; AI ret1 and complete, Native may1,2.",
+        "evidence": [
+          "replay/root_review/frontend/observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "A11_nonlocal_write",
+        "A11_shared_cells",
+        "A11_activation_isolation",
+        "test_unknown_callback_havocs_reachable_closure_cells"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/engines/abstract/state.py": "54d681a1b39b44058bdd4f6976613baf722b00c3cc00186e2df31132be2b6cd9",
+        "pythonstan/analysis/engines/abstract/driver.py": "8a52f0dccdee33ad226cbdbc23f3431739d43e88d166112717bdb2de9810cfb8",
+        "pythonstan/analysis/pointer/ai/analysis.py": "50b764e4fbd8669dd9549ad363a63ff06395188cbc94d53b8deeabee3ca318e2"
+      },
+      "remaining_or_limits": [
+        "Same-site recursive heap cardinality and address coarsening require separate precision/closure arguments."
+      ]
+    },
+    {
+      "id": "A12",
+      "current_status": "repaired",
+      "evidence_kind": "finite_component_oracle",
+      "observation": "raw integer finite-enumeration vs interval ambiguity reproduced: 379 true-leq inclusion violations in finite oracle; widen enumeration/refine conflicts remain. Does not claim normal set_var reduced solver false fixpoint.",
+      "evidence": [
+        "replay/domains/results.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "raw integer finite-enumeration vs interval ambiguity reproduced: 379 true-leq inclusion violations in finite oracle; widen enumeration/refine conflicts remain. Does not claim normal set_var reduced solver false fixpoint.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Finite integer set and interval representations are disjoint; independent finite oracle exercises widening/refinement/parity. Historical widening assertion was migrated only from invalid finite enumeration to containment plus nonenumerable interval, retaining useful lower bound.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/domains/independent_review.json",
+        "docs/refactor/evidence/20261110/domains/stale_test_migration/migration_review.json",
+        "docs/refactor/evidence/20261110/domains/stale_test_migration/green.stdout.txt"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "raw integer finite-enumeration vs interval ambiguity reproduced: 379 true-leq inclusion violations in finite oracle; widen enumeration/refine conflicts remain. Does not claim normal set_var reduced solver false fixpoint.",
+        "evidence": [
+          "replay/domains/results.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/domains/test_independent_review.py::test_integer_refinement_and_parity_after_widening",
+        "tests/analysis/test_int_domain.py::TestIntDomainWiden"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/domains/ints.py": "4b5c003f48f5ebe7a5d1d032396e7326597d05b354cebcfd1a63760f62b1579e",
+        "pythonstan/analysis/domains/values.py": "4a93bb08df70097a8a44a4630cefbaaa180a29cc9e7e3f9e3ea8449cd75e5020"
+      },
+      "remaining_or_limits": [
+        "No blanket claim that every numeric user protocol is modeled; independent finite gamma is the accepted local scope."
+      ]
+    },
+    {
+      "id": "A13",
+      "current_status": "repaired",
+      "evidence_kind": "current_source_review",
+      "observation": "AISolver lines525-535 runs narrowing then publishes self.summary.to_summary; NarrowingPass lines29,65,67 explicitly uses throwaway accumulator. Source-structure evidence only; no new precision benchmark claimed.",
+      "evidence": [
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "AISolver lines525-535 runs narrowing then publishes self.summary.to_summary; NarrowingPass lines29,65,67 explicitly uses throwaway accumulator. Source-structure evidence only; no new precision benchmark claimed.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Checked narrowing now republishes a re-solved public result; legacy independent test sees [3,+inf] become {3}, and a deliberately invalid narrowed entry cannot replace established summary.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/TEST-01/legacy_state_independent/independent_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "AISolver lines525-535 runs narrowing then publishes self.summary.to_summary; NarrowingPass lines29,65,67 explicitly uses throwaway accumulator. Source-structure evidence only; no new precision benchmark claimed.",
+        "evidence": [
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "A13_public_narrowing",
+        "test_checked_narrowing_rebuilds_the_public_summary",
+        "test_invalid_narrowed_entry_cannot_replace_the_established_result"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/pointer/ai/_narrowing.py": "e017343383f902bebea5f8fa7ff10b543faee0496c8e218e023428bdbb9f8c9e",
+        "pythonstan/analysis/pointer/ai/solver.py": "df83122b99eac442e101e44012cd9da930b9e1e5183c87bc90b0835955ae607d",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf"
+      },
+      "remaining_or_limits": [
+        "Independent postfixpoint validation is scoped to current transfer/domain model, not full Python proof."
+      ]
+    },
+    {
+      "id": "A14",
+      "current_status": "partial",
+      "evidence_kind": "current_source_inventory_and_component",
+      "observation": "31 Native fields,19 context enums,25 AI budget fields,16 solver fields inventoried from current dataclasses/enums. Identity-key early branch bypass is fresh component witness. Inventory is not proof all options are connected.",
+      "evidence": [
+        "replay/structural_observations.json",
+        "replay/domains/results.json",
+        "replay/domains/budget_occurrences.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "31 Native fields,19 context enums,25 AI budget fields,16 solver fields inventoried from current dataclasses/enums. Identity-key early branch bypass is fresh component witness. Inventory is not proof all options are connected.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Canonical catalog/provenance/strict nested validation and metadata inventory exist; active consumer guards now reject inactive overrides, as our obsolete abstract.context_policy experiment demonstrated. Full control consumer/effect matrix remains root integration work.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/API-independent/independent_review.json",
+        "docs/refactor/evidence/20261110/API-independent/current.command.json",
+        "docs/refactor/evidence/20261110/EVAL-preliminary-client-bridge/summary.json",
+        "docs/refactor/evidence/20261110/EVAL-runner-independent/author_final.command.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "31 Native fields,19 context enums,25 AI budget fields,16 solver fields inventoried from current dataclasses/enums. Identity-key early branch bypass is fresh component witness. Inventory is not proof all options are connected.",
+        "evidence": [
+          "replay/structural_observations.json",
+          "replay/domains/results.json",
+          "replay/domains/budget_occurrences.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/api/test_control_applicability.py",
+        "tests/refactor/engines/test_control_metadata.py",
+        "tests/refactor/api/test_independent_contract.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/config/catalog.py": "0ba0886cb28a0e00afd9b546bbaed68e8f3961342730d0e69f26f8185788a832",
+        "pythonstan/config/resolve.py": "38e49068c92bb1d8f3b891e08bbe839b2be7dc05fcbbc79bc0908c4fc521bfa8",
+        "pythonstan/config/control_metadata.json": "f1ae0c5f1891140df59d184d1cfa7bf1f8e5bb6492d8dfed3ac0c7c4763ce277",
+        "pythonstan/analysis/contracts/budgets.py": "52ef855262926384bd7a484f4ac6fedf700ebb0d499d30d226d856dd6af10c56"
+      },
+      "remaining_or_limits": [
+        "Parsing/registration alone is not evidence every31Native/19context/25AI option changes actual execution.",
+        "Final consumer guards changed after earlier35-case facade review; final frozen validation remains required."
+      ]
+    },
+    {
+      "id": "A15",
+      "current_status": "partial",
+      "evidence_kind": "current_source_review",
+      "observation": "AI driver requires Native results/query._state and PtaQueryAdapter; IRFunc/IRClass dispatch to pass; recursive invoke uses max_recursion_depth. No independent AI-primary or global SCC driver.",
+      "evidence": [
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "AI driver requires Native results/query._state and PtaQueryAdapter; IRFunc/IRClass dispatch to pass; recursive invoke uses max_recursion_depth. No independent AI-primary or global SCC driver.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Actual public ai_primary executes without constructing legacy Pipeline/PointerSolver; source-definition/generator semantics and shared equation worklist exist. Full Django909-root partial analysis produced useful exact query with pta_work0. Native_then_ai now uses partial oracle plus same primary driver.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/TEST-01/ai_primary/pytest.command.json",
+        "docs/refactor/evidence/20261110/EVAL-preliminary-scale3/django/D/record.json",
+        "docs/refactor/evidence/20261110/EVAL-preliminary-client-bridge2/summary.json",
+        "docs/refactor/evidence/20261110/MIG-01/independent_frontend_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "AI driver requires Native results/query._state and PtaQueryAdapter; IRFunc/IRClass dispatch to pass; recursive invoke uses max_recursion_depth. No independent AI-primary or global SCC driver.",
+        "evidence": [
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "test_ai_primary_does_not_construct_or_solve_legacy_native",
+        "tests/refactor/semantics/test_gold.py",
+        "benchmark/refactor/runner.py D/E sentinels"
+      ],
+      "current_source_sha256": {
+        "pythonstan/session.py": "e4ca601b1de286f87591280e823cda2092d889387f859c898ac2bcb4cd531fc2",
+        "pythonstan/analysis/engines/abstract/driver.py": "8a52f0dccdee33ad226cbdbc23f3431739d43e88d166112717bdb2de9810cfb8",
+        "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
+        "pythonstan/analysis/pointer/ai/api.py": "4207022eb7c6da0820ce3adb4bc41047ecc193c6d7c788f2295388f14f9d424e"
+      },
+      "remaining_or_limits": [
+        "Legacy AISummaryEngine remains a separate implementation; G7 single-AI implementation/migration not yet closed.",
+        "No arbitrary application-request coverage is inferred from initialization roots or a literal query."
+      ]
+    },
+    {
+      "id": "A16",
+      "current_status": "repaired",
+      "evidence_kind": "offline_checker_and_source_scope",
+      "observation": "38 offline probe expected outcomes reproduced including accepted proper candidate, rejected malformed/adversarial, zero-budget unknown, stale-IR controlled violation. Finite checker useful but not general values/heap/order/Python certificate.",
+      "evidence": [
+        "replay/llm_soundness/results.json",
+        "replay/llm_soundness/manifest.json",
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "38 offline probe expected outcomes reproduced including accepted proper candidate, rejected malformed/adversarial, zero-budget unknown, stale-IR controlled violation. Finite checker useful but not general values/heap/order/Python certificate.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "New guarded-dispatch L2 is explicitly finite and relational: independent checker, source/model/state/guard/seal validation, adversarial rejection and fresh identity frame requirements are reviewed. No general full-Python certificate is claimed. L1 strategy control is separate and independently13-case green.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/LLM-03/independent_review/independent_review.json",
+        "docs/refactor/evidence/20261110/LLM-03/independent_review/frozen_current_review.log",
+        "docs/refactor/evidence/20261110/LLM-01-independent/independent_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "38 offline probe expected outcomes reproduced including accepted proper candidate, rejected malformed/adversarial, zero-budget unknown, stale-IR controlled violation. Finite checker useful but not general values/heap/order/Python certificate.",
+        "evidence": [
+          "replay/llm_soundness/results.json",
+          "replay/llm_soundness/manifest.json",
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/verification/test_guarded_dispatch.py",
+        "tests/refactor/verification/test_public_l2.py",
+        "tests/refactor/llm/test_strategy_independent.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/llm/providers.py": "0a37de50a8dabe92dd49e849fd32a0d8c812036eb33101edb9e18d0d383d18a8",
+        "pythonstan/llm/strategy.py": "a759de8606605a6c85464dfa6db721908dd112c0f970c8480db3589d453baa83"
+      },
+      "remaining_or_limits": [
+        "Trusted consumer must supply complete modeled preheap identity frame; partial snapshots cannot grant applicability.",
+        "Recursion, user protocols, arbitrary mutation and nonfinite keys are outside finite L2 capability; budget exhaustion emits Unknown.",
+        "Host address-coarsening subscriber correctness remains A09 debt."
+      ]
+    },
+    {
+      "id": "A17",
+      "current_status": "repaired",
+      "evidence_kind": "constructor_and_source_review",
+      "observation": "Pipeline() raises ValueError no proper configuration; constructor resets World/builds scope graph. No pythonstan/api.py or core cli.py; project path separate.",
+      "evidence": [
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "Pipeline() raises ValueError no proper configuration; constructor resets World/builds scope graph. No pythonstan/api.py or core cli.py; project path separate.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "One public analyze facade accepts Source/File/Project, explicit input/output/query contracts and fresh sessions. Independent35-case facade/CLI review and outside-checkout installed wheel probe passed at pinned interim versions.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/API-independent/independent_review.json",
+        "docs/refactor/evidence/20261110/API-independent/current.command.json",
+        "docs/refactor/evidence/20261110/API-independent/installed_wheel_review.json"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "Pipeline() raises ValueError no proper configuration; constructor resets World/builds scope graph. No pythonstan/api.py or core cli.py; project path separate.",
+        "evidence": [
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/api/test_public_contract.py",
+        "tests/refactor/api/test_independent_contract.py",
+        "test_three_input_forms_and_in_memory_source"
+      ],
+      "current_source_sha256": {
+        "pythonstan/api.py": "8af28cffe5156158b2d3e740390a9aef6b68ce8c3100279a3468ab033fed4446",
+        "pythonstan/session.py": "e4ca601b1de286f87591280e823cda2092d889387f859c898ac2bcb4cd531fc2",
+        "pythonstan/inputs/snapshot.py": "aa13045303a7688db491fe41a3e4702c1e2d53239512215ed0332f37ca26c088",
+        "pythonstan/results/schema.py": "ee9540e80981dbc77dec1f197e8e5aa5f0fc754f65789627fac607eb79f87110",
+        "pythonstan/cli.py": "3372638d0ca19fa9739e19393adff3f0ad51d127fadf862ec1ba58e536961adc"
+      },
+      "remaining_or_limits": [
+        "Saved wheel is interim; rebuild final release after current code freeze.",
+        "Later complete query projection/region/Inspector/config consumer gates are separate from initial facade acceptance."
+      ]
+    },
+    {
+      "id": "A18",
+      "current_status": "partial",
+      "evidence_kind": "current_source_inventory",
+      "observation": "AI/certified remain nested in pointer; deprecated_ai present under analysis; two distinct closure modules and old script survive; no canonical public facade.176 pythonstan+18 Inspector production Python files.",
+      "evidence": [
+        "replay/structural_observations.json"
+      ],
+      "review_status": "independently assessed; exact tested version and bounded scope in assessment",
+      "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+      "old_result": "AI/certified remain nested in pointer; deprecated_ai present under analysis; two distinct closure modules and old script survive; no canonical public facade.176 pythonstan+18 Inspector production Python files.",
+      "expected": "Formal prompt fixed obligation; mandatory supported or conservative open behavior per SPEC-01 gold.",
+      "fix": "Canonical public modules, canonical closure aliases, dedicated frontend/domain/contracts/composition/verification packages and migration adapter exist. Old seven-file deprecated_ai tree and47-file pointer/ai implementation still exist, so physical/semantic migration is unfinished.",
+      "green_evidence": [
+        "docs/refactor/evidence/20261110/MIG-01/independent_frontend_review.json",
+        "docs/refactor/MIG-01-adapters.md"
+      ],
+      "independent_review": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+      "baseline_record": {
+        "current_status": "still_present",
+        "observation": "AI/certified remain nested in pointer; deprecated_ai present under analysis; two distinct closure modules and old script survive; no canonical public facade.176 pythonstan+18 Inspector production Python files.",
+        "evidence": [
+          "replay/structural_observations.json"
+        ],
+        "source_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8"
+      },
+      "scope_of_status": "Original audited defect and explicitly listed finite contracts; not full Python or final release acceptance.",
+      "current_tests": [
+        "tests/refactor/contracts/test_migration_boundaries.py",
+        "tests/refactor/contracts/test_legacy_source_snapshot.py"
+      ],
+      "current_source_sha256": {
+        "pythonstan/analysis/scope/closure.py": "3a608bc9b53e229ac315440a971bad4d8c44e694a73ed5afc3fe2c3f31ae1bc7",
+        "pythonstan/analysis/closure.py": "76cc6424f85eb575839ffe93791f7d0512ed9abe6ad8dbc0f158ebf250da3e29",
+        "scripts/do_closure.py": "932046c0ae625c6f5a7b9348c9262fc01ba6d947985066d9ba365dcb314835da",
+        "pythonstan/analysis/pointer/ai/api.py": "4207022eb7c6da0820ce3adb4bc41047ecc193c6d7c788f2295388f14f9d424e",
+        "pythonstan/analysis/engines/abstract/driver.py": "8a52f0dccdee33ad226cbdbc23f3431739d43e88d166112717bdb2de9810cfb8"
+      },
+      "remaining_or_limits": [
+        "Legacy constructor behavior and deprecated layout must not be presented as fully migrated.",
+        "Root is implementing G7 bridge; current status remains partial until independently tested single implementation route."
+      ]
+    }
+  ],
+  "last_assessment": {
+    "path": "docs/refactor/evidence/20261110/TEST-01/current_defect_assessment.json",
+    "head": "b098157",
+    "is_release_acceptance": false,
+    "summary": {
+      "repaired_scoped_original_defects": 14,
+      "partial": 4
+    }
+  }
+}

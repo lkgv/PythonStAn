@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "scope": "Finite independent guarded-bootstrap protocol controls; no whole-project gold and no general solver-equivalence proof",
+  "authoring_order": "Frozen from the Round14 design before candidate predictions; later executable adapters must retain these expectations",
+  "baseline": "Round13 native queued builtin initialization",
+  "candidate_policy": "eager_inert, only if exact native admission succeeds",
+  "whole_project_goals_discharged": 0,
+  "cases": [
+    {"id": "two_stores", "setup": "One empty native module; admit one builtin seed", "required": ["The processed NormalNode and the distinct Ctx location contain the builtin", "A later PFG subscription replays that old fact"]},
+    {"id": "future_native_constraint", "setup": "Register a native load constraint after seed publication, then publish an additional source object", "required": ["The late rule receives old builtin facts", "The late rule also receives future source growth"]},
+    {"id": "future_raw_watch", "setup": "Register an ordinary builtin replay token after eager publication, using the same logical registration point before the queued control solves", "required": ["No necessary queued-control invocation is lost", "No duplicate invocation of the same token within the same pending replay set"]},
+    {"id": "custom_publication_hook", "setup": "Processor handle_pts records NormalNode-before-Ctx order and installs a sink", "required": ["Admission falls back to queued work", "The sink and hook observations equal the queued control"]},
+    {"id": "custom_state_hook", "setup": "An instance override of state.get_variable creates an observable marker", "required": ["Admission falls back without suppressing the address hook", "Returned cached requests do not move singleton creation ahead of first address resolution"]},
+    {"id": "pending_request", "setup": "The same module location has an unprocessed work item before initialization", "required": ["Admission declines for that location", "Existing and seed values are both retained after solving"]},
+    {"id": "existing_ctx_only", "setup": "Ctx contains a value while processed NormalNode is empty", "required": ["The location is not treated as fresh", "Later PFG propagation retains both applicable values"]},
+    {"id": "existing_normal_only", "setup": "Processed NormalNode contains a value while Ctx is empty", "required": ["The location is not treated as fresh", "The distinct storage roles are preserved"]},
+    {"id": "module_write_isolation", "setup": "Two module scopes share pure builtin templates, then only one module receives another len value", "required": ["The other module's len store does not receive that unrelated write", "Late consumers of the written module receive both values"]},
+    {"id": "poisoned_template_shape", "setup": "Supply an exact template record with missing seed rows", "required": ["Candidate declines untrusted cached requests and reconstructs fresh requests", "No IndexError escapes"]},
+    {"id": "poisoned_template_name", "setup": "Supply an exact template record with a wrong-name variable or builtin object", "required": ["Wrong-name cached requests are not published as the requested builtin", "Fresh correct builtin requests are retained"]},
+    {"id": "poisoned_template_multiple_objects", "setup": "Supply a cached row containing the requested builtin plus an unrelated builtin", "required": ["The row is not admitted as a pure singleton", "Fresh initialization does not leak the unrelated value"]},
+    {"id": "epoch_guard", "setup": "Reset the object arena after producing templates, then intern an unrelated object at a reused bit", "required": ["Old bare masks are not reused", "Fresh builtin objects are decoded correctly"]},
+    {"id": "context_guard", "setup": "Reuse templates with a distinct context object or custom context implementation", "required": ["The cache is declined where the exact native context guard is not satisfied"]},
+    {"id": "logical_work_accounting", "setup": "Compare one finite queued arm with the admitted eager arm", "required": ["Selected and bootstrap publications are reported separately", "Logical work includes both categories", "The selected-work reduction is not called a reduction of logical solver work"]}
+  ],
+  "boundaries": [
+    "Native guard assumptions do not certify arbitrary later mutation of processors, stores, worklists, or object arenas",
+    "Agreement of finite raw states and callbacks does not prove every Python builtin summary",
+    "Configured budget units must be declared separately if bootstrap publication changes when a work budget is charged"
+  ]
+}

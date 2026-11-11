@@ -1,0 +1,24 @@
+events = []
+def chosen():
+    events.append("chosen")
+    return 7
+def poison():
+    events.append("poison")
+    return 99
+def replacement():
+    events.append("replacement")
+    return 8
+class Payload:
+    def __init__(self):
+        self.data = {'key0': chosen, 'key1': poison, 'key2': replacement, 'key3': chosen, 'key4': poison, 'key5': replacement, 'key6': chosen, 'key7': poison, 'key8': replacement, 'key9': chosen, 'key10': poison, 'key11': replacement, 'key12': chosen, 'key13': poison, 'key14': replacement, 'key15': chosen, 'key16': poison, 'key17': replacement, 'key18': chosen, 'key19': poison, 'key20': replacement, 'key21': chosen, 'key22': poison, 'key23': replacement, 'key24': chosen, 'key25': poison, 'key26': replacement, 'key27': chosen, 'key28': poison, 'key29': replacement, 'key30': chosen, 'key31': poison, 'key32': replacement}
+    def keys(self):
+        return self.data.keys()
+    def __getitem__(self, name):
+        events.append(name)
+        return self.data[name]
+def consume(**arguments):
+    for callback in arguments.values():
+        callback()
+    return "handled"
+payload = Payload()
+result = consume(**payload)

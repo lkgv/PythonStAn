@@ -1,0 +1,26 @@
+events = []
+def chosen():
+    events.append("chosen")
+    return 7
+def poison():
+    events.append("poison")
+    return 99
+def replacement():
+    events.append("replacement")
+    return 8
+class Getter:
+    def __get__(self, instance, owner):
+        events.append("descriptor")
+        def read(name):
+            return instance.data[name]
+        return read
+class Payload:
+    def __init__(self):
+        self.data = {"callback": chosen, "unused": poison}
+    def keys(self):
+        return self.data.keys()
+    __getitem__ = Getter()
+def consume(*, callback, unused=None):
+    return callback()
+payload = Payload()
+result = consume(**payload)

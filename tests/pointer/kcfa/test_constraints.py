@@ -1,6 +1,26 @@
 """Tests for constraints and constraint management."""
 
+import ast
 import pytest
+
+from tests.pointer.kcfa.builders import make_scope
+_TEST_SCOPE = make_scope("constraints", "module")
+
+
+def add_all_triggers(manager, constraint):
+    changed = False
+    for variable in constraint.variables():
+        changed = manager.add(_TEST_SCOPE, variable, constraint) or changed
+    return changed
+
+
+def remove_all_triggers(manager, constraint):
+    changed = False
+    for variable in constraint.variables():
+        changed = manager.remove(_TEST_SCOPE, variable, constraint) or changed
+    return changed
+
+
 from pythonstan.analysis.pointer.kcfa import (
     Constraint,
     CopyConstraint,
@@ -12,7 +32,14 @@ from pythonstan.analysis.pointer.kcfa import (
     ConstraintManager,
     AllocKind,
 )
+from pythonstan.analysis.pointer.kcfa.context import CallSite
 from pythonstan.analysis.pointer.kcfa.heap_model import attr, elem
+from pythonstan.ir.ir_statements import IRCall
+
+
+def _make_call_site(scope_name: str = "test") -> CallSite:
+    call_stmt = IRCall(ast.parse("callsite()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name)
 
 
 class TestCopyConstraint:
@@ -96,9 +123,9 @@ class TestLoadConstraint:
         constraint = LoadConstraint(base, field, target)
         vars = constraint.variables()
         
-        assert len(vars) == 2
+        assert vars == {base}  # Only base discovery triggers the dynamic rule.
         assert base in vars
-        assert target in vars
+        assert target not in vars
     
     def test_string_representation(self, variable_factory):
         """Test __str__ format: target = base.field."""
@@ -158,9 +185,9 @@ class TestStoreConstraint:
         constraint = StoreConstraint(base, field, source)
         vars = constraint.variables()
         
-        assert len(vars) == 2
+        assert vars == {base}  # Only base discovery triggers the dynamic rule.
         assert base in vars
-        assert source in vars
+        assert source not in vars
     
     def test_string_representation(self, variable_factory):
         """Test __str__ format: base.field = source."""
@@ -255,23 +282,30 @@ class TestCallConstraint:
         target = variable_factory("result")
         
         constraint = CallConstraint(
-            callee,
-            (arg1, arg2),
-            target,
-            "test.py:10:0:call"
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("test.py")
         )
         
         assert constraint.callee == callee
         assert constraint.args == (arg1, arg2)
         assert constraint.target == target
-        assert constraint.call_site == "test.py:10:0:call"
+        assert isinstance(constraint.call_site, CallSite)
     
     def test_creation_without_return(self, variable_factory):
         """Test creating call constraint without return value."""
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "test.py:10:0:call")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("test.py")
+        )
         
         assert constraint.target is None
     
@@ -282,7 +316,13 @@ class TestCallConstraint:
         arg2 = variable_factory("arg2")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (arg1, arg2), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 4
@@ -296,7 +336,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 2
@@ -310,7 +356,13 @@ class TestCallConstraint:
         arg2 = variable_factory("arg2")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (arg1, arg2), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg1, arg2),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         constraint_str = str(constraint)
         
         assert "=" in constraint_str
@@ -323,7 +375,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         arg = variable_factory("arg")
         
-        constraint = CallConstraint(callee, (arg,), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(arg,),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         constraint_str = str(constraint)
         
         assert "=" not in constraint_str
@@ -335,7 +393,13 @@ class TestCallConstraint:
         callee = variable_factory("func")
         target = variable_factory("result")
         
-        constraint = CallConstraint(callee, (), target, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(),
+            kwargs=frozenset(),
+            target=target,
+            call_site=_make_call_site("site")
+        )
         vars = constraint.variables()
         
         assert len(vars) == 2
@@ -345,7 +409,13 @@ class TestCallConstraint:
     def test_frozen(self, variable_factory):
         """Test that CallConstraint is immutable."""
         callee = variable_factory("func")
-        constraint = CallConstraint(callee, (), None, "site")
+        constraint = CallConstraint(
+            callee=callee,
+            args=(),
+            kwargs=frozenset(),
+            target=None,
+            call_site=_make_call_site("site")
+        )
         
         with pytest.raises(AttributeError):
             constraint.callee = variable_factory("other")
@@ -409,7 +479,7 @@ class TestConstraintManager:
         manager = ConstraintManager()
         constraint = constraint_factory.copy()
         
-        added = manager.add(constraint)
+        added = add_all_triggers(manager, constraint)
         assert added is True
         assert len(manager) == 1
     
@@ -418,8 +488,8 @@ class TestConstraintManager:
         manager = ConstraintManager()
         constraint = constraint_factory.copy()
         
-        manager.add(constraint)
-        added = manager.add(constraint)
+        add_all_triggers(manager, constraint)
+        added = add_all_triggers(manager, constraint)
         
         assert added is False
         assert len(manager) == 1
@@ -429,8 +499,8 @@ class TestConstraintManager:
         manager = ConstraintManager()
         constraint = constraint_factory.copy()
         
-        manager.add(constraint)
-        removed = manager.remove(constraint)
+        add_all_triggers(manager, constraint)
+        removed = remove_all_triggers(manager, constraint)
         
         assert removed is True
         assert len(manager) == 0
@@ -440,7 +510,7 @@ class TestConstraintManager:
         manager = ConstraintManager()
         constraint = constraint_factory.copy()
         
-        removed = manager.remove(constraint)
+        removed = remove_all_triggers(manager, constraint)
         assert removed is False
     
     def test_get_by_variable(self, constraint_factory, variable_factory):
@@ -455,9 +525,9 @@ class TestConstraintManager:
         c2 = CopyConstraint(v2, v3)
         c3 = CopyConstraint(v1, v3)
         
-        manager.add(c1)
-        manager.add(c2)
-        manager.add(c3)
+        add_all_triggers(manager, c1)
+        add_all_triggers(manager, c2)
+        add_all_triggers(manager, c3)
         
         # v1 appears in c1 and c3
         v1_constraints = manager.get_by_variable(v1)
@@ -494,10 +564,10 @@ class TestConstraintManager:
         c3 = constraint_factory.load()
         c4 = constraint_factory.alloc()
         
-        manager.add(c1)
-        manager.add(c2)
-        manager.add(c3)
-        manager.add(c4)
+        add_all_triggers(manager, c1)
+        add_all_triggers(manager, c2)
+        add_all_triggers(manager, c3)
+        add_all_triggers(manager, c4)
         
         # Get all copy constraints
         copy_constraints = manager.get_by_type(CopyConstraint)
@@ -530,11 +600,11 @@ class TestConstraintManager:
         c2 = constraint_factory.load()
         c3 = constraint_factory.store()
         
-        manager.add(c1)
-        manager.add(c2)
-        manager.add(c3)
+        add_all_triggers(manager, c1)
+        add_all_triggers(manager, c2)
+        add_all_triggers(manager, c3)
         
-        all_constraints = manager.all()
+        all_constraints = {constraint for scope, constraint in manager.all()}
         assert len(all_constraints) == 3
         assert c1 in all_constraints
         assert c2 in all_constraints
@@ -548,10 +618,10 @@ class TestConstraintManager:
         v2 = variable_factory("y")
         c = CopyConstraint(v1, v2)
         
-        manager.add(c)
+        add_all_triggers(manager, c)
         assert len(manager.get_by_variable(v1)) == 1
         
-        manager.remove(c)
+        remove_all_triggers(manager, c)
         assert len(manager.get_by_variable(v1)) == 0
         assert len(manager.get_by_variable(v2)) == 0
     
@@ -562,11 +632,11 @@ class TestConstraintManager:
         c1 = constraint_factory.copy()
         c2 = constraint_factory.copy("x2", "y2")
         
-        manager.add(c1)
-        manager.add(c2)
+        add_all_triggers(manager, c1)
+        add_all_triggers(manager, c2)
         assert len(manager.get_by_type(CopyConstraint)) == 2
         
-        manager.remove(c1)
+        remove_all_triggers(manager, c1)
         assert len(manager.get_by_type(CopyConstraint)) == 1
     
     def test_multiple_constraint_types(self, constraint_factory):
@@ -580,12 +650,12 @@ class TestConstraintManager:
         call = constraint_factory.call()
         ret = constraint_factory.ret()
         
-        manager.add(copy)
-        manager.add(load)
-        manager.add(store)
-        manager.add(alloc)
-        manager.add(call)
-        manager.add(ret)
+        add_all_triggers(manager, copy)
+        add_all_triggers(manager, load)
+        add_all_triggers(manager, store)
+        add_all_triggers(manager, alloc)
+        add_all_triggers(manager, call)
+        add_all_triggers(manager, ret)
         
         assert len(manager) == 6
         assert len(manager.get_by_type(CopyConstraint)) == 1
@@ -609,9 +679,9 @@ class TestConstraintUsagePatterns:
         z = variable_factory("z")
         
         # Each assignment creates a copy constraint
-        manager.add(CopyConstraint(obj, x))
-        manager.add(CopyConstraint(x, y))
-        manager.add(CopyConstraint(y, z))
+        add_all_triggers(manager, CopyConstraint(obj, x))
+        add_all_triggers(manager, CopyConstraint(x, y))
+        add_all_triggers(manager, CopyConstraint(y, z))
         
         assert len(manager) == 3
         
@@ -631,10 +701,10 @@ class TestConstraintUsagePatterns:
         field = attr("name")
         
         # Store
-        manager.add(StoreConstraint(obj, field, value))
+        add_all_triggers(manager, StoreConstraint(obj, field, value))
         
         # Load
-        manager.add(LoadConstraint(obj, field, result))
+        add_all_triggers(manager, LoadConstraint(obj, field, result))
         
         assert len(manager) == 2
         assert len(manager.get_by_type(StoreConstraint)) == 1

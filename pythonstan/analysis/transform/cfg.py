@@ -58,6 +58,23 @@ class CFGTransformer:
         self.next_idx += 1
         return blk
 
+    @staticmethod
+    def _copy_edge(edge):
+        """Copy annotations without cloning endpoints that are immediately rewired.
+
+        Block-CFG endpoints own IR statements and their complete AST bodies.
+        The statement-CFG below already preserves those canonical statements;
+        recursively copying endpoint contents only constructs discarded trees.
+        Pinning just the endpoint objects leaves other edge metadata subject to
+        the same deepcopy as before, including mutable exception annotations.
+        Only the three edge types emitted by BlockCFGBuilder use this path.
+        Other edges can own endpoint aliases in their annotations (for example
+        ReturnEdge.call_site), so retain their original deepcopy behavior.
+        """
+        if type(edge) not in (NormalEdge, IfEdge, ExceptionEdge):
+            return copy.deepcopy(edge)
+        return copy.deepcopy(edge, {id(edge.src): edge.src, id(edge.tgt): edge.tgt})
+
     def _trans(self, cfg: ControlFlowGraph, entry: BaseBlock, stmt_entry: BaseBlock):
         tgt_cfg = self.cfg
         if entry in cfg.exit_blks:
@@ -65,7 +82,7 @@ class CFGTransformer:
         for e in cfg.out_edges_of(entry):
             if e.tgt == cfg.super_exit_blk:
                 continue
-            stmt_e = copy.deepcopy(e)
+            stmt_e = self._copy_edge(e)
             stmt_e.src = stmt_entry
             if e.tgt in self.head_map:
                 stmt_e.tgt = self.head_map[e.tgt]

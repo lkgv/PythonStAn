@@ -25,12 +25,16 @@ class World(Singleton):
         from .import_manager import ImportManager
         from .namespace import NamespaceManager
         
-        cls.scope_manager = ScopeManager()
-        cls.namespace_manager = NamespaceManager()
-        cls.class_hierarchy = ClassHierarchy()
-        cls.import_manager = ImportManager()
-
-        cls.module2ns = {}
+        # Services are read through the singleton instance. Resetting only the
+        # class attributes leaves any instance-level replacement in force and
+        # can import an earlier program's modules into a fresh analysis.
+        world = cls()
+        world.scope_manager = ScopeManager()
+        world.namespace_manager = NamespaceManager()
+        world.class_hierarchy = ClassHierarchy()
+        world.import_manager = ImportManager()
+        world.module2ns = {}
+        world.entry_module = None
 
     def build(self, config: 'Config'):
         self.scope_manager.build()

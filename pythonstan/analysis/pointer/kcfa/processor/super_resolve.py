@@ -18,7 +18,7 @@ class SuperResolveProcessor(Processor):
             return False
         if not self._is_super_alloc(solver, target, c):
             return False
-        super_obj = SuperObject(context=context, alloc_site=c.alloc_site, current_class=None, instance_obj=None)
+        super_obj = SuperObject(context=solver.state.select_allocation_context(context, c.alloc_site), alloc_site=c.alloc_site, current_class=None, instance_obj=None)
         solver.state._heap.set_obj(scope, context, c.alloc_site, super_obj)
         solver.state.obj_scope[super_obj] = scope
         solver.handle_new_points_to(target, scope, PointsToSet.singleton(super_obj))
@@ -31,95 +31,93 @@ class SuperResolveProcessor(Processor):
 
     def handle_new_constraint(self, solver: 'PointerSolver', scope: 'Scope', constraint: 'Constraint') -> bool:
         if isinstance(constraint, SuperResolveConstraint):
-            target = solver.state.get_variable(scope, scope.context, constraint.target)
-            solver.state.constraints.add(scope, target, constraint)
-            # If target already has objects, apply the constraint immediately
-            target_pts = solver.state.get_points_to(target)
-            if len(target_pts) > 0:
-                self._apply_super_resolve(solver, scope, target, constraint, target_pts)
+            # super's allocation and its arguments can arrive in any order.
+            # Subscribing only to the result loses arguments discovered later.
+            for variable in self._argument_variables(scope, constraint):
+                trigger = solver.state.get_variable(scope, scope.context, variable)
+                solver._register_dynamic_constraint(scope, trigger, constraint)
             return True
         
         return False
 
-    def _apply_super_resolve(self, solver: 'PointerSolver', scope: 'Scope', variable: 'Ctx', c: 'SuperResolveConstraint', pts: 'PointsToSet'):
-        """Apply super resolve constraint: populate SuperObject with class/instance.
-        
-        This constraint resolves super() arguments and creates properly initialized
-        SuperObject instances:
-        
-        1. For explicit super(Class, obj): get class and instance from variables
-        2. For implicit super(): look up __class__ cell var and first param
-        3. Create SuperObject with current_class and instance_obj set
-        4. Add to target variable's points-to set via worklist
-        
-        The resolved SuperObject then works with state.get_field() for MRO-based
-        field resolution via InheritanceConstraint.
-        """
-        from ..object import SuperObject, ObjectFactory, ClassObject, InstanceObject, MethodObject
+    @staticmethod
+    def _argument_variables(scope, constraint):
         from ..variable import Variable, VariableKind
         from pythonstan.ir.ir_statements import IRFunc
-        
+        variables = constraint.variables()
+        if constraint.implicit:
+            variables.add(Variable("__class__", VariableKind.CELL))
+            if isinstance(scope.stmt, IRFunc) and scope.stmt.args:
+                positional = (*scope.stmt.args.posonlyargs, *scope.stmt.args.args)
+                if positional:
+                    variables.add(Variable(positional[0].arg, VariableKind.LOCAL))
+        return variables
+
+    def _apply_super_resolve(self, solver: 'PointerSolver', scope: 'Scope', variable: 'Ctx', c: 'SuperResolveConstraint', pts: 'PointsToSet'):
+        """Join every possible argument pair, including delayed arguments.
+
+        This is a may relation, not proof of Python's receiver validity, exact
+        C3 suffix, or descriptor precedence. Those obligations remain explicit.
+        """
+        from ..object import ObjectFactory, ClassObject, MethodObject
+        from ..variable import Variable, VariableKind
+        from pythonstan.ir.ir_statements import IRFunc
+
         context = scope.context
-        current_class = None
-        instance_obj = None
-        
+        classes = set()
+        receivers = set()
+        solver.state._residual_effects[(scope, "super_resolution", c)] = {
+            "origin": str(c), "context": str(context), "return_target": c.target.name,
+            "reason": "Super may-paths retain receiver validation, C3 suffix and descriptor obligations",
+            "effects": ["super_receiver_check", "super_mro_suffix", "descriptor_precedence", "may_raise"],
+        }
+
         if not c.implicit:
-            # Explicit super(Class, instance) - resolve from provided variables
             if c.class_var:
                 class_var = solver.state.get_variable(scope, context, c.class_var)
-                class_pts = solver.state.get_points_to(class_var)
-                for obj in class_pts:
-                    if isinstance(obj, ClassObject):
-                        current_class = obj
-                        break
-            
+                classes.update(obj for obj in solver.state.get_points_to(class_var)
+                               if isinstance(obj, ClassObject))
             if c.instance_var:
                 instance_var = solver.state.get_variable(scope, context, c.instance_var)
-                instance_pts = solver.state.get_points_to(instance_var)
-                for obj in instance_pts:
-                    # Accept any object as instance (InstanceObject or others)
-                    instance_obj = obj
-                    break
+                receivers.update(solver.state.get_points_to(instance_var))
+            else:
+                receivers.add(None)  # Explicit one-argument unbound super.
         else:
-            # Implicit super(): resolve from method context when possible
+            class_ctx = solver.state.get_variable(scope, context, Variable("__class__", VariableKind.CELL))
+            classes.update(obj for obj in solver.state.get_points_to(class_ctx)
+                           if isinstance(obj, ClassObject))
             if isinstance(scope.obj, MethodObject):
-                current_class = scope.obj.class_obj
-                instance_obj = scope.obj.instance_obj
-            
-            if current_class is None:
-                class_var = Variable(name="__class__", kind=VariableKind.CELL)
-                class_ctx = solver.state.get_variable(scope, context, class_var)
-                class_pts = solver.state.get_points_to(class_ctx)
-                for obj in class_pts:
-                    if isinstance(obj, ClassObject):
-                        current_class = obj
-                        break
-            
-            if instance_obj is None and isinstance(scope.stmt, IRFunc):
-                if scope.stmt.args and scope.stmt.args.args:
-                    param_name = scope.stmt.args.args[0].arg
-                    self_var = Variable(name=param_name, kind=VariableKind.LOCAL)
+                # Method rebinding changes the receiver, not lexical __class__.
+                lexical_class = getattr(scope.obj.container_scope, "obj", None)
+                if isinstance(lexical_class, ClassObject):
+                    classes.add(lexical_class)
+                elif not classes:
+                    classes.add(scope.obj.class_obj)
+                if scope.obj.instance_obj is not None:
+                    receivers.add(scope.obj.instance_obj)
+                elif scope.obj.ir.is_class_method:
+                    receivers.add(scope.obj.class_obj)
+            if isinstance(scope.stmt, IRFunc) and scope.stmt.args:
+                positional = (*scope.stmt.args.posonlyargs, *scope.stmt.args.args)
+                if positional:
+                    self_var = Variable(positional[0].arg, VariableKind.LOCAL)
                     self_ctx = solver.state.get_variable(scope, context, self_var)
-                    instance_pts = solver.state.get_points_to(self_ctx)
-                    for obj in instance_pts:
-                        instance_obj = obj
-                        break
-        
-        # For each generic SuperObject allocation in pts, create resolved version
+                    receivers.update(solver.state.get_points_to(self_ctx))
+
+        # Argument notifications contain argument deltas, not SuperObjects.
+        # Always read the result's persistent allocation facts and keep all
+        # class/receiver combinations; never choose an arbitrary first object.
         target_var = solver.state.get_variable(scope, context, c.target)
-        for super_alloc in pts:
-            if not isinstance(super_alloc, SuperObject):
+        for super_alloc in solver.state.get_points_to(target_var):
+            if not isinstance(super_alloc, SuperObject) or super_alloc.current_class is not None:
                 continue
-            # Create SuperObject with resolved class and instance
-            resolved_super = ObjectFactory.create_super(
-                context=super_alloc.context,
-                stmt=super_alloc.alloc_site.stmt,
-                current_class=current_class,
-                instance_obj=instance_obj
+            resolved = PointsToSet.from_objects(
+                ObjectFactory.create_super(super_alloc.context, super_alloc.alloc_site.stmt,
+                                           current_class=current_class, instance_obj=receiver)
+                for current_class in classes for receiver in receivers
             )
-            
-            # Add resolved super object to target's points-to set via worklist
-            solver.handle_new_points_to(target_var, scope, PointsToSet.singleton(resolved_super))
+            solver.handle_new_points_to(target_var, scope, resolved)
+        return True
 
     def _is_super_alloc(self, solver: 'PointerSolver', target: 'Ctx[Any]', c: AllocConstraint) -> bool:
         if isinstance(c.alloc_site.stmt, IRCall) and c.alloc_site.stmt.func_name == "super":
@@ -128,4 +126,4 @@ class SuperResolveProcessor(Processor):
             if isinstance(constraint, SuperResolveConstraint):
                 return True
         return False
- 
+

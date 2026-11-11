@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "scope": "Finite worker transport controls; no whole-project gold and no proof of globally bounded encoder memory",
+  "authoring_order": "Frozen from the Round14 stream design before candidate predictions",
+  "protocol": "One complete PROJECT_JSON marker plus JSON payload plus final newline; process success is separate from native analysis completion",
+  "whole_project_goals_discharged": 0,
+  "cases": [
+    {"id": "complete_receipt", "setup": "One complete object receipt ending in newline and child exit zero", "required": ["Transport may accept the receipt", "An incomplete native status stays incomplete"]},
+    {"id": "missing_delimiter", "setup": "A syntactically complete JSON object follows the marker but the child exits zero without final newline", "required": ["The incomplete transport frame is worker_error", "No successful native result is promoted"]},
+    {"id": "torn_object", "setup": "A marker and valid-looking JSON object prefix are cut before the object completes", "required": ["The report is worker_error regardless of zero child exit"]},
+    {"id": "nonzero_complete_receipt", "setup": "A complete newline-delimited object is followed by child exit nine", "required": ["The report is worker_error", "The report is not promoted because bytes look valid"]},
+    {"id": "surrogate_and_unicode", "setup": "Payload contains a lone surrogate, non-ASCII scalar, quote, slash and embedded newline", "required": ["Payload bytes equal default ensure_ascii json.dumps bytes", "Payload byte/hash counters exclude marker and transport newline"]},
+    {"id": "nan_compatibility", "setup": "Payload contains NaN, positive infinity and negative infinity", "required": ["Declared default JSONEncoder allow_nan behavior is retained", "This compatibility is not described as strict RFC JSON validation"]},
+    {"id": "finite_chunks", "setup": "A payload has both many small leaves and one string exceeding the write chunk bound", "required": ["Individual writes meet the declared byte bound", "Concatenated payload equals the default encoder", "The escaped string leaf allocation is not claimed to have a global memory bound"]},
+    {"id": "write_failure", "setup": "The output stream raises OSError after an emitted prefix", "required": ["Writer failure propagates", "No worker_output_completed checkpoint or successful disposable exit is reached"]},
+    {"id": "flush_failure", "setup": "The complete payload writes but output flush raises OSError", "required": ["The worker does not certify terminal output completion", "A nonzero exit prevents successful report promotion"]},
+    {"id": "encoding_memory_error", "setup": "Encoder raises MemoryError after yielding valid prefix chunks", "required": ["Failure remains an encoding failure", "An earlier valid-looking prefix cannot become a success receipt"]},
+    {"id": "write_memory_error", "setup": "Output write raises MemoryError after encoding began", "required": ["Failure remains a transport/resource failure", "No successful output-completed checkpoint follows"]},
+    {"id": "timeout_complete_bytes", "setup": "Child emits a complete receipt but does not exit within its deadline", "required": ["Supervisor reports timeout and retains the original pending/solver state", "Complete bytes are not sufficient to promote timeout to worker_finished"]}
+  ],
+  "boundaries": [
+    "Payload encoding, actual writes, flush completion, process exit and semantic completion are distinct observations",
+    "A per-write bound does not bound stock iterencode's escaped string leaf allocation",
+    "Encoding and pipe-write clocks can overlap and must not be added as disjoint phases without justification"
+  ]
+}

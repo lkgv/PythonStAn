@@ -26,6 +26,10 @@ __all__ = [
     "ParamContext",
     "HybridContext",
     "SummaryContext",
+    "FiniteContextAtom",
+    "OrderedBindingToken",
+    "finite_context_atom",
+    "ordered_binding_token",
 ]
 
 
@@ -68,6 +72,177 @@ class CallSite:
         return self.site_id
 
 
+def _valid_source_identity(value, depth=8):
+    """Validate the atom boundary without traversing source IR internals."""
+    from enum import Enum
+    from .object import AllocSite
+    if isinstance(value, (str, int, bool, type(None), Enum, IRStatement)):
+        return True
+    if isinstance(value, CallSite):
+        return isinstance(value.statement, IRStatement)
+    if isinstance(value, AllocSite):
+        # A synthetic allocation payload embedding owner objects must have
+        # passed _source_identity, producing a bounded tuple, before this API.
+        return isinstance(value.stmt, (str, IRStatement))
+    if depth > 0 and isinstance(value, (tuple, frozenset)):
+        return all(_valid_source_identity(item, depth - 1) for item in value)
+    return False
+
+
+@dataclass(frozen=True)
+class FiniteContextAtom:
+    """A source identity with a bounded *flat* allocation history.
+
+    ``source`` and ``origins`` contain only source sites/variable descriptors,
+    never objects, scopes, or contexts. In particular an origin atom contributes
+    only its source, not its own origins. The token universe is therefore finite
+    for a frozen source/model inventory even under recursive allocation.
+    """
+
+    kind: str
+    source: Any
+    origins: Tuple[Any, ...] = ()
+
+    def __post_init__(self):
+        if (self.kind not in {"object", "variable", "field", "value"}
+                or not _valid_source_identity(self.source)
+                or type(self.origins) is not tuple or len(self.origins) > 2
+                or not all(_valid_source_identity(origin) for origin in self.origins)):
+            raise ValueError("FiniteContextAtom requires bounded flat source identities")
+
+
+@dataclass(frozen=True)
+class OrderedBindingToken:
+    """Positional and keyword parameter origins, with multiplicity intact."""
+
+    bindings: Tuple[Tuple[str, Any], ...] = ()
+
+    def __post_init__(self):
+        if type(self.bindings) is not tuple or any(
+                type(entry) is not tuple or len(entry) != 2
+                or not isinstance(entry[0], str)
+                or not entry[0].startswith(("pos:", "kw:"))
+                or not isinstance(entry[1], (FiniteContextAtom, CallSite, str, int, type(None)))
+                for entry in self.bindings):
+            raise ValueError("OrderedBindingToken requires named finite atoms")
+
+
+
+def _source_identity(item, depth=3):
+    """Project synthetic sites too: their payloads may contain owner objects.
+
+    Synthetic namespace/collector sites sometimes embed an AbstractObject in a
+    tuple. Keeping that tuple unchanged would reintroduce the original recursive
+    identity through an AllocSite. Bound this source-shape projection as well.
+    """
+    from .object import AllocSite
+    if isinstance(item, (str, int, type(None), CallSite, IRStatement)):
+        return item
+    if depth <= 0:
+        return ("source_shape_summary", type(item).__name__)
+    if isinstance(item, FiniteContextAtom):
+        return _source_identity(item.source, depth - 1)
+    if isinstance(item, AllocSite):
+        if isinstance(item.stmt, (str, IRStatement)):
+            return item
+        return ("allocation", item.kind, _source_identity(item.stmt, depth - 1))
+    if hasattr(item, "alloc_site"):
+        return _source_identity(item.alloc_site, depth - 1)
+    if isinstance(item, Ctx):
+        content = item.content
+        return (getattr(item.scope, "stmt", None),
+                getattr(content, "kind", None),
+                getattr(content, "name", "<value>").split("@", 1)[0])
+    if isinstance(item, (tuple, frozenset)):
+        values = tuple(_source_identity(value, depth - 1) for value in item)
+        return frozenset(values) if isinstance(item, frozenset) else values
+    # Enums and immutable field descriptors are finite model symbols.
+    from enum import Enum
+    if isinstance(item, Enum):
+        return item
+    if hasattr(item, "kind") and hasattr(item, "name"):
+        return (item.kind, item.name, getattr(item, "index", None),
+                getattr(item, "key_type", None))
+    return ("source_shape_summary", type(item).__name__)
+
+
+def _origin_sources(context, limit=2):
+    # Context wrappers are stripped, never retained inside a token.
+    while hasattr(context, "inner"):
+        context = context.inner
+    items = ()
+    for name in ("call_sites", "alloc_sites", "types", "receivers", "params"):
+        items += tuple(getattr(context, name, ()))
+    sources = []
+    for item in items[-limit:]:
+        if isinstance(item, FiniteContextAtom):
+            sources.append(item.source)
+        elif isinstance(item, OrderedBindingToken):
+            sources.append(tuple((key, atom.source if isinstance(atom, FiniteContextAtom)
+                                  else atom) for key, atom in item.bindings))
+        elif isinstance(item, CallSite):
+            sources.append(item)
+        elif isinstance(item, (str, int, type(None))):
+            sources.append(item)
+        elif hasattr(item, "alloc_site"):
+            sources.append(_source_identity(item.alloc_site))
+        else:
+            # AllocSite and IR identities contain source, never analysis state.
+            sources.append(_source_identity(item))
+    return tuple(sources)
+
+
+def finite_context_atom(item):
+    """Forget recursive analysis identities while retaining finite origins.
+
+    Parameter sensitivity is explicitly sensitivity to ordered argument source
+    locations. It is not a promise of distinguishing all abstract argument
+    values. ``$`` helper variable identities omit dynamic object-id suffixes.
+    """
+    if isinstance(item, (FiniteContextAtom, CallSite, str, int, type(None))):
+        return item
+    if isinstance(item, OrderedBindingToken):
+        return OrderedBindingToken(tuple((key, finite_context_atom(value))
+                                         for key, value in item.bindings))
+    if isinstance(item, Ctx):
+        content = item.content
+        if hasattr(content, "name") and hasattr(content, "kind"):
+            name = content.name
+            if name.startswith("$"):
+                name = name.split("@", 1)[0]
+            source = (getattr(item.scope, "stmt", None), content.kind, name)
+            return FiniteContextAtom("variable", source)
+        return FiniteContextAtom("value", _source_identity(content))
+    if hasattr(item, "alloc_site") and hasattr(item, "context"):
+        return FiniteContextAtom("object", _source_identity(item.alloc_site),
+                                 _origin_sources(item.context))
+    if isinstance(item, tuple):
+        return tuple(finite_context_atom(value) for value in item)
+    if isinstance(item, frozenset):
+        # Compatibility for direct old API callers only. Engine callers pass
+        # OrderedBindingToken, so call argument order is not discarded here.
+        return frozenset(finite_context_atom(value) for value in item)
+    if hasattr(item, "obj") and hasattr(item, "field"):
+        obj = finite_context_atom(item.obj)
+        return FiniteContextAtom("field", (getattr(obj, "source", obj), item.field))
+    if isinstance(item, AbstractContext):
+        raise ValueError("A context is not a finite context atom")
+    from .object import AllocSite
+    if isinstance(item, (AllocSite, IRStatement)):
+        return _source_identity(item)
+    raise TypeError(f"Unsupported context atom: {type(item).__name__}")
+
+
+def ordered_binding_token(args=(), kwargs=()):
+    """Canonical token preserving source evaluation position and keyword name."""
+    pairs = [(f"pos:{index}", finite_context_atom(value))
+             for index, value in enumerate(args)]
+    entries = kwargs.items() if hasattr(kwargs, "items") else kwargs
+    pairs.extend((f"kw:{name}", finite_context_atom(value))
+                 for name, value in entries)
+    return OrderedBindingToken(tuple(pairs))
+
+
 max_idx: int = 0
 context_pool: Dict['AbstractContext', int] = {}
 
@@ -102,10 +277,10 @@ class AbstractContext(ABC, Generic[T]):
         """Hash for use in dictionaries/sets."""
         pass
     
-    @abstractmethod
+    # @abstractmethod
     def __eq__(self, other: Any) -> bool:
         """Equality comparison."""
-        pass
+        context_pool[self] == context_pool[other]
     
     def __str__(self) -> str:
         return f"Ctx[{context_pool[self]}]"
@@ -167,6 +342,13 @@ class ObjectContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     alloc_sites: Tuple[Union['CallSite', 'AbstractObject'], ...] = ()
     depth: int = 2
     
+    def __post_init__(self):
+        if type(self.depth) is not int or self.depth < 0:
+            raise ValueError("depth must be a nonnegative integer")
+        values = tuple(finite_context_atom(value) for value in self.alloc_sites)
+        object.__setattr__(self, "alloc_sites", values[-self.depth:] if self.depth else ())
+        super().__post_init__()
+
     def to_string(self) -> str:
         if not self.alloc_sites:
             return "<>"
@@ -178,8 +360,7 @@ class ObjectContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     
     def append(self, item: Union['CallSite', 'AbstractObject']) -> 'ObjectContext':
         """Create new context by appending allocation site."""
-        if isinstance(item, AbstractContext):
-            item = item.alloc_site
+        item = finite_context_atom(item)
         if self.depth == 0:
             return self
         new_sites = (self.alloc_sites + (item,))[-self.depth:]
@@ -206,6 +387,13 @@ class TypeContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
     types: Tuple[Union['CallSite', 'AbstractObject'], ...] = ()
     depth: int = 2
     
+    def __post_init__(self):
+        if type(self.depth) is not int or self.depth < 0:
+            raise ValueError("depth must be a nonnegative integer")
+        values = tuple(finite_context_atom(value) for value in self.types)
+        object.__setattr__(self, "types", values[-self.depth:] if self.depth else ())
+        super().__post_init__()
+
     def to_string(self) -> str:
         if not self.types:
             return "<:>"
@@ -218,7 +406,7 @@ class TypeContext(AbstractContext[Union['CallSite', 'AbstractObject']]):
         """Create new context by appending type."""
         if self.depth == 0:
             return self
-        new_types = (self.types + (item,))[-self.depth:]
+        new_types = (self.types + (finite_context_atom(item),))[-self.depth:]
         return TypeContext(new_types, self.depth)
     
     def __hash__(self) -> int:
@@ -242,6 +430,13 @@ class ReceiverContext(AbstractContext[Union['CallSite', 'AllocSite']]):
     receivers: Tuple[Union['CallSite', 'AllocSite'], ...] = ()
     depth: int = 2
     
+    def __post_init__(self):
+        if type(self.depth) is not int or self.depth < 0:
+            raise ValueError("depth must be a nonnegative integer")
+        values = tuple(finite_context_atom(value) for value in self.receivers)
+        object.__setattr__(self, "receivers", values[-self.depth:] if self.depth else ())
+        super().__post_init__()
+
     def to_string(self) -> str:
         if not self.receivers:
             return "<rcv:>"
@@ -255,7 +450,7 @@ class ReceiverContext(AbstractContext[Union['CallSite', 'AllocSite']]):
         """Create new context by appending receiver allocation site."""
         if self.depth == 0:
             return self
-        new_receivers = (self.receivers + (item,))[-self.depth:]
+        new_receivers = (self.receivers + (finite_context_atom(item),))[-self.depth:]
         return ReceiverContext(new_receivers, self.depth)
     
     def __hash__(self) -> int:
@@ -279,6 +474,19 @@ class ParamContext(AbstractContext[Tuple['AbstractObject', ...]]):
     params: Tuple[Union[CallSite, Tuple['AbstractObject', ...]], ...] = ()
     depth: int = 2
     
+    def __post_init__(self):
+        if type(self.depth) is not int or self.depth < 0:
+            raise ValueError("depth must be a nonnegative integer")
+        values = []
+        for value in self.params:
+            if isinstance(value, (CallSite, OrderedBindingToken, frozenset)):
+                value = finite_context_atom(value)
+            else:
+                value = ordered_binding_token(value)
+            values.append(value)
+        object.__setattr__(self, "params", tuple(values[-self.depth:]) if self.depth else ())
+        super().__post_init__()
+
     def to_string(self) -> str:
         if not self.params:
             return "<param:>"
@@ -291,6 +499,11 @@ class ParamContext(AbstractContext[Tuple['AbstractObject', ...]]):
         """Create new context by appending parameters."""
         if self.depth == 0:
             return self
+        if not isinstance(params, (CallSite, OrderedBindingToken)):
+            if isinstance(params, frozenset):
+                params = finite_context_atom(params)
+            else:
+                params = ordered_binding_token(params)
         new_params = (self.params + (params,))[-self.depth:]
         return ParamContext(new_params, self.depth)
     
@@ -319,6 +532,14 @@ class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']
     call_k: int = 1
     obj_depth: int = 1
     
+    def __post_init__(self):
+        if any(type(value) is not int or value < 0 for value in (self.call_k, self.obj_depth)):
+            raise ValueError("context depths must be nonnegative integers")
+        values = tuple(finite_context_atom(value) for value in self.alloc_sites)
+        object.__setattr__(self, "alloc_sites", values[-self.obj_depth:] if self.obj_depth else ())
+        object.__setattr__(self, "call_sites", self.call_sites[-self.call_k:] if self.call_k else ())
+        super().__post_init__()
+
     def to_string(self) -> str:
         call_part = "[" + ",".join(str(cs) for cs in self.call_sites) + "]" if self.call_sites else "[]"
         shortened = [str(s).split(':')[-1] for s in self.alloc_sites]
@@ -339,16 +560,14 @@ class HybridContext(AbstractContext[Tuple['CallSite', Optional['AbstractObject']
         """Create new context by appending allocation site."""
         if self.obj_depth == 0:
             return self
-        new_allocs = (self.alloc_sites + (alloc_site,))[-self.obj_depth:]
+        new_allocs = (self.alloc_sites + (finite_context_atom(alloc_site),))[-self.obj_depth:]
         return HybridContext(self.call_sites, new_allocs, self.call_k, self.obj_depth)
 
     def append(self, call_site: 'CallSite', alloc_site: Optional['AbstractObject']) -> 'HybridContext':
-        if self.call_k == 0:
-            return self
-        if self.obj_depth == 0:
-            return self
-        new_calls = (self.call_sites + (call_site,))[-self.call_k:]
-        new_allocs = (self.alloc_sites + (alloc_site,))[-self.obj_depth:]
+        new_calls = ((self.call_sites + (call_site,))[-self.call_k:]
+                     if self.call_k else ())
+        new_allocs = ((self.alloc_sites + (finite_context_atom(alloc_site),))[-self.obj_depth:]
+                      if self.obj_depth else ())
         return HybridContext(new_calls, new_allocs, self.call_k, self.obj_depth)
     
     def __hash__(self) -> int:
@@ -403,15 +622,14 @@ class Ctx(Generic[T]):
     def __hash__(self) -> int:
         return hash((self.content, self.scope, self.context))
     
-    def old__eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Ctx):
             return False
         return (self.content == other.content and
-                self.context == other.context and
-                self.scope == other.scope)
+                self.context == other.context and self.scope == other.scope)
     
     def __str__(self) -> str:
-        return f"{self.context}@{self.scope}:{self.content}"
+        return f"{self.context}:{self.content}"
 
 
 @dataclass(frozen=True)
@@ -445,10 +663,11 @@ class Scope:
     def __eq__(self, other: 'Scope') -> bool:
         if not isinstance(other, Scope):
             return False
-        return self.stmt == other.stmt and self.context == other.context and self.obj == other.obj
+        return (self.stmt == other.stmt and self.context == other.context
+                and self.obj == other.obj)
     
     def __str__(self) -> str:
-        return f"Scope[{self.stmt}@{self.context}]"
+        return f"Scope[{self.stmt}:<{self.obj}>@{self.context}]"
 
     @classmethod
     def new(cls, obj: 'AbstractObject', module: 'Scope', context: 'AbstractContext', stmt: IRScope, parent: Optional['Scope'] = None) -> 'Scope':

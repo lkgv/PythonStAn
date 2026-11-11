@@ -4,6 +4,7 @@ This module provides reusable fixtures and helper functions for testing the
 k-CFA pointer analysis implementation.
 """
 
+import ast
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     # Core types
@@ -37,6 +38,8 @@ from pythonstan.analysis.pointer.kcfa import (
     ContextPolicy,
     ContextSelector,
 )
+from pythonstan.ir.ir_statements import IRCall
+from tests.pointer.kcfa.builders import make_scope, make_site
 
 
 # ============================================================================
@@ -62,8 +65,9 @@ def call_site_factory():
     
     def _make_call_site(fn: str = "test_fn", bb: str = None) -> CallSite:
         counter["count"] += 1
-        site_id = f"test.py:10:{counter['count']}:call"
-        return CallSite(site_id, fn, bb, counter["count"])
+        scope_name = f"{fn}:{bb}" if bb else fn
+        call_stmt = IRCall(ast.parse(f"call_{counter['count']}()").body[0].value)
+        return CallSite(statement=call_stmt, scope_name=scope_name, index=counter["count"])
     
     return _make_call_site
 
@@ -86,36 +90,26 @@ def context_with_calls(call_site_factory) -> CallStringContext:
 @pytest.fixture
 def module_scope() -> Scope:
     """Create a module-level scope."""
-    return Scope("test_module", "module")
+    return make_scope("test_module", "module")
 
 
 @pytest.fixture
 def function_scope() -> Scope:
     """Create a function scope."""
-    return Scope("test_module.test_function", "function")
+    return make_scope("test_module.test_function", "function")
 
 
 @pytest.fixture
 def method_scope() -> Scope:
     """Create a method scope."""
-    return Scope("test_module.TestClass.test_method", "method")
+    return make_scope("test_module.TestClass.test_method", "method")
 
 
 @pytest.fixture
-def variable_factory(simple_context):
-    """Factory for creating variables."""
-    def _make_var(
-        name: str,
-        scope: Scope = None,
-        context: AbstractContext = None,
-        kind: VariableKind = VariableKind.LOCAL
-    ) -> Variable:
-        if scope is None:
-            scope = Scope("test_scope", "function")
-        if context is None:
-            context = simple_context
-        return Variable(name, scope, context, kind)
-    
+def variable_factory():
+    """Create unqualified variables; Ctx carries scope/context separately."""
+    def _make_var(name: str, kind: VariableKind = VariableKind.LOCAL) -> Variable:
+        return Variable(name, kind)
     return _make_var
 
 
@@ -134,7 +128,7 @@ def alloc_site_factory():
         file: str = "test.py"
     ) -> AllocSite:
         counter["line"] += 1
-        return AllocSite(file, counter["line"], 0, kind, name)
+        return make_site(file, counter["line"], 0, kind, name)
     
     return _make_alloc
 
@@ -150,7 +144,7 @@ def object_factory(alloc_site_factory, simple_context):
         site = alloc_site_factory(kind, name)
         if context is None:
             context = simple_context
-        return AbstractObject(site, context)
+        return AbstractObject(context, site)
     
     return _make_obj
 
@@ -184,7 +178,7 @@ def pts_factory(object_factory):
         if not kinds:
             return PointsToSet.empty()
         objs = [object_factory(kind) for kind in kinds]
-        return PointsToSet(frozenset(objs))
+        return PointsToSet.from_objects(objs)
     
     return _make_pts
 
@@ -275,16 +269,21 @@ def constraint_factory(variable_factory, alloc_site_factory, field_factory):
             callee: str = "fn",
             args: list = None,
             target: str = "result",
-            call_site: str = "test.py:10:0:call"
+            call_site: CallSite = None
         ) -> CallConstraint:
             if args is None:
                 args = []
             arg_vars = tuple(variable_factory(arg) for arg in args)
+            if call_site is None:
+                call_site = make_call_site(fn=callee, idx=0)
+            elif isinstance(call_site, str):
+                call_site = make_call_site(fn=call_site, idx=0)
             return CallConstraint(
-                variable_factory(callee),
-                arg_vars,
-                variable_factory(target) if target else None,
-                call_site
+                callee=variable_factory(callee),
+                args=arg_vars,
+                kwargs=frozenset(),
+                target=variable_factory(target) if target else None,
+                call_site=call_site
             )
         
         def ret(
@@ -326,25 +325,9 @@ def object_sensitive_selector() -> ContextSelector:
 # Helper Functions
 # ============================================================================
 
-def make_var(
-    name: str,
-    scope_name: str = "test",
-    context: AbstractContext = None
-) -> Variable:
-    """Helper to create a variable quickly.
-    
-    Args:
-        name: Variable name
-        scope_name: Scope name (default: "test")
-        context: Context (default: empty 0-CFA)
-    
-    Returns:
-        Created variable
-    """
-    if context is None:
-        context = CallStringContext((), 0)
-    scope = Scope(scope_name, "function")
-    return Variable(name, scope, context, VariableKind.LOCAL)
+def make_var(name: str, kind: VariableKind = VariableKind.LOCAL) -> Variable:
+    """Create an unqualified variable; use Ctx for a scoped program location."""
+    return Variable(name, kind)
 
 
 def make_obj(
@@ -366,8 +349,8 @@ def make_obj(
     """
     if context is None:
         context = CallStringContext((), 0)
-    site = AllocSite("test.py", line, 0, kind, name)
-    return AbstractObject(site, context)
+    site = make_site("test.py", line, 0, kind, name)
+    return AbstractObject(context, site)
 
 
 def make_pts(*objects: AbstractObject) -> PointsToSet:
@@ -381,11 +364,10 @@ def make_pts(*objects: AbstractObject) -> PointsToSet:
     """
     if not objects:
         return PointsToSet.empty()
-    return PointsToSet(frozenset(objects))
+    return PointsToSet.from_objects(objects)
 
 
 def make_call_site(
-    site_id: str,
     fn: str = "test",
     bb: str = None,
     idx: int = 0
@@ -393,7 +375,6 @@ def make_call_site(
     """Helper to create a call site quickly.
     
     Args:
-        site_id: Call site identifier
         fn: Function name
         bb: Optional basic block
         idx: Index in block
@@ -401,7 +382,9 @@ def make_call_site(
     Returns:
         Created call site
     """
-    return CallSite(site_id, fn, bb, idx)
+    scope_name = f"{fn}:{bb}" if bb else fn
+    call_stmt = IRCall(ast.parse(f"call_{idx}()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name, index=idx)
 
 
 # ============================================================================

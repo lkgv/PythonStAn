@@ -15,10 +15,10 @@ if TYPE_CHECKING:
     from .variable import Variable
 
 __all__ = ["AllocKind", "AllocSite", "AbstractObject", "FunctionObject", "ConstantObject", 
-           "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
-           "TupleObject", "DictObject", "SetObject", "BuiltinClassObject", "BuiltinInstanceObject",
+           "UnknownValue", "ClassObject", "ModuleObject", "InstanceObject", "MethodObject", "BuiltinObject", "ListObject",
+           "TupleObject", "MappingItemObject", "DictObject", "SetObject", "BuiltinClassObject", "BuiltinInstanceObject",
            "BuiltinMethodObject", "BuiltinFunctionObject", "SuperObject", "GeneratorObject",
-           "CoroutineObject", "ObjectFactory", "truncate_context", "summarize_object", "is_summary_object"]
+           "CoroutineObject", "AsyncGeneratorObject", "ObjectFactory", "truncate_context", "summarize_object", "is_summary_object"]
 
 
 class AllocKind(Enum):
@@ -44,6 +44,7 @@ class AllocKind(Enum):
     CONSTANT = "constant"
     GENERATOR = "generator"
     COROUTINE = "coroutine"
+    ASYNC_GENERATOR = "async_generator"
     UNKNOWN = "unknown"
 
 
@@ -83,12 +84,14 @@ class AllocSite:
         return f"{self.stmt}@{self.kind}"
     
     @property
-    def line(self) -> str:        
-        return self.stmt.get_ast().getattr('line', 0)
+    def line(self) -> int:
+        node = self.stmt.get_ast() if hasattr(self.stmt, "get_ast") else None
+        return getattr(node, "lineno", 0)
     
     @property
-    def col(self) -> str:
-        return self.stmt.get_ast().getattr("col_offset", 0)
+    def col(self) -> int:
+        node = self.stmt.get_ast() if hasattr(self.stmt, "get_ast") else None
+        return getattr(node, "col_offset", 0)
     
     @staticmethod
     def from_ir_node(stmt: 'IRStatement', kind: AllocKind) -> 'AllocSite':
@@ -156,6 +159,19 @@ class AbstractObject:
 
 
 @dataclass(frozen=True)
+class UnknownValue(AbstractObject):
+    """Explicit value top at an arbitrary external semantic boundary.
+
+    Its concretization contains scalar values and references, not merely one
+    named opaque object. Native field/call consumers preserve it; AbsVal bridge
+    recognizes ``is_top_value`` and constructs the full value-domain top.
+    """
+    @property
+    def is_top_value(self):
+        return True
+
+
+@dataclass(frozen=True)
 class FunctionObject(AbstractObject):
     """Function object with context sensitivity."""
     
@@ -214,6 +230,12 @@ class ListObject(AbstractObject):
 @dataclass(frozen=True)
 class TupleObject(AbstractObject):
     """Tuple object with immutable elements tracked via position(i) fields."""
+    pass
+
+
+@dataclass(frozen=True)
+class MappingItemObject(TupleObject):
+    """An exact two-slot mapping item; its aggregate is not either slot."""
     pass
 
 
@@ -332,6 +354,19 @@ class GeneratorObject(AbstractObject):
 
 
 @dataclass(frozen=True)
+class AsyncGeneratorObject(AbstractObject):
+    """Dormant asynchronous iterator, resumed through an awaited advance.
+
+    This is deliberately neither a synchronous GeneratorObject nor a
+    CoroutineObject: next(generator) and await(generator) are invalid drives.
+    Yielded values use elem(), while each __anext__/asend result has its own
+    lazy awaitable protocol relation to this object.
+    """
+    func_obj: 'FunctionObject'
+    container_scope: 'Scope'
+
+
+@dataclass(frozen=True)
 class CoroutineObject(AbstractObject):
     """Coroutine object returned from calling an async function.
     
@@ -378,10 +413,12 @@ class ObjectFactory:
         Returns:
             BuiltinClassObject for the specified builtin
         """
-        alloc_site = AllocSite(
-            stmt=f"<builtin_class:{builtin_name}>",
-            kind=AllocKind.CLASS
+        from pythonstan.ir.ir_statements import IRAssign
+        assign = ast.Assign(
+            targets=[ast.Name(id=f"$builtin_class_{builtin_name}", ctx=ast.Store())],
+            value=ast.Constant(value=None),
         )
+        alloc_site = AllocSite.from_ir_node(IRAssign(assign), AllocKind.CLASS)
         return BuiltinClassObject(
             context=context,
             alloc_site=alloc_site,
@@ -623,6 +660,9 @@ def truncate_context(ctx: 'AbstractContext') -> 'AbstractContext':
         if inner_truncated == ctx.inner:
             return ctx
         return SummaryContext(inner_truncated)
+    from .protocol_context import ProtocolKeyContext, apply_protocol_partition
+    if isinstance(ctx, ProtocolKeyContext):
+        return apply_protocol_partition(truncate_context(ctx.inner), ctx.partition)
     try:
         from .context import (
             CallStringContext,

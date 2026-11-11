@@ -6,9 +6,12 @@ providing detailed diagnostics and statistics.
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+import logging
+from typing import List, Dict, Optional, Set, Tuple
 
 __all__ = ["UnknownKind", "UnknownRecord", "UnknownTracker"]
+
+logger = logging.getLogger(__name__)
 
 
 class UnknownKind(Enum):
@@ -19,6 +22,12 @@ class UnknownKind(Enum):
     
     CALLEE_NON_CALLABLE = "callee_non_callable"
     """Attempting to call non-callable object"""
+
+    CALLEE_UNMODELED = "callee_unmodeled"
+    """Callable target was found, but no processor supplied its effects"""
+
+    AI_FALLBACK = "ai_fallback"
+    """AI contribution was incomplete or could not be imported faithfully"""
     
     FUNCTION_NOT_IN_REGISTRY = "function_not_in_registry"
     """Function IR not found in registry"""
@@ -38,11 +47,17 @@ class UnknownKind(Enum):
     ALLOC_CONTEXT_FAILURE = "alloc_context_failure"
     """Context selection failed during allocation"""
     
+    UNSUPPORTED_SEMANTICS = "unsupported_semantics"
+    """Retained source semantics that the current transfer does not discharge."""
+
     TRANSLATION_ERROR = "translation_error"
     """Exception during IR translation"""
     
     MISSING_ARGUMENT = "missing_argument"
     """Missing argument"""
+
+    SOLVER_LIMIT = "solver_limit"
+    """Iteration budget exhausted before reaching a fixpoint"""
 
 
 @dataclass
@@ -76,6 +91,9 @@ class UnknownTracker:
     
     records: List[UnknownRecord] = field(default_factory=list)
     counts_by_kind: Dict[UnknownKind, int] = field(default_factory=dict)
+    track_unknowns: bool = True
+    log_unknown_details: bool = False
+    _recorded_keys: Set[Tuple[UnknownKind, str, Optional[str]]] = field(default_factory=set)
     
     def record(
         self,
@@ -92,9 +110,23 @@ class UnknownTracker:
             message: Descriptive message
             context: Optional additional context
         """
+        if not self.track_unknowns:
+            return
+        key = (kind, location, context)
+        if key in self._recorded_keys:
+            return
+        self._recorded_keys.add(key)
         record = UnknownRecord(kind, location, message, context)
         self.records.append(record)
         self.counts_by_kind[kind] = self.counts_by_kind.get(kind, 0) + 1
+        if self.log_unknown_details:
+            logger.info(
+                "[UNKNOWN] %s at %s: %s%s",
+                kind.value,
+                location,
+                message,
+                f" ({context})" if context else ""
+            )
     
     def get_summary(self) -> Dict[str, int]:
         """Get summary statistics of unknown resolutions.

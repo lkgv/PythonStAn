@@ -1,0 +1,673 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-10",
+  "source_profile": "python-core-v1",
+  "query_freeze": "All query/reference selections derived from source before analyzer predictions; no failed project may be dropped or roots shrunk.",
+  "modes": {
+    "A": {
+      "engine": "native",
+      "native_intrinsics": false
+    },
+    "B": {
+      "engine": "native",
+      "native_intrinsics": true
+    },
+    "C": {
+      "engine": "native_then_ai",
+      "native_intrinsics": false
+    },
+    "D": {
+      "engine": "ai_primary",
+      "native_intrinsics": false,
+      "forbid_legacy_native": true
+    },
+    "E": {
+      "engine": "hybrid",
+      "native_intrinsics": false,
+      "forbid_legacy_native": true
+    }
+  },
+  "resources": {
+    "max_work": 10000,
+    "max_seconds": 8.0,
+    "max_memory_mb": 1536,
+    "outer_timeout_seconds": 15.0,
+    "parallel_workers": 2
+  },
+  "shared_algorithm_configuration": {
+    "semantic_profile": "python-core-v1",
+    "andersen": {
+      "context_policy": "2-cfa",
+      "enable_synthetic_method_contexts": false,
+      "enable_ai_intrinsics": false,
+      "max_iterations": 10000
+    },
+    "abstract": {
+      "context_depth": 2
+    },
+    "llm": {
+      "enabled": false
+    },
+    "inputs": {
+      "exclusions": []
+    }
+  },
+  "entry_contract": "Source modules initialize once; Project runs each selected runtime module initialization as an independent root scenario. No arbitrary request coverage is implied.",
+  "cost_contract": "One analysis worker per case/mode; full inclusive wall/CPU and sampled process-tree RSS include front end, Native predecessor, AI, oracle, adapters and export. Phase clocks may be inclusive/nested and must not be blindly summed. Missing phase counters remain null.",
+  "soundness_limit": "Concrete finite reference containment and literal source facts are regression/quality observations, not full-Python soundness or whole-project call recall.",
+  "cases": [
+    {
+      "id": "tiny_identity",
+      "category": "controlled_semantics",
+      "kind": "source",
+      "module": "example",
+      "filename": "example.py",
+      "source": "def outer(x):\n    return x\nresult = outer('after')\n",
+      "query": {
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "controlled_semantics",
+        "expected": "after"
+      }
+    },
+    {
+      "id": "tiny_intrinsics",
+      "category": "controlled_semantics",
+      "kind": "source",
+      "module": "example",
+      "filename": "example.py",
+      "source": "class Box: pass\nbox = Box()\nsetattr(box, 'value', 'after')\ndef outer(x):\n    return x\nresult = outer(getattr(box, 'value'))\n",
+      "query": {
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "controlled_semantics",
+        "expected": "after"
+      }
+    },
+    {
+      "id": "client_dispatch_fresh_identity",
+      "category": "controlled_client_query",
+      "kind": "source",
+      "module": "example",
+      "filename": "example.py",
+      "source": "def identity(payload):\n    return payload\ndef box(payload):\n    return {'value': payload}\ndef dispatch(table, key, payload):\n    return table[key](payload)\nhandlers = {'read': identity, 'write': box}\npayload = {}\ndirect = dispatch(handlers, 'read', payload)\nboxed = dispatch(handlers, 'write', payload)\nresult = (direct is payload) and (boxed['value'] is payload)\n",
+      "query": {
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "controlled_semantics",
+        "expected": true,
+        "scope": "Known dispatch keys preserve handler/payload relation; fresh box slot aliases original payload. Exact identity result is a finite controlled client witness, not whole-project soundness."
+      }
+    },
+    {
+      "id": "medium_static_package",
+      "category": "controlled_medium_package",
+      "kind": "generated_project",
+      "files": {
+        "controlpkg/__init__.py": "__version__ = '1.0'\n",
+        "controlpkg/m00.py": "def identity(value):\n    return value\nresult = identity('control-0')\n",
+        "controlpkg/m01.py": "def identity(value):\n    return value\nresult = identity('control-1')\n",
+        "controlpkg/m02.py": "def identity(value):\n    return value\nresult = identity('control-2')\n",
+        "controlpkg/m03.py": "def identity(value):\n    return value\nresult = identity('control-3')\n",
+        "controlpkg/m04.py": "def identity(value):\n    return value\nresult = identity('control-4')\n",
+        "controlpkg/m05.py": "def identity(value):\n    return value\nresult = identity('control-5')\n",
+        "controlpkg/m06.py": "def identity(value):\n    return value\nresult = identity('control-6')\n",
+        "controlpkg/m07.py": "def identity(value):\n    return value\nresult = identity('control-7')\n",
+        "controlpkg/m08.py": "def identity(value):\n    return value\nresult = identity('control-8')\n",
+        "controlpkg/m09.py": "def identity(value):\n    return value\nresult = identity('control-9')\n",
+        "controlpkg/m10.py": "def identity(value):\n    return value\nresult = identity('control-10')\n",
+        "controlpkg/m11.py": "def identity(value):\n    return value\nresult = identity('control-11')\n",
+        "controlpkg/m12.py": "def identity(value):\n    return value\nresult = identity('control-12')\n",
+        "controlpkg/m13.py": "def identity(value):\n    return value\nresult = identity('control-13')\n",
+        "controlpkg/m14.py": "def identity(value):\n    return value\nresult = identity('control-14')\n",
+        "controlpkg/m15.py": "def identity(value):\n    return value\nresult = identity('control-15')\n",
+        "controlpkg/m16.py": "def identity(value):\n    return value\nresult = identity('control-16')\n",
+        "controlpkg/m17.py": "def identity(value):\n    return value\nresult = identity('control-17')\n",
+        "controlpkg/m18.py": "def identity(value):\n    return value\nresult = identity('control-18')\n",
+        "controlpkg/m19.py": "def identity(value):\n    return value\nresult = identity('control-19')\n",
+        "controlpkg/m20.py": "def identity(value):\n    return value\nresult = identity('control-20')\n",
+        "controlpkg/m21.py": "def identity(value):\n    return value\nresult = identity('control-21')\n",
+        "controlpkg/m22.py": "def identity(value):\n    return value\nresult = identity('control-22')\n",
+        "controlpkg/m23.py": "def identity(value):\n    return value\nresult = identity('control-23')\n"
+      },
+      "import_roots": [
+        "."
+      ],
+      "exclusions": [],
+      "query": {
+        "module": "controlpkg.m23",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "controlled_semantics",
+        "expected": "control-23"
+      },
+      "expected_inventory_count": 25
+    },
+    {
+      "id": "django",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "django-6.1.3.tar.gz",
+      "archive_sha256": "b5d2d9e35295065d13b1927b3f19a59bd119f737aa6299def14ccca1ae3c8c0d",
+      "archive_bytes": 11306257,
+      "project_root": "django/django-6.1.3",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "django"
+      ],
+      "exclusions": [
+        "AUTHORS",
+        "CONTRIBUTING.rst",
+        "Django.egg-info",
+        "Gruntfile.js",
+        "INSTALL",
+        "LICENSE",
+        "LICENSE.python",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.rst",
+        "docs",
+        "extras",
+        "js_tests",
+        "package.json",
+        "pyproject.toml",
+        "setup.cfg",
+        "tests",
+        "tox.ini"
+      ],
+      "query": {
+        "module": "django.conf.locale.ar.formats",
+        "symbol": "DATE_FORMAT",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "pure_module_literal",
+        "expected": "j F، Y",
+        "file": "django/conf/locale/ar/formats.py",
+        "line": 5,
+        "source_sha256": "108f430221add5abcd63e6ba96e32702a28848a1875c788a13840b471ef01875",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 909,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "djangorestframework",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "djangorestframework-3.18.3.tar.gz",
+      "archive_sha256": "446a9b352e7eff630421ab3f2328bd2401b109a9470afa4a31189994911ed030",
+      "archive_bytes": 923563,
+      "project_root": "djangorestframework/djangorestframework-3.18.3",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "rest_framework"
+      ],
+      "exclusions": [
+        "LICENSE.md",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.md",
+        "djangorestframework.egg-info",
+        "pyproject.toml",
+        "setup.cfg",
+        "tests"
+      ],
+      "query": {
+        "module": "rest_framework",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "3.18.3",
+        "file": "rest_framework/__init__.py",
+        "line": 11,
+        "source_sha256": "c44e145d9d0daada4d6a0666bc73c3372659c9de58aa345440b4ad40dd0efdb5",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 73,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "wagtail",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "wagtail-8.1.tar.gz",
+      "archive_sha256": "5c1abb0e11efc31454db0b5312d6786b5d8fdfbef5c815b7d8bacb2ad6bd486c",
+      "archive_bytes": 7073619,
+      "project_root": "wagtail/wagtail-8.1",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "wagtail"
+      ],
+      "exclusions": [
+        "LICENSE",
+        "PKG-INFO",
+        "README.md",
+        "pyproject.toml",
+        "setup.cfg",
+        "setup.py",
+        "wagtail.egg-info"
+      ],
+      "query": {
+        "module": "wagtail.admin.rich_text.converters.html_markdown",
+        "symbol": "BLOCK_MARKER_ATTR",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "data-markdown-block",
+        "file": "wagtail/admin/rich_text/converters/html_markdown.py",
+        "line": 177,
+        "source_sha256": "aeb646acaef157931dad3b998bcf7b2d33e8977924c3175c36934087913b93c5",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 1331,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "fastapi",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "fastapi-0.162.0.tar.gz",
+      "archive_sha256": "6a22c1e2e6e32e0633ee7e170f00009a29b8228b16feb219ee42f32fd8d88a8f",
+      "archive_bytes": 527867,
+      "project_root": "fastapi/fastapi-0.162.0",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "fastapi"
+      ],
+      "exclusions": [
+        "LICENSE",
+        "PKG-INFO",
+        "README.md",
+        "docs",
+        "docs_src",
+        "pyproject.toml",
+        "scripts",
+        "tests"
+      ],
+      "query": {
+        "module": "fastapi.openapi.constants",
+        "symbol": "REF_PREFIX",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "pure_module_literal",
+        "expected": "#/components/schemas/",
+        "file": "fastapi/openapi/constants.py",
+        "line": 2,
+        "source_sha256": "69d1b39a2b352f51c9453137909e5f9874bf368abab4863aa56bff485ce81435",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 52,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "agno",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "agno-3.1.12.tar.gz",
+      "archive_sha256": "e3425e04cbfff850d9cd482d4247a149fdfb362fe906de7b58a84370c2989c3f",
+      "archive_bytes": 4155683,
+      "project_root": "agno/agno-3.1.12",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "agno"
+      ],
+      "exclusions": [
+        "LICENSE",
+        "PKG-INFO",
+        "README.md",
+        "agno.egg-info",
+        "pyproject.toml",
+        "setup.cfg"
+      ],
+      "query": {
+        "module": "agno.compaction.prompts",
+        "symbol": "SUMMARY_CUT_NOTE",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "pure_module_literal",
+        "expected": "(The rest of this summary was cut to fit its length budget.)",
+        "file": "agno/compaction/prompts.py",
+        "line": 4,
+        "source_sha256": "ea459f763c424e796cf7758f389967355b75fdc5184150e205e48de3f1a05a96",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 1182,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "langserve",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "langserve-0.3.3.tar.gz",
+      "archive_sha256": "2d0f74fb8e633e98fdbd5038fe9774a9dcf136e5c779aa9c6475ac26b5c88d0a",
+      "archive_bytes": 1141255,
+      "project_root": "langserve/langserve-0.3.3",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "langserve"
+      ],
+      "exclusions": [
+        "LICENSE",
+        "PKG-INFO",
+        "README.md",
+        "pyproject.toml"
+      ],
+      "query": {
+        "module": "langserve.lzstring",
+        "symbol": "keyStrBase64",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+        "file": "langserve/lzstring.py",
+        "line": 12,
+        "source_sha256": "e8f95480c2a9dc5a785c7ab3128bf28ecb2432305703c9ad9c93a14a70eebb43",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 13,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "ansible_core",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "ansible_core-2.22.0.tar.gz",
+      "archive_sha256": "bf50b4a0cfa985e30585c7ba301897ea7050d224ca49d2816cab10e33a160e1c",
+      "archive_bytes": 3476434,
+      "project_root": "ansible_core/ansible_core-2.22.0",
+      "import_roots": [
+        "lib"
+      ],
+      "runtime_source_roots": [
+        "lib/ansible"
+      ],
+      "exclusions": [],
+      "query": {
+        "module": "ansible.module_utils.ansible_release",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "2.22.0",
+        "file": "lib/ansible/module_utils/ansible_release.py",
+        "line": 20,
+        "source_sha256": "3432a8e7e4e87d8d2e499e687449c48b04616414b027cfe59eb6827b86da7ace",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 590,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "prefect",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "prefect-3.9.1.tar.gz",
+      "archive_sha256": "56f091cd49a06e6c3f98eea93648208f6750361d1dd0aeb60b5faa0e9cb5c458",
+      "archive_bytes": 6340922,
+      "project_root": "prefect/prefect-3.9.1",
+      "import_roots": [
+        "src"
+      ],
+      "runtime_source_roots": [
+        "src/prefect"
+      ],
+      "exclusions": [],
+      "query": {
+        "module": "prefect._build_info",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "pure_module_literal",
+        "expected": "3.9.1",
+        "file": "src/prefect/_build_info.py",
+        "line": 2,
+        "source_sha256": "4b4a8e8ed8532418d25accad0f32d1a78bd179694162696b9b782f92b662c8c7",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 864,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "invoke",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "invoke-3.0.3.tar.gz",
+      "archive_sha256": "437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c",
+      "archive_bytes": 343419,
+      "project_root": "invoke/invoke-3.0.3",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "invoke"
+      ],
+      "exclusions": [
+        "LICENSE",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.rst",
+        "invoke.egg-info",
+        "pyproject.toml",
+        "setup.cfg",
+        "sites",
+        "tasks.py",
+        "tests"
+      ],
+      "query": {
+        "module": "invoke.vendor.yaml",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "5.4.1",
+        "file": "invoke/vendor/yaml/__init__.py",
+        "line": 11,
+        "source_sha256": "81fa7609b4558739278219228890f697a674a48fa6bff8991cf489e1a8f4fa76",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 47,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "ansible_runner",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "ansible_runner-2.4.3.tar.gz",
+      "archive_sha256": "5f3025529bb968fdc3b627457dd8d418dbf9d53bc73735d50e69c28544d53031",
+      "archive_bytes": 154148,
+      "project_root": "ansible_runner/ansible_runner-2.4.3",
+      "import_roots": [
+        "src"
+      ],
+      "runtime_source_roots": [
+        "src/ansible_runner"
+      ],
+      "exclusions": [
+        "ansible_runner.egg-info"
+      ],
+      "query": {
+        "module": "ansible_runner.defaults",
+        "symbol": "default_process_isolation_executable",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "pure_module_literal",
+        "expected": "podman",
+        "file": "src/ansible_runner/defaults.py",
+        "line": 1,
+        "source_sha256": "b391a14a698e0be7ce6a2fb0fbc2a653a43d713b129c5c7e39d0c5bbd4d46f77",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 27,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "accelerate",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "accelerate-1.15.0.tar.gz",
+      "archive_sha256": "5654f8c5eaa0d4fa68b33e287a97765da6849bf6d51dcac874e73fbbddfb6134",
+      "archive_bytes": 422615,
+      "project_root": "accelerate/accelerate-1.15.0",
+      "import_roots": [
+        "src"
+      ],
+      "runtime_source_roots": [
+        "src/accelerate"
+      ],
+      "exclusions": [
+        "accelerate.egg-info"
+      ],
+      "query": {
+        "module": "accelerate",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "1.15.0",
+        "file": "src/accelerate/__init__.py",
+        "line": 14,
+        "source_sha256": "a479388e26b653f219788e744c45e73d0c172f021d441725ff2af89bf6ee7a8f",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 84,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "transformers",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "transformers-5.22.1.tar.gz",
+      "archive_sha256": "bed9fd76d6f43b4a1a9fc5d0c565ace7c77edbd029784f8cbcdf772cb5e924d8",
+      "archive_bytes": 10381794,
+      "project_root": "transformers/transformers-5.22.1",
+      "import_roots": [
+        "src"
+      ],
+      "runtime_source_roots": [
+        "src/transformers"
+      ],
+      "exclusions": [
+        "transformers.egg-info"
+      ],
+      "query": {
+        "module": "transformers",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "5.22.1",
+        "file": "src/transformers/__init__.py",
+        "line": 21,
+        "source_sha256": "01cd483713507072df15017cf142fba717374cf33b42c397d1ad30b21188d53d",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 2809,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "lightning",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "lightning-2.6.6.tar.gz",
+      "archive_sha256": "1c6329e241f8a85f29fedead89c1ee138b36caa08de60c260c6a7eaee81c8295",
+      "archive_bytes": 659902,
+      "project_root": "lightning/lightning-2.6.6",
+      "import_roots": [
+        "src"
+      ],
+      "runtime_source_roots": [
+        "src/lightning"
+      ],
+      "exclusions": [
+        "lightning.egg-info",
+        "version.info"
+      ],
+      "query": {
+        "module": "lightning.__about__",
+        "symbol": "__author__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "Lightning AI et al.",
+        "file": "src/lightning/__about__.py",
+        "line": 17,
+        "source_sha256": "5e4cf728f390b4c664f21ef095e96cf6a50d1a5c928f9929c876ba07930ba15e",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 266,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    },
+    {
+      "id": "torchtune",
+      "category": "cohort_runtime_package",
+      "kind": "corpus",
+      "archive_filename": "torchtune-0.6.1-py3-none-any.whl",
+      "archive_sha256": "bcbc4ee9774b5c5829a5ff13df851e0b0e32416c018af8db53faa3472ac256e7",
+      "archive_bytes": 910674,
+      "project_root": "torchtune",
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "torchtune",
+        "recipes"
+      ],
+      "exclusions": [
+        ".extracted-pin.json",
+        "torchtune-0.6.1.dist-info"
+      ],
+      "query": {
+        "module": "torchtune",
+        "symbol": "__version__",
+        "point": "module_exit"
+      },
+      "reference_fact": {
+        "kind": "lexical_literal_assignment",
+        "expected": "0.6.1+cpu",
+        "file": "torchtune/__init__.py",
+        "line": 7,
+        "source_sha256": "94ccf0c7b048aacc9398c8a9059b5b4c99d8cfa7a09931ff92ffb4b39fb5bb22",
+        "interpretation": "A source-selected literal reference, not whole-project executable gold; lexical-only facts can be conditional or affected by unmodeled behavior."
+      },
+      "expected_inventory_count": 235,
+      "scope": "Entire pinned published runtime-package trees, including bundled tests/migrations; external dependencies are not installed or analyzed."
+    }
+  ]
+}

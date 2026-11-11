@@ -1,0 +1,9 @@
+# Resumable checkpoint — 2026-11-10
+
+Current functional integration commit: `b098157`. Original v17 import is `d722bc8`; unchanged verifier move is separately `c1e8f46`. The immutable mandatory/open gold hash remains `ace61498c7680dfd19000d8157d4554e158bf41998058d09ace415b9451f3fdb`.
+
+The public API/CLI actually run Source, File and Project. AI-primary runs its own source/definition/heap/call equation queue; C uses Native then the same new driver; hybrid incrementally exchanges candidate facts. Real region transfer, offline L1 proposal/rerun and checked L2 guarded-dispatch summaries are implemented. Independent review and earlier red evidence are under `evidence/20261110/`. An integration run of the unchanged refactor suite passed 377 tests; use `--import-mode=importlib` to avoid duplicate test basename collection collisions. This is an integration checkpoint, not final validation for later edits.
+
+Critical unfinished work: new whole-session address coarsening and subscriber epochs (AI/domain owners), full legacy AI-to-shared execution state bridge and strict release architecture gate (spec/architecture owners), final bounded output selectors (domain owner), current defect-ledger consolidation and frozen 90-row A–E experiments (boot owner). Root owns config/session/CLI, task board, commits and packaging. No other agent commits or modifies task-board status.
+
+The default remains transitional Native. Do not promote it or claim G7 while the second old AI implementation / reverse dependencies remain. Preserve pending and Open states, raw failures and partial results. Django full909-source D preliminary returned its fixed query within8seconds while budget-exhausted; report analyzed units/roots, not discovered files as coverage. L2 results are conditional finite-profile certificates, never a general Python soundness score.

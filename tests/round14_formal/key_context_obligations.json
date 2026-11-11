@@ -1,0 +1,226 @@
+{
+  "authoring_order": "Sources, desired call/effect/value relations and bounds frozen before this reviewer runs any opt-in static prediction",
+  "cases": [
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "two_keys",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/two_keys.py.txt",
+      "source_sha256": "1bce680b48f6ff6d20cf08cb7c7d46e07892ba9096d7fd42955d0f95b7bce60c"
+    },
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "helper_allocation",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/helper_allocation.py.txt",
+      "source_sha256": "a04a54010a68d07f414bf99e7d51b8952ef97529de866d553777dc6d6d83dc4f"
+    },
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "recursive_helper",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/recursive_helper.py.txt",
+      "source_sha256": "e2676466a7afa75c7f78ed8451bebc41d14495df118e95dd697bfcc595cfad34"
+    },
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "late_keys",
+      "late_control": {
+        "concrete_companion": "names=[callback,unused]",
+        "forbidden_after_edges": [
+          [
+            "consume",
+            "poison"
+          ]
+        ],
+        "published_relation": "existing names list elem gets ConstantObject unused",
+        "required_after_events": [
+          "callback",
+          "unused",
+          "chosen"
+        ]
+      },
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/late_keys.py.txt",
+      "source_sha256": "21ea643f1f56204eb5730237f48c28c8621fc472089b3ca1b39bae6838fb0370"
+    },
+    {
+      "forbidden_edges": [
+        [
+          "consume",
+          "poison"
+        ]
+      ],
+      "id": "late_getitem",
+      "late_control": {
+        "concrete_companion": "Payload.__getitem__=later_getitem before consume",
+        "forbidden_after_edges": [
+          [
+            "consume",
+            "poison"
+          ]
+        ],
+        "published_relation": "existing type __getitem__ slot gets existing later_getitem function",
+        "required_after_edges": [
+          [
+            "consume",
+            "chosen"
+          ],
+          [
+            "consume",
+            "replacement"
+          ]
+        ],
+        "required_after_events": [
+          "chosen",
+          "replacement",
+          "late-getitem"
+        ]
+      },
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ]
+      ],
+      "required_events": [
+        "chosen"
+      ],
+      "required_result": 7,
+      "source": "key_context_sources/late_getitem.py.txt",
+      "source_sha256": "8c539e9e7bd7cbeeadac8e92852d37a542788d43474fc563b1fa7c04d7b8d6ed"
+    },
+    {
+      "concrete_companions": [
+        "incoming_key=callback",
+        "incoming_key=unused"
+      ],
+      "id": "unknown_key",
+      "late_control": {
+        "published_relation": "incoming_key global gains an opaque unknown object",
+        "required_after_edges": [
+          [
+            "consume",
+            "chosen"
+          ],
+          [
+            "consume",
+            "poison"
+          ]
+        ],
+        "required_after_events": [
+          "chosen",
+          "poison"
+        ],
+        "required_summary_bucket": true
+      },
+      "source": "key_context_sources/unknown_key.py.txt",
+      "source_sha256": "689922abb30ed767f2d7ab9edf2df50944a55c050535098a73024fc5735866fb"
+    },
+    {
+      "id": "quota_33",
+      "limits": [
+        1,
+        32
+      ],
+      "partition_bound": "no more than limit exact buckets plus one summary per operation/receiver source",
+      "required_edges": [
+        [
+          "consume",
+          "chosen"
+        ],
+        [
+          "consume",
+          "poison"
+        ],
+        [
+          "consume",
+          "replacement"
+        ]
+      ],
+      "required_events": [
+        "chosen",
+        "poison",
+        "replacement"
+      ],
+      "source": "key_context_sources/quota_33.py.txt",
+      "source_sha256": "ced51505ee278e11fbab194d6007ae4bb4f55bf61e2e401460a31f1b016771e0"
+    }
+  ],
+  "configuration": {
+    "base_policies": [
+      "0-cfa",
+      "2-cfa"
+    ],
+    "keyword_context_limit_default": 32,
+    "keyword_context_model": "receiver_key_v1"
+  },
+  "schema_version": 1,
+  "scope": "Explicit receiver_key_v1 finite source/context refinement arm; original none-policy precision failures remain recorded",
+  "structural_obligations": [
+    "Default none leaves original base-policy semantics unchanged and does not create protocol contexts",
+    "Exactly one flat token propagates through ordinary helper calls and allocations; nested keyword tokens replace it",
+    "SummaryContext remains outer and truncate_context preserves that marker and the flat token",
+    "Receiver source tokens contain only direct IR allocation source, never Scope/receiver/context-bearing synthetic recipes",
+    "At most configured exact buckets plus one JOIN per original operation and receiver source; unknown/overflow retains all may-values and residuals",
+    "Offline context entities expose typed inner/partition/operation/receiver-source links and effective model",
+    "No source CallSite index is fabricated and no returned value is filtered against desired gold"
+  ],
+  "whole_project_goals_discharged": 0
+}

@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "status": "frozen",
+  "scope": "Additional semantic variants, additive to normative query-gold; cannot weaken mandatory obligations.",
+  "cases": [
+    {
+      "id": "heldout_nested_literals",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_nested_literals.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def id_(x):\n    return x\ndef second(x):\n    return id_(x)\nresult = second('later')\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "later"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_kw_receiver_star",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_kw_receiver_star.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "class Join:\n    def combine(self, head, /, *tail, suffix):\n        return head + tail[0] + suffix\nresult = Join().combine('a', *('ft',), suffix='er')\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_default_before_global_write",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_default_before_global_write.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "label = 'before'\ndef f(x=label):\n    return x\nlabel = 'after'\nresult = f()\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "before"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_mutable_default_shared",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_mutable_default_shared.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def f(value=None, memo={}):\n    if value is not None:\n        memo['value'] = value\n    return memo['value']\nf('after')\nresult = f()\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_return_value_before_cleanup",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_return_value_before_cleanup.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def f(box):\n    try:\n        return box['value']\n    finally:\n        box['value'] = 2\nbox = {'value': 1}\nold = f(box)\nresult = old * 10 + box['value']\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          12
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_nested_finally_raise",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_nested_finally_raise.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def f():\n    try:\n        try:\n            return 'bad'\n        finally:\n            raise ValueError\n    finally:\n        return 'after'\nresult = f()\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_nonlocal_siblings",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_nonlocal_siblings.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def make():\n    value = 'before'\n    def write():\n        nonlocal value\n        value = 'after'\n    def read():\n        return value\n    return write, read\nwrite, read = make()\nwrite()\nresult = read()\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_activation_cells",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_activation_cells.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def make(value):\n    def read():\n        return value\n    return read\nfirst = make('before')\nsecond = make('after')\nresult = first()\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "before"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_mutual_recursion",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_mutual_recursion.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "def even(n):\n    if n == 0:\n        return True\n    return odd(n - 1)\ndef odd(n):\n    if n == 0:\n        return False\n    return even(n - 1)\nresult = even(4)\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          true
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_global_mutation",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_global_mutation.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "value = 'before'\ndef write():\n    global value\n    value = 'after'\nwrite()\nresult = value\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_bool_key_overwrite",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_bool_key_overwrite.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "table = {1: 'before'}\ntable[True] = 'after'\nresult = table[1]\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_with_cleanup",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_with_cleanup.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "box = {'value': 'before'}\nclass Guard:\n    def __enter__(self):\n        return self\n    def __exit__(self, typ, val, tb):\n        box['value'] = 'after'\n        return False\nwith Guard():\n    pass\nresult = box['value']\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true
+      },
+      "oracle_origin": "Independent TEST-01 author; expected literal defined before analyzer implementation."
+    },
+    {
+      "id": "heldout_exception_subclass",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_exception_subclass.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "class E(ValueError):\n    pass\ntry:\n    raise E()\nexcept ValueError:\n    result='after'\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true,
+        "allow_open": true
+      },
+      "oracle_origin": "Additional independent exceptionprotocol family; exactnormalvalue or explicitopen with sameusefulhandlerresult; no existinggold weakening."
+    },
+    {
+      "id": "heldout_exception_handler_alias",
+      "kind": "source",
+      "module": "example",
+      "filename": "heldout_exception_handler_alias.py",
+      "engines": [
+        "ai_primary",
+        "hybrid"
+      ],
+      "source": "Alias = ValueError\ntry:\n    raise ValueError()\nexcept Alias:\n    result='after'\n",
+      "query": {
+        "kind": "value",
+        "module": "example",
+        "symbol": "result",
+        "point": "module_exit"
+      },
+      "expected": {
+        "constants": [
+          "after"
+        ],
+        "exact": true,
+        "require_non_top": true,
+        "allow_open": true
+      },
+      "oracle_origin": "Additional independent exceptionprotocol family; exactnormalvalue or explicitopen with sameusefulhandlerresult; no existinggold weakening."
+    }
+  ]
+}

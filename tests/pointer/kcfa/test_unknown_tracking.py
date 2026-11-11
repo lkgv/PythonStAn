@@ -1,310 +1,378 @@
-"""Tests for unknown resolution tracking in pointer analysis.
+"""Tests for unknown resolution tracking in pointer analysis."""
 
-Tests verify that unknown/unresolved calls and allocations are:
-- Tracked with appropriate categories
-- Create conservative unknown objects
-- Provide statistics via query interface
-- Support configurable logging
-"""
+import ast
+from types import SimpleNamespace
+from typing import Optional, Tuple
 
 import pytest
 from pythonstan.analysis.pointer.kcfa.config import Config
-from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
+from pythonstan.analysis.pointer.kcfa.constraints import AllocConstraint, CallConstraint, CopyConstraint, LoadConstraint
+from pythonstan.analysis.pointer.kcfa.context import CallSite, CallStringContext, Scope
+from pythonstan.analysis.pointer.kcfa.object import (
+    AbstractObject,
+    AllocKind,
+    AllocSite,
+    ModuleObject,
+    ObjectFactory,
+)
+from pythonstan.analysis.pointer.kcfa.heap_model import attr
+from pythonstan.analysis.pointer.kcfa.points_to_set import PointsToSet, reset_object_table
+from pythonstan.analysis.pointer.kcfa.processor.normal_call import NormalCallProcessor
 from pythonstan.analysis.pointer.kcfa.solver import PointerSolver
-from pythonstan.analysis.pointer.kcfa.object import AllocSite, AllocKind, AbstractObject
-from pythonstan.analysis.pointer.kcfa.variable import Variable, Scope, VariableKind
-from pythonstan.analysis.pointer.kcfa.context import CallStringContext
-from pythonstan.analysis.pointer.kcfa.constraints import CallConstraint, AllocConstraint
+from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
 from pythonstan.analysis.pointer.kcfa.unknown_tracker import UnknownKind, UnknownTracker
+from pythonstan.analysis.pointer.kcfa.variable import VariableFactory, VariableKind
+from pythonstan.ir.ir_statements import IRAssign, IRCall, IRImport, IRModule
+
+
+@pytest.fixture(autouse=True)
+def _reset_pts_table():
+    reset_object_table()
+    yield
+    reset_object_table()
+
+
+def _make_call_site(scope_name: str, index: int = 0) -> CallSite:
+    call_stmt = IRCall(ast.parse("callsite()").body[0].value)
+    return CallSite(statement=call_stmt, scope_name=scope_name, index=index)
+
+
+def _make_module_scope() -> Tuple[Scope, CallStringContext, IRModule]:
+    module_ast = ast.parse("")
+    module_ir = IRModule("test_module", module_ast, "test_module", "test_module.py")
+    context = CallStringContext((), 1)
+    alloc_site = AllocSite(stmt=module_ir, kind=AllocKind.MODULE)
+    module_obj = ModuleObject(context=context, alloc_site=alloc_site, ir=module_ir)
+    scope = Scope.new(module_obj, None, context, module_ir, None)
+    return scope, context, module_ir
+
+
+def _make_solver(config: Optional[Config] = None) -> Tuple[PointerSolver, PointerAnalysisState]:
+    config = config or Config()
+    state = PointerAnalysisState()
+    solver = PointerSolver(state, config, processor=NormalCallProcessor())
+    return solver, state
 
 
 class TestUnknownTracker:
     """Test UnknownTracker class."""
-    
+
     def test_record_unknown(self):
-        """Test recording unknown resolution failure."""
         tracker = UnknownTracker()
-        
         tracker.record(
             UnknownKind.CALLEE_EMPTY,
             "test.py:42",
             "Empty callee points-to set"
         )
-        
         assert len(tracker.records) == 1
         assert tracker.records[0].kind == UnknownKind.CALLEE_EMPTY
-        assert tracker.records[0].location == "test.py:42"
-        assert "Empty callee" in tracker.records[0].message
-    
-    def test_get_summary(self):
-        """Test summary statistics."""
+
+    def test_record_dedupes_by_key(self):
         tracker = UnknownTracker()
-        
-        tracker.record(UnknownKind.CALLEE_EMPTY, "loc1", "msg1")
-        tracker.record(UnknownKind.CALLEE_EMPTY, "loc2", "msg2")
-        tracker.record(UnknownKind.CALLEE_NON_CALLABLE, "loc3", "msg3")
-        
+        tracker.record(UnknownKind.CALLEE_EMPTY, "loc", "msg", context="ctx")
+        tracker.record(UnknownKind.CALLEE_EMPTY, "loc", "msg2", context="ctx")
         summary = tracker.get_summary()
-        
-        assert summary["total_unknowns"] == 3
-        assert summary["unknown_callee_empty"] == 2
-        assert summary["unknown_callee_non_callable"] == 1
-    
-    def test_get_detailed_report(self):
-        """Test detailed report generation."""
-        tracker = UnknownTracker()
-        
-        tracker.record(
-            UnknownKind.FUNCTION_NOT_IN_REGISTRY,
-            "test.py:100",
-            "Function 'foo' not found",
-            context="foo"
+        assert summary["total_unknowns"] == 1
+        assert summary["unknown_callee_empty"] == 1
+
+    def test_record_respects_track_unknowns(self):
+        tracker = UnknownTracker(track_unknowns=False)
+        tracker.record(UnknownKind.CALLEE_EMPTY, "loc", "msg")
+        summary = tracker.get_summary()
+        assert summary["total_unknowns"] == 0
+
+
+def test_fixpoint_unresolved_call_reports_unknown():
+    config = Config(track_unknowns=True)
+    solver, state = _make_solver(config)
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+
+    callee_var = factory.make_variable("func", VariableKind.LOCAL)
+    target_var = factory.make_variable("result", VariableKind.LOCAL)
+    call = CallConstraint(
+        callee=callee_var,
+        args=(),
+        kwargs=frozenset(),
+        target=target_var,
+        call_site=_make_call_site(scope.name, 1),
+    )
+    solver.add_constraint(scope, context, call)
+    solver.solve_to_fixpoint()
+
+    unknown_summary = solver.query().get_unknown_summary()
+    assert unknown_summary.get("unknown_callee_empty", 0) >= 1
+
+
+def test_deferred_non_callable_ignores_late_callable():
+    config = Config(track_unknowns=True)
+    solver, state = _make_solver(config)
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+
+    callee_var = factory.make_variable("$call@test", VariableKind.TEMPORARY)
+    call = CallConstraint(
+        callee=callee_var,
+        args=(),
+        kwargs=frozenset(),
+        target=None,
+        call_site=_make_call_site(scope.name, 2),
+    )
+    solver.add_constraint(scope, context, call)
+
+    ctx_callee = state.get_variable(scope, context, callee_var)
+    non_callable = AbstractObject(context=context, alloc_site=AllocSite("noncallable", AllocKind.OBJECT))
+    callable_obj = ObjectFactory.create_builtin_function("len", context)
+
+    solver.handle_new_points_to(ctx_callee, scope, PointsToSet.singleton(non_callable))
+    solver.handle_new_points_to(ctx_callee, scope, PointsToSet.singleton(callable_obj))
+    solver.solve_to_fixpoint()
+
+    unknown_summary = solver.query().get_unknown_summary()
+    assert unknown_summary.get("unknown_callee_non_callable", 0) == 0
+
+
+def test_import_not_found_records_correct_kind():
+    class _DummyModuleGraph:
+        def get_succ_module(self, _src, _stmt):
+            return None
+
+    class _DummyScopeManager:
+        def __init__(self):
+            self.module_graph = _DummyModuleGraph()
+
+    config = Config(track_unknowns=True)
+    solver, state = _make_solver(config)
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    state._scope_manager = _DummyScopeManager()
+    factory = VariableFactory()
+
+    import_stmt = IRImport(ast.parse("import missing_mod").body[0])
+    alloc_site = AllocSite(stmt=import_stmt, kind=AllocKind.MODULE)
+    alloc = AllocConstraint(target=factory.make_variable("missing_mod", VariableKind.LOCAL), alloc_site=alloc_site)
+    solver.add_constraint(scope, context, alloc)
+    solver.solve_to_fixpoint()
+
+    unknown_summary = solver.query().get_unknown_summary()
+    assert unknown_summary.get("unknown_import_not_found", 0) >= 1
+    imported = state.get_variable(scope, context, alloc.target)
+    assert {obj.kind for obj in state.get_points_to(imported)} == {AllocKind.UNKNOWN}
+
+
+def test_track_unknowns_disabled_suppresses_records():
+    config = Config(track_unknowns=False)
+    solver, state = _make_solver(config)
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+
+    callee_var = factory.make_variable("func", VariableKind.LOCAL)
+    call = CallConstraint(
+        callee=callee_var,
+        args=(),
+        kwargs=frozenset(),
+        target=None,
+        call_site=_make_call_site(scope.name, 3),
+    )
+    solver.add_constraint(scope, context, call)
+    solver.solve_to_fixpoint()
+
+    summary = solver.query().get_unknown_summary()
+    assert summary["total_unknowns"] == 0
+
+
+@pytest.mark.parametrize("callee_name", ["effect_only", "$tmp7", "$call@protocol", "$call_lazy@late"])
+def test_unresolved_effect_only_calls_are_reported_for_all_names(callee_name, capsys):
+    solver, state = _make_solver()
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    callee = VariableFactory().make_variable(callee_name, VariableKind.LOCAL)
+    solver.add_constraint(scope, context, CallConstraint(
+        callee=callee, args=(), kwargs=frozenset(), target=None,
+        call_site=_make_call_site("ordinary_application", 4),
+    ))
+
+    solver.solve_to_fixpoint()
+
+    assert solver.query().get_unknown_summary()["unknown_callee_empty"] == 1
+    assert capsys.readouterr().out == ""
+
+
+def test_optional_attribute_hook_is_not_an_unresolved_user_call():
+    solver, state = _make_solver()
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    callee = VariableFactory().make_variable("$getattr@optional", VariableKind.TEMPORARY)
+    solver.add_constraint(scope, context, CallConstraint(
+        callee=callee, args=(), kwargs=frozenset(), target=None,
+        call_site=_make_call_site(scope.name, 5),
+    ))
+
+    solver.solve_to_fixpoint()
+
+    assert solver.query().get_unknown_summary()["total_unknowns"] == 0
+
+
+@pytest.mark.parametrize("track_unknowns", [True, False])
+def test_iteration_budget_is_incomplete_and_does_not_finalize_calls(track_unknowns, caplog):
+    solver, state = _make_solver(Config(max_iterations=1, track_unknowns=track_unknowns))
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+    callee = factory.make_variable("later", VariableKind.LOCAL)
+    solver.add_constraint(scope, context, CallConstraint(
+        callee=callee, args=(), kwargs=frozenset(), target=None,
+        call_site=_make_call_site(scope.name, 6),
+    ))
+    solver.add_constraint(scope, context, AllocConstraint(
+        target=callee, alloc_site=AllocSite(IRAssign(ast.parse("later = 1").body[0]), AllocKind.OBJECT),
+    ))
+
+    solver.solve_to_fixpoint()
+
+    stats = solver.query().get_statistics()
+    assert stats["converged"] == 0
+    assert stats["iteration_limit_reached"] == 1
+    assert stats["pending_work"] > 0
+    assert stats.get("unknown_solver_limit", 0) == int(track_unknowns)
+    assert stats.get("unknown_callee_empty", 0) == 0
+    assert "Stopped before convergence" in caplog.text
+    assert "Converged after" not in caplog.text
+
+
+def test_fixpoint_reached_at_exact_budget_is_complete():
+    solver, state = _make_solver(Config(max_iterations=1))
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+    solver.add_constraint(scope, context, CopyConstraint(
+        source=factory.make_variable("unbound", VariableKind.LOCAL),
+        target=factory.make_variable("copy", VariableKind.LOCAL),
+    ))
+
+    solver.solve_to_fixpoint()
+
+    stats = solver.query().get_statistics()
+    assert stats["iterations"] == 1
+    assert stats["converged"] == 1
+    assert stats["iteration_limit_reached"] == 0
+    assert stats["pending_work"] == 0
+    assert stats.get("unknown_solver_limit", 0) == 0
+
+
+def test_effect_only_unmodeled_builtin_is_not_hidden_by_callability():
+    solver, state = _make_solver()
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    callee = VariableFactory().make_variable("external_effect", VariableKind.LOCAL)
+    solver.add_constraint(scope, context, CallConstraint(
+        callee=callee, args=(), kwargs=frozenset(), target=None,
+        call_site=_make_call_site(scope.name, 7),
+    ))
+    unresolved = ObjectFactory.create_builtin_function("external_effect", context)
+    solver.handle_new_points_to(state.get_variable(scope, context, callee), scope, PointsToSet.singleton(unresolved))
+
+    solver.solve_to_fixpoint()
+
+    assert solver.query().get_unknown_summary()["unknown_callee_unmodeled"] == 1
+
+
+@pytest.mark.parametrize("is_complete", [False, True])
+def test_ai_intrinsic_applies_effects_only_after_completion(is_complete):
+    solver, state = _make_solver()
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+    target = factory.make_variable("result", VariableKind.LOCAL)
+    call = CallConstraint(
+        callee=factory.make_variable("getattr", VariableKind.LOCAL),
+        args=(), kwargs=frozenset(), target=target,
+        call_site=_make_call_site(scope.name, 8),
+    )
+    payload = AbstractObject(context=context, alloc_site=AllocSite("payload", AllocKind.OBJECT))
+    owner = AbstractObject(context=context, alloc_site=AllocSite("owner", AllocKind.OBJECT))
+    invocations = []
+
+    def analyze_intrinsic(**kwargs):
+        invocations.append(kwargs)
+        return SimpleNamespace(
+            is_complete=is_complete,
+            ret={payload},
+            writes=[SimpleNamespace(obj_addrs={owner}, field_key=attr("field"), value_addrs={payload})],
         )
-        
-        report = tracker.get_detailed_report()
-        
-        assert len(report) == 1
-        assert report[0]["kind"] == "function_not_in_registry"
-        assert report[0]["location"] == "test.py:100"
-        assert "foo" in report[0]["message"]
-        assert report[0]["context"] == "foo"
+
+    solver._ai_engine = SimpleNamespace(analyze_intrinsic=analyze_intrinsic)
+    from pythonstan.analysis.composition.native_intrinsics import LegacyIntrinsicProvider
+    solver.set_intrinsic_provider(LegacyIntrinsicProvider(
+        engine=solver._ai_engine,adapter=getattr(solver,"_ai_adapter",None)))
+    handled = solver._try_ai_intrinsic(
+        scope, context, call, ObjectFactory.create_builtin_function("getattr", context),
+    )
+    solver.solve_to_fixpoint()
+
+    assert invocations
+    assert handled == is_complete
+    assert (payload in state.get_points_to(state.get_variable(scope, context, target))) == is_complete
+    assert (payload in state.get_points_to(state.get_field(scope, context, owner, attr("field")))) == is_complete
 
 
-class TestEmptyCalleeTracking:
-    """Test tracking of calls with empty callee points-to set."""
-    
-    def test_empty_callee_creates_unknown_object(self):
-        """Test that calling empty callee creates unknown object."""
-        config = Config(verbose=True)
-        state = PointerAnalysisState()
-        solver = PointerSolver(state, config)
-        
-        # Create call with empty callee
-        scope = Scope(name="test", kind="function")
-        context = CallStringContext(call_sites=(), k=2)
-        
-        callee_var = Variable("func", scope, context, VariableKind.LOCAL)
-        target_var = Variable("result", scope, context, VariableKind.LOCAL)
-        
-        call = CallConstraint(
-            callee=callee_var,
-            args=(),
-            target=target_var,
-            call_site="test:42"
-        )
-        
-        solver.add_constraint(call)
-        solver.solve_to_fixpoint()
-        
-        # Check unknown was tracked
-        query = solver.query()
-        unknown_summary = query.get_unknown_summary()
-        
-        assert unknown_summary["total_unknowns"] >= 1
-        assert "unknown_callee_empty" in unknown_summary
-        
-        # Check conservative object was created
-        pts = state.get_points_to(target_var)
-        assert not pts.is_empty()
-        
-        # Verify it's an UNKNOWN object
-        for obj in pts:
-            assert obj.kind == AllocKind.UNKNOWN
+@pytest.mark.parametrize("track_unknowns", [False, True])
+def test_unresolved_returns_and_derived_loads_are_not_empty(track_unknowns):
+    solver, state = _make_solver(Config(track_unknowns=track_unknowns))
+    scope, context, module = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+    missing, result, derived, other = [factory.make_variable(name, VariableKind.GLOBAL) for name in ("missing", "result", "derived", "other")]
+    solver.add_constraint(scope, context, CallConstraint(
+        missing, (), frozenset(), result, _make_call_site(scope.name, 9),
+    ))
+    solver.add_constraint(scope, context, LoadConstraint(result, attr("attribute"), derived))
+    concrete = AbstractObject(context, AllocSite("concrete", AllocKind.OBJECT))
+    solver.handle_new_points_to(state.get_variable(scope, context, other), scope, PointsToSet.singleton(concrete))
+
+    solver.solve_to_fixpoint()
+
+    query = solver.query()
+    for variable in (result, derived):
+        objects = state.get_points_to(state.get_variable(scope, context, variable))
+        assert objects and all(obj.kind == AllocKind.UNKNOWN for obj in objects)
+    assert query.may_alias("result", "other", module, context)
+    assert query.get_residual_effects()[0]["return_target"] == "result"
+    assert "may_mutate_heap" in query.get_residual_effects()[0]["effects"]
+    assert query.get_statistics()["converged"] == 1
+    if not track_unknowns:
+        assert query.get_unknown_summary()["total_unknowns"] == 0
 
 
-class TestNonCallableTracking:
-    """Test tracking of calls to non-callable objects."""
-    
-    def test_non_callable_creates_unknown_object(self):
-        """Test that calling non-callable creates unknown object."""
-        config = Config(verbose=True)
-        state = PointerAnalysisState()
-        solver = PointerSolver(state, config)
-        
-        # Create non-callable object (LIST)
-        scope = Scope(name="test", kind="function")
-        context = CallStringContext(call_sites=(), k=2)
-        
-        callee_var = Variable("list_obj", scope, context, VariableKind.LOCAL)
-        target_var = Variable("result", scope, context, VariableKind.LOCAL)
-        
-        # Allocate list object
-        list_alloc = AllocSite(
-            file="test.py",
-            line=10,
-            col=0,
-            kind=AllocKind.LIST,
-            name="my_list"
-        )
-        alloc_constraint = AllocConstraint(target=callee_var, alloc_site=list_alloc)
-        
-        # Call the list object
-        call = CallConstraint(
-            callee=callee_var,
-            args=(),
-            target=target_var,
-            call_site="test:50"
-        )
-        
-        solver.add_constraint(alloc_constraint)
-        solver.add_constraint(call)
-        solver.solve_to_fixpoint()
-        
-        # Check unknown was tracked
-        query = solver.query()
-        unknown_summary = query.get_unknown_summary()
-        
-        assert unknown_summary["total_unknowns"] >= 1
-        assert "unknown_callee_non_callable" in unknown_summary
-        
-        # Check conservative object was created
-        pts = state.get_points_to(target_var)
-        assert not pts.is_empty()
+def test_ai_heap_dependency_replays_when_late_field_values_arrive():
+    from pythonstan.analysis.pointer.kcfa.pta_query_adapter import PtaQueryAdapter
 
+    solver, state = _make_solver()
+    scope, context, _ = _make_module_scope()
+    state.set_internal_scope(scope.obj, scope)
+    factory = VariableFactory()
+    target = factory.make_variable("result")
+    owner = AbstractObject(context, AllocSite("owner", AllocKind.OBJECT))
+    payload = AbstractObject(context, AllocSite("payload", AllocKind.OBJECT))
+    call = CallConstraint(factory.make_variable("getattr"), (), frozenset(), target, _make_call_site(scope.name, 10))
+    solver._ai_adapter = PtaQueryAdapter(state)
 
-class TestFunctionNotInRegistryTracking:
-    """Test tracking of function calls where function not in registry."""
-    
-    def test_function_not_in_registry_creates_unknown(self):
-        """Test function not in registry creates unknown object."""
-        config = Config(verbose=True)
-        state = PointerAnalysisState()
-        
-        # Empty function registry
-        solver = PointerSolver(
-            state,
-            config,
-            ir_translator=None,
-            context_selector=None,
-            function_registry={}
-        )
-        
-        # Create function object
-        scope = Scope(name="test", kind="function")
-        context = CallStringContext(call_sites=(), k=2)
-        
-        callee_var = Variable("some_func", scope, context, VariableKind.LOCAL)
-        target_var = Variable("result", scope, context, VariableKind.LOCAL)
-        
-        # Allocate function object
-        func_alloc = AllocSite(
-            file="test.py",
-            line=20,
-            col=0,
-            kind=AllocKind.FUNCTION,
-            name="missing_func"
-        )
-        alloc_constraint = AllocConstraint(target=callee_var, alloc_site=func_alloc)
-        
-        # Call the function
-        call = CallConstraint(
-            callee=callee_var,
-            args=(),
-            target=target_var,
-            call_site="test:60"
-        )
-        
-        solver.add_constraint(alloc_constraint)
-        solver.add_constraint(call)
-        solver.solve_to_fixpoint()
-        
-        # Check unknown was tracked
-        query = solver.query()
-        unknown_details = query.get_unknown_details()
-        
-        # Should have tracked either empty callee or function not in registry
-        # (depending on solver iteration order)
-        assert len(unknown_details) >= 1
-        
-        # Verify at least one relevant unknown type
-        unknown_types = {u["kind"] for u in unknown_details}
-        assert ("callee_empty" in unknown_types or 
-                "function_not_in_registry" in unknown_types or
-                "missing_dependencies" in unknown_types)
+    def analyze_intrinsic(**_kwargs):
+        objects = solver._ai_adapter.field_points_to(owner, attr("field"), scope, context)
+        return SimpleNamespace(is_complete=True, ret=frozenset(objects), writes=())
 
+    solver._ai_engine = SimpleNamespace(analyze_intrinsic=analyze_intrinsic)
+    from pythonstan.analysis.composition.native_intrinsics import LegacyIntrinsicProvider
+    solver.set_intrinsic_provider(LegacyIntrinsicProvider(
+        engine=solver._ai_engine,adapter=getattr(solver,"_ai_adapter",None)))
+    assert not solver._try_ai_intrinsic(scope, context, call, ObjectFactory.create_builtin_function("getattr", context))
+    field = state.get_field(scope, context, owner, attr("field"))
+    solver.handle_new_points_to(field, scope, PointsToSet.singleton(payload))
+    solver.solve_to_fixpoint()
 
-class TestQueryIntegration:
-    """Test integration with query interface."""
-    
-    def test_get_statistics_includes_unknowns(self):
-        """Test that get_statistics includes unknown counts."""
-        config = Config()
-        state = PointerAnalysisState()
-        solver = PointerSolver(state, config)
-        
-        # Create some unknowns
-        scope = Scope(name="test", kind="function")
-        context = CallStringContext(call_sites=(), k=2)
-        
-        callee_var = Variable("func", scope, context, VariableKind.LOCAL)
-        target_var = Variable("result", scope, context, VariableKind.LOCAL)
-        
-        call = CallConstraint(
-            callee=callee_var,
-            args=(),
-            target=target_var,
-            call_site="test:70"
-        )
-        
-        solver.add_constraint(call)
-        solver.solve_to_fixpoint()
-        
-        # Get statistics
-        query = solver.query()
-        stats = query.get_statistics()
-        
-        # Should include unknown statistics
-        assert "total_unknowns" in stats
-        assert stats["total_unknowns"] >= 0
-    
-    def test_get_unknown_summary_works(self):
-        """Test get_unknown_summary method."""
-        config = Config()
-        state = PointerAnalysisState()
-        solver = PointerSolver(state, config)
-        
-        solver.solve_to_fixpoint()
-        
-        query = solver.query()
-        summary = query.get_unknown_summary()
-        
-        assert isinstance(summary, dict)
-        assert "total_unknowns" in summary
-    
-    def test_get_unknown_details_works(self):
-        """Test get_unknown_details method."""
-        config = Config()
-        state = PointerAnalysisState()
-        solver = PointerSolver(state, config)
-        
-        solver.solve_to_fixpoint()
-        
-        query = solver.query()
-        details = query.get_unknown_details()
-        
-        assert isinstance(details, list)
-
-
-class TestConfigOptions:
-    """Test configuration options for unknown tracking."""
-    
-    def test_track_unknowns_default_true(self):
-        """Test track_unknowns defaults to True."""
-        config = Config()
-        assert config.track_unknowns is True
-    
-    def test_log_unknown_details_default_false(self):
-        """Test log_unknown_details defaults to False."""
-        config = Config()
-        assert config.log_unknown_details is False
-    
-    def test_config_accepts_unknown_options(self):
-        """Test config accepts unknown tracking options."""
-        config = Config(
-            track_unknowns=False,
-            log_unknown_details=True
-        )
-        
-        assert config.track_unknowns is False
-        assert config.log_unknown_details is True
+    assert payload in state.get_points_to(state.get_variable(scope, context, target))
+    assert solver.query().get_statistics()["builtin_dependency_replays"] > 0
 

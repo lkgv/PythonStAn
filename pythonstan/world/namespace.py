@@ -1,5 +1,6 @@
 import ast
 import os
+from importlib.util import resolve_name
 from pathlib import Path
 from typing import List, Dict, Tuple, Any, Optional
 
@@ -161,11 +162,10 @@ class NamespaceManager:
         return self.names2path[ns.to_str()]
     
     def set_entry_module(self, module_path: str, root_path: str) -> Namespace:
-        if root_path.endswith("/"):
-            root_path = root_path[:-1]
-        if module_path.startswith(root_path):
-            rel_module_path = module_path[len(root_path) + 1:]
-        else:
+        module_path = str(Path(module_path).resolve())
+        try:
+            rel_module_path = str(Path(module_path).relative_to(Path(root_path).resolve()))
+        except ValueError:
             rel_module_path = module_path
         ns = Namespace.from_path(rel_module_path)
         self.ns2path[ns] = module_path
@@ -182,11 +182,13 @@ class NamespaceManager:
 
     def find_ns_in_path(self, paths: List[str], ns: Namespace) -> Optional[str]:
         for path in paths:
-            if os.path.isfile(ns.to_filepath(rootpath=path)):
-                mod_path = ns.to_filepath(path)
-                return self._cache_ns_path(ns, mod_path)
-            elif os.path.isfile(ns.to_dirpath(rootpath=path)):
+            # FileFinder checks a package initializer before an equal-named
+            # module in the same search directory.
+            if os.path.isfile(ns.to_dirpath(rootpath=path)):
                 mod_path = ns.to_dirpath(path)
+                return self._cache_ns_path(ns, mod_path)
+            elif os.path.isfile(ns.to_filepath(rootpath=path)):
+                mod_path = ns.to_filepath(path)
                 return self._cache_ns_path(ns, mod_path)
         if ns.base() in builtin_module_names():
             return self._cache_ns_path(ns, f"__builtin__.{ns.base()}")
@@ -273,34 +275,11 @@ class NamespaceManager:
         Returns:
             Tuple[Namespace, str]: Namespace and path of the imported module
         """
-        if self.ns2path[cur_ns].endswith('__init__.py'):
-            level -= 1
-        rel_ns = cur_ns.relative_ns(module.split('.'), level)
-        root_path = get_root(self.ns2path[cur_ns], cur_ns.names)
-        if os.path.isfile(rel_ns.to_filepath(root_path)):
-            rel_ns_path = rel_ns.to_filepath(root_path)
-            self.ns2path[rel_ns] = rel_ns_path
-            return rel_ns, rel_ns_path
-        
-        elif os.path.isfile(rel_ns.to_dirpath(root_path)):
-            succ_rel_ns = rel_ns.next_ns([name])
-            
-            if os.path.isfile(succ_rel_ns.to_filepath(root_path)):
-                succ_rel_path = succ_rel_ns.to_filepath(root_path)
-                self.ns2path[succ_rel_ns] = succ_rel_path
-                return succ_rel_ns, succ_rel_path
-            
-            elif os.path.isfile(succ_rel_ns.to_dirpath(root_path)):
-                succ_rel_path = succ_rel_ns.to_dirpath(root_path)
-                self.ns2path[succ_rel_ns] = succ_rel_path
-                return succ_rel_ns, succ_rel_path
-            
-            else:
-                rel_path = rel_ns.to_dirpath(root_path)
-                self.ns2path[rel_ns] = rel_path
-                return rel_ns, rel_path
-            
-        return None
+        package = cur_ns.to_str() if self.ns2path[cur_ns].endswith('__init__.py') else '.'.join(cur_ns.names[:-1])
+        if not package:
+            raise ImportError("attempted relative import with no known parent package")
+        absolute = resolve_name('.' * level + (module or ''), package)
+        return self.resolve_importfrom(absolute, name)
 
     def get_import(self, cur_ns: Namespace, ir: IRImport) -> Optional[Tuple[Namespace, str]]:
         """
@@ -314,15 +293,23 @@ class NamespaceManager:
             Tuple[Namespace, str]: Namespace and path of the imported module
         """
         if isinstance(ir.stmt, ast.Import):
-            return self.resolve_import(ir.name)
+            ir._import_base_name = ir.name
+            ret = self.resolve_import(ir.name)
+            ir._resolved_import_name = ret[0].to_str() if ret is not None else None
+            return ret
         elif isinstance(ir.stmt, ast.ImportFrom):
             if ir.level == 0:
+                ir._import_base_name = ir.module
                 ret = self.resolve_importfrom(ir.module, ir.name)
                 # assert ret is not None, f"Failed to resolve import: {ir.module}, {ir.name}"
+                ir._resolved_import_name = ret[0].to_str() if ret is not None else None
                 return ret
             else:
+                package = cur_ns.to_str() if self.ns2path[cur_ns].endswith('__init__.py') else '.'.join(cur_ns.names[:-1])
+                ir._import_base_name = resolve_name('.' * ir.level + (ir.module or ''), package)
                 ret = self.resolve_rel_importfrom(cur_ns, ir.module, ir.name, ir.level)
                 # assert ret is not None, f"Failed to resolve relative import: {ir.module}, {ir.name}, {ir.level}"
+                ir._resolved_import_name = ret[0].to_str() if ret is not None else None
                 return ret
         return None
 

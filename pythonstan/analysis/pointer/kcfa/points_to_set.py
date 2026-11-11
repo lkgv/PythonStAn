@@ -58,6 +58,9 @@ class _ObjectIdTable:
 
 # Module-level singleton for the current analysis run
 _global_table: Optional[_ObjectIdTable] = None
+# A scalar epoch prevents passive readers from decoding an older run's masks
+# through a later run's resettable table. It is not an object identity registry.
+_object_table_generation = 0
 
 
 def _get_object_table() -> _ObjectIdTable:
@@ -70,10 +73,11 @@ def _get_object_table() -> _ObjectIdTable:
 
 def reset_object_table() -> None:
     """Reset the global object ID table. Call between analysis runs."""
-    global _global_table
+    global _global_table, _object_table_generation
     if _global_table is not None:
         _global_table.clear()
     _global_table = None
+    _object_table_generation += 1
 
 
 def _popcount(n: int) -> int:
@@ -185,11 +189,23 @@ class PointsToSet:
 
         Creates new MethodObject instances with deliver_into() and interns them.
         """
-        if self.instancemethods_mask == 0:
-            return self
+        from .object import FunctionObject, MethodObject
 
         table = _get_object_table()
         new_ims_mask = 0
+        new_objs_mask = self.objs_mask
+
+        # A function installed on a class (for example a decorator's result)
+        # has the same descriptor binding behavior as a declared method.
+        for obj_id in _iter_bits(self.objs_mask):
+            function = table.get_obj(obj_id)
+            if isinstance(function, FunctionObject) and not function.ir.is_static_method:
+                bound = MethodObject(
+                    function.context, function.alloc_site, function.container_scope,
+                    function.ir, new_inst.class_obj, new_inst,
+                )
+                new_objs_mask &= ~(1 << obj_id)
+                new_ims_mask |= 1 << table.get_id(bound)
 
         for obj_id in _iter_bits(self.instancemethods_mask):
             im = table.get_obj(obj_id)
@@ -197,7 +213,7 @@ class PointsToSet:
             new_id = table.get_id(new_im)
             new_ims_mask |= (1 << new_id)
 
-        return PointsToSet(self.objs_mask, self.classmethods_mask, new_ims_mask)
+        return PointsToSet(new_objs_mask, self.classmethods_mask, new_ims_mask)
 
     def union(self, other: 'PointsToSet') -> 'PointsToSet':
         """Union with another points-to set."""

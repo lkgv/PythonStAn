@@ -36,7 +36,7 @@ class BlockCFG(Transform):
 class BaseBlockHelper:
     @staticmethod
     def get_goto_stmts(blk: BaseBlock) -> List[IRStatement]:
-        return [s for s in blk.get_stmts() if isinstance(s, (Goto, JumpIfTrue, JumpIfFalse, IRCatchException))]
+        return [s for s in blk.get_stmts() if isinstance(s, (Goto, JumpIfTrue, JumpIfFalse))]
 
     @staticmethod
     def will_directly_jump(blk: BaseBlock) -> bool:
@@ -52,6 +52,10 @@ class BaseBlockHelper:
     def retrive_label(blk: BaseBlock) -> Optional[Label]:
         stmts = blk.get_stmts()
         for stmt in stmts:
+            if isinstance(stmt, IRCatchException):
+                # Protected-region declarations are metadata. A handler is
+                # entered only by an exceptional transfer from its operation.
+                continue
             if isinstance(stmt, Label):
                 return stmt
         return None
@@ -72,6 +76,10 @@ class BlockCFGBuilder:
         cur_blk = []
         ret_blks = [cur_blk]
         for stmt in stmts:
+            if isinstance(stmt, IRCatchException):
+                # Protected-region declarations are metadata. A handler is
+                # entered only by an exceptional transfer from its operation.
+                continue
             if isinstance(stmt, Label):
                 cur_blk = [stmt]
                 ret_blks.append(cur_blk)
@@ -82,6 +90,12 @@ class BlockCFGBuilder:
                 ret_blks.append(cur_blk)
             else:
                 cur_blk.append(stmt)
+                if ((getattr(stmt, "exception_handlers", ()) and not isinstance(stmt, IRPass))
+                        or getattr(stmt, "suppressed_label", None) is not None):
+                    # Each potentially raising operation owns its exceptional
+                    # successors; later statements cannot execute before them.
+                    cur_blk = []
+                    ret_blks.append(cur_blk)
         return ret_blks
 
     def build_graph(self, stmts: List[IRStatement]):
@@ -101,26 +115,35 @@ class BlockCFGBuilder:
             self.cfg.add_blk(blk)
             if blk.idx == 1:
                 self.cfg.add_edge(NormalEdge(entry_blk, blk))
-        for blk, next_blk in zip(blk_list, blk_list[1:]):
-            if not BaseBlockHelper.will_directly_jump(blk):
-                self.cfg.add_edge(NormalEdge(blk, next_blk))
+        for index, blk in enumerate(blk_list):
+            if index + 1 < len(blk_list) and not BaseBlockHelper.will_directly_jump(blk):
+                self.cfg.add_edge(NormalEdge(blk, blk_list[index + 1]))
             for stmt in BaseBlockHelper.get_goto_stmts(blk):
+                tgt_blk = self.lab2blk.get(stmt.label, None)
+                if tgt_blk is None:
+                    continue
                 if isinstance(stmt, Goto):
-                    tgt_blk = self.lab2blk.get(stmt.label, None)
+                    self.cfg.add_edge(NormalEdge(blk, tgt_blk))
+                elif isinstance(stmt, JumpIfTrue):
+                    self.cfg.add_edge(IfEdge(blk, tgt_blk, stmt.test, True))
+                elif isinstance(stmt, JumpIfFalse):
+                    self.cfg.add_edge(IfEdge(blk, tgt_blk, stmt.test, False))
+            for stmt in blk.get_stmts():
+                suppressed = getattr(stmt, "suppressed_label", None)
+                if suppressed is not None and suppressed in self.lab2blk:
+                    # __exit__ True skips the saved re-raise; False follows the
+                    # ordinary edge. Keep both successors materialized even
+                    # though the interpreter selects the labeled channel.
+                    from ast import Name, Load
+                    self.cfg.add_edge(IfEdge(blk,self.lab2blk[suppressed],
+                                             Name(id="@context_exit_suppressed",ctx=Load()),True))
+                if isinstance(stmt, (Label, IRPass, IRReturn, Goto, JumpIfTrue, JumpIfFalse)):
+                    continue
+                for handler in getattr(stmt, "exception_handlers", ()):
+                    tgt_blk = self.lab2blk.get(handler.goto_label)
                     if tgt_blk is not None:
-                        self.cfg.add_edge(NormalEdge(blk, tgt_blk))
-                if isinstance(stmt, JumpIfTrue):
-                    tgt_blk = self.lab2blk.get(stmt.label, None)
-                    if tgt_blk is not None:
-                        self.cfg.add_edge(IfEdge(blk, tgt_blk, stmt.test, True))
-                if isinstance(stmt, JumpIfFalse):
-                    tgt_blk = self.lab2blk.get(stmt.label, None)
-                    if tgt_blk is not None:
-                        self.cfg.add_edge(IfEdge(blk, tgt_blk, stmt.test, False))
-                elif isinstance(stmt, IRCatchException):
-                    tgt_blk = self.lab2blk.get(stmt.goto_label, None)
-                    if tgt_blk is not None:
-                        self.cfg.add_edge(ExceptionEdge(blk, tgt_blk, stmt.exception))
+                        edge = ExceptionEdge(blk, tgt_blk, handler.exception)
+                        self.cfg.add_edge(edge)
         for blk in blk_list:
             if BaseBlockHelper.will_return(blk):
                 self.cfg.add_exit(blk)

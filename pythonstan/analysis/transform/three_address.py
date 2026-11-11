@@ -6,6 +6,7 @@ from .transform import Transform
 
 from pythonstan.utils import update_ctx, destructable, TempVarGenerator
 from pythonstan.ir import IRModule
+from pythonstan.ir.semantic_residuals import attach_frontend_residual
 from pythonstan.world import World
 from ..analysis import AnalysisConfig
 
@@ -42,21 +43,27 @@ class ConstCollector:
     def __init__(self, init_idx: int = 0):
         self.next_idx = init_idx
         self.consts = {}
+        self.values = {}
 
     def load(self, c) -> ast.Name:
-        if c in self.consts:
-            idx = self.consts[c]
+        # Python mapping equality conflates True, 1, and 1.0; constants retain
+        # their runtime types, and floating point signed zero retains its bits.
+        import struct
+        identity = (struct.pack('!d', c) if type(c) is float else
+                    (struct.pack('!dd', c.real, c.imag) if type(c) is complex else c))
+        key = (type(c), identity)
+        if key in self.consts:
+            idx = self.consts[key]
         else:
             c_idx = self.next_idx
             self.next_idx += 1
-            self.consts[c] = c_idx
+            self.consts[key] = c_idx
+            self.values[c_idx] = c
             idx = c_idx
         return ast.Name(id=self.to_name(idx), ctx=ast.Load())
 
     def dump(self) -> List[Tuple[str, Any]]:
-        ret = [(v, k) for k, v in self.consts.items()]
-        ret.sort(key=lambda x: x[0])
-        return [(self.to_name(k), v) for k, v in ret]
+        return [(self.to_name(idx), value) for idx, value in sorted(self.values.items())]
 
 
 class ThreeAddressTransformer(NodeTransformer):
@@ -278,7 +285,13 @@ class ThreeAddressTransformer(NodeTransformer):
                 if isinstance(node.op, ast.And):
                     tmp_test = tmp_l
                 elif isinstance(node.op, ast.Or):
-                    tmp_test = ast.UnaryOp(op=ast.Not(), operand=tmp_l)
+                    # Generated guards also obey the TAC Name invariant.
+                    test_load, test_store = self.tmp_gen()
+                    test_assignment = ast.Assign(targets=[test_store],
+                        value=ast.UnaryOp(op=ast.Not(), operand=tmp_l))
+                    ast.copy_location(test_assignment, node)
+                    tmp_blk.append(test_assignment)
+                    tmp_test = test_load
                 else:
                     raise NotImplementedError("The op is not a bool op!")
                 e = tmp_test
@@ -542,7 +555,13 @@ class ThreeAddressTransformer(NodeTransformer):
                 if isinstance(node.op, ast.And):
                     tmp_test = tmp_l
                 elif isinstance(node.op, ast.Or):
-                    tmp_test = ast.UnaryOp(op=ast.Not(), operand=tmp_l)
+                    # Generated guards also obey the TAC Name invariant.
+                    test_load, test_store = self.tmp_gen()
+                    test_assignment = ast.Assign(targets=[test_store],
+                        value=ast.UnaryOp(op=ast.Not(), operand=tmp_l))
+                    ast.copy_location(test_assignment, node)
+                    tmp_blk.append(test_assignment)
+                    tmp_test = test_load
                 else:
                     raise NotImplementedError("The op is not a bool op!")
                 tmp_blk.append(ast.If(test=tmp_test, body=blk, orelse=[]))
@@ -590,9 +609,13 @@ class ThreeAddressTransformer(NodeTransformer):
             blk.extend(v_blk)
             keywords.append(new_kw)
         tmp_l, tmp_s = self.tmp_gen()
+        call = ast.Call(func=func_elt, args=args, keywords=keywords)
+        # Generated assignments can be revisited by split_expr. Preserve the
+        # call's own source span so that a second visit cannot inherit line 1.
+        ast.copy_location(call, node)
         ins = ast.Assign(
             targets=[tmp_s],
-            value=ast.Call(func=func_elt, args=args, keywords=keywords))
+            value=call)
         ast.copy_location(ins, node)
         blk.append(ins)
         return blk, tmp_l
@@ -750,14 +773,9 @@ class ThreeAddressTransformer(NodeTransformer):
     '''
     For(expr target, expr iter, stmt* body, stmt* orelse, string? type_comment)
 
-    ==> temp1 = iter(iter)
-        temp2 = next(temp1, None)
-        temp3 = temp2 is not None
-        while temp3:
-          target = temp2
-          ...
-          temp2 = next(temp1, None)
-          temp3 = temp2 is not None
+    Iteration uses a fresh identity sentinel and re-evaluates next() at the
+    loop header. None is a valid element, and continue must advance the
+    iterator. The shared while normalization also preserves for-else.
     '''
 
     def visit_For(self, node):
@@ -770,30 +788,38 @@ class ThreeAddressTransformer(NodeTransformer):
             args=[iter_val],
             keywords=[]))
         ast.copy_location(iter_stmt, node.iter)
+        attach_frontend_residual(
+            iter_stmt, node, "frontend_for_builtin_identity_unproved",
+            "for lowering uses source-visible iter/next names; builtin identity and "
+            "implicit iteration special-method lookup have not been established",
+            ("implicit_iteration_dispatch", "builtin_binding_identity", "may_invoke_callbacks",
+             "may_mutate_heap", "may_raise"),
+        )
         body.append(iter_stmt)
+        sentinel_l, sentinel_s = self.tmp_gen()
+        # An empty list is fresh without depending on a source-visible
+        # `object` name that user code can shadow. Only identity is tested.
+        sentinel_stmt = ast.Assign(targets=[sentinel_s], value=ast.List(elts=[], ctx=Load()))
+        ast.copy_location(sentinel_stmt, node.iter)
+        body.append(sentinel_stmt)
         tmp_l, tmp_s = self.tmp_gen()
         next_stmt = ast.Assign(targets=[tmp_s], value=ast.Call(
             func=ast.Name(id='next', ctx=Load()),
-            args=[iter_l, self.const_colle.load(None)],
+            args=[iter_l, sentinel_l],
             keywords=[]))
         ast.copy_location(next_stmt, node.iter)
-        body.append(next_stmt)
         tmp_test_l, tmp_test_s = self.tmp_gen()
         test_stmt = ast.Assign(targets=[tmp_test_s], value=ast.Compare(
             left=tmp_l,
             ops=[ast.IsNot()],
-            comparators=[self.const_colle.load(None)]))
+            comparators=[sentinel_l]))
         ast.copy_location(test_stmt, node.target)
-        body.append(test_stmt)
         ass_blk = self.resolve_single_Assign(node.target, tmp_l, node.iter)
         b_blk = self.visit_stmt_list(node.body)
         ass_blk.extend(b_blk)
-        ass_blk.append(copy.deepcopy(next_stmt))
-        ass_blk.append(copy.deepcopy(test_stmt))
         o_blk = self.visit_stmt_list(node.orelse)
-        while_stmt = ast.While(test=tmp_test_l, body=ass_blk, orelse=o_blk)
-        ast.copy_location(while_stmt, node)
-        body.append(while_stmt)
+        body.extend(self._normalize_while([next_stmt, test_stmt], tmp_test_l,
+                                          ass_blk, o_blk, node))
         return body
 
     def visit_AsyncFor(self, node):
@@ -802,19 +828,32 @@ class ThreeAddressTransformer(NodeTransformer):
         body.extend(iter_blk)
         iter_l, iter_s = self.tmp_gen()
         iter_stmt = ast.Assign(targets=[iter_s], value=ast.Call(
-            func=ast.Name(id='iter', ctx=Load()),
+            func=ast.Name(id='aiter', ctx=Load()),
             args=[iter_val],
             keywords=[]))
+        iter_stmt.value._pythonstan_async_iteration_operation = "aiter"
         ast.copy_location(iter_stmt, node.iter)
+        attach_frontend_residual(
+            iter_stmt, node, "frontend_async_for_protocol_unmodeled",
+            "async-for protocol may-flow does not discharge StopAsyncIteration routing, "
+            "exhaustion, suspension order or cancellation cleanup",
+            ("async_iteration_dispatch", "await_suspension", "exception_routing",
+             "cancellation_cleanup", "may_invoke_callbacks", "may_mutate_heap", "may_raise"),
+        )
         body.append(iter_stmt)
         tmp_l, tmp_s = self.tmp_gen()
-        next_stmt = ast.Assign(targets=[tmp_s], value=ast.Call(
-            func=ast.Name(id='next', ctx=Load()),
-            args=[iter_l, self.const_colle.load(None)],
+        step_l, step_s = self.tmp_gen()
+        next_stmt = ast.Assign(targets=[step_s], value=ast.Call(
+            func=ast.Name(id='anext', ctx=Load()),
+            args=[iter_l],
             keywords=[]))
+        next_stmt.value._pythonstan_async_iteration_operation = "anext"
         ast.copy_location(next_stmt, node.iter)
+        await_stmt = ast.Assign(targets=[tmp_s], value=ast.Await(value=step_l))
+        ast.copy_location(await_stmt, node.iter)
 
         body.append(next_stmt)
+        body.append(await_stmt)
         tmp_test_l, tmp_test_s = self.tmp_gen()
         test_stmt = ast.Assign(targets=[tmp_test_s], value=ast.Compare(
             left=tmp_l,
@@ -826,6 +865,7 @@ class ThreeAddressTransformer(NodeTransformer):
         b_blk = self.visit_stmt_list(node.body)
         ass_blk.extend(b_blk)
         ass_blk.append(copy.deepcopy(next_stmt))
+        ass_blk.append(copy.deepcopy(await_stmt))
         ass_blk.append(copy.deepcopy(test_stmt))
         o_blk = self.visit_stmt_list(node.orelse)
         while_stmt = ast.While(test=tmp_test_l, body=ass_blk, orelse=o_blk)
@@ -837,10 +877,28 @@ class ThreeAddressTransformer(NodeTransformer):
         t_blk, test_elt = self.split_expr(node.test)
         b_blk = self.visit_stmt_list(node.body)
         o_blk = self.visit_stmt_list(node.orelse)
-        ins = ast.While(test=test_elt, body=b_blk, orelse=o_blk)
-        ast.copy_location(ins, node)
-        t_blk.append(ins)
-        return t_blk
+        return self._normalize_while(t_blk, test_elt, b_blk, o_blk, node)
+
+    def _normalize_while(self, test_prefix, test, body, orelse, source):
+        """Keep repeated guard evaluation inside an ordinary executable AST.
+
+        A continue returns to the guard; break skips else. The original else
+        stays outside this loop so any break/continue there still targets an
+        enclosing loop, as in the source program.
+        """
+        result, exhausted = [], None
+        failure = []
+        if orelse:
+            exhausted, exhausted_store = self.tmp_gen()
+            result.append(ast.copy_location(ast.Assign(targets=[exhausted_store], value=ast.Constant(False)), source))
+            failure.append(ast.copy_location(ast.Assign(targets=[copy.deepcopy(exhausted_store)], value=ast.Constant(True)), source))
+        failure.append(ast.copy_location(ast.Break(), source))
+        guard = ast.copy_location(ast.If(test=test, body=body or [ast.Pass()], orelse=failure), source)
+        loop = ast.copy_location(ast.While(test=self.const_colle.load(True), body=list(test_prefix)+[guard], orelse=[]), source)
+        result.append(loop)
+        if orelse:
+            result.append(ast.copy_location(ast.If(test=exhausted, body=orelse, orelse=[]), source))
+        return result
 
     def visit_If(self, node):
         t_blk, t_val = self.split_expr(node.test)
@@ -912,13 +970,14 @@ class ThreeAddressTransformer(NodeTransformer):
         e_elt, c_elt = None, None
         if node.exc is not None:
             e_blk, e_elt = self.split_expr(node.exc)
-            blk.append(e_blk)
+            blk.extend(e_blk)
         if node.cause is not None:
             c_blk, c_elt = self.split_expr(node.cause)
-            blk.append(c_blk)
+            blk.extend(c_blk)
         ins = ast.Raise(exc=e_elt, cause=c_elt)
         ast.copy_location(ins, node)
-        return ins
+        blk.append(ins)
+        return blk
 
     def visit_Try(self, node):
         handlers = []
@@ -948,9 +1007,9 @@ class ThreeAddressTransformer(NodeTransformer):
             orelse=self.visit_stmt_list(node.orelse),
             finalbody=self.visit_stmt_list(node.finalbody))
         ast.copy_location(ins, node)
-        stmt = ast.Try(body=stmts + [ins], handlers=[], orelse=[], finalbody=[])
-        ast.copy_location(stmt, node)
-        return stmt
+        # A Try without handlers or finally is invalid Python AST. The
+        # surrounding statement list already carries the lowered prefix.
+        return stmts + [ins]
 
     def visit_Assert(self, node):
         blk = []
@@ -1010,41 +1069,67 @@ class ThreeAddressTransformer(NodeTransformer):
                 base_blk, base_elt = self.split_expr(base)
                 blk.extend(base_blk)
                 bases.append(base_elt)
+        keywords = []
+        for keyword in node.keywords:
+            keyword_blk, keyword_value = self.split_expr(keyword.value)
+            blk.extend(keyword_blk)
+            keywords.append(ast.keyword(arg=keyword.arg, value=keyword_value))
         ins = ast.ClassDef(
             name=node.name,
             bases=bases,
-            keywords=node.keywords,
+            keywords=keywords,
             body=self.visit_stmt_list(node.body),
             decorator_list=node.decorator_list)
         ast.copy_location(ins, node)
         blk.append(ins)
         return blk
 
+    def _lower_decorators(self, decorators):
+        # Evaluation follows source order; application is reversed downstream.
+        # Use the same expression/argument lowering as ordinary calls.
+        block, values = [], []
+        for decorator in decorators:
+            statements, value = self.split_expr(decorator)
+            block.extend(statements)
+            # Capture even a name now: a later factory can rebind that name.
+            captured_load, captured_store = self.tmp_gen()
+            capture = ast.Assign(targets=[captured_store], value=value)
+            ast.copy_location(capture, decorator)
+            block.append(capture)
+            values.append(captured_load)
+        return block, values
+
     def visit_FunctionDef(self, node):
         ast.fix_missing_locations(node)
-        blk, args = self.visit_arguments(node.args)
+        blk, decorators = self._lower_decorators(node.decorator_list)
+        defaults, args = self.visit_arguments(node.args)
+        blk.extend(defaults)
         ins = ast.FunctionDef(
             name=node.name,
             args=args,
             body=self.visit_stmt_list(node.body),
-            decorator_list=node.decorator_list,
+            decorator_list=decorators,
             returns=node.returns,
             type_comment=node.type_comment
         )
+        ins._original_decorators = node.decorator_list
         ast.copy_location(ins, node)
         blk.append(ins)
         return blk
 
     def visit_AsyncFunctionDef(self, node):
-        blk, args = self.visit_arguments(node.args)
+        blk, decorators = self._lower_decorators(node.decorator_list)
+        defaults, args = self.visit_arguments(node.args)
+        blk.extend(defaults)
         ins = ast.AsyncFunctionDef(
             name=node.name,
             args=args,
             body=self.visit_stmt_list(node.body),
-            decorator_list=node.decorator_list,
+            decorator_list=decorators,
             returns=node.returns,
             type_comment=node.type_comment
         )
+        ins._original_decorators = node.decorator_list
         ast.copy_location(ins, node)
         blk.append(ins)
         return blk

@@ -35,6 +35,7 @@ class ClassHierarchyManager:
         self._subclasses: Dict['AbstractObject', List['AbstractObject']] = {}
         # Cache: class object -> computed MRO (list of class objects)
         self._mro_cache: Dict['AbstractObject', List['AbstractObject']] = {}
+        self._computing_mro: Set['AbstractObject'] = set()
         # Map: class name -> class objects (for lookup by name)
         self._classes_by_name: Dict[str, Set['AbstractObject']] = {}
     
@@ -55,10 +56,10 @@ class ClassHierarchyManager:
             raise ValueError(f"Expected CLASS object, got {class_obj.kind}")
         
         if class_obj not in self._bases:
-            self._bases[class_obj] = base_objects or []
+            self._bases[class_obj] = list(base_objects or [])
             
             # Register by name for lookup
-            class_name = class_obj.alloc_site.name
+            class_name = getattr(class_obj.alloc_site.stmt, "name", None)
             if class_name:
                 if class_name not in self._classes_by_name:
                     self._classes_by_name[class_name] = set()
@@ -86,6 +87,9 @@ class ClassHierarchyManager:
             class_obj: Class object
             base_objects: Newly resolved base class objects
         """
+        if class_obj not in self._bases:
+            self.add_class(class_obj, base_objects)
+            return
         if class_obj in self._bases:
             old_bases = self._bases[class_obj]
             # Remove from old bases' subclasses
@@ -94,7 +98,9 @@ class ClassHierarchyManager:
                     if class_obj in self._subclasses[old_base]:
                         self._subclasses[old_base].remove(class_obj)
         
-        # Add with new bases
+        # Replace the relation before rebuilding reverse links and invalidating
+        # this class and every descendant whose C3 order can have changed.
+        self._bases[class_obj] = list(base_objects)
         self.add_class(class_obj, base_objects)
     
     def _invalidate_mro_cache(self, class_obj: 'AbstractObject'):
@@ -155,9 +161,15 @@ class ClassHierarchyManager:
         if class_obj in self._mro_cache:
             return self._mro_cache[class_obj]
         
-        mro = compute_c3_mro(class_obj, self)
-        self._mro_cache[class_obj] = mro
-        return mro
+        if class_obj in self._computing_mro:
+            raise MROError("Cyclic class hierarchy")
+        self._computing_mro.add(class_obj)
+        try:
+            mro = compute_c3_mro(class_obj, self)
+            self._mro_cache[class_obj] = mro
+            return mro
+        finally:
+            self._computing_mro.remove(class_obj)
     
     def has_class(self, class_obj: 'AbstractObject') -> bool:
         """Check if class is registered in hierarchy.
@@ -221,20 +233,12 @@ def compute_c3_mro(
         if not hierarchy.has_class(base_obj):
             # Unknown base class - conservatively add to hierarchy
             hierarchy.add_class(base_obj)
-        base_mro = compute_c3_mro(base_obj, hierarchy)
+        base_mro = hierarchy.get_mro(base_obj)
         base_mros.append(base_mro)
     
     # C3 linearization: L(C) = [C] + merge(L(B1), L(B2), ..., [B1, B2, ...])
-    try:
-        merged = _c3_merge(base_mros + [bases])
-        return [class_obj] + merged
-    except MROError:
-        # If merge fails, fall back to simple linearization
-        # Use first base's MRO
-        if base_mros:
-            return [class_obj] + base_mros[0]
-        else:
-            return [class_obj]
+    merged = _c3_merge(base_mros + [bases])
+    return [class_obj] + merged
 
 
 def _c3_merge(sequences: List[List['AbstractObject']]) -> List['AbstractObject']:
@@ -282,7 +286,7 @@ def _c3_merge(sequences: List[List['AbstractObject']]) -> List['AbstractObject']
         if candidate is None:
             # No valid candidate - inconsistent hierarchy
             # Format error message with class names
-            class_names = [[obj.alloc_site.name or str(obj) for obj in seq] for seq in seqs]
+            class_names = [[getattr(obj.alloc_site.stmt, "name", None) or str(obj) for obj in seq] for seq in seqs]
             raise MROError(
                 f"Cannot create consistent MRO: no valid candidate in {class_names}"
             )

@@ -1,6 +1,13 @@
 """Tests for context selector and policy selection."""
 
 import pytest
+from tests.pointer.kcfa.builders import make_site, make_scope
+from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+from pythonstan.analysis.pointer.kcfa.context import finite_context_atom
+
+def _receiver(label):
+    return AbstractObject(CallStringContext((), 2), make_site(name=label))
+
 from pythonstan.analysis.pointer.kcfa import (
     ContextPolicy,
     ContextSelector,
@@ -181,7 +188,7 @@ class TestCallContextSelectionCallString:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "callee")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         assert new_ctx == ctx
     
     def test_call_sensitive_appends_call_site(self, call_site_factory):
@@ -190,7 +197,7 @@ class TestCallContextSelectionCallString:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "callee")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         
         assert isinstance(new_ctx, CallStringContext)
         assert len(new_ctx) == 1
@@ -204,8 +211,8 @@ class TestCallContextSelectionCallString:
         cs1 = call_site_factory("caller1")
         cs2 = call_site_factory("caller2")
         
-        ctx = selector.select_call_context(ctx, cs1, "callee1")
-        ctx = selector.select_call_context(ctx, cs2, "callee2")
+        ctx = selector.select_call_context(cs1, ctx, None)
+        ctx = selector.select_call_context(cs2, ctx, None)
         
         assert len(ctx) == 2
         assert ctx.call_sites == (cs1, cs2)
@@ -218,8 +225,8 @@ class TestCallContextSelectionCallString:
         cs1 = call_site_factory("caller1")
         cs2 = call_site_factory("caller2")
         
-        ctx = selector.select_call_context(ctx, cs1, "callee1")
-        ctx = selector.select_call_context(ctx, cs2, "callee2")
+        ctx = selector.select_call_context(cs1, ctx, None)
+        ctx = selector.select_call_context(cs2, ctx, None)
         
         # Should keep only most recent
         assert len(ctx) == 1
@@ -234,15 +241,13 @@ class TestCallContextSelectionObjectSensitive:
         selector = ContextSelector(ContextPolicy.OBJ_1)
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
-        receiver_alloc = "test.py:10:0:obj:MyClass"
+        receiver_alloc = _receiver("test.py:10:0:obj:MyClass")
         
-        new_ctx = selector.select_call_context(
-            ctx, cs, "method", receiver_alloc=receiver_alloc
-        )
+        new_ctx = selector.select_call_context(cs, ctx, receiver_alloc)
         
         assert isinstance(new_ctx, ObjectContext)
         assert len(new_ctx.alloc_sites) == 1
-        assert new_ctx.alloc_sites[0] == receiver_alloc
+        assert new_ctx.alloc_sites[0] == finite_context_atom(receiver_alloc)
     
     def test_object_sensitive_without_receiver(self, call_site_factory):
         """Test object-sensitive uses proxy allocation without receiver."""
@@ -250,12 +255,12 @@ class TestCallContextSelectionObjectSensitive:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "function")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         
         assert isinstance(new_ctx, ObjectContext)
         assert len(new_ctx.alloc_sites) == 1
         # Should have proxy allocation
-        assert "call:" in new_ctx.alloc_sites[0]
+        assert new_ctx.alloc_sites[0] == cs
     
     def test_object_sensitive_chain(self, call_site_factory):
         """Test object-sensitive builds allocation chain."""
@@ -264,14 +269,14 @@ class TestCallContextSelectionObjectSensitive:
         
         cs1 = call_site_factory("caller1")
         cs2 = call_site_factory("caller2")
-        alloc1 = "test.py:10:0:obj:Class1"
-        alloc2 = "test.py:20:0:obj:Class2"
+        alloc1 = _receiver("test.py:10:0:obj:Class1")
+        alloc2 = _receiver("test.py:20:0:obj:Class2")
         
-        ctx = selector.select_call_context(ctx, cs1, "method1", receiver_alloc=alloc1)
-        ctx = selector.select_call_context(ctx, cs2, "method2", receiver_alloc=alloc2)
+        ctx = selector.select_call_context(cs1, ctx, alloc1)
+        ctx = selector.select_call_context(cs2, ctx, alloc2)
         
         assert len(ctx.alloc_sites) == 2
-        assert ctx.alloc_sites == (alloc1, alloc2)
+        assert ctx.alloc_sites == (finite_context_atom(alloc1), finite_context_atom(alloc2))
 
 
 class TestCallContextSelectionTypeSensitive:
@@ -283,13 +288,11 @@ class TestCallContextSelectionTypeSensitive:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(
-            ctx, cs, "method", receiver_type="MyClass"
-        )
+        new_ctx = selector.select_call_context(cs, ctx, make_scope("MyClass", "class").obj)
         
         assert isinstance(new_ctx, TypeContext)
         assert len(new_ctx.types) == 1
-        assert new_ctx.types[0] == "MyClass"
+        assert new_ctx.types[0].source.stmt.name == "MyClass"
     
     def test_type_sensitive_without_receiver_type(self, call_site_factory):
         """Test type-sensitive uses callee name without receiver type."""
@@ -297,11 +300,11 @@ class TestCallContextSelectionTypeSensitive:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "function_name")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         
         assert isinstance(new_ctx, TypeContext)
         assert len(new_ctx.types) == 1
-        assert new_ctx.types[0] == "function_name"
+        assert new_ctx.types[0] == cs
 
 
 class TestCallContextSelectionReceiverSensitive:
@@ -312,15 +315,13 @@ class TestCallContextSelectionReceiverSensitive:
         selector = ContextSelector(ContextPolicy.RECEIVER_1)
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
-        receiver_alloc = "test.py:10:0:obj:MyClass"
+        receiver_alloc = _receiver("test.py:10:0:obj:MyClass")
         
-        new_ctx = selector.select_call_context(
-            ctx, cs, "method", receiver_alloc=receiver_alloc
-        )
+        new_ctx = selector.select_call_context(cs, ctx, receiver_alloc)
         
         assert isinstance(new_ctx, ReceiverContext)
         assert len(new_ctx.receivers) == 1
-        assert new_ctx.receivers[0] == receiver_alloc
+        assert new_ctx.receivers[0] == receiver_alloc.alloc_site
     
     def test_receiver_sensitive_without_receiver(self, call_site_factory):
         """Test receiver-sensitive returns same context without receiver."""
@@ -328,10 +329,10 @@ class TestCallContextSelectionReceiverSensitive:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "function")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         
-        # Should return same context
-        assert new_ctx == ctx
+        # Receiver-free calls retain their statement identity.
+        assert new_ctx.receivers == (cs,)
 
 
 class TestCallContextSelectionHybrid:
@@ -343,7 +344,7 @@ class TestCallContextSelectionHybrid:
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
         
-        new_ctx = selector.select_call_context(ctx, cs, "callee")
+        new_ctx = selector.select_call_context(cs, ctx, None)
         
         assert isinstance(new_ctx, HybridContext)
         assert len(new_ctx.call_sites) == 1
@@ -354,15 +355,13 @@ class TestCallContextSelectionHybrid:
         selector = ContextSelector(ContextPolicy.HYBRID_CALL1_OBJ1)
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
-        receiver_alloc = "test.py:10:0:obj:MyClass"
+        receiver_alloc = _receiver("test.py:10:0:obj:MyClass")
         
-        new_ctx = selector.select_call_context(
-            ctx, cs, "method", receiver_alloc=receiver_alloc
-        )
+        new_ctx = selector.select_call_context(cs, ctx, receiver_alloc)
         
         assert len(new_ctx.call_sites) == 1
         assert len(new_ctx.alloc_sites) == 1
-        assert new_ctx.alloc_sites[0] == receiver_alloc
+        assert new_ctx.alloc_sites[0] == finite_context_atom(receiver_alloc)
     
     def test_hybrid_respects_both_limits(self, call_site_factory):
         """Test hybrid policy respects both k and depth limits."""
@@ -372,11 +371,11 @@ class TestCallContextSelectionHybrid:
         # Add multiple call sites (k=1)
         cs1 = call_site_factory("caller1")
         cs2 = call_site_factory("caller2")
-        alloc1 = "alloc1"
-        alloc2 = "alloc2"
+        alloc1 = _receiver("alloc1")
+        alloc2 = _receiver("alloc2")
         
-        ctx = selector.select_call_context(ctx, cs1, "m1", receiver_alloc=alloc1)
-        ctx = selector.select_call_context(ctx, cs2, "m2", receiver_alloc=alloc2)
+        ctx = selector.select_call_context(cs1, ctx, alloc1)
+        ctx = selector.select_call_context(cs2, ctx, alloc2)
         
         # Should keep only 1 call site and 1 alloc site (most recent)
         assert len(ctx.call_sites) == 1
@@ -391,7 +390,7 @@ class TestAllocContextSelection:
         selector = ContextSelector(ContextPolicy.CALL_2)
         ctx = selector.empty_context()
         cs = call_site_factory("caller")
-        ctx = selector.select_call_context(ctx, cs, "callee")
+        ctx = selector.select_call_context(cs, ctx, None)
         
         alloc_ctx = selector.select_alloc_context(ctx, "alloc1")
         
@@ -402,13 +401,13 @@ class TestAllocContextSelection:
         """Test alloc context appends allocation site for object-sensitive."""
         selector = ContextSelector(ContextPolicy.OBJ_1)
         ctx = selector.empty_context()
-        alloc_site = "test.py:10:0:obj:MyClass"
+        alloc_site = _receiver("test.py:10:0:obj:MyClass")
         
         alloc_ctx = selector.select_alloc_context(ctx, alloc_site)
         
         assert isinstance(alloc_ctx, ObjectContext)
         assert len(alloc_ctx.alloc_sites) == 1
-        assert alloc_ctx.alloc_sites[0] == alloc_site
+        assert alloc_ctx.alloc_sites[0] == finite_context_atom(alloc_site)
     
     def test_alloc_context_hybrid(self, call_site_factory):
         """Test alloc context appends to object part of hybrid context."""
@@ -417,15 +416,15 @@ class TestAllocContextSelection:
         
         # Add call site first
         cs = call_site_factory("caller")
-        ctx = selector.select_call_context(ctx, cs, "callee")
+        ctx = selector.select_call_context(cs, ctx, None)
         
         # Add allocation
-        alloc_site = "test.py:10:0:obj:MyClass"
+        alloc_site = _receiver("test.py:10:0:obj:MyClass")
         alloc_ctx = selector.select_alloc_context(ctx, alloc_site)
         
         assert len(alloc_ctx.call_sites) == 1  # Call part unchanged
         assert len(alloc_ctx.alloc_sites) == 1
-        assert alloc_ctx.alloc_sites[0] == alloc_site
+        assert alloc_ctx.alloc_sites[0] == finite_context_atom(alloc_site)
 
 
 class TestContextSelectorUsagePatterns:
@@ -440,17 +439,17 @@ class TestContextSelectorUsagePatterns:
         
         # main -> foo
         cs_main_foo = call_site_factory("main")
-        ctx = selector.select_call_context(ctx, cs_main_foo, "foo")
+        ctx = selector.select_call_context(cs_main_foo, ctx, None)
         assert len(ctx) == 1
         
         # foo -> bar
         cs_foo_bar = call_site_factory("foo")
-        ctx = selector.select_call_context(ctx, cs_foo_bar, "bar")
+        ctx = selector.select_call_context(cs_foo_bar, ctx, None)
         assert len(ctx) == 2
         
         # bar -> baz (should truncate oldest)
         cs_bar_baz = call_site_factory("bar")
-        ctx = selector.select_call_context(ctx, cs_bar_baz, "baz")
+        ctx = selector.select_call_context(cs_bar_baz, ctx, None)
         assert len(ctx) == 2
         assert ctx.call_sites[0] == cs_foo_bar
         assert ctx.call_sites[1] == cs_bar_baz
@@ -462,17 +461,17 @@ class TestContextSelectorUsagePatterns:
         
         # Create obj1, call method1
         cs1 = call_site_factory("main")
-        obj1_alloc = "test.py:10:0:obj:ClassA"
-        ctx = selector.select_call_context(ctx, cs1, "method1", receiver_alloc=obj1_alloc)
+        obj1_alloc = _receiver("test.py:10:0:obj:ClassA")
+        ctx = selector.select_call_context(cs1, ctx, obj1_alloc)
         
         # In method1, create obj2, call method2
         cs2 = call_site_factory("method1")
-        obj2_alloc = "test.py:20:0:obj:ClassB"
-        ctx = selector.select_call_context(ctx, cs2, "method2", receiver_alloc=obj2_alloc)
+        obj2_alloc = _receiver("test.py:20:0:obj:ClassB")
+        ctx = selector.select_call_context(cs2, ctx, obj2_alloc)
         
         # Should have only most recent receiver (depth=1)
         assert len(ctx.alloc_sites) == 1
-        assert ctx.alloc_sites[0] == obj2_alloc
+        assert ctx.alloc_sites[0] == finite_context_atom(obj2_alloc)
     
     def test_hybrid_method_calls(self, call_site_factory):
         """Test hybrid policy with method calls."""
@@ -481,8 +480,8 @@ class TestContextSelectorUsagePatterns:
         
         # main calls obj.method
         cs1 = call_site_factory("main")
-        obj_alloc = "test.py:10:0:obj:MyClass"
-        ctx = selector.select_call_context(ctx, cs1, "method", receiver_alloc=obj_alloc)
+        obj_alloc = _receiver("test.py:10:0:obj:MyClass")
+        ctx = selector.select_call_context(cs1, ctx, obj_alloc)
         
         assert len(ctx.call_sites) == 1
         assert len(ctx.alloc_sites) == 1
@@ -493,13 +492,13 @@ class TestContextSelectorUsagePatterns:
         ctx = selector.empty_context()
         
         # Allocate obj1
-        alloc1 = "test.py:10:0:obj:Builder"
+        alloc1 = _receiver("test.py:10:0:obj:Builder")
         ctx = selector.select_alloc_context(ctx, alloc1)
         
         # Allocate obj2
-        alloc2 = "test.py:15:0:obj:Product"
+        alloc2 = _receiver("test.py:15:0:obj:Product")
         ctx = selector.select_alloc_context(ctx, alloc2)
         
         assert len(ctx.alloc_sites) == 2
-        assert ctx.alloc_sites == (alloc1, alloc2)
+        assert ctx.alloc_sites == (finite_context_atom(alloc1), finite_context_atom(alloc2))
 

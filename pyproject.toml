@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Python Static Analysis"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "pythonstan"}]
+packages = [{include = "pythonstan"}, {include = "pythonstan_inspector"}]
+
+[tool.poetry.scripts]
+pythonstan = "pythonstan.cli:main"
+pythonstan-inspector = "pythonstan_inspector.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -26,4 +30,4 @@ build-backend = "poetry.core.masonry.api"
 
 [virtualenvs]
 create = true
-in-project = true 
+in-project = true

@@ -1,5 +1,8 @@
 """Tests for analysis state: PointsToSet and PointerAnalysisState."""
 
+from tests.pointer.kcfa.builders import make_site, make_scope, qualify
+_FIELD_SCOPE = make_scope("state_fields", "module")
+
 import pytest
 from pythonstan.analysis.pointer.kcfa import (
     PointsToSet,
@@ -32,7 +35,7 @@ class TestPointsToSet:
         obj1 = object_factory(AllocKind.OBJECT)
         obj2 = object_factory(AllocKind.LIST)
         
-        pts = PointsToSet(frozenset([obj1, obj2]))
+        pts = PointsToSet.from_objects(frozenset([obj1, obj2]))
         assert len(pts) == 2
         assert obj1 in pts
         assert obj2 in pts
@@ -74,8 +77,8 @@ class TestPointsToSet:
         obj2 = object_factory(AllocKind.LIST)
         obj3 = object_factory(AllocKind.DICT)
         
-        pts1 = PointsToSet(frozenset([obj1, obj2]))
-        pts2 = PointsToSet(frozenset([obj2, obj3]))
+        pts1 = PointsToSet.from_objects(frozenset([obj1, obj2]))
+        pts2 = PointsToSet.from_objects(frozenset([obj2, obj3]))
         
         result = pts1.union(pts2)
         assert len(result) == 3
@@ -115,7 +118,7 @@ class TestPointsToSet:
         obj2 = object_factory(AllocKind.LIST)
         obj3 = object_factory(AllocKind.DICT)
         
-        pts = PointsToSet(frozenset([obj1, obj2, obj3]))
+        pts = PointsToSet.from_objects(frozenset([obj1, obj2, obj3]))
         
         objs = list(pts)
         assert len(objs) == 3
@@ -131,7 +134,7 @@ class TestPointsToSet:
         pts1 = PointsToSet.singleton(object_factory())
         assert len(pts1) == 1
         
-        pts3 = PointsToSet(frozenset([
+        pts3 = PointsToSet.from_objects(frozenset([
             object_factory(),
             object_factory(),
             object_factory()
@@ -151,14 +154,14 @@ class TestPointsToSet:
         
         assert "{" in pts_str
         assert "}" in pts_str
-        assert "TestObj" in pts_str
+        assert str(obj) in pts_str
     
     def test_string_representation_multiple(self, object_factory):
         """Test __str__ for set with multiple objects."""
         obj1 = object_factory(AllocKind.OBJECT)
         obj2 = object_factory(AllocKind.LIST)
         
-        pts = PointsToSet(frozenset([obj1, obj2]))
+        pts = PointsToSet.from_objects(frozenset([obj1, obj2]))
         pts_str = str(pts)
         
         assert "{" in pts_str
@@ -170,9 +173,9 @@ class TestPointsToSet:
         obj1 = object_factory(AllocKind.OBJECT)
         obj2 = object_factory(AllocKind.LIST)
         
-        pts1 = PointsToSet(frozenset([obj1, obj2]))
-        pts2 = PointsToSet(frozenset([obj1, obj2]))
-        pts3 = PointsToSet(frozenset([obj1]))
+        pts1 = PointsToSet.from_objects(frozenset([obj1, obj2]))
+        pts2 = PointsToSet.from_objects(frozenset([obj1, obj2]))
+        pts3 = PointsToSet.from_objects(frozenset([obj1]))
         
         assert pts1 == pts2
         assert pts1 != pts3
@@ -271,7 +274,7 @@ class TestPointerAnalysisState:
         obj = object_factory(AllocKind.OBJECT)
         field = attr("name")
         
-        pts = state.get_field(obj, field)
+        pts = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, field))
         assert pts.is_empty()
     
     def test_set_field_new_location(self, object_factory):
@@ -283,10 +286,10 @@ class TestPointerAnalysisState:
         field = attr("name")
         
         pts = PointsToSet.singleton(field_obj)
-        changed = state.set_field(base_obj, field, pts)
+        changed = state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, base_obj, field), pts)
         
         assert changed is True
-        assert state.get_field(base_obj, field) == pts
+        assert state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, base_obj, field)) == pts
     
     def test_set_field_performs_union(self, object_factory):
         """Test that set_field performs union."""
@@ -298,11 +301,11 @@ class TestPointerAnalysisState:
         obj1 = object_factory(AllocKind.OBJECT, "Obj1")
         obj2 = object_factory(AllocKind.OBJECT, "Obj2")
         
-        state.set_field(base_obj, field, PointsToSet.singleton(obj1))
-        changed = state.set_field(base_obj, field, PointsToSet.singleton(obj2))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, base_obj, field), PointsToSet.singleton(obj1))
+        changed = state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, base_obj, field), PointsToSet.singleton(obj2))
         
         assert changed is True
-        result = state.get_field(base_obj, field)
+        result = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, base_obj, field))
         assert len(result) == 2
         assert obj1 in result
         assert obj2 in result
@@ -315,11 +318,11 @@ class TestPointerAnalysisState:
         name_obj = object_factory(AllocKind.OBJECT, "NameObj")
         age_obj = object_factory(AllocKind.OBJECT, "AgeObj")
         
-        state.set_field(obj, attr("name"), PointsToSet.singleton(name_obj))
-        state.set_field(obj, attr("age"), PointsToSet.singleton(age_obj))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("name")), PointsToSet.singleton(name_obj))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("age")), PointsToSet.singleton(age_obj))
         
-        name_pts = state.get_field(obj, attr("name"))
-        age_pts = state.get_field(obj, attr("age"))
+        name_pts = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("name")))
+        age_pts = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("age")))
         
         assert name_obj in name_pts
         assert age_obj in age_pts
@@ -338,11 +341,11 @@ class TestPointerAnalysisState:
         
         field = attr("name")
         
-        state.set_field(obj1, field, PointsToSet.singleton(val1))
-        state.set_field(obj2, field, PointsToSet.singleton(val2))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj1, field), PointsToSet.singleton(val1))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj2, field), PointsToSet.singleton(val2))
         
-        pts1 = state.get_field(obj1, field)
-        pts2 = state.get_field(obj2, field)
+        pts1 = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj1, field))
+        pts2 = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj2, field))
         
         assert val1 in pts1
         assert val2 in pts2
@@ -357,10 +360,10 @@ class TestPointerAnalysisState:
         elem1 = object_factory(AllocKind.OBJECT, "Elem1")
         elem2 = object_factory(AllocKind.OBJECT, "Elem2")
         
-        state.set_field(list_obj, elem(), PointsToSet.singleton(elem1))
-        state.set_field(list_obj, elem(), PointsToSet.singleton(elem2))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, list_obj, elem()), PointsToSet.singleton(elem1))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, list_obj, elem()), PointsToSet.singleton(elem2))
         
-        elem_pts = state.get_field(list_obj, elem())
+        elem_pts = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, list_obj, elem()))
         assert len(elem_pts) == 2
         assert elem1 in elem_pts
         assert elem2 in elem_pts
@@ -373,10 +376,10 @@ class TestPointerAnalysisState:
         val1 = object_factory(AllocKind.OBJECT, "Val1")
         val2 = object_factory(AllocKind.OBJECT, "Val2")
         
-        state.set_field(dict_obj, value(), PointsToSet.singleton(val1))
-        state.set_field(dict_obj, value(), PointsToSet.singleton(val2))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, dict_obj, value()), PointsToSet.singleton(val1))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, dict_obj, value()), PointsToSet.singleton(val2))
         
-        val_pts = state.get_field(dict_obj, value())
+        val_pts = state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, dict_obj, value()))
         assert len(val_pts) == 2
         assert val1 in val_pts
         assert val2 in val_pts
@@ -403,7 +406,7 @@ class TestPointerAnalysisState:
         
         state.set_points_to(var1, PointsToSet.singleton(obj1))
         state.set_points_to(var2, PointsToSet.singleton(obj2))
-        state.set_field(obj1, attr("field"), PointsToSet.singleton(obj3))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj1, attr("field")), PointsToSet.singleton(obj3))
         
         stats = state.get_statistics()
         
@@ -462,10 +465,10 @@ class TestStateUsagePatterns:
         state.set_points_to(z, PointsToSet.singleton(val))
         
         # Store: obj.field = val (via x.field = z)
-        state.set_field(obj, attr("field"), state.get_points_to(z))
+        state.set_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("field")), state.get_points_to(z))
         
         # Load: y = obj.field (via y = x.field)
-        state.set_points_to(y, state.get_field(obj, attr("field")))
+        state.set_points_to(y, state.get_points_to(state.get_field(_FIELD_SCOPE, _FIELD_SCOPE.context, obj, attr("field"))))
         
         # y should now point to val
         assert val in state.get_points_to(y)

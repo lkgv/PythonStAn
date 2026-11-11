@@ -14,8 +14,10 @@ from .context import (
     HybridContext,
     ParamContext,
     CallSite,
+    SummaryContext,
 )
 from .object import AbstractObject, InstanceObject
+from .protocol_context import split_protocol_context, apply_protocol_partition
 
 __all__ = ["ContextPolicy", "ContextSelector", "parse_policy"]
 
@@ -47,7 +49,8 @@ class ContextPolicy(Enum):
 class ContextSelector:
     """Selects contexts based on policy."""
     
-    def __init__(self, policy: ContextPolicy = ContextPolicy.CALL_2):
+    def __init__(self, policy: ContextPolicy = ContextPolicy.CALL_2,
+                 heap_context_policy=None, heap_context_depth=None):
         """Initialize context selector.
         
         Args:
@@ -55,6 +58,15 @@ class ContextSelector:
         """
         self.policy = policy
         self._empty_context = self._create_empty_context()
+        if heap_context_depth is not None and (
+                type(heap_context_depth) is not int or not 0 <= heap_context_depth <= 3):
+            raise ValueError("heap_context_depth must be in 0..3 or None")
+        self.heap_context_depth = heap_context_depth
+        heap_policy = (parse_policy(heap_context_policy) if isinstance(heap_context_policy, str)
+                       else heap_context_policy)
+        if heap_policy is not None and not isinstance(heap_policy, ContextPolicy):
+            raise ValueError("heap_context_policy must be a registered context policy")
+        self._heap_selector = ContextSelector(heap_policy) if heap_policy is not None else None
     
     def _create_empty_context(self) -> AbstractContext:
         """Create empty context for policy."""
@@ -122,8 +134,17 @@ class ContextSelector:
         Returns:
             New context for the called function
         """
+        base, partition = split_protocol_context(caller_ctx)
+        if partition is not None:
+            summarized = isinstance(base, SummaryContext)
+            while isinstance(base, SummaryContext):
+                base = base.inner
+            selected = self.select_call_context(call_site, base, callee_obj, params)
+            if summarized:
+                selected = SummaryContext(selected)
+            return apply_protocol_partition(selected, partition)
         if self.policy == ContextPolicy.INSENSITIVE:
-            return caller_ctx
+            return self.empty_context()
         
         elif self.policy in (ContextPolicy.CALL_1, ContextPolicy.CALL_2, ContextPolicy.CALL_3):
             if isinstance(caller_ctx, CallStringContext):
@@ -161,7 +182,7 @@ class ContextSelector:
         elif self.policy in (ContextPolicy.PARAM_1, ContextPolicy.PARAM_2, ContextPolicy.PARAM_3):
             if not isinstance(caller_ctx, ParamContext):
                 caller_ctx = ParamContext((), self._get_depth())
-            if params and len(params) > 0:
+            if params is not None:
                 return caller_ctx.append(params)
             else:
                 # return caller_ctx.append(call_site)
@@ -179,7 +200,51 @@ class ContextSelector:
         else:
             raise ValueError(f"Unknown policy: {self.policy}")
     
-    def select_alloc_context(
+    def select_alloc_context(self, current_ctx, alloc_site, alloc_type=None):
+        """Select heap identity independently from method context.
+
+        A different family projects only history represented by the method
+        context; it does not invent forgotten calls. Depth is an independent
+        upper bound on the available flat history. Protocol/summary wrappers
+        remain explicit and flat.
+        """
+        base, partition = split_protocol_context(current_ctx)
+        if partition is not None:
+            return apply_protocol_partition(
+                self.select_alloc_context(base, alloc_site, alloc_type), partition)
+        if isinstance(base, SummaryContext):
+            return SummaryContext(self.select_alloc_context(base.inner, alloc_site, alloc_type))
+        selector = self._heap_selector or self
+        empty = selector.empty_context()
+        if not isinstance(base, type(empty)):
+            # Switching to call strings retains only actual call sites present
+            # in the finite method context. Other unavailable history is forgotten.
+            if isinstance(empty, CallStringContext):
+                calls = tuple(item for name in ("call_sites", "alloc_sites", "types", "receivers")
+                              for item in getattr(base, name, ()) if isinstance(item, CallSite))
+                base = CallStringContext(calls[-empty.k:] if empty.k else (), empty.k)
+            else:
+                base = empty
+        selected = selector._select_base_alloc_context(base, alloc_site, alloc_type)
+        depth = self.heap_context_depth
+        if depth is None:
+            return selected
+        if isinstance(selected, CallStringContext):
+            return CallStringContext(selected.call_sites[-depth:] if depth else (), depth)
+        if isinstance(selected, HybridContext):
+            return HybridContext(selected.call_sites[-depth:] if depth else (),
+                                 selected.alloc_sites[-depth:] if depth else (), depth, depth)
+        if isinstance(selected, ObjectContext):
+            return ObjectContext(selected.alloc_sites[-depth:] if depth else (), depth)
+        if isinstance(selected, TypeContext):
+            return TypeContext(selected.types[-depth:] if depth else (), depth)
+        if isinstance(selected, ReceiverContext):
+            return ReceiverContext(selected.receivers[-depth:] if depth else (), depth)
+        if isinstance(selected, ParamContext):
+            return ParamContext(selected.params[-depth:] if depth else (), depth)
+        raise ValueError("Unsupported heap context representation")
+
+    def _select_base_alloc_context(
         self,
         current_ctx: AbstractContext,
         alloc_site: 'AbstractObject',
@@ -195,6 +260,18 @@ class ContextSelector:
         Returns:
             Context for the allocated object
         """
+        base, partition = split_protocol_context(current_ctx)
+        if partition is not None:
+            summarized = isinstance(base, SummaryContext)
+            while isinstance(base, SummaryContext):
+                base = base.inner
+            selected = self._select_base_alloc_context(base, alloc_site, alloc_type)
+            if summarized:
+                selected = SummaryContext(selected)
+            return apply_protocol_partition(selected, partition)
+        if self.policy == ContextPolicy.INSENSITIVE:
+            return self.empty_context()
+        
         if self.policy in (ContextPolicy.OBJ_1, ContextPolicy.OBJ_2, ContextPolicy.OBJ_3):
             if isinstance(current_ctx, ObjectContext):
                 return current_ctx.append(alloc_site)

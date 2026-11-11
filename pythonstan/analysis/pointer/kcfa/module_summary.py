@@ -1,6 +1,4 @@
 """
-TODO kcfa has been refactored, this module need to be rewriten.
-
 Module summaries for modular pointer analysis.
 
 Summaries capture cross-module analysis information including exports,
@@ -41,8 +39,9 @@ class FunctionSummary:
         if self.name != other.name:
             raise ValueError(f"Cannot merge summaries for different functions: {self.name} vs {other.name}")
         
-        from .state import PointsToSet
-        
+        if self.params != other.params:
+            raise ValueError(f"Cannot merge incompatible parameter lists for {self.name}: {self.params} vs {other.params}")
+
         merged_ctx_returns = dict(self.context_returns)
         for ctx, pts in other.context_returns.items():
             if ctx in merged_ctx_returns:
@@ -88,8 +87,11 @@ class ClassSummary:
         if self.name != other.name:
             raise ValueError(f"Cannot merge summaries for different classes: {self.name} vs {other.name}")
         
-        from .state import PointsToSet
-        
+        if self.alloc_site != other.alloc_site:
+            raise ValueError(f"Cannot merge distinct allocation identities for class {self.name}")
+        if self.bases != other.bases:
+            raise ValueError(f"Cannot merge incompatible ordered bases for class {self.name}: {self.bases} vs {other.bases}")
+
         merged_methods = dict(self.methods)
         for method_name, method_summary in other.methods.items():
             if method_name in merged_methods:
@@ -115,7 +117,7 @@ class ClassSummary:
 
 @dataclass(frozen=True)
 class ModuleSummary:
-    """Complete module analysis summary.
+    """Module binding projection, with explicit incomplete effect obligations.
     
     Captures all cross-module visible information: exports, functions,
     classes, and context mappings for compositional analysis.
@@ -137,6 +139,60 @@ class ModuleSummary:
     context_map: Dict[str, str] = field(default_factory=dict)
     visible_allocs: FrozenSet['AllocSite'] = field(default_factory=frozenset)
     external_calls: FrozenSet[Tuple[str, str]] = field(default_factory=frozenset)
+    incomplete_reasons: FrozenSet[str] = field(default_factory=lambda: frozenset({
+        "module_heap_and_callback_effects_not_serialized",
+    }))
+
+    @property
+    def is_complete(self) -> bool:
+        # This schema does not encode heap closure, captured environments, or
+        # exceptional effects; callers must not use it to replace a module.
+        return False
+
+    @classmethod
+    def from_state(cls, state, scope, exported_names):
+        """Project globals of one explicit IR module identity from solved state.
+
+        This is an in-process observation, not a portable certified summary.
+        In particular, allocation identities belong to the same object arena.
+        """
+        from .pointer_flow_graph import NormalNode
+        from .variable import Variable, VariableKind
+        from .points_to_set import PointsToSet
+        from pythonstan.ir import IRModule
+        if not isinstance(scope.stmt, IRModule):
+            raise ValueError("module projection requires an IRModule scope")
+        names = frozenset(exported_names)
+        exports = {}
+        for node, pts in state._env.items():
+            binding = node.var if isinstance(node, NormalNode) else node
+            variable = getattr(binding, "content", None)
+            if (getattr(binding, "scope", None) == scope
+                    and isinstance(variable, Variable)
+                    and variable.kind == VariableKind.GLOBAL
+                    and variable.name in names):
+                exports[variable.name] = exports.get(variable.name, PointsToSet.empty()).union(pts)
+        allocations = frozenset(obj.alloc_site for pts in exports.values() for obj in pts)
+        return cls(scope.stmt.get_qualname(), exports=exports, visible_allocs=allocations)
+
+    def apply_bindings(self, state, scope):
+        """Add binding witnesses in the same analysis arena, without replacing effects.
+
+        The explicit target scope avoids conflating modules with equal display
+        names. Return the changed nodes for the caller's normal solver worklist.
+        """
+        from .pointer_flow_graph import NormalNode
+        from .variable import Variable, VariableKind
+        from pythonstan.ir import IRModule
+        if not isinstance(scope.stmt, IRModule):
+            raise ValueError("module bindings require an IRModule target")
+        changed = []
+        for name, pts in self.exports.items():
+            variable = state.get_variable(scope, scope.context, Variable(name, VariableKind.GLOBAL))
+            node = NormalNode(variable)
+            if state.set_points_to(node, pts):
+                changed.append(node)
+        return tuple(changed)
     
     @staticmethod
     def empty(module_name: str) -> 'ModuleSummary':
@@ -171,6 +227,10 @@ class ModuleSummary:
             else:
                 merged_classes[class_name] = class_summary
         
+        conflicts = {key for key in self.context_map.keys() & other.context_map.keys()
+                     if self.context_map[key] != other.context_map[key]}
+        if conflicts:
+            raise ValueError(f"Conflicting context mappings: {sorted(conflicts)}")
         merged_context_map = {**self.context_map, **other.context_map}
         merged_visible_allocs = self.visible_allocs | other.visible_allocs
         merged_external_calls = self.external_calls | other.external_calls
@@ -182,7 +242,8 @@ class ModuleSummary:
             classes=merged_classes,
             context_map=merged_context_map,
             visible_allocs=merged_visible_allocs,
-            external_calls=merged_external_calls
+            external_calls=merged_external_calls,
+            incomplete_reasons=self.incomplete_reasons | other.incomplete_reasons,
         )
     
     def get_export_names(self) -> Set[str]:

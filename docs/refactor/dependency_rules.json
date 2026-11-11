@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "status": "frozen_target",
+  "rules": [
+    {
+      "id": "contracts-must-be-engine-neutral",
+      "from": "analysis.contracts",
+      "forbid": [
+        "analysis.domains",
+        "analysis.engines",
+        "analysis.pointer"
+      ],
+      "reason": "Generic payload contracts cannot import concrete values or engines."
+    },
+    {
+      "id": "domains-must-not-depend-on-engine",
+      "from": "analysis.domains",
+      "forbid": [
+        "analysis.engines",
+        "analysis.pointer",
+        "compat"
+      ],
+      "reason": "Pure values, slots and lattice laws remain independently testable."
+    },
+    {
+      "id": "engines-bridge-only-through-composition",
+      "from": "analysis.engines.<engine>",
+      "forbid": [
+        "analysis.engines.<other-engine>"
+      ],
+      "reason": "Inject CandidateOracle and IntrinsicProvider; composition owns conversions."
+    },
+    {
+      "id": "core-must-not-depend-on-optional-consumer",
+      "from": [
+        "analysis.contracts",
+        "analysis.domains",
+        "analysis.semantics",
+        "analysis.engines",
+        "analysis.policies",
+        "frontend"
+      ],
+      "forbid": [
+        "llm",
+        "pythonstan_inspector"
+      ],
+      "reason": "Core solver works with providers and observer disabled."
+    },
+    {
+      "id": "new-core-must-not-use-world-singleton",
+      "from": "new core",
+      "forbid": [
+        "pythonstan.world",
+        "analysis.pointer"
+      ],
+      "reason": "New core services and state are owned by each AnalysisSession."
+    },
+    {
+      "id": "single-closure-source",
+      "from": "all maintained entry points",
+      "require": "one ClosureAnalysis implementation",
+      "reason": "Legacy CFG-era closure cannot silently diverge from active frontend closure."
+    },
+    {
+      "id": "compat-direction",
+      "require": "old public imports delegate to new implementation; new implementation never calls old public shims"
+    },
+    {
+      "id": "static-only-frontend",
+      "require": "parse and model target source without importing or executing target code"
+    }
+  ],
+  "transition": {
+    "existing_engine_edges": "Reported as explicit debt in migration mode and enforced in release mode.",
+    "no_permanent_allowlist": true,
+    "dynamic_imports": "Function-local imports and literal importlib/__import__ calls are inspected; nonliteral dynamic imports require manual review.",
+    "native_isolation": "Legacy native can use process isolation during transition; this is not evidence of new core isolation."
+  },
+  "baseline_commit": "d722bc825a47e8a5265061e5dca26ea4c7fa0aa8",
+  "owner": "/root/architecture"
+}

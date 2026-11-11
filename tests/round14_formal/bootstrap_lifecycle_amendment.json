@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "amends": "bootstrap_obligations.json without changing its original expectations",
+  "scope": "Finite admission lifetime, failure and public configuration controls",
+  "authoring_order": "Frozen from root-requested lifecycle requirements before this reviewer's candidate predictions",
+  "whole_project_goals_discharged": 0,
+  "cases": [
+    {"id": "transfer_failure_sticky", "setup": "Inject an exception from the admitted production transfer after it mutates one of the two stores", "required": ["The exception propagates", "Bootstrap is permanently invalid/tainted", "A later successful-looking operation cannot certify the state"]},
+    {"id": "helper_failure_sticky", "setup": "Inject an exception from the initialization helper after the helper boundary has been entered", "required": ["The exception propagates", "The initialization cut remains unsafe rather than silently reverting to an ordinary queue"]},
+    {"id": "late_diagnostic_request", "setup": "After at least one eager publication, request inspector boundaries or a new work-step observer", "required": ["The request is refused before diagnostic mutation", "The already admitted no-diagnostic state is not retrospectively presented as observed"]},
+    {"id": "contract_replacement_before_iter", "setup": "After admitted eager publication, replace a certified component, set visible nonzero clocks, then call iter(solver)", "required": ["Lifetime validation refuses before iterator/statistics reset", "Restoring the original component does not clear a previously invalid contract"]},
+    {"id": "project_config_policy", "setup": "Roundtrip queued and eager_inert through ProjectConfig and analyze a tiny trusted project", "required": ["The requested policy reaches the native solver", "Default remains queued", "Both arms retain the same actual callback obligation", "Bootstrap and selected work remain separately reported"]}
+  ],
+  "boundaries": [
+    "Fault-injection controls validate failure handling; they do not assert that ordinary trusted processors deliberately throw",
+    "ProjectConfig pass-through is a configuration control, not a large-project scalability result"
+  ]
+}

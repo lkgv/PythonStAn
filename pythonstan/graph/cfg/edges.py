@@ -132,6 +132,12 @@ class ExceptionEdge(CFGEdge):
         self.e = e
 
     def get_name(self) -> str:
+        if self.e is None:
+            return "except *"
+        if isinstance(self.e, (list, tuple)):
+            return "except " + ", ".join(str(name) for name in self.e)
+        if isinstance(self.e, str):
+            return "except " + self.e
         return ast.unparse(self.e)
 
 

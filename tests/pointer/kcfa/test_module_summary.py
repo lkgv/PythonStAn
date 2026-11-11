@@ -4,6 +4,8 @@ Tests dependency graph, summary extraction/application, and multi-module analysi
 """
 
 import pytest
+from tests.pointer.kcfa.builders import make_site, make_scope, qualify
+from pythonstan.analysis.pointer.kcfa.pointer_flow_graph import NormalNode
 from pythonstan.analysis.pointer.kcfa.dependency_graph import ModuleDependencyGraph
 from pythonstan.analysis.pointer.kcfa.module_summary import (
     ModuleSummary, FunctionSummary, ClassSummary
@@ -112,8 +114,9 @@ class TestDependencyGraph:
         """Test relative import to package root."""
         graph = ModuleDependencyGraph()
         
-        result = graph.resolve_relative_import("pkg.sub.mod", "x", 3)
-        assert result == "x"
+        # Three dots escape the two-level package and Python raises ImportError.
+        with pytest.raises(ImportError):
+            graph.resolve_relative_import("pkg.sub.mod", "x", 3)
 
 
 class TestModuleSummary:
@@ -134,8 +137,8 @@ class TestModuleSummary:
     
     def test_function_summary_merge(self):
         """Test merging function summaries."""
-        alloc1 = AllocSite(file="f1", line=1, col=0, kind=AllocKind.OBJECT)
-        alloc2 = AllocSite(file="f2", line=2, col=0, kind=AllocKind.OBJECT)
+        alloc1 = make_site(file="f1", line=1, col=0, kind=AllocKind.OBJECT)
+        alloc2 = make_site(file="f2", line=2, col=0, kind=AllocKind.OBJECT)
         
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject
         from pythonstan.analysis.pointer.kcfa.context import CallStringContext
@@ -165,7 +168,7 @@ class TestModuleSummary:
     
     def test_class_summary_creation(self):
         """Test creating class summary."""
-        alloc = AllocSite(file="f", line=1, col=0, kind=AllocKind.CLASS, name="MyClass")
+        alloc = make_site(file="f", line=1, col=0, kind=AllocKind.CLASS, name="MyClass")
         
         summary = ClassSummary(
             name="MyClass",
@@ -205,7 +208,7 @@ class TestModuleSummary:
     
     def test_module_summary_merge(self):
         """Test merging module summaries."""
-        alloc = AllocSite(file="f", line=1, col=0, kind=AllocKind.OBJECT)
+        alloc = make_site(file="f", line=1, col=0, kind=AllocKind.OBJECT)
         
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject
         from pythonstan.analysis.pointer.kcfa.context import CallStringContext
@@ -242,7 +245,7 @@ class TestModuleSummary:
     def test_module_summary_get_export_names(self):
         """Test getting all export names."""
         func_summary = FunctionSummary(name="foo", params=())
-        class_alloc = AllocSite(file="f", line=1, col=0, kind=AllocKind.CLASS)
+        class_alloc = make_site(file="f", line=1, col=0, kind=AllocKind.CLASS)
         class_summary = ClassSummary(name="Bar", alloc_site=class_alloc)
         
         summary = ModuleSummary(
@@ -267,7 +270,7 @@ class TestSummaryExtraction:
         from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
         
         state = PointerAnalysisState()
-        summary = state.export_summary("test_module", set())
+        summary = ModuleSummary.from_state(state, make_scope("test_module", "module"), set())
         
         assert summary.module_name == "test_module"
         assert len(summary.exports) == 0
@@ -275,22 +278,22 @@ class TestSummaryExtraction:
     def test_export_summary_with_exports(self):
         """Test exporting summary with variables."""
         from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
-        from pythonstan.analysis.pointer.kcfa.variable import Variable, Scope, VariableKind
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
         from pythonstan.analysis.pointer.kcfa.context import CallStringContext
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject
         
         state = PointerAnalysisState()
         
         ctx = CallStringContext(call_sites=(), k=2)
-        scope = Scope(name="test_module", kind="module")
-        var = Variable(name="x", scope=scope, context=ctx, kind=VariableKind.GLOBAL)
+        scope = make_scope(name="test_module", kind="module", context=ctx)
+        var = qualify("x", scope, ctx, VariableKind.GLOBAL)
         
-        alloc = AllocSite(file="f", line=1, col=0, kind=AllocKind.OBJECT)
+        alloc = make_site(file="f", line=1, col=0, kind=AllocKind.OBJECT)
         obj = AbstractObject(alloc_site=alloc, context=ctx)
         
-        state.set_points_to(var, PointsToSet.singleton(obj))
+        state.set_points_to(NormalNode(var), PointsToSet.singleton(obj))
         
-        summary = state.export_summary("test_module", {"x"})
+        summary = ModuleSummary.from_state(state, scope, {"x"})
         
         assert "x" in summary.exports
         assert len(summary.exports["x"]) == 1
@@ -308,7 +311,7 @@ class TestSummaryApplication:
         state = PointerAnalysisState()
         ctx = CallStringContext(call_sites=(), k=2)
         
-        alloc = AllocSite(file="f", line=1, col=0, kind=AllocKind.OBJECT)
+        alloc = make_site(file="f", line=1, col=0, kind=AllocKind.OBJECT)
         obj = AbstractObject(alloc_site=alloc, context=ctx)
         
         summary = ModuleSummary(
@@ -321,13 +324,13 @@ class TestSummaryApplication:
             external_calls=frozenset()
         )
         
-        state.import_summary(summary, "imported", ctx)
+        scope = make_scope("imported", "module", context=ctx)
+        summary.apply_bindings(state, scope)
         
-        from pythonstan.analysis.pointer.kcfa.variable import Variable, Scope, VariableKind
-        scope = Scope(name="imported", kind="module")
-        var = Variable(name="foo", scope=scope, context=ctx, kind=VariableKind.GLOBAL)
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
+        var = qualify("foo", scope, ctx, VariableKind.GLOBAL)
         
-        pts = state.get_points_to(var)
+        pts = state.get_points_to(NormalNode(var))
         assert len(pts) == 1
 
 

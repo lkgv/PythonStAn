@@ -10,7 +10,7 @@ Extended to support closure/scope queries:
 """
 
 import ast
-from typing import Dict, FrozenSet, List, TYPE_CHECKING, Optional, Tuple
+from typing import Callable, Dict, FrozenSet, List, TYPE_CHECKING, Optional, Tuple
 
 from pythonstan.ir.ir_statements import IRCall
 from .context import CallSite
@@ -40,6 +40,7 @@ class PtaQueryAdapter:
         state: 'PointerAnalysisState',
         class_hierarchy: Optional['ClassHierarchyManager'] = None,
         context_selector: Optional['ContextSelector'] = None,
+        on_field_read: Optional[Callable] = None,
     ):
         """Initialize the adapter.
         
@@ -50,6 +51,8 @@ class PtaQueryAdapter:
         self._state = state
         self._class_hierarchy = class_hierarchy
         self._context_selector = context_selector
+        self.on_field_read = on_field_read
+        self.on_attribute_names_read = None
         self._callsite_cache: Dict[str, CallSite] = {}
 
     def _get_call_site(self, callsite_id: str) -> CallSite:
@@ -102,6 +105,11 @@ class PtaQueryAdapter:
         from .points_to_set import PointsToSet
         from .object import summarize_object, is_summary_object
         
+        # A value-top receiver can select any field value; creating an empty
+        # concrete slot for it would incorrectly turn unknown into bottom.
+        if getattr(obj, "is_top_value", False):
+            return PointsToSet.singleton(obj)
+
         # Summary objects: union over all concrete objects that map to this summary
         if is_summary_object(obj):
             summary_rep = summarize_object(obj)
@@ -109,11 +117,15 @@ class PtaQueryAdapter:
             for concrete in self._state._heap.objects.values():
                 if summarize_object(concrete) == summary_rep:
                     field_var = self._state.get_field(scope, context, concrete, field)
+                    if self.on_field_read is not None:
+                        self.on_field_read(field_var)
                     pts_acc = pts_acc.union(self._state.get_points_to(field_var))
             return pts_acc
         
         # Get field access variable for concrete object
         field_var = self._state.get_field(scope, context, obj, field)
+        if self.on_field_read is not None:
+            self.on_field_read(field_var)
         return self._state.get_points_to(field_var)
 
     def get_class_mro(self, cls_obj: 'AbstractObject') -> List['AbstractObject']:
@@ -125,13 +137,24 @@ class PtaQueryAdapter:
         Returns:
             List of class objects in MRO order (most specific first)
         """
-        if self._class_hierarchy is not None:
-            try:
-                return self._class_hierarchy.get_mro(cls_obj)
-            except Exception:
-                # Fall back to just the class itself if MRO fails
-                pass
-        return [cls_obj]
+        from .mro_projection import project_class_mro
+        return project_class_mro(self._state, cls_obj, self._class_hierarchy, self.on_field_read)
+
+    def known_attribute_names(self, obj: 'AbstractObject', scope: 'Scope', context: 'AbstractContext') -> FrozenSet[str]:
+        """Return observed attribute names, never a proof of field absence."""
+        from .heap_model import FieldKind
+        from .object import InstanceObject
+
+        owners = {obj}
+        if isinstance(obj, InstanceObject):
+            owners.update(self.get_class_mro(obj.class_obj))
+        for owner in owners:
+            if self.on_attribute_names_read is not None:
+                self.on_attribute_names_read(owner)
+        return frozenset(
+            field.name for owner, field in self._state._field_accesses
+            if owner in owners and field.kind == FieldKind.ATTRIBUTE
+        )
 
     def may_have_attr(
         self,

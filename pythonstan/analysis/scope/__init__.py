@@ -1,2 +1,2 @@
 from .analysis import ScopeAnalysis
-from .closure import ClosureAnalysis
+from pythonstan.analysis.closure import ClosureAnalysis

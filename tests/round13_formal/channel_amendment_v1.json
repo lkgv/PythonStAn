@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "base_obligations_sha256": "f901d4186a6903501f3674a8dcb2474d74142c68c4fafc8fb9ed97f0fb2b951c",
+  "authoring_order": "Independent amendment frozen before static prediction of either new source; original four cases remain unchanged.",
+  "unit_scope": "two finite native coroutine suspension-channel controls, not whole-project gold",
+  "whole_project_goals_discharged": 0,
+  "whole_program_soundness_proved": false,
+  "cases": [
+    {
+      "id": "coroutine_send_intermediate",
+      "source": "sources/coroutine_send_intermediate.py",
+      "source_sha256": "a6fad6e20ff60a60c01014d07da0cb3be87bc15d34899bccdba0862f74c3dd07",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [],
+      "required_edges": [
+        [
+          "subject",
+          "subject.suspension_callback"
+        ]
+      ],
+      "forbidden_edges": [
+        [
+          "subject",
+          "subject.completed_callback"
+        ]
+      ],
+      "negative_interpretation": "bounded normal-yield versus terminal completion channel; no global stage proof",
+      "assumptions": [
+        "native coroutine awaits source __await__ generator",
+        "first direct coroutine send or coroutine.__await__ wrapper send normally returns suspension token",
+        "final return reaches StopIteration.value, not normal send result"
+      ],
+      "runtime_cleanup": "outside frozen prediction source, finish the owned coroutine/wrapper with one send(None) and check StopIteration.value identity"
+    },
+    {
+      "id": "coroutine_wrapper_intermediate",
+      "source": "sources/coroutine_wrapper_intermediate.py",
+      "source_sha256": "393de7b5e25520a4a1c7425f154eda0d8bc08f215cc833cf44576c24be24553f",
+      "kind": "finite_source_protocol_unit",
+      "required_values": [],
+      "required_edges": [
+        [
+          "subject",
+          "subject.suspension_callback"
+        ]
+      ],
+      "forbidden_edges": [
+        [
+          "subject",
+          "subject.completed_callback"
+        ]
+      ],
+      "negative_interpretation": "bounded normal-yield versus terminal completion channel; no global stage proof",
+      "assumptions": [
+        "native coroutine awaits source __await__ generator",
+        "first direct coroutine send or coroutine.__await__ wrapper send normally returns suspension token",
+        "final return reaches StopIteration.value, not normal send result"
+      ],
+      "runtime_cleanup": "outside frozen prediction source, finish the owned coroutine/wrapper with one send(None) and check StopIteration.value identity"
+    }
+  ]
+}

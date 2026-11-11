@@ -1,212 +1,77 @@
-"""Test that all event fields are populated correctly.
+"""Allocation metadata survives the production IR-to-constraint boundary.
 
-This test verifies that the IR adapter extracts and populates optional fields
-in AllocEvent for containers, classes, functions, etc.
+The removed prototype emitted dictionaries called AllocEvent; current analysis
+keeps its IR statement in AllocConstraint and emits explicit heap stores.
 """
-
-import pytest
-import sys
 import ast
+import pytest
+from pythonstan.analysis.pointer.kcfa import Config, AllocKind
+from pythonstan.analysis.pointer.kcfa.constraints import AllocConstraint, StoreConstraint
+from pythonstan.analysis.pointer.kcfa.heap_model import elem, key
+from pythonstan.analysis.pointer.kcfa.ir_translator import IRTranslator
+from pythonstan.ir.ir_statements import IRAssign, IRClass, IRFunc, IRModule
+from pythonstan.world import World
 
 
-def test_container_elements_extraction():
-    """Test that list/tuple/set elements are extracted."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    from pythonstan.ir.ir_statements import IRAssign
-    
-    # Create a mock IRAssign for a list literal
-    # tmp_1 = [x, y, z]
-    lval = ast.Name(id='tmp_1')
-    rval = ast.List(elts=[
-        ast.Name(id='x'),
-        ast.Name(id='y'),
-        ast.Name(id='z')
-    ])
-    
-    # Create mock IRAssign
-    class MockIRAssign:
-        def get_lval(self):
-            return lval
-        def get_rval(self):
-            return rval
-    
-    instr = MockIRAssign()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    # Debug: print what events we got
-    print(f"Events generated: {events}")
-    
-    # Should generate an allocation event with elements field
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    print(f"Alloc events: {alloc_events}")
-    assert len(alloc_events) == 1, f"Expected 1 alloc event, got {len(alloc_events)}"
-    
-    event = alloc_events[0]
-    assert event["type"] == "list"
-    assert "elements" in event
-    assert event["elements"] == ["x", "y", "z"]
-    print("✓ List elements extracted correctly")
+@pytest.fixture
+def translate():
+    world = World()
+    world.setup()
+    world.scope_manager.build()
+    module = IRModule("events", ast.parse(""), name="events", filename="events.py")
+    translator = IRTranslator(Config(index_sensitive=True))
+    def run(statement):
+        world.scope_manager.set_ir(module, "ir", [statement])
+        return translator.translate_module(module)
+    return run
 
 
-def test_dict_values_extraction():
-    """Test that dict values are extracted."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    
-    # Create a mock IRAssign for a dict literal
-    # tmp_1 = {"a": x, "b": y}
-    lval = ast.Name(id='tmp_1')
-    rval = ast.Dict(
-        keys=[ast.Constant(value="a"), ast.Constant(value="b")],
-        values=[ast.Name(id='x'), ast.Name(id='y')]
-    )
-    
-    class MockIRAssign:
-        def get_lval(self):
-            return lval
-        def get_rval(self):
-            return rval
-    
-    instr = MockIRAssign()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    assert len(alloc_events) == 1
-    
-    event = alloc_events[0]
-    assert event["type"] == "dict"
-    assert "values" in event
-    assert event["values"] == ["x", "y"]
-    print("✓ Dict values extracted correctly")
+def check_container(translate, source, kind, expected):
+    statement = IRAssign(ast.parse(source).body[0])
+    constraints = translate(statement)
+    allocations = [c for c in constraints if isinstance(c, AllocConstraint)]
+    assert len(allocations) == 1
+    assert allocations[0].alloc_site.stmt is statement
+    assert allocations[0].alloc_site.kind == kind
+    assert allocations[0].target.name == "tmp_1"
+    stores = [c for c in constraints if isinstance(c, StoreConstraint) and c.field == elem()]
+    assert [c.source.name for c in stores] == expected
+    return constraints
 
 
-def test_class_bases_extraction():
-    """Test that class base classes are extracted."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    from pythonstan.ir.ir_statements import IRClass
-    
-    # Create a mock IRClass with bases
-    # class Dog(Animal, Mammal): pass
-    class MockIRClass:
-        name = "Dog"
-        bases = [ast.Name(id="Animal"), ast.Name(id="Mammal")]
-    
-    instr = MockIRClass()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    assert len(alloc_events) == 1
-    
-    event = alloc_events[0]
-    assert event["type"] == "class"
-    assert event["target"] == "Dog"
-    assert "bases" in event
-    assert event["bases"] == ["Animal", "Mammal"]
-    print("✓ Class bases extracted correctly")
+def test_container_elements_extraction(translate):
+    constraints = check_container(translate, "tmp_1 = [x, y, z]", AllocKind.LIST, ["x", "y", "z"])
+    assert {(c.field, c.source.name) for c in constraints if isinstance(c, StoreConstraint) and c.field != elem()} == {(key(i), name) for i, name in enumerate(["x", "y", "z"])}
 
 
-def test_closure_vars_extraction():
-    """Test that closure variables are extracted from functions."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    from pythonstan.ir.ir_statements import IRFunc
-    
-    # Create a mock IRFunc with closure vars
-    # def inner(): return x + y  # captures x, y
-    class MockIRFunc:
-        name = "inner"
-        cell_vars = {"x", "y"}
-    
-    instr = MockIRFunc()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    assert len(alloc_events) == 1
-    
-    event = alloc_events[0]
-    assert event["type"] == "func"
-    assert event["target"] == "inner"
-    assert "closure_vars" in event
-    assert set(event["closure_vars"]) == {"x", "y"}
-    print("✓ Closure variables extracted correctly")
+def test_dict_values_extraction(translate):
+    constraints = check_container(translate, 'tmp_1 = {"a": x, "b": y}', AllocKind.DICT, ["x", "y"])
+    assert {(c.field, c.source.name) for c in constraints if isinstance(c, StoreConstraint) and c.field != elem()} == {(key("a"), "x"), (key("b"), "y")}
 
 
-def test_tuple_elements_extraction():
-    """Test that tuple elements are extracted."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    
-    # Create a mock IRAssign for a tuple literal
-    # tmp_1 = (a, b, c)
-    lval = ast.Name(id='tmp_1')
-    rval = ast.Tuple(elts=[
-        ast.Name(id='a'),
-        ast.Name(id='b'),
-        ast.Name(id='c')
-    ])
-    
-    class MockIRAssign:
-        def get_lval(self):
-            return lval
-        def get_rval(self):
-            return rval
-    
-    instr = MockIRAssign()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    assert len(alloc_events) == 1
-    
-    event = alloc_events[0]
-    assert event["type"] == "tuple"
-    assert "elements" in event
-    assert event["elements"] == ["a", "b", "c"]
-    print("✓ Tuple elements extracted correctly")
+def test_class_bases_extraction(translate):
+    statement = IRClass("events.Dog", ast.parse("class Dog(Animal, Mammal): pass").body[0])
+    constraints = translate(statement)
+    allocation = next(c for c in constraints if isinstance(c, AllocConstraint))
+    assert allocation.target.name == "Dog"
+    assert allocation.alloc_site.kind == AllocKind.CLASS
+    assert allocation.alloc_site.stmt is statement
+    assert [base.name for base in statement._kcfa_base_variables] == ["Animal", "Mammal"]
 
 
-def test_set_elements_extraction():
-    """Test that set elements are extracted."""
-    from pythonstan.analysis.pointer.kcfa2.ir_adapter import _process_ir_instruction
-    
-    # Create a mock IRAssign for a set literal
-    # tmp_1 = {x, y}
-    lval = ast.Name(id='tmp_1')
-    rval = ast.Set(elts=[
-        ast.Name(id='x'),
-        ast.Name(id='y')
-    ])
-    
-    class MockIRAssign:
-        def get_lval(self):
-            return lval
-        def get_rval(self):
-            return rval
-    
-    instr = MockIRAssign()
-    events = _process_ir_instruction(instr, "bb0", 0)
-    
-    alloc_events = [e for e in events if e.get("kind") == "alloc"]
-    assert len(alloc_events) == 1
-    
-    event = alloc_events[0]
-    assert event["type"] == "set"
-    assert "elements" in event
-    assert event["elements"] == ["x", "y"]
-    print("✓ Set elements extracted correctly")
+def test_closure_vars_extraction(translate):
+    statement = IRFunc("events.inner", ast.parse("def inner(): return x + y").body[0], cell_vars={"x", "y"})
+    constraints = translate(statement)
+    allocation = next(c for c in constraints if isinstance(c, AllocConstraint))
+    assert allocation.target.name == "inner"
+    assert allocation.alloc_site.kind == AllocKind.FUNCTION
+    assert allocation.alloc_site.stmt.get_cell_vars() == {"x", "y"}
 
 
-if __name__ == "__main__":
-    print("\n=== Testing Event Field Population ===\n")
-    
-    try:
-        test_container_elements_extraction()
-        test_dict_values_extraction()
-        test_class_bases_extraction()
-        test_closure_vars_extraction()
-        test_tuple_elements_extraction()
-        test_set_elements_extraction()
-        
-        print("\n✅ All event field population tests passed!")
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+def test_tuple_elements_extraction(translate):
+    constraints = check_container(translate, "tmp_1 = (a, b, c)", AllocKind.TUPLE, ["a", "b", "c"])
+    assert {(c.field, c.source.name) for c in constraints if isinstance(c, StoreConstraint) and c.field != elem()} == {(key(i), name) for i, name in enumerate(["a", "b", "c"])}
 
+
+def test_set_elements_extraction(translate):
+    check_container(translate, "tmp_1 = {x, y}", AllocKind.SET, ["x", "y"])

@@ -1,0 +1,13 @@
+events = []
+def chosen():
+    events.append("chosen")
+def late():
+    events.append("late")
+def poison():
+    events.append("value-poison")
+mapping = {chosen: poison}
+def delegated():
+    completion = yield from mapping
+    events.append(completion)
+for callback in delegated():
+    callback()

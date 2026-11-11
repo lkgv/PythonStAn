@@ -1,5 +1,7 @@
 """Tests for class hierarchy and MRO computation."""
 
+from tests.pointer.kcfa.builders import make_site, make_scope, qualify
+
 import pytest
 from pythonstan.analysis.pointer.kcfa.class_hierarchy import (
     ClassHierarchyManager, compute_c3_mro, MROError
@@ -29,9 +31,9 @@ class TestSimpleInheritance:
         ctx = CallStringContext((), 2)
         
         # Create class objects
-        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
-        class_c = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        class_c = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
         
         # Build hierarchy: C(B), B(A), A()
         hierarchy.add_class(class_a)
@@ -51,7 +53,7 @@ class TestSimpleInheritance:
         hierarchy = ClassHierarchyManager()
         ctx = CallStringContext((), 2)
         
-        class_c = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'C'), ctx)
+        class_c = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'C'))
         hierarchy.add_class(class_c)
         
         mro_c = hierarchy.get_mro(class_c)
@@ -69,10 +71,10 @@ class TestDiamondInheritance:
         ctx = CallStringContext((), 2)
         
         # Create classes
-        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
-        class_c = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
-        class_d = AbstractObject(AllocSite('<test>', 4, 0, AllocKind.CLASS, 'D'), ctx)
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        class_c = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
+        class_d = AbstractObject(ctx, make_site('<test>', 4, 0, AllocKind.CLASS, 'D'))
         
         # Build diamond
         hierarchy.add_class(class_a)
@@ -88,6 +90,25 @@ class TestDiamondInheritance:
         assert mro_d[2] == class_c
         assert mro_d[3] == class_a
 
+    def test_compute_c3_mro_diamond(self):
+        """Test compute_c3_mro on diamond inheritance."""
+        hierarchy = ClassHierarchyManager()
+        ctx = CallStringContext((), 2)
+        
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        class_c = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
+        class_d = AbstractObject(ctx, make_site('<test>', 4, 0, AllocKind.CLASS, 'D'))
+        
+        hierarchy.add_class(class_a)
+        hierarchy.add_class(class_b, [class_a])
+        hierarchy.add_class(class_c, [class_a])
+        hierarchy.add_class(class_d, [class_b, class_c])
+        
+        mro_d = compute_c3_mro(class_d, hierarchy)
+        
+        assert mro_d == [class_d, class_b, class_c, class_a]
+
 
 class TestMultipleInheritance:
     """Tests for multiple inheritance."""
@@ -97,9 +118,9 @@ class TestMultipleInheritance:
         hierarchy = ClassHierarchyManager()
         ctx = CallStringContext((), 2)
         
-        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
-        class_c = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        class_c = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
         
         hierarchy.add_class(class_a)
         hierarchy.add_class(class_b)
@@ -118,13 +139,13 @@ class TestMultipleInheritance:
         hierarchy2 = ClassHierarchyManager()
         ctx = CallStringContext((), 2)
         
-        a1 = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        b1 = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
-        c1 = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        a1 = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        b1 = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        c1 = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
         
-        a2 = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        b2 = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
-        c2 = AbstractObject(AllocSite('<test>', 3, 0, AllocKind.CLASS, 'C'), ctx)
+        a2 = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        b2 = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        c2 = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
         
         hierarchy1.add_class(a1)
         hierarchy1.add_class(b1)
@@ -150,7 +171,7 @@ class TestMROCache:
         hierarchy = ClassHierarchyManager()
         ctx = CallStringContext((), 2)
         
-        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
         hierarchy.add_class(class_a)
         
         # First computation
@@ -166,8 +187,8 @@ class TestMROCache:
         hierarchy = ClassHierarchyManager()
         ctx = CallStringContext((), 2)
         
-        class_a = AbstractObject(AllocSite('<test>', 1, 0, AllocKind.CLASS, 'A'), ctx)
-        class_b = AbstractObject(AllocSite('<test>', 2, 0, AllocKind.CLASS, 'B'), ctx)
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
         
         hierarchy.add_class(class_a)
         mro_a_before = hierarchy.get_mro(class_a)
@@ -181,4 +202,26 @@ class TestMROCache:
         # Update A's bases - should invalidate
         hierarchy.update_bases(class_a, [])
         assert class_a not in hierarchy._mro_cache
+
+    def test_update_bases_refreshes_mro(self):
+        """Test MRO updates when bases are changed."""
+        hierarchy = ClassHierarchyManager()
+        ctx = CallStringContext((), 2)
+        
+        class_a = AbstractObject(ctx, make_site('<test>', 1, 0, AllocKind.CLASS, 'A'))
+        class_b = AbstractObject(ctx, make_site('<test>', 2, 0, AllocKind.CLASS, 'B'))
+        class_c = AbstractObject(ctx, make_site('<test>', 3, 0, AllocKind.CLASS, 'C'))
+        
+        hierarchy.add_class(class_a)
+        hierarchy.add_class(class_b)
+        hierarchy.add_class(class_c, [class_a, class_b])
+        
+        mro_before = hierarchy.get_mro(class_c)
+        assert mro_before == [class_c, class_a, class_b]
+        
+        hierarchy.update_bases(class_c, [class_b, class_a])
+        assert class_c not in hierarchy._mro_cache
+        
+        mro_after = hierarchy.get_mro(class_c)
+        assert mro_after == [class_c, class_b, class_a]
 

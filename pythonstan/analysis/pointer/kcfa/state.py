@@ -11,14 +11,14 @@ from collections import defaultdict, deque
 from queue import Queue
 
 from pythonstan.utils.common import Box
-from pythonstan.ir.ir_statements import IRModule, IRStatement
+from pythonstan.ir.ir_statements import IRModule, IRStatement, IRScope
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 from .object import *
 from .variable import VariableFactory, VariableKind, FieldAccess, Variable
 from .context import CallSite, Ctx, AbstractContext, Scope
 from .constraints import ConstraintManager, Constraint, InheritanceConstraint
-from .heap_model import HeapModel, Field, FieldKind
-from .pointer_flow_graph import PointerFlowGraph, NormalNode, GuardNode, SelectorNode, PointerFlowEdge, PointerFlowNode, PointerFlowKind
+from .heap_model import HeapModel, Field, FieldKind, unknown
+from .pointer_flow_graph import PointerFlowGraph, NormalNode, GuardNode, SelectorNode, InheritanceSelectorNode, PointerFlowEdge, PointerFlowNode, PointerFlowKind
 from .points_to_set import PointsToSet
 
 if TYPE_CHECKING:
@@ -26,20 +26,28 @@ if TYPE_CHECKING:
 
 __all__ = ["PointerAnalysisState"]
 
+_WORKLIST_MISSING = object()
+
 
 # TODO to be done 
 class PointerCallGraph(AbstractCallGraph[Ctx[CallSite], Scope]):
 
     def __init__(self):
         super().__init__()
+        self.visited_edges = set()
         self.plain_edges = set()
+        self.non_empty = set()
     
     def add_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
         super().add_edge(edge)
+        self.visited_edges.add((edge.callsite, edge.callee))
         self.plain_edges.add((edge.callsite.content, edge.callee.stmt))
+        self.non_empty.add(edge.callee.stmt)
     
     def has_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
-        return (edge.callsite.content, edge.callee.stmt) in self.plain_edges
+        if (edge.callsite, edge.callee) in self.visited_edges:
+            return True
+        return False
     
     def num_plain_edges(self):
         return len(self.plain_edges)
@@ -66,6 +74,19 @@ class Worklist:
         if isinstance(node, NormalNode):
             assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
 
+        if type(self.items_dict) is dict:
+            # Keep the canonical tuple/Box and its FIFO age on a merge. Native
+            # keys have stable, pure equality; no discarded Box is needed.
+            item = self.items_dict.get(node, _WORKLIST_MISSING)
+            if item is not _WORKLIST_MISSING:
+                item[2].val = item[2].val.union(pts)
+            else:
+                item = (scope, node, Box(pts))
+                self.items_list.append(item)
+                self.items_dict[node] = item
+            return
+
+        # Custom stores retain the former allocation and callback sequence.
         worklist_item: Tuple[Scope, PointerFlowNode, Box[PointsToSet]] = (scope, node, Box(pts))
         
         # Check if node already in worklist
@@ -108,6 +129,9 @@ class PointerAnalysisState:
         Args:
             debug_monitor: Optional DebugMonitor instance for tracking
         """
+        self.allocation_policy = None
+        self.source_metadata = {}
+        self.unknown_effects = None
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
         self._call_graph: 'PointerCallGraph' = PointerCallGraph()
@@ -115,11 +139,18 @@ class PointerAnalysisState:
         self._call_edges = []  # List of CallEdge objects tracked during analysis
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
         self._field_accesses: Dict[Tuple['AbstractObject', 'Field'], FieldAccess] = {}
+        # Field slots only grow through set_field. Preserve each object's
+        # creation order so snapshot models need not rescan every heap slot.
+        self._known_fields_by_object: Dict['AbstractObject', Dict['Field', None]] = {}
         self._variable_factory: VariableFactory = VariableFactory()
         self._worklist: Worklist = Worklist()
-        self._static_constraints: List[Tuple['Scope', 'AbstractContext', 'Constraint']] = []
+        self._consumer_worklist = None
+        # append/pop retains the historical LIFO policy; fair arbitration uses
+        # popleft without copying or shifting all pending constraints.
+        self._static_constraints: Deque[Tuple['Scope', 'AbstractContext', 'Constraint']] = deque()
         self._internal_scope = {}
         self.obj_scope = {}
+        self._module_unknown_fields = defaultdict(set)
         
         # Debug monitoring
         self._debug_monitor = debug_monitor
@@ -127,11 +158,72 @@ class PointerAnalysisState:
         # Note: scope_manager is set lazily when needed
         self._scope_manager = None
     
+    def select_allocation_context(self, context, site, alloc_type=None, *, identity="fresh"):
+        """Run-local allocation boundary, injected by the native solver."""
+        if self.allocation_policy is None:
+            return context
+        return self.allocation_policy.select(context, site, alloc_type, identity=identity)
+
+    def apply_unknown_effects(self, scope, top_object, origin):
+        if self.unknown_effects is None:
+            from .unknown_effects import UnknownEffects
+            self.unknown_effects = UnknownEffects(self)
+        self.unknown_effects.install(scope, top_object, origin)
+
     def set_internal_scope(self, obj, scope):
         self._internal_scope[obj] = scope
+
+    def is_module_export(self, module, name):
+        from pythonstan.world.module_exports import source_export_names
+        return name in source_export_names(module) or name in getattr(module, '_source_extra_exports', ())
+
+    def register_module_export(self, module_scope, name):
+        """Record a real modeled module write/import effect, not builtin fallback."""
+        if not isinstance(name, str) or not name.isidentifier():
+            return
+        module = module_scope.module.stmt
+        extra = getattr(module, '_source_extra_exports', None)
+        if extra is None:
+            extra = module._source_extra_exports = set()
+        extra.add(name)
+        variable = self._get_variable_direct(module_scope.module, module_scope.module.context,
+                                             name, VariableKind.GLOBAL)
+        if variable is not None:
+            for wildcard in self._module_unknown_fields.get(module, ()):
+                self._add_var_points_flow(variable, wildcard)
     
     def get_internal_scope(self, obj) -> Scope:
         return self._internal_scope.get(obj, None)
+
+    def get_scopes_for_ir(self, ir_scope: IRScope) -> List[Scope]:
+        scopes: List[Scope] = []
+        for scope in self._internal_scope.values():
+            if scope.stmt == ir_scope:
+                scopes.append(scope)
+        for scope in self.call_graph.get_nodes():
+            if scope.stmt == ir_scope and scope not in scopes:
+                scopes.append(scope)
+        return scopes
+
+    def get_scope_for_ir(
+        self,
+        ir_scope: IRScope,
+        context: Optional['AbstractContext'] = None,
+    ) -> Optional[Scope]:
+        scopes = self.get_scopes_for_ir(ir_scope)
+        if context is None:
+            return scopes[0] if scopes else None
+        for scope in scopes:
+            if scope.context == context:
+                return scope
+        return None
+
+    def get_all_ctx_vars_for(self, scope: Scope, var: 'Variable') -> List['Ctx[Variable]']:
+        scopes = self.get_scopes_for_ir(scope.stmt)
+        ctx_vars: List['Ctx[Variable]'] = []
+        for scoped in scopes:
+            ctx_vars.append(self.get_variable(scoped, scoped.context, var))
+        return ctx_vars
     
     def get_points_to(self, var: Union['Ctx[Any]', 'PointerFlowNode']) -> PointsToSet:
         """Get points-to set for variable.
@@ -175,6 +267,15 @@ class PointerAnalysisState:
             
             return True
         return False
+
+    def known_fields_for_object(self, obj: 'AbstractObject') -> Tuple['Field', ...]:
+        """Snapshot existing slots, including empty read-created slots.
+
+        This indexes slot creation, not key presence or nonempty values. The
+        tuple remains safe when a consumer recursively creates more fields.
+        Its order equals filtering the global slot dictionary for ``obj``.
+        """
+        return tuple(self._known_fields_by_object.get(obj, ()))
 
     def has_field(self, scope: 'Scope', context: 'AbstractContext', obj: 'AbstractObject', field: 'Field') -> Optional['FieldAccess']:
         """Check if the field access exists in the object.
@@ -233,16 +334,42 @@ class PointerAnalysisState:
 
         if not exists:
             if isinstance(obj, ModuleObject):
-                if field.name is None:
-                    return cfield
-                
                 internal_scope = self.get_internal_scope(obj)
+                if internal_scope is None:
+                    return cfield
+                if field.name is None:
+                    # Unknown attribute selection (e.g. getattr(module, name)
+                    # during plugin discovery) may read any lexical export.
+                    # Keep live subscriptions, not a snapshot of current pts.
+                    self._module_unknown_fields[internal_scope.stmt].add(cfield)
+                    for cvar in tuple(self._heap.heap.get((internal_scope.stmt,), {}).values()):
+                        variable = cvar.content
+                        if variable.kind == VariableKind.GLOBAL and self.is_module_export(internal_scope.stmt, variable.name):
+                            self._add_var_points_flow(cvar, cfield)
+                    residuals = getattr(self, '_residual_effects', None)
+                    if residuals is not None:
+                        residuals[(obj, 'unknown_module_attribute')] = {
+                            'origin': internal_scope.stmt.get_qualname(),
+                            'context': str(context),
+                            'reason': 'Known exports flow to unknown module reads; dynamic __getattr__, presence and loaders remain open',
+                            'effects': ['module_dynamic_exports', 'may_invoke_callbacks', 'may_raise'],
+                        }
+                    return cfield
                 var = self._variable_factory.make_variable(field.name, VariableKind.GLOBAL)
+                if not self.is_module_export(internal_scope.stmt, field.name):
+                    return cfield
                 cvar = self.get_variable(internal_scope, internal_scope.context, var)
                 self._add_var_points_flow(cvar, cfield)
+                for wildcard in self._module_unknown_fields.get(internal_scope.stmt, ()):
+                    self._add_var_points_flow(cvar, wildcard)
             
-            elif isinstance(obj, InstanceObject):
+            elif isinstance(obj, InstanceObject) and field.kind in {FieldKind.ATTRIBUTE, FieldKind.UNKNOWN}:
                 # print(f"get field {field.name} for instance {obj}")
+                own = self.get_write_field(scope, context, obj, field)
+                self._add_var_points_flow(own, cfield)
+                if field.kind == FieldKind.ATTRIBUTE:
+                    unknown_own = self.get_field(scope, context, obj, Field(FieldKind.OWN_UNKNOWN))
+                    self._add_var_points_flow(unknown_own, cfield)
                 cls_obj = obj.class_obj
                 assert isinstance(cls_obj, ClassObject), f"cls_obj must be a ClassObject, but got {type(cls_obj)}"
                 cls_scope = self.get_internal_scope(cls_obj)
@@ -253,21 +380,30 @@ class PointerAnalysisState:
                     self._add_points_flow_edge(edge)
             
             elif isinstance(obj, ClassObject):
+                # Dynamic namespaces may contain names outside the finite key
+                # domain. Their wildcard values are candidates for every
+                # concrete class attribute, including later instance reads.
+                if field.kind == FieldKind.ATTRIBUTE:
+                    wildcard = self.get_field(scope, context, obj, unknown())
+                    self._add_var_points_flow(wildcard, cfield)
                 bases = obj.alloc_site.stmt.get_bases()
                 scope = obj.container_scope
 
                 if len(bases) > 0:
                     # TODO here can use the class hierarchy manager to get the base class and the index of the base class.
-                    selector = SelectorNode()
+                    selector = InheritanceSelectorNode()
                     inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.INHERIT)
                     self._add_points_flow_edge(inherit_edge)
 
                     for idx, base in enumerate(bases):
-                        base_var = self._variable_factory.make_variable(base.id, VariableKind.GLOBAL)
+                        resolved = getattr(obj.ir, "_kcfa_base_variables", ())
+                        base_var = resolved[idx] if idx < len(resolved) else self._variable_factory.make_variable(base.id, VariableKind.GLOBAL)
                         # Contextualize the base variable for constraint indexing
                         base_ctx_var = self.get_variable(scope, scope.context, base_var)
                         inherit_constraint = InheritanceConstraint(base=base_var, field=field, target=selector, index=idx)
-                        self._constraints.add(scope, base_ctx_var, inherit_constraint)
+                        added = self._constraints.add(scope, base_ctx_var, inherit_constraint)
+                        if added and getattr(self, "_consumer_worklist", None) is not None:
+                            self._consumer_worklist.promote(NormalNode(base_ctx_var))
                         # Debug logging
                         import logging
                         logger = logging.getLogger(__name__)
@@ -295,73 +431,25 @@ class PointerAnalysisState:
                                             self._add_points_flow_edge(base_edge)
                                             logger.debug(f"[INHERIT] Immediately resolving field {field} from existing base {base.id}")
             
-            # Handle SuperObject - resolve fields via parent class MRO
             if isinstance(obj, SuperObject):
-                """
-                SuperObject field resolution via PFG + InheritanceConstraint:
-                
-                1. Identify parent classes to search (skip current_class in MRO)
-                2. Create SelectorNode to aggregate results from parents
-                3. Add PFG edge: selector -> cfield (parent fields flow to result)
-                4. For each parent class, add InheritanceConstraint (lazy resolution)
-                5. Methods flow through PFG and get bound to instance_obj if present
-                
-                This reuses the same mechanism as ClassObject inheritance but starts
-                from parent classes instead of the class itself.
-                """
-                if obj.current_class:
-                    # Get base classes from the current class
-                    # These are the parent classes super() will search
-                    from pythonstan.ir.ir_statements import IRClass
-                    if isinstance(obj.current_class.alloc_site.stmt, IRClass):
-                        bases = obj.current_class.alloc_site.stmt.get_bases()
-                        current_scope = obj.current_class.container_scope
-                        
-                        if len(bases) > 0:
-                            # Create SelectorNode to collect parent class fields
-                            selector = SelectorNode()
-                            
-                            if obj.instance_obj is not None:
-                                # Bind parent methods into the instance, then flow to super field
-                                instance_field = self.get_field(scope, context, obj.instance_obj, field)
-                                inherit_edge = PointerFlowEdge(selector, NormalNode(instance_field), PointerFlowKind.INSTANCE)
-                                self._add_points_flow_edge(inherit_edge)
-                                self._add_points_flow_edge(
-                                    PointerFlowEdge(NormalNode(instance_field), NormalNode(cfield), PointerFlowKind.NORMAL)
-                                )
-                            else:
-                                # No instance: flow parent fields directly to super field
-                                inherit_edge = PointerFlowEdge(selector, NormalNode(cfield), PointerFlowKind.NORMAL)
-                                self._add_points_flow_edge(inherit_edge)
-                            
-                            # Add InheritanceConstraint for each parent class
-                            # These constraints apply lazily when parent points-to sets are known
-                            for idx, base in enumerate(bases):
-                                base_var = self._variable_factory.make_variable(base.id, VariableKind.GLOBAL)
-                                # Contextualize the base variable for constraint indexing
-                                base_ctx_var = self.get_variable(current_scope, current_scope.context, base_var)
-                                inherit_constraint = InheritanceConstraint(
-                                    base=base_var,
-                                    field=field,
-                                    target=selector,
-                                    index=idx
-                                )
-                                self._constraints.add(current_scope, base_ctx_var, inherit_constraint)
-                                
-                                # Immediate resolution if base already known
-                                if base_ctx_var:
-                                    base_pts = self.get_points_to(base_ctx_var)
-                                    if len(base_pts) > 0:
-                                        for base_obj in base_pts:
-                                            if isinstance(base_obj, ClassObject):
-                                                base_internal_scope = self.get_internal_scope(base_obj)
-                                                if base_internal_scope:
-                                                    base_field_access = self.get_field(base_internal_scope, base_obj.context, base_obj, field)
-                                                    base_edge = PointerFlowEdge(NormalNode(base_field_access), selector, PointerFlowKind.NORMAL)
-                                                    selector.add_edge(base_edge, idx)
-                                                    self._add_points_flow_edge(base_edge)
+                from .super_lookup import install_super_lookup
+                install_super_lookup(self, scope, context, obj, field, cfield)
 
         return cfield
+
+    def get_write_field(self, scope, context, obj, field):
+        """Own storage for instance writes, logical storage for other objects."""
+        if isinstance(obj, InstanceObject):
+            if field.kind == FieldKind.ATTRIBUTE:
+                field = Field(FieldKind.OWN_ATTRIBUTE, field.name)
+            elif field.kind == FieldKind.UNKNOWN:
+                field = Field(FieldKind.OWN_UNKNOWN)
+        target = self.get_field(scope, context, obj, field)
+        if isinstance(obj, InstanceObject) and field.kind == FieldKind.OWN_ATTRIBUTE:
+            # If a write precedes the read, make the corresponding logical slot
+            # now so ordinary attribute consumers get the new own facts.
+            self.get_field(scope, context, obj, Field(FieldKind.ATTRIBUTE, field.name))
+        return target
     
     def _get_builtin_methods_for_type(self, builtin_type: str) -> Set[str]:
         """Get the set of known methods for a builtin type.
@@ -376,27 +464,97 @@ class PointerAnalysisState:
             "list": {
                 "append", "extend", "insert", "remove", "pop", "clear",
                 "index", "count", "sort", "reverse", "copy",
-                "__getitem__", "__setitem__", "__iter__", "__len__"
+                "__getitem__", "__setitem__", "__iter__", "__len__",
+                "__contains__", "__bool__"
             },
             "dict": {
                 "get", "pop", "popitem", "clear", "update", "setdefault",
                 "keys", "values", "items", "copy",
-                "__getitem__", "__setitem__", "__iter__", "__len__", "__contains__"
+                "__getitem__", "__setitem__", "__iter__", "__len__", "__contains__", "__bool__"
             },
             "set": {
                 "add", "remove", "discard", "pop", "clear", "copy",
                 "union", "intersection", "difference", "symmetric_difference",
                 "update", "intersection_update", "difference_update",
-                "__iter__", "__len__", "__contains__"
+                "__iter__", "__len__", "__contains__", "__bool__"
+            },
+            "frozenset": {
+                "__iter__", "__len__", "__contains__", "__bool__"
             },
             "tuple": {
                 "count", "index",
-                "__getitem__", "__iter__", "__len__"
+                "__getitem__", "__iter__", "__len__", "__contains__", "__bool__"
             },
             "str": {
                 "upper", "lower", "strip", "split", "join", "replace",
                 "startswith", "endswith", "find", "index", "format",
+                "__getitem__", "__iter__", "__len__", "__contains__", "__bool__"
+            },
+            "bytes": {
+                "__getitem__", "__iter__", "__len__", "__contains__", "__bool__"
+            },
+            "bytearray": {
+                "__getitem__", "__iter__", "__len__", "__contains__", "__bool__"
+            },
+            "memoryview": {
+                "__getitem__", "__iter__", "__len__", "__contains__", "__bool__"
+            },
+            "range": {
                 "__getitem__", "__iter__", "__len__", "__contains__"
+            },
+            "dict_keys": {
+                "__iter__", "__len__", "__contains__"
+            },
+            "dict_values": {
+                "__iter__", "__len__", "__contains__"
+            },
+            "dict_items": {
+                "__iter__", "__len__", "__contains__"
+            },
+            "iterator": {
+                "__iter__", "__next__", "__len__"
+            },
+            "coroutine_iterator": {
+                "__iter__", "__next__", "send", "throw", "close"
+            },
+            "async_generator": {
+                "__aiter__", "__anext__", "asend", "athrow", "aclose"
+            },
+            "async_generator_asend": {
+                "__await__", "__iter__", "__next__", "send", "throw", "close"
+            },
+            "enumerate": {
+                "__iter__", "__next__"
+            },
+            "zip": {
+                "__iter__", "__next__"
+            },
+            "map": {
+                "__iter__", "__next__"
+            },
+            "filter": {
+                "__iter__", "__next__"
+            },
+            "reversed": {
+                "__iter__", "__next__"
+            },
+            "generator": {
+                "__iter__", "__next__", "send", "throw", "close"
+            },
+            "coroutine": {
+                "__await__", "send", "throw", "close"
+            },
+            "property": {
+                "__get__", "__set__", "__delete__"
+            },
+            "classmethod": {
+                "__get__"
+            },
+            "staticmethod": {
+                "__get__"
+            },
+            "file": {
+                "__enter__", "__exit__"
             },
         }
         return methods.get(builtin_type, set())
@@ -423,6 +581,16 @@ class PointerAnalysisState:
         """
         assert isinstance(field_access, FieldAccess), f"field_access must be a FieldAccess, but got {type(field_access)}"
         self._field_accesses[(obj, field)] = field_access
+        if self.unknown_effects is not None:
+            self.unknown_effects.field_created(obj, field_access)
+        # Publish the slot before callbacks can recursively enumerate it.
+        self._known_fields_by_object.setdefault(obj, {})[field] = None
+        manager = getattr(self, "_instance_namespace_views", None)
+        if manager is not None:
+            manager.field_created(scope, obj, field)
+        copies = getattr(self, "_mapping_field_copies", None)
+        if copies is not None:
+            copies.field_created(scope, obj, field)
     
     @property
     def scope_manager(self) -> 'ScopeManager':
@@ -455,7 +623,7 @@ class PointerAnalysisState:
         return self._pointer_flow_graph
     
     @property
-    def call_graph(self) -> 'AbstractCallGraph':
+    def call_graph(self) -> 'PointerCallGraph':
         """Get call graph.
         
         Returns:
@@ -469,6 +637,13 @@ class PointerAnalysisState:
         return self._call_graph
 
     def get_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable') -> 'Ctx[Variable]':
+        return self._resolve_variable(scope, context, var, create=True)
+
+    def find_variable(self, scope, context, var):
+        """Read an existing binding without creating slots or propagation work."""
+        return self._resolve_variable(scope, context, var, create=False)
+
+    def _resolve_variable(self, scope, context, var, *, create):
         owner_scope = scope
         owner_context = context
         var_kind = getattr(var, "kind", VariableKind.LOCAL)
@@ -477,14 +652,22 @@ class PointerAnalysisState:
             owner_scope = scope.module
             owner_context = scope.module.context
         elif var_kind == VariableKind.NONLOCAL:
+            from .object import FunctionObject, ClassObject
+            capture_owner = getattr(scope, "obj", None)
+            capture_owner = getattr(capture_owner, "func_obj", capture_owner)
+            if isinstance(capture_owner, (FunctionObject, ClassObject)):
+                captured = self._heap.get_nonlocal_vars(capture_owner).get(var.name)
+                if captured is not None:
+                    return captured
             owner_scope = scope.parent
             owner_context = scope.parent.context
         elif var_kind == VariableKind.CELL:
-            from .object import FunctionObject
+            from .object import FunctionObject, ClassObject
             # For closure-captured variables, first try to resolve from the
             # function object's captured cell vars before falling back.
             func_obj = getattr(scope, "obj", None)
-            if isinstance(func_obj, FunctionObject):
+            func_obj = getattr(func_obj, "func_obj", func_obj)
+            if isinstance(func_obj, (FunctionObject, ClassObject)):
                 captured = self._heap.get_cell_vars(func_obj).get(var.name)
                 if captured is not None:
                     return captured
@@ -500,13 +683,19 @@ class PointerAnalysisState:
                 return module_cvar
         
         cvar = self._get_variable_direct(owner_scope, owner_context, var.name, var_kind)
-        if cvar is None:
+        if cvar is None and create:
             cvar = Ctx(owner_context, owner_scope, self._variable_factory.make_variable(var.name, var_kind))
             self.set_variable(owner_scope, owner_context, var, cvar)
         return cvar
     
     def set_variable(self, scope: 'Scope', context: 'AbstractContext', var: 'Variable', ctx_var: 'Ctx[Variable]'):
         self._heap.set_variable(scope, context, var, ctx_var)
+        if self.unknown_effects is not None:
+            self.unknown_effects.variable_created(ctx_var)
+        if (var.kind == VariableKind.GLOBAL and scope is not None
+                and self.is_module_export(scope.module.stmt, var.name)):
+            for wildcard in self._module_unknown_fields.get(scope.module.stmt, ()):
+                self._add_var_points_flow(ctx_var, wildcard)
         
     def get_cell_var(self, obj: FunctionObject, name: str) -> Optional[Ctx['Variable']]:
         return self._heap.get_cell_vars(obj).get(name, None)
@@ -528,12 +717,18 @@ class PointerAnalysisState:
     
     def set_cell_vars(self, obj: FunctionObject, vars):
         self._heap.cell_vars[obj] = vars
+        if self.unknown_effects is not None:
+            self.unknown_effects.captures_created(vars)
     
     def set_nonlocal_vars(self, obj: FunctionObject, vars):
         self._heap.nonlocal_vars[obj] = vars
+        if self.unknown_effects is not None:
+            self.unknown_effects.captures_created(vars)
 
     def set_global_vars(self, obj: FunctionObject, vars):
-        self._heap.global_vars[obj] = vars            
+        self._heap.global_vars[obj] = vars
+        if self.unknown_effects is not None:
+            self.unknown_effects.captures_created(vars)            
         
     def _get_variable_direct(self, scope: 'Scope', context: 'AbstractContext', var_name: str, var_kind: VariableKind) -> Optional['Ctx[Variable]']:
         assert isinstance(var_name, str), f"var_name must be a string, but got {type(var_name)}"
@@ -549,6 +744,8 @@ class PointerAnalysisState:
     
     def _add_points_flow_edge(self, edge: PointerFlowEdge):
         if self.pointer_flow_graph.add_edge(edge):
+            if getattr(self, "_consumer_worklist", None) is not None:
+                self._consumer_worklist.promote(edge.source)
             src = edge.source
             tgt = edge.target            
             pts = self.pointer_flow_graph.flow_through_edge(edge, self.get_points_to(src)) - self.get_points_to(tgt)
@@ -567,21 +764,28 @@ class PointerAnalysisState:
             - num_objects: Number of unique objects
             - num_heap_locations: Number of heap locations
         """
-        objects = set()
-        '''
-        for pts in self._env.values():
-            objects.update(pts.objects)
-        for pts in self._heap.values():
-            objects.update(pts.objects)
-        '''
-        
+        objects = set(self._heap.objects.values())
+        variable_locations = set()
+        field_locations = set()
+        for location, points in self._env.items():
+            objects.update(points)
+            content = location.var.content if isinstance(location, NormalNode) else (
+                location.content if isinstance(location, Ctx) else location
+            )
+            if isinstance(content, Variable):
+                variable_locations.add(location)
+            elif isinstance(content, FieldAccess):
+                field_locations.add(location)
+                objects.add(content.obj)
+        # Count populated locations; merely asking for a field must not inflate
+        # analysis output statistics. Allocations with no references still count.
         return {
-            "num_variables": len(self._env),
+            "num_variables": len(variable_locations),
             "num_objects": len(objects),
-            "num_heap_locations": len(self._heap.objects),
+            "num_heap_locations": len(field_locations),
             "num_call_edges": self._call_graph.num_plain_edges(),
         }
-    
+
     def get_detailed_statistics(self) -> Dict[str, Any]:
         """Get detailed state statistics for debugging.
         

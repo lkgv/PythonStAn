@@ -6,6 +6,8 @@ Many advanced features are marked as future work or limitations.
 
 import pytest
 from pythonstan.analysis.pointer.kcfa import PointerAnalysis, Config
+from pythonstan.analysis import AnalysisConfig
+from pythonstan.world import World
 
 
 class TestAnalysisInfrastructure:
@@ -14,17 +16,21 @@ class TestAnalysisInfrastructure:
     def test_analysis_creation(self):
         """Test creating pointer analysis."""
         config = Config()
-        analysis = PointerAnalysis(config)
+        World().setup()
+        analysis_config = AnalysisConfig(name="historical", id="PointerAnalysis", description="", prev_analysis=["ir"], options=config.to_dict())
+        analysis = PointerAnalysis(analysis_config)
         
-        assert analysis.config == config
+        assert analysis.config == analysis_config
+        assert analysis.kcfa_config.to_dict() == config.to_dict()
     
     def test_analysis_with_different_policies(self):
         """Test creating analysis with different policies."""
-        for policy in ["insensitive", "1-cfa", "2-cfa", "1-obj", "2-obj"]:
-            config = Config()
-            config.context_policy = policy
-            analysis = PointerAnalysis(config)
-            assert analysis.config.context_policy == policy
+        for policy in ["0-cfa", "1-cfa", "2-cfa", "1-obj", "2-obj"]:
+            config = Config(context_policy=policy)
+            World().setup()
+            analysis_config = AnalysisConfig(name="historical", id="PointerAnalysis", description="", prev_analysis=["ir"], options=config.to_dict())
+            analysis = PointerAnalysis(analysis_config)
+            assert analysis.kcfa_config.context_policy == policy
 
 
 # NOTE: Full end-to-end integration tests require:

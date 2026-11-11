@@ -1,270 +1,167 @@
-"""Single-module analyzer for modular pointer analysis.
-TODO kcfa has been refactored, this module need to be rewriten.
+"""Closed-module analysis through the production pointer-analysis driver.
 
-Analyzes individual modules with imported module summaries,
-producing module summaries for compositional analysis.
+The returned ModuleSummary is an in-process binding projection, not a certified
+replacement for importing a module. Its points-to sets belong to the current
+analysis arena and must be consumed before another pointer-analysis run resets
+that arena. Use the whole-program Pipeline when imports must be followed.
 """
+import ast
+from dataclasses import replace
+from typing import Dict, Optional, Set
 
-import logging
-from typing import Dict, Set, Any, Optional, TYPE_CHECKING
-
+from pythonstan.analysis import AnalysisConfig
+from pythonstan.ir.ir_statements import IRImport, IRModule
+from pythonstan.world import World
 from .config import Config
-from .module_summary import ModuleSummary, FunctionSummary, ClassSummary
-from .state import PointerAnalysisState
-from .solver import PointerSolver
-from .variable import Variable, Scope, VariableKind
-from .ir_translator import IRTranslator
-from .context_selector import ContextSelector, parse_policy
-from .class_hierarchy import ClassHierarchyManager
-from .builtin_api_handler import BuiltinSummaryManager
 from .module_summary import ModuleSummary
-
-logger = logging.getLogger(__name__)
 
 __all__ = ["ModuleAnalyzer"]
 
 
 class ModuleAnalyzer:
-    """Analyzes single module with imported summaries.
-    
-    Creates fresh solver for module, applies import summaries,
-    solves to fixpoint, and extracts module summary.
+    """Analyze one lowered, closed entry module with the real solver/processors.
+
+    Frontend lowering and scope registration are owned by World/Pipeline. This
+    adapter requires their actual IR; an empty lowered body is valid, while a
+    missing body is an error. Import summaries cannot yet replace source modules
+    because the summary schema omits heap, closure, callback and exception effects.
     """
-    
-    def __init__(self, config: 'Config'):
-        """Initialize module analyzer.
-        
-        Args:
-            config: Analysis configuration
-        """
+
+    def __init__(self, config: Config):
+        if not isinstance(config, Config):
+            raise TypeError("ModuleAnalyzer requires a KCFA Config")
         self.config = config
-    
+        self.last_analysis = None
+
     def analyze_module(
         self,
-        module_ir: Any,
-        import_summaries: Dict[str, 'ModuleSummary']
-    ) -> 'ModuleSummary':
-        """Analyze single module with imported module summaries.
-        
-        Args:
-            module_ir: IR for this module
-            import_summaries: Summaries of modules this one imports
-            
-        Returns:
-            Module summary
-        """
-        
-        module_name = self._get_module_name(module_ir)
-        logger.info(f"Analyzing module: {module_name}")
-        
-        state = PointerAnalysisState()
-        
-        policy = parse_policy(self.config.context_policy)
-        context_selector = ContextSelector(policy=policy)
-        
-        class_hierarchy = None
-        if self.config.build_class_hierarchy:
-            class_hierarchy = ClassHierarchyManager()
-        
-        builtin_manager = BuiltinSummaryManager(context_selector.empty_context())
-        
-        translator = IRTranslator(self.config)
-        
-        solver = PointerSolver(
-            state=state,
-            config=self.config,
-            ir_translator=translator,
-            context_selector=context_selector,
-            function_registry={},
-            class_hierarchy=class_hierarchy,
-            builtin_manager=builtin_manager
-        )
-        
-        for import_name, summary in import_summaries.items():
-            self._apply_import_summary(summary, import_name, state, context_selector)
-        
-        empty_context = context_selector.empty_context()
-        
-        constraints, _ = translator.translate_module(module_ir, empty_context)
-        
-        for constraint in constraints:
-            solver.add_constraint(constraint)
-        
-        solver.solve_to_fixpoint()
-        
-        summary = self._extract_summary(module_name, module_ir, state, translator)
-        
-        logger.info(f"Module {module_name}: {len(summary.exports)} exports, "
-                   f"{len(summary.functions)} functions, {len(summary.classes)} classes")
-        
-        return summary
-    
-    def _apply_import_summary(
-        self,
-        summary: 'ModuleSummary',
-        local_name: str,
-        state: 'PointerAnalysisState',
-        context_selector: Any
-    ) -> None:
-        """Apply imported module summary to current state.
-        
-        Args:
-            summary: Module summary to import
-            local_name: Local name for module
-            state: Current analysis state
-            context_selector: Context selector for creating variables
-        """
-        from .object import AbstractObject, AllocSite, AllocKind
-        
-        empty_context = context_selector.empty_context()
-        module_scope = Scope(name=local_name, kind="module")
-        
-        for var_name, pts in summary.exports.items():
-            var = Variable(
-                name=var_name,
-                scope=module_scope,
-                context=empty_context,
-                kind=VariableKind.GLOBAL
-            )
-            
-            current_pts = state.get_points_to(var)
-            if not current_pts.is_empty():
-                new_pts = current_pts.union(pts)
-                state.set_points_to(var, new_pts)
-            else:
-                state.set_points_to(var, pts)
-    
-    def _extract_summary(
-        self,
-        module_name: str,
-        module_ir: Any,
-        state: 'PointerAnalysisState',
-        translator: Any
-    ) -> 'ModuleSummary':
-        """Extract module summary from solved state.
-        
-        Args:
-            module_name: Module name
-            module_ir: Module IR
-            state: Solved analysis state
-            translator: IR translator
-            
-        Returns:
-            Module summary
-        """
-        from .module_summary import ModuleSummary, FunctionSummary, ClassSummary
-        from .object import AllocKind
-        
-        exported_names = self._get_exported_names(module_ir)
-        
-        exports = {}
-        functions = {}
-        classes = {}
-        visible_allocs = set()
-        
-        for var, pts in state._env.items():
-            if var.name in exported_names:
-                exports[var.name] = pts
-                
-                for obj in pts.objects:
-                    visible_allocs.add(obj.alloc_site)
-                    
-                    if obj.alloc_site.kind == AllocKind.FUNCTION:
-                        if var.name not in functions:
-                            functions[var.name] = self._extract_function_summary(
-                                var.name, obj, state
-                            )
-                    elif obj.alloc_site.kind == AllocKind.CLASS:
-                        if var.name not in classes:
-                            classes[var.name] = self._extract_class_summary(
-                                var.name, obj, state
-                            )
-        
-        return ModuleSummary(
-            module_name=module_name,
-            exports=exports,
-            functions=functions,
-            classes=classes,
-            context_map={},
-            visible_allocs=frozenset(visible_allocs),
-            external_calls=frozenset()
-        )
-    
-    def _extract_function_summary(
-        self,
-        name: str,
-        func_obj: Any,
-        state: 'PointerAnalysisState'
-    ) -> 'FunctionSummary':
-        from .module_summary import FunctionSummary
-        
-        return FunctionSummary(
-            name=name,
-            params=(),
-            context_returns={},
-            param_effects={}
-        )
-    
-    def _extract_class_summary(
-        self,
-        name: str,
-        class_obj: Any,
-        state: 'PointerAnalysisState'
-    ) -> 'ClassSummary':
-        from .module_summary import ClassSummary        
-        return ClassSummary(
-            name=name,
-            alloc_site=class_obj.alloc_site,
-            bases=(),
-            methods={},
-            attributes={}
-        )
-    
-    def _get_module_name(self, module_ir: Any) -> str:
-        if hasattr(module_ir, 'name'):
-            return module_ir.name
-        elif hasattr(module_ir, '__name__'):
-            return module_ir.__name__
-        elif hasattr(module_ir, 'module_name'):
-            return module_ir.module_name
-        else:
-            return "<unknown>"
-    
-    def _get_exported_names(self, module_ir: Any) -> Set[str]:
-        """Get exported names from module."""
-        exported = set()
-        
-        if hasattr(module_ir, '__all__'):
-            exported.update(module_ir.__all__)
-        
-        if hasattr(module_ir, 'get_functions'):
-            for func in module_ir.get_functions():
-                if hasattr(func, 'name'):
-                    exported.add(func.name)
-        elif hasattr(module_ir, 'functions'):
-            for func in module_ir.functions:
-                if hasattr(func, 'name'):
-                    exported.add(func.name)
-        
-        if hasattr(module_ir, 'get_classes'):
-            for cls in module_ir.get_classes():
-                if hasattr(cls, 'name'):
-                    exported.add(cls.name)
-        elif hasattr(module_ir, 'classes'):
-            for cls in module_ir.classes:
-                if hasattr(cls, 'name'):
-                    exported.add(cls.name)
-        
-        if hasattr(module_ir, 'body') and hasattr(module_ir.body, '__iter__'):
-            import ast
-            for stmt in module_ir.body:
-                if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                    if not stmt.name.startswith('_'):
-                        exported.add(stmt.name)
-                elif isinstance(stmt, ast.Assign):
-                    for target in stmt.targets:
-                        if isinstance(target, ast.Name) and not target.id.startswith('_'):
-                            exported.add(target.id)
-        
-        return exported if exported else {'*'}
+        module_ir: IRModule,
+        import_summaries: Optional[Dict[str, ModuleSummary]] = None,
+    ) -> ModuleSummary:
+        """Analyze an already lowered closed entry module and project exports.
 
+        Raises ValueError before running when the supplied import summaries are
+        incomplete, imports need source resolution, the IR has not been lowered,
+        or World contains another module. The existing summary schema is always
+        incomplete; no successful result claims whole-program soundness.
+        """
+        if not isinstance(module_ir, IRModule):
+            raise TypeError("analyze_module requires an IRModule")
+        if import_summaries:
+            details = []
+            for name, summary in sorted(import_summaries.items()):
+                if not isinstance(summary, ModuleSummary):
+                    raise TypeError(f"Import summary {name!r} is not a ModuleSummary")
+                reasons = ", ".join(sorted(summary.incomplete_reasons)) or "summary schema has no complete module-effect contract"
+                details.append(f"{name}: {reasons}")
+            raise ValueError(
+                "Incomplete import summaries cannot replace source modules ("
+                + "; ".join(details) + "). Use the whole-program Pipeline."
+            )
+        world = World()
+        manager = getattr(world, "scope_manager", None)
+        if manager is None or not hasattr(manager, "scope_ir"):
+            raise ValueError("Module analysis requires an initialized World with lowered IR")
+        if world.get_entry_module() is not module_ir:
+            raise ValueError("Module analysis requires the current World entry-module identity")
+        statements = manager.get_ir(module_ir, "ir")
+        if statements is None:
+            raise ValueError("Module IR has not been lowered; run the production frontend first")
+        tree = module_ir.get_ast()
+        if not isinstance(tree, ast.Module):
+            raise ValueError("IRModule must retain its module AST for export/import validation")
+        if any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(tree)):
+            raise ValueError("Closed-module analysis does not resolve imports; use the whole-program Pipeline")
+        graph = getattr(manager, "module_graph", None)
+        modules = set(graph.get_modules()) if graph is not None else set()
+        modules.update(scope for scope in manager.scopes if isinstance(scope, IRModule))
+        if modules - {module_ir}:
+            raise ValueError("Closed-module analysis requires a World containing only the requested module")
+        for scope in manager.scopes | {module_ir}:
+            current, seen = scope, set()
+            while current is not module_ir and current not in seen:
+                seen.add(current)
+                current = manager.father.get(current)
+                if current is None:
+                    raise ValueError("World contains scopes outside the requested closed module")
+            if current is not module_ir:
+                raise ValueError("Scope ancestry is cyclic")
+            if any(isinstance(stmt, IRImport) for stmt in (manager.get_ir(scope, "ir") or ())):
+                raise ValueError("Lowered IR contains imports; use the whole-program Pipeline")
+
+        # This constructs the production translator, processor chain, builtins,
+        # query interface and fixed-point solver rather than duplicating them.
+        from .analysis import PointerAnalysis
+        driver = PointerAnalysis(AnalysisConfig(
+            name=f"module:{module_ir.get_qualname()}", id="PointerAnalysis",
+            description="Closed-module binding projection", prev_analysis=["ir"],
+            options=self.config.to_dict(),
+        ))
+        self.last_analysis = driver
+        result = driver.analyze(module_ir, {})
+        scope = driver.state.get_scope_for_ir(module_ir)
+        if scope is None:
+            raise RuntimeError("Production pointer analysis did not register its entry module")
+        names, dynamic_exports = self._get_exported_names(tree)
+        summary = ModuleSummary.from_state(driver.state, scope, names)
+        reasons = set(summary.incomplete_reasons)
+        statistics = result.query().get_statistics()
+        if not statistics.get("converged", False):
+            reasons.add("module_solver_did_not_converge")
+        if getattr(driver.state, "_residual_effects", {}):
+            reasons.add("module_has_unresolved_effect_obligations")
+        if dynamic_exports:
+            reasons.add("dynamic___all___not_resolved")
+        return replace(summary, incomplete_reasons=frozenset(reasons))
+
+    @staticmethod
+    def _get_exported_names(tree: ast.Module):
+        """Collect lexical module bindings without descending into inner scopes.
+
+        A literal __all__ determines an explicit export list. For dynamic __all__,
+        retain all lexical bindings, including private names, and report the
+        incomplete export filter instead of claiming it was resolved.
+        """
+        class Bindings(ast.NodeVisitor):
+            def __init__(self):
+                self.names: Set[str] = set()
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Store):
+                    self.names.add(node.id)
+
+            def visit_FunctionDef(self, node):
+                self.names.add(node.name)
+                for expression in (*node.decorator_list, *node.args.defaults,
+                                   *(value for value in node.args.kw_defaults if value is not None)):
+                    self.visit(expression)
+
+            visit_AsyncFunctionDef = visit_FunctionDef
+
+            def visit_ClassDef(self, node):
+                self.names.add(node.name)
+                for expression in (*node.decorator_list, *node.bases,
+                                   *(keyword.value for keyword in node.keywords)):
+                    self.visit(expression)
+
+            def visit_ExceptHandler(self, node):
+                if node.name:
+                    self.names.add(node.name)
+                self.generic_visit(node)
+
+        bindings = Bindings()
+        bindings.visit(tree)
+        if "__all__" not in bindings.names:
+            return {name for name in bindings.names if not name.startswith("_")}, False
+        writes = [node for node in ast.walk(tree)
+                  if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign))
+                  and any(isinstance(target, ast.Name) and target.id == "__all__"
+                          for target in (node.targets if isinstance(node, ast.Assign) else [node.target]))]
+        observed_or_deleted = any(isinstance(node, ast.Name) and node.id == "__all__"
+                                  and not isinstance(node.ctx, ast.Store) for node in ast.walk(tree))
+        if len(writes) == 1 and writes[0] in tree.body and not observed_or_deleted:
+            value = writes[0].value
+            if isinstance(value, (ast.List, ast.Tuple)) and all(
+                    isinstance(item, ast.Constant) and isinstance(item.value, str) for item in value.elts):
+                return {item.value for item in value.elts}, False
+        return {name for name in bindings.names if not name.startswith("$")}, True

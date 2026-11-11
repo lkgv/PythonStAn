@@ -7,7 +7,7 @@ from .scope_manager import ModuleGraph
 from .analysis_manager import AnalysisManager
 
 from typing import List, Tuple, Generator
-from queue import Queue
+from collections import deque
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class Pipeline:
 
     def __init__(self, config=None, filename=None):
         if config is not None:
-            self.config = Config.from_dict(config)
+            self.config = config if isinstance(config, Config) else Config.from_dict(config)
         elif filename is not None:
             self.config = Config.from_file(filename)
         else:
@@ -27,9 +27,10 @@ class Pipeline:
         World().build(self.config)
         self.analysis_manager = AnalysisManager()
         self.analysis_manager.build(self.config.get_analysis_list())
+        from pythonstan.compat.native_services import configure_native_services
+        configure_native_services(self.analysis_manager)
         self.analysis_manager.set_time_count(self.config.time_count)
         World().analysis_manager = self.analysis_manager
-        print("Time count: ", self.config.time_count)
         self.build_scope_graph(self.config.filename)
 
     def get_world(self):
@@ -39,98 +40,82 @@ class Pipeline:
         entry_ns = World().namespace_manager.set_entry_module(entry_path, self.config.project_path)
         entry_mod = World().scope_manager.add_module(entry_ns, entry_path)
         World().entry_module = entry_mod
-        q: List[Tuple[Namespace, IRModule, int]] = [(entry_ns, entry_mod, 0)]
+        q = deque([(entry_ns, entry_mod, 0)])
         g = ModuleGraph()
         g.add_node(entry_mod)
-        visited_ns = set()
-        
-        # Lazy IR construction: only process entry module, skip imports
-        if self.config.lazy_ir_construction:
-            # Only process the entry module
-            ns, mod, _ = q.pop()
-            visited_ns.add(ns)
-            # Run transformations only on entry module
+        self._preprocessed_modules = set()
+        # Breadth-first traversal gives each module its shortest import depth.
+        # Registered imports beyond the depth limit remain visible in the graph,
+        # but are not silently run through passes that require missing IR.
+        while q:
+            ns, mod, level = q.popleft()
+            if mod in self._preprocessed_modules:
+                continue
+            self._preprocessed_modules.add(mod)
             self.analysis_manager.analysis("three address", mod)
             self.analysis_manager.analysis("ir", mod)
             self.analysis_manager.analysis("block cfg", mod)
             self.analysis_manager.analysis("cfg", mod)
-            # Skip import traversal - imports are registered but not processed
-            imports = World().scope_manager.get_ir(mod, "imports")
+            imports = World().scope_manager.get_ir(mod, "imports") or []
             for stmt in imports:
                 get_import = World().namespace_manager.get_import(ns, stmt)
                 if get_import is not None:
                     mod_ns, mod_path = get_import
                     new_mod = World().scope_manager.add_module(mod_ns, mod_path)
-                    if new_mod is not None and mod_ns not in visited_ns:
-                        g.add_edge(mod, stmt, new_mod)
-                        World().import_manager.set_import(mod, stmt, new_mod)
-                        
-        else:
-            # Original behavior: process all imports transitively
-            while len(q) > 0:
-                ns, mod, level = q.pop()
-                
-                if mod.get_qualname() in visited_ns:
-                    continue                
-                visited_ns.add(mod.get_qualname())
-                
-                # Preprocess module
-                # TODO to be completed
-                self.analysis_manager.analysis("three address", mod)
-                self.analysis_manager.analysis("ir", mod)
-                self.analysis_manager.analysis("block cfg", mod)
-                self.analysis_manager.analysis("cfg", mod)
-                # self.analysis_manager.analysis("ssa", mod)
-                imports = World().scope_manager.get_ir(mod, "imports")
-
-                for stmt in imports:
-                    get_import = World().namespace_manager.get_import(ns, stmt)
-                    if get_import is not None:
-                        mod_ns, mod_path = get_import
-
-                        new_mod = World().scope_manager.add_module(mod_ns, mod_path)
-                        if new_mod is None:
+                    if new_mod is None:
+                        continue
+                    g.add_edge(mod, stmt, new_mod)
+                    World().import_manager.set_import(mod, stmt, new_mod)
+                    # Importing a dotted module also initializes its package
+                    # chain. Keep those real __init__.py modules in the same
+                    # arena; the import edge still identifies the leaf module.
+                    for end in range(1, len(mod_ns.names)):
+                        parent = World().namespace_manager.resolve_import('.'.join(mod_ns.names[:end]))
+                        if parent is None:
                             continue
-                        
-                        g.add_edge(mod, stmt, new_mod)
-                        if self.config.import_level < 0 or level < self.config.import_level:
-                            q.append((mod_ns, new_mod, level + 1))                 
-                        World().import_manager.set_import(mod, stmt, new_mod)
-
-        self.analysis_manager.analysis("closure", mod)
+                        parent_ns, parent_path = parent
+                        parent_mod = World().scope_manager.add_module(parent_ns, parent_path)
+                        if parent_mod is None:
+                            continue
+                        if parent_mod not in g.get_modules():
+                            g.add_node(parent_mod)
+                        if (not self.config.lazy_ir_construction
+                                and (self.config.import_level < 0 or level < self.config.import_level)):
+                            q.append((parent_ns, parent_mod, level + 1))
+                    if (not self.config.lazy_ir_construction
+                            and (self.config.import_level < 0 or level < self.config.import_level)):
+                        q.append((mod_ns, new_mod, level + 1))
         World().scope_manager.set_module_graph(g)
+        # ClosureAnalysis traverses all built scopes internally; invoke it once.
+        self.analysis_manager.analysis("closure", entry_mod)
+
+    def _modules_once(self):
+        """Visit built modules exactly once, including cyclic import graphs."""
+        graph = World().scope_manager.get_module_graph()
+        modules = sorted(graph.get_modules(), key=lambda mod: mod.get_qualname())
+        queue = deque([World().get_entry_module(), *modules])
+        seen = set()
+        built = getattr(self, "_preprocessed_modules", None)
+        while queue:
+            module = queue.popleft()
+            if module in seen:
+                continue
+            seen.add(module)
+            queue.extend(graph.succs_of(module))
+            if built is None or module in built:
+                yield module
 
     def analyse_intra_procedure(self, analyzer):
-        module_graph = World().scope_manager.get_module_graph()
-        q = Queue()
-        for entry in module_graph.get_entries():
-            q.put(entry)
-        visited = {*()}
-        while not q.empty():
-            cur_module = q.get()
-            self.analysis_manager.do_analysis(analyzer, cur_module)
-            visited.add(cur_module)
-            for succ in module_graph.succs_of(cur_module):
-                if not succ in visited:
-                    q.put(succ)
+        for module in self._modules_once():
+            self.analysis_manager.do_analysis(analyzer, module)
 
     def analyse_inter_procedure(self, analyzer: AnalysisDriver):
         entry_mod = World().get_entry_module()
         self.analysis_manager.do_analysis(analyzer, entry_mod)
 
     def do_transform(self, analyzer):
-        module_graph = World().scope_manager.get_module_graph()
-        q = Queue()
-        for entry in module_graph.get_entries():
-            q.put(entry)
-        visited = {*()}
-        while not q.empty():
-            cur_module = q.get()
-            self.analysis_manager.do_analysis(analyzer, cur_module)
-            visited.add(cur_module)
-            for succ in module_graph.succs_of(cur_module):
-                if not succ in visited:
-                    q.put(succ)
+        for module in self._modules_once():
+            self.analysis_manager.do_analysis(analyzer, module)
 
     def do_analysis(self, analyzer_generator: Generator[AnalysisDriver, None, None]):
         for analyzer in analyzer_generator:
@@ -141,13 +126,17 @@ class Pipeline:
                     self.analyse_intra_procedure(analyzer)
             elif analyzer.config.type == 'transform':
                 self.do_transform(analyzer)
-            elif analyzer.config.type == 'inter-procedure':
+            elif analyzer.config.type == 'closure analysis':
                 self.analyse_inter_procedure(analyzer)
             elif analyzer.config.type == 'pointer analysis':
                 # Pointer analysis is typically inter-procedural
                 self.analyse_inter_procedure(analyzer)
             elif analyzer.config.type == 'ai analysis':
                 self.analyse_inter_procedure(analyzer)
+            elif analyzer.config.type == 'certified analysis':
+                self.analyse_inter_procedure(analyzer)
+            else:
+                raise ValueError(f"Unsupported pipeline analysis type: {analyzer.config.type}")
 
     def run(self):
         analyzer_generator = self.analysis_manager.generator()

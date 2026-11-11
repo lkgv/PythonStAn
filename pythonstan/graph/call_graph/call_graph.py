@@ -75,3 +75,6 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
     
     def get_nodes(self) -> Set[Method]:
         return self.reachable_scopes
+    
+    def has_edge(self, edge: CallEdge[CallSite, Method]) -> bool:
+        return edge in self.edges

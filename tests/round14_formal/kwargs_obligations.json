@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "scope": "One finite source-defined-call keyword expansion on a duck mapping with instance-provided keys; no builtin-call expansion or whole-project gold",
+  "authoring_order": "Frozen before this reviewer's static prediction and before the production owner declared its adapter ready",
+  "source": "kwargs_instance_keys_source.py.txt",
+  "required_result": 7,
+  "required_runtime_events": ["instance-keys", "getitem", "chosen"],
+  "required_static_events": ["instance-keys", "getitem", "chosen"],
+  "required_edges": [["<module>", "keys_hook"], ["<module>", "RequestMapping.__getitem__"], ["consume", "chosen"]],
+  "semantic_distinction": "The mapping keys attribute is ordinary instance attribute access; __getitem__ is special-method lookup",
+  "whole_project_goals_discharged": 0,
+  "boundaries": [
+    "No duplicate-key exception, non-string-key rejection, ordering or malformed-mapping proof is claimed",
+    "This narrow oracle does not certify all Mapping implementations or builtin ** calls"
+  ]
+}

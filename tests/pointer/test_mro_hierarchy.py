@@ -1,192 +1,76 @@
-"""Test MRO computation and class hierarchy building.
-
-This test verifies the C3 linearization algorithm and class hierarchy management.
-"""
-
+"""C3 and reverse-edge obligations through the current object-based public API."""
 import pytest
-import sys
+from tests.pointer.kcfa.builders import make_scope
+from pythonstan.analysis.pointer.kcfa.class_hierarchy import ClassHierarchyManager, MROError
+
+
+def build_hierarchy(parents):
+    objects = {name: make_scope(name, "class").obj for name in parents}
+    hierarchy = ClassHierarchyManager()
+    for name, bases in parents.items():
+        hierarchy.add_class(objects[name], [objects[base] for base in bases])
+    return hierarchy, objects
+
+
+def names(objects):
+    return [obj.ir.name for obj in objects]
 
 
 def test_c3_mro_simple_inheritance():
-    """Test C3 MRO for simple single inheritance."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager, compute_c3_mro
-    
-    hierarchy = ClassHierarchyManager()
-    
-    # Create hierarchy: Dog(Animal)
-    hierarchy.add_class("Animal", None)
-    hierarchy.add_class("Dog", ["Animal"])
-    
-    # Compute MRO for Dog
-    mro = hierarchy.get_mro("Dog")
-    
-    # Expected: [Dog, Animal, object]
-    assert mro == ["Dog", "Animal", "object"], f"Got MRO: {mro}"
-    print(f"✓ Simple inheritance MRO: {mro}")
+    hierarchy, classes = build_hierarchy({"object": [], "Animal": ["object"], "Dog": ["Animal"]})
+    assert names(hierarchy.get_mro(classes["Dog"])) == ["Dog", "Animal", "object"]
 
 
 def test_c3_mro_diamond_inheritance():
-    """Test C3 MRO for diamond inheritance pattern."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    # Diamond pattern:
-    #      A
-    #     / \
-    #    B   C
-    #     \ /
-    #      D
-    hierarchy.add_class("A", None)
-    hierarchy.add_class("B", ["A"])
-    hierarchy.add_class("C", ["A"])
-    hierarchy.add_class("D", ["B", "C"])
-    
-    mro = hierarchy.get_mro("D")
-    
-    # Expected: [D, B, C, A, object]
-    # B comes before C because D(B, C) lists B first
-    # A comes after both B and C
-    assert mro[0] == "D"
-    assert mro[1] == "B"
-    assert mro[2] == "C"
-    assert mro[3] == "A"
-    assert mro[4] == "object"
-    print(f"✓ Diamond inheritance MRO: {mro}")
+    hierarchy, classes = build_hierarchy({"object": [], "A": ["object"], "B": ["A"], "C": ["A"], "D": ["B", "C"]})
+    assert names(hierarchy.get_mro(classes["D"])) == ["D", "B", "C", "A", "object"]
 
 
 def test_c3_mro_complex_multiple_inheritance():
-    """Test C3 MRO for complex multiple inheritance."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    # Complex pattern (real Python example):
-    #   object
-    #    |  \
-    #    A   B
-    #    |   |
-    #    C   D
-    #     \ /
-    #      E
-    hierarchy.add_class("A", None)
-    hierarchy.add_class("B", None)
-    hierarchy.add_class("C", ["A"])
-    hierarchy.add_class("D", ["B"])
-    hierarchy.add_class("E", ["C", "D"])
-    
-    mro = hierarchy.get_mro("E")
-    
-    # Expected: [E, C, A, D, B, object]
-    assert mro[0] == "E"
-    assert mro[1] == "C"
-    # A should come before D since C(A) is listed before D in E's bases
-    a_idx = mro.index("A")
-    d_idx = mro.index("D")
-    assert a_idx < d_idx, f"A should come before D in MRO: {mro}"
-    assert "object" in mro
-    print(f"✓ Complex multiple inheritance MRO: {mro}")
+    hierarchy, classes = build_hierarchy({"object": [], "A": ["object"], "B": ["object"], "C": ["A"], "D": ["B"], "E": ["C", "D"]})
+    assert names(hierarchy.get_mro(classes["E"])) == ["E", "C", "A", "D", "B", "object"]
 
 
 def test_hierarchy_bases_tracking():
-    """Test that hierarchy correctly tracks base classes."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    hierarchy.add_class("Animal", None)
-    hierarchy.add_class("Mammal", ["Animal"])
-    hierarchy.add_class("Dog", ["Mammal"])
-    
-    # Test get_bases
-    assert hierarchy.get_bases("Dog") == ["Mammal"]
-    assert hierarchy.get_bases("Mammal") == ["Animal"]
-    assert hierarchy.get_bases("Animal") == []
-    print("✓ Base class tracking works correctly")
+    hierarchy, classes = build_hierarchy({"Animal": [], "Mammal": ["Animal"], "Dog": ["Mammal"]})
+    assert hierarchy.get_bases(classes["Dog"]) == [classes["Mammal"]]
+    assert hierarchy.get_bases(classes["Mammal"]) == [classes["Animal"]]
+    assert hierarchy.get_bases(classes["Animal"]) == []
 
 
 def test_hierarchy_subclasses_tracking():
-    """Test that hierarchy correctly tracks subclasses."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    hierarchy.add_class("Animal", None)
-    hierarchy.add_class("Dog", ["Animal"])
-    hierarchy.add_class("Cat", ["Animal"])
-    
-    # Test get_subclasses
-    subclasses = hierarchy.get_subclasses("Animal")
-    assert "Dog" in subclasses
-    assert "Cat" in subclasses
-    assert len(subclasses) == 2
-    print("✓ Subclass tracking works correctly")
+    hierarchy, classes = build_hierarchy({"Animal": [], "Dog": ["Animal"], "Cat": ["Animal"]})
+    assert set(hierarchy.get_subclasses(classes["Animal"])) == {classes["Dog"], classes["Cat"]}
 
 
 def test_mro_caching():
-    """Test that MRO results are cached."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    hierarchy.add_class("A", None)
-    hierarchy.add_class("B", ["A"])
-    
-    # First call computes MRO
-    mro1 = hierarchy.get_mro("B")
-    
-    # Second call should return cached result (same object)
-    mro2 = hierarchy.get_mro("B")
-    
-    assert mro1 == mro2
-    assert mro1 is mro2  # Same object from cache
-    print("✓ MRO caching works correctly")
+    hierarchy, classes = build_hierarchy({"A": [], "B": ["A"]})
+    assert hierarchy.get_mro(classes["B"]) is hierarchy.get_mro(classes["B"])
 
 
 def test_mro_cache_invalidation():
-    """Test that MRO cache is invalidated when hierarchy changes."""
-    from pythonstan.analysis.pointer.kcfa2.mro import ClassHierarchyManager
-    
-    hierarchy = ClassHierarchyManager()
-    
-    hierarchy.add_class("A", None)
-    hierarchy.add_class("B", ["A"])
-    hierarchy.add_class("C", ["B"])
-    
-    # Get initial MRO for C
-    mro_c1 = hierarchy.get_mro("C")
-    
-    # Add a new subclass of C
-    # This should invalidate C's cache (though C's MRO won't change)
-    hierarchy.add_class("D", ["C"])
-    
-    # Verify D's MRO includes C
-    mro_d = hierarchy.get_mro("D")
-    assert "C" in mro_d
-    assert "B" in mro_d
-    assert "A" in mro_d
-    
-    # Cache invalidation primarily affects subclasses
-    # The important thing is that new classes can be added and computed correctly
-    print("✓ MRO cache invalidation works correctly")
+    hierarchy, classes = build_hierarchy({"A": [], "B": ["A"], "C": ["B"], "Other": []})
+    before = hierarchy.get_mro(classes["C"])
+    hierarchy.update_bases(classes["B"], [classes["Other"]])
+    after = hierarchy.get_mro(classes["C"])
+    assert names(before) == ["C", "B", "A"]
+    assert names(after) == ["C", "B", "Other"]
+    assert after is not before
+    assert classes["B"] not in hierarchy.get_subclasses(classes["A"])
+    assert hierarchy.get_subclasses(classes["Other"]) == [classes["B"]]
 
 
-if __name__ == "__main__":
-    print("\n=== Testing MRO and Class Hierarchy ===\n")
-    
-    try:
-        test_c3_mro_simple_inheritance()
-        test_c3_mro_diamond_inheritance()
-        test_c3_mro_complex_multiple_inheritance()
-        test_hierarchy_bases_tracking()
-        test_hierarchy_subclasses_tracking()
-        test_mro_caching()
-        test_mro_cache_invalidation()
-        
-        print("\n✅ All MRO and hierarchy tests passed!")
-    except Exception as e:
-        print(f"\n❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+def test_inconsistent_c3_order_is_an_error():
+    hierarchy, classes = build_hierarchy({"X": [], "Y": [], "A": ["X", "Y"], "B": ["Y", "X"], "C": ["A", "B"]})
+    with pytest.raises(MROError):
+        hierarchy.get_mro(classes["C"])
+    assert classes["C"] not in hierarchy._mro_cache
 
+
+def test_inheritance_cycle_is_an_error_and_can_be_repaired():
+    hierarchy, classes = build_hierarchy({"A": [], "B": ["A"]})
+    hierarchy.update_bases(classes["A"], [classes["B"]])
+    with pytest.raises(MROError, match="Cyclic"):
+        hierarchy.get_mro(classes["A"])
+    hierarchy.update_bases(classes["A"], [])
+    assert names(hierarchy.get_mro(classes["B"])) == ["B", "A"]

@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 DO_AI_SCRIPT = SCRIPTS_DIR / "do_ai.py"
 BENCHMARK_SCRIPT = SCRIPTS_DIR / "run_ai_benchmarks.py"
+AI_DYNAMIC_BENCH_SCRIPT = PROJECT_ROOT / "benchmark" / "analyze_ai_dynamic_benchmarks.py"
 
 
 def run_script(script_path: Path, args: List[str], timeout: int = 60) -> Dict[str, Any]:
@@ -108,655 +109,304 @@ def run_script(script_path: Path, args: List[str], timeout: int = 60) -> Dict[st
         }
 
 
+
+def assert_ai_payload(result):
+    assert result["return_code"] in (0, 2), result["stderr"]
+    payload = json.loads(result["stdout"])
+    assert payload["status"] in ("complete", "incomplete"), payload
+    assert payload["certified"] is False
+    assert payload["summaries"], payload
+    assert result["return_code"] == (0 if payload["status"] == "complete" else 2)
+    for summary in payload["summaries"].values():
+        assert summary["is_complete"] or summary["incomplete_reasons"]
+    return payload
+
+FILE_ANALYSIS_SOURCE = '\ndef test_function(x):\n    if x > 0:\n        return x * 2\n    else:\n        return 0\n\ndef main():\n    result = test_function(5)\n    return result\n\nif __name__ == "__main__":\n    main()\n'
+COMPLEX_SOURCE = '\nclass Calculator:\n    def __init__(self):\n        self.history = []\n        self.memory = 0\n    \n    def add(self, a, b):\n        result = a + b\n        self.history.append((\'add\', a, b, result))\n        return result\n    \n    def multiply(self, a, b):\n        result = a * b\n        self.history.append((\'multiply\', a, b, result))\n        return result\n    \n    def calculate_expression(self, expr):\n        try:\n            if \'+\' in expr:\n                parts = expr.split(\'+\')\n                return self.add(float(parts[0]), float(parts[1]))\n            elif \'*\' in expr:\n                parts = expr.split(\'*\')\n                return self.multiply(float(parts[0]), float(parts[1]))\n            else:\n                return float(expr)\n        except (ValueError, IndexError):\n            return None\n    \n    def get_history(self):\n        return list(self.history)\n\ndef process_calculations(expressions):\n    calc = Calculator()\n    results = []\n    \n    for expr in expressions:\n        result = calc.calculate_expression(expr)\n        if result is not None:\n            results.append(result)\n    \n    return results, calc.get_history()\n\ndef main():\n    expressions = ["5+3", "2*4", "invalid", "7+1"]\n    results, history = process_calculations(expressions)\n    \n    total = sum(results)\n    return {\n        \'results\': results,\n        \'history\': history,\n        \'total\': total\n    }\n\nif __name__ == "__main__":\n    main()\n'
+RECURSIVE_SOURCE = '\ndef factorial(n):\n    if n <= 1:\n        return 1\n    else:\n        return n * factorial(n - 1)\n\ndef fibonacci(n):\n    if n <= 1:\n        return n\n    else:\n        return fibonacci(n - 1) + fibonacci(n - 2)\n\ndef tree_sum(node):\n    if node is None:\n        return 0\n    if isinstance(node, dict):\n        total = node.get(\'value\', 0)\n        for child in node.get(\'children\', []):\n            total += tree_sum(child)\n        return total\n    else:\n        return node\n\ndef main():\n    # Test factorial\n    fact_5 = factorial(5)\n    \n    # Test fibonacci\n    fib_10 = fibonacci(10)\n    \n    # Test tree sum\n    tree = {\n        \'value\': 1,\n        \'children\': [\n            {\'value\': 2, \'children\': []},\n            {\'value\': 3, \'children\': [{\'value\': 4, \'children\': []}]}\n        ]\n    }\n    tree_total = tree_sum(tree)\n    \n    return {\n        \'factorial\': fact_5,\n        \'fibonacci\': fib_10,\n        \'tree_sum\': tree_total\n    }\n\nif __name__ == "__main__":\n    main()\n'
+EXCEPTION_SOURCE = '\nclass CustomError(Exception):\n    def __init__(self, message, code=None):\n        super().__init__(message)\n        self.code = code\n\ndef risky_division(a, b):\n    if b == 0:\n        raise CustomError("Division by zero", code=100)\n    return a / b\n\ndef safe_division(a, b):\n    try:\n        return risky_division(a, b)\n    except CustomError as e:\n        print(f"Custom error: {e}, code: {e.code}")\n        return None\n    except Exception as e:\n        print(f"Unexpected error: {e}")\n        return None\n\ndef process_divisions(pairs):\n    results = []\n    errors = []\n    \n    for a, b in pairs:\n        try:\n            result = safe_division(a, b)\n            if result is not None:\n                results.append(result)\n        except Exception as e:\n            errors.append(str(e))\n    \n    return results, errors\n\ndef main():\n    test_pairs = [(10, 2), (5, 0), (8, 4), (3, 0)]\n    results, errors = process_divisions(test_pairs)\n    \n    return {\n        \'results\': results,\n        \'errors\': errors,\n        \'success_count\': len(results)\n    }\n\nif __name__ == "__main__":\n    main()\n'
+
 class TestDoAIScript:
-    """Tests for scripts/do_ai.py"""
-    
     def test_script_exists(self):
-        """Test that the do_ai.py script exists and is executable."""
-        assert DO_AI_SCRIPT.exists(), f"Script not found: {DO_AI_SCRIPT}"
-        assert os.access(DO_AI_SCRIPT, os.R_OK), f"Script not readable: {DO_AI_SCRIPT}"
-    
+        assert DO_AI_SCRIPT.is_file() and os.access(DO_AI_SCRIPT, os.R_OK)
+
     def test_help_output(self):
-        """Test that help output is generated without errors."""
         result = run_script(DO_AI_SCRIPT, ["--help"])
-        
-        # If we get segfault or similar issues, skip the test
-        if result["return_code"] < 0:
-            pytest.skip(f"Script execution failed with signal {-result['return_code']}: {result['stderr']}")
-        
-        assert result["success"], f"Help failed: {result['stderr']}"
-        output = result["combined_output"]
-        assert "usage:" in output or "Abstract Interpretation" in output
-        assert "--snippet" in output
-        assert "--file" in output
-    
+        assert result["success"], result["stderr"]
+        assert "--snippet" in result["stdout"] and "--file" in result["stdout"]
+
     @pytest.mark.parametrize("snippet", ["simple", "conditional", "loop", "objects"])
     def test_snippet_analysis(self, snippet):
-        """Test analysis of built-in snippets."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", snippet, "--timeout", "30"])
-        
-        # Skip if segfault or similar issues
-        if result["return_code"] < 0:
-            pytest.skip(f"Script execution failed with signal {-result['return_code']}")
-        
-        # Allow some failures but record them
-        if not result["success"]:
-            pytest.skip(f"Snippet {snippet} analysis failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "Running AI Analysis" in output or "Analysis completed" in output
-        # Should complete within timeout
-        assert "timed out" not in output.lower()
-    
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", snippet]))
+        assert "snippet.main" in payload["summaries"]
+
     def test_snippet_with_verbose(self):
-        """Test snippet analysis with verbose output."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--verbose", "--timeout", "30"])
-        
-        if not result["success"]:
-            pytest.skip(f"Verbose analysis failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "Configuration:" in output or "Analysis completed" in output
-    
+        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--verbose"])
+        payload = assert_ai_payload(result)
+        assert payload["effective_config"]["pta_analysis_name"] == "kcfa"
+        assert "ContextSelector" in result["stderr"]
+
     def test_snippet_with_no_pointer(self):
-        """Test snippet analysis without pointer analysis."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--no-pointer", "--timeout", "20"])
-        
-        if not result["success"]:
-            pytest.skip(f"No-pointer analysis failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "Running AI Analysis" in output or "Analysis completed" in output
-    
-    def test_snippet_with_widening(self):
-        """Test snippet analysis with widening enabled."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", "loop", "--widening", "--timeout", "20"])
-        
-        if not result["success"]:
-            pytest.skip(f"Widening analysis failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "Running AI Analysis" in output or "Analysis completed" in output
-    
+        # Independent AI consumes existing PTA addresses; there is no supported
+        # source-analysis mode that silently omits that required predecessor.
+        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--no-pointer"])
+        assert result["return_code"] == 2
+        assert "unrecognized arguments: --no-pointer" in result["stderr"]
+
+    def test_snippet_with_widening(self, tmp_path):
+        options = tmp_path / "ai.json"
+        options.write_text(json.dumps({"solver_options": {"widen_delay": 1}, "max_iterations": 80}))
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "loop", "--ai-options", str(options)]))
+        assert payload["effective_config"]["solver_options"]["widen_delay"] == 1
+        assert payload["effective_config"]["max_iterations"] == 80
+
     def test_dump_ir_to_console(self):
-        """Test IR dump to console."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-ir", "--timeout", "20"])
-        
-        if not result["success"]:
-            pytest.skip(f"IR dump failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "IR Dump" in output or "Three Address Form" in output
-    
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-ir"]))
+        assert any(payload["ir"].values())
+        assert any("identity" in stmt for body in payload["ir"].values() for stmt in body)
+
     def test_dump_cfg_to_console(self):
-        """Test CFG dump to console."""
-        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-cfg", "--timeout", "20"])
-        
-        if not result["success"]:
-            pytest.skip(f"CFG dump failed: {result['stderr']}")
-        
-        output = result["combined_output"]
-        assert "CFG Dump" in output or "Basic blocks" in output
-    
-    def test_dump_ai_state_to_file(self):
-        """Test AI state dump to JSON file."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            temp_file = f.name
-        
-        try:
-            result = run_script(DO_AI_SCRIPT, [
-                "--snippet", "simple", 
-                "--dump-ai-state", temp_file,
-                "--timeout", "30"
-            ])
-            
-            if not result["success"]:
-                pytest.skip(f"AI state dump failed: {result['stderr']}")
-            
-            # Check that file was created
-            assert os.path.exists(temp_file), "AI state dump file not created"
-            
-            # Check that file contains valid JSON (or skip if incomplete)
-            try:
-                with open(temp_file, 'r') as f:
-                    content = f.read()
-                    if len(content.strip()) == 0:
-                        pytest.skip("AI state dump file is empty")
-                    data = json.loads(content)
-                    assert isinstance(data, dict), "AI state dump should be a dictionary"
-            except json.JSONDecodeError as e:
-                # If JSON is incomplete, skip instead of failing
-                pytest.skip(f"AI state dump contains incomplete JSON: {e}")
-                
-        finally:
-            # Clean up
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
-    def test_file_analysis_with_temp_file(self):
-        """Test analysis of a temporary Python file."""
-        test_code = '''
-def test_function(x):
-    if x > 0:
-        return x * 2
-    else:
-        return 0
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-cfg"]))
+        assert payload["cfg"]["snippet.main"]["blocks"]
+        assert payload["cfg"]["snippet.main"]["edges"]
 
-def main():
-    result = test_function(5)
-    return result
+    def test_dump_ai_state_to_file(self, tmp_path):
+        output = tmp_path / "state.json"
+        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-ai-state", str(output)])
+        assert output.is_file()
+        payload = assert_ai_payload({**result, "stdout": output.read_text()})
+        assert "snippet.identity" in payload["summaries"]
 
-if __name__ == "__main__":
-    main()
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(test_code)
-            temp_file = f.name
-        
-        try:
-            result = run_script(DO_AI_SCRIPT, [
-                "--file", temp_file,
-                "--timeout", "30"
-            ])
-            
-            if not result["success"]:
-                pytest.skip(f"File analysis failed: {result['stderr']}")
-            
-            output = result["combined_output"]
-            assert "Running AI Analysis" in output or "Analysis completed" in output
-            
-        finally:
-            # Clean up
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
+    def test_file_analysis_with_temp_file(self, tmp_path):
+        path = tmp_path / "subject.py"
+        path.write_text(FILE_ANALYSIS_SOURCE)
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--file", str(path)]))
+        assert "subject.test_function" in payload["summaries"]
+
+
+
+class TestAIDynamicBenchScript:
+    def test_script_exists(self):
+        assert AI_DYNAMIC_BENCH_SCRIPT.is_file() and os.access(AI_DYNAMIC_BENCH_SCRIPT, os.R_OK)
+
+    def test_help_output(self):
+        result = run_script(AI_DYNAMIC_BENCH_SCRIPT, ["--help"])
+        assert result["success"], result["stderr"]
+        assert "--feature" in result["stdout"] and "--dry-run" in result["stdout"]
+
+    def test_list_samples(self, tmp_path):
+        feature = tmp_path / "ai" / "dynamic_lookup"
+        feature.mkdir(parents=True)
+        for index in range(1, 5):
+            (feature / f"sample_{index}.py").write_text("x = 42\n")
+            (feature / f"sample_{index}.json").write_text("{}\n")
+        result = run_script(AI_DYNAMIC_BENCH_SCRIPT, [
+            "--benchmark-dir", str(tmp_path), "--list-samples", "--max-samples", "3"])
+        assert result["success"], result["stderr"]
+        assert result["stdout"].splitlines() == [
+            "dynamic_lookup/sample_1", "dynamic_lookup/sample_2", "dynamic_lookup/sample_3"]
+
+    def test_list_samples_empty_corpus(self, tmp_path):
+        result = run_script(AI_DYNAMIC_BENCH_SCRIPT, ["--benchmark-dir", str(tmp_path), "--list-samples"])
+        assert result["success"], result["stderr"]
+        assert "No samples found" in result["stdout"]
+
     def test_invalid_snippet(self):
-        """Test error handling for invalid snippet."""
         result = run_script(DO_AI_SCRIPT, ["--snippet", "nonexistent"])
-        
-        assert not result["success"], "Should fail with invalid snippet"
-        output = result["combined_output"]
-        assert "invalid choice" in output or "error" in output.lower()
-    
+        assert result["return_code"] == 2 and "invalid choice" in result["stderr"]
+
     def test_invalid_file(self):
-        """Test error handling for nonexistent file."""
         result = run_script(DO_AI_SCRIPT, ["--file", "/nonexistent/file.py"])
-        
-        assert not result["success"], "Should fail with nonexistent file"
-        output = result["combined_output"]
-        assert "not found" in output or "Error" in output
-    
+        assert result["return_code"] == 2
+        payload = json.loads(result["stdout"])
+        assert payload["status"] == "input_or_analysis_error" and payload["diagnostic"]
+
     def test_k_parameter(self):
-        """Test different k values."""
-        for k in [1, 2, 3]:
-            result = run_script(DO_AI_SCRIPT, [
-                "--snippet", "simple", 
-                "--k", str(k),
-                "--timeout", "20"
-            ])
-            
-            if result["success"]:
-                output = result["combined_output"]
-                assert "Running AI Analysis" in output or "Analysis completed" in output
-            # Don't fail test if specific k value doesn't work
-    
-    def test_field_sensitivity_options(self):
-        """Test different field sensitivity modes."""
-        for mode in ["attr", "elem", "value", "full"]:
-            result = run_script(DO_AI_SCRIPT, [
-                "--snippet", "objects", 
-                "--field-sensitivity", mode,
-                "--no-pointer",
-                "--timeout", "20"
-            ])
-            
-            if result["success"]:
-                output = result["combined_output"]
-                assert "Analysis completed" in output
-    
+        for k in (1, 2, 3):
+            payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--k", str(k)]))
+            assert payload["effective_pta_config"]["context_policy"] == f"{k}-cfa"
+
+    def test_field_sensitivity_options(self, tmp_path):
+        # The supported control is index_sensitive, validated by KCFA Config.
+        # Old attr/elem/value/full flags were never wired to an implementation.
+        for enabled in (False, True):
+            options = tmp_path / "pta.json"
+            options.write_text(json.dumps({"index_sensitive": enabled}))
+            payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "objects", "--pta-options", str(options)]))
+            assert payload["effective_pta_config"]["index_sensitive"] is enabled
+        for obsolete in ("attr", "elem", "value", "full"):
+            result = run_script(DO_AI_SCRIPT, ["--snippet", "objects", "--field-sensitivity", obsolete])
+            assert result["return_code"] == 2 and "unrecognized arguments" in result["stderr"]
+
     def test_multiple_dump_options(self):
-        """Test multiple dump options together."""
-        result = run_script(DO_AI_SCRIPT, [
-            "--snippet", "simple",
-            "--no-pointer",
-            "--dump-ir",
-            "--dump-cfg",
-            "--timeout", "20"
-        ])
-        
-        if result["success"]:
-            output = result["combined_output"]
-            assert "Three Address Form" in output
-            assert "CFG Dump" in output or "Basic blocks" in output
-    
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--dump-ir", "--dump-cfg"]))
+        assert payload["ir"]["snippet.main"] and payload["cfg"]["snippet.main"]["edges"]
+
     def test_containers_snippet(self):
-        """Test the containers test snippet."""
-        result = run_script(DO_AI_SCRIPT, [
-            "--snippet", "containers",
-            "--no-pointer", 
-            "--timeout", "30"
-        ])
-        
-        if result["success"]:
-            output = result["combined_output"]
-            assert "Analysis completed" in output
-            assert "scopes" in output.lower()
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--snippet", "containers"]))
+        assert "snippet.main" in payload["summaries"]
+
 
 
 class TestBenchmarkScript:
-    """Tests for scripts/run_ai_benchmarks.py"""
-    
+    """Execute the real benchmark CLI; incomplete/error rows never become skips."""
+
+    def _run(self, tmp_path, source="x = 1\nresult = x + 2\n", *options):
+        path = tmp_path / "sample.py"
+        path.write_text(source)
+        output = tmp_path / "reports" / "result.json"
+        result = run_script(BENCHMARK_SCRIPT, ["--benchmark", str(path), "--output", str(output),
+                                                "--timeout", "15", *options], timeout=30)
+        assert output.is_file(), result["combined_output"]
+        payload = json.loads(output.read_text())
+        assert len(payload["detailed_results"]) >= 1
+        return result, payload
+
     def test_script_exists(self):
-        """Test that the benchmark script exists."""
-        assert BENCHMARK_SCRIPT.exists(), f"Script not found: {BENCHMARK_SCRIPT}"
-        assert os.access(BENCHMARK_SCRIPT, os.R_OK), f"Script not readable: {BENCHMARK_SCRIPT}"
-    
+        assert BENCHMARK_SCRIPT.is_file() and os.access(BENCHMARK_SCRIPT, os.R_OK)
+
     def test_help_output(self):
-        """Test that help output is generated."""
         result = run_script(BENCHMARK_SCRIPT, ["--help"])
-        
-        assert result["success"], f"Help failed: {result['stderr']}"
-        output = result["combined_output"]
-        assert "benchmark" in output
-        assert "--config-sweep" in output
-    
+        assert result["success"], result["combined_output"]
+        for option in ("--config-sweep", "--output", "--k", "--obj-depth", "--timeout", "--widening"):
+            assert option in result["stdout"]
+
     def test_list_benchmarks_if_available(self):
-        """Test listing available benchmarks if benchmark directory exists."""
-        benchmark_dir = PROJECT_ROOT / "benchmark"
-        
-        if not benchmark_dir.exists():
-            pytest.skip("Benchmark directory not found")
-        
-        # Just test that the script can handle the benchmark discovery
-        # Don't actually run benchmarks in unit tests
-        result = run_script(BENCHMARK_SCRIPT, ["--help"])
-        assert result["success"]
-    
-    def test_output_file_option(self):
-        """Test that output file option is parsed correctly."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            temp_file = f.name
-        
-        try:
-            # Just test argument parsing, not actual execution
-            result = run_script(BENCHMARK_SCRIPT, ["--help"])
-            assert result["success"]
-            output = result["combined_output"]
-            assert "--output" in output
-            
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
-    @pytest.mark.slow
-    def test_single_benchmark_if_available(self):
-        """Test running a single benchmark if benchmarks are available."""
-        benchmark_dir = PROJECT_ROOT / "benchmark"
-        
-        if not benchmark_dir.exists():
-            pytest.skip("Benchmark directory not found")
-        
-        # Find the first available benchmark
-        benchmark_files = list(benchmark_dir.glob("*.py"))
-        if not benchmark_files:
-            pytest.skip("No benchmark files found")
-        
-        # Try to run the first benchmark with minimal settings
-        benchmark_file = benchmark_files[0]
-        result = run_script(BENCHMARK_SCRIPT, [
-            "--benchmark", benchmark_file.name,
-            "--timeout", "30",
-            "--skip-pointer"  # Skip pointer analysis for speed
-        ], timeout=60)
-        
-        # Allow failures but record success if it works
-        if result["success"]:
-            output = result["combined_output"]
-            assert "benchmark" in output.lower() or "Found" in output
-        else:
-            pytest.skip(f"Benchmark execution failed: {result['stderr']}")
-    
-    def test_benchmark_config_options(self):
-        """Test benchmark runner with different config options."""
-        result = run_script(BENCHMARK_SCRIPT, [
-            "--help"
-        ])
-        
-        assert result["success"]
-        output = result["combined_output"]
-        # Check for all major config options
-        assert "--k" in output
-        assert "--obj-depth" in output
-        assert "--field-sensitivity" in output
-        assert "--skip-pointer" in output
-        assert "--timeout" in output
-        assert "--widening" in output
+        # Test real corpus discovery without depending on arbitrary file order.
+        assert (PROJECT_ROOT / "benchmark" / "control_flow.py").is_file()
+        from scripts.run_ai_benchmarks import create_benchmark_config
+        config = create_benchmark_config(PROJECT_ROOT / "benchmark" / "control_flow.py", {}, {})
+        assert [item["id"] for item in config["analysis"]] == ["PointerAnalysis", "AIAnalysisDriver"]
+        assert config["analysis"][1]["prev_analysis"] == ["pointer_analysis"]
+
+    def test_output_file_option(self, tmp_path):
+        result, payload = self._run(tmp_path)
+        assert result["return_code"] == 0, result["combined_output"]
+        row = payload["detailed_results"][0]
+        assert row["status"] == "completed" and row["success"]
+        assert row["metrics"]["pointer_analysis"]["available"]
+        ai = row["metrics"]["ai_analysis"]
+        assert ai["available"] and ai["complete"] and ai["summaries"]
+        assert ai["summaries"]["sample"]["analyzed_contexts"] > 0
+        assert not ai["iteration_metrics_available"]
+        assert row["resources"]["peak_python_bytes"] > 0
+        assert not payload["certified"]
+
+    def test_single_benchmark_if_available(self, tmp_path):
+        result, payload = self._run(tmp_path, "def identity(x):\n    return x\nresult = identity('yes')\n")
+        assert result["return_code"] in (0, 2), result["combined_output"]
+        row = payload["detailed_results"][0]
+        assert row["analysis_executed"] and row["error"] is None
+        assert row["metrics"]["pointer_analysis"]["total_call_graph_edges"] >= 1
+        assert "sample.identity" in row["metrics"]["ai_analysis"]["summaries"]
+        assert (result["return_code"] == 0) == (row["status"] == "completed")
+
+    @pytest.mark.parametrize("options, expected", [
+        (["--k", "1"], "1-cfa"), (["--obj-depth", "2"], "2-obj"),
+    ])
+    def test_benchmark_config_options(self, tmp_path, options, expected):
+        result, payload = self._run(tmp_path, "result = 3\n", *options, "--widening")
+        assert result["return_code"] == 0, result["combined_output"]
+        config = payload["detailed_results"][0]["metrics"]["configuration"]
+        assert config["pointer"]["context_policy"] == expected
+        assert config["ai"]["solver_options"]["widen_delay"] == 0
+        assert config["ai"]["solver_options"]["loop_unroll"] == 0
+
+    def test_iteration_limit_reports_incomplete(self, tmp_path):
+        result, payload = self._run(tmp_path, "result = 3\n", "--max-iterations", "0")
+        assert result["return_code"] == 2
+        row = payload["detailed_results"][0]
+        assert row["status"] == "incomplete" and not row["success"]
+        assert "max_iterations" in row["metrics"]["ai_analysis"]["summaries"]["sample"]["incomplete_reasons"]
+        assert payload["overview"]["successful"] == 0
+
+    def test_timeout_has_no_fabricated_metrics(self, tmp_path):
+        result, payload = self._run(tmp_path, "result = 3\n", "--timeout", "0.000001")
+        assert result["return_code"] == 2
+        row = payload["detailed_results"][0]
+        assert row["status"] == "timeout" and not row["success"]
+        assert row["metrics"] == {}
+        assert payload["timing"]["measured_rows"] == 0
+
+    def test_syntax_error_remains_an_error(self, tmp_path):
+        result, payload = self._run(tmp_path, "def broken(:\n")
+        assert result["return_code"] == 2
+        row = payload["detailed_results"][0]
+        assert row["status"] == "analysis_error" and "SyntaxError" in row["error"]
+        assert not row["success"]
+
+    def test_import_boundary_is_not_counted_as_complete(self, tmp_path):
+        (tmp_path / "dependency.py").write_text("value = 9\n")
+        result, payload = self._run(tmp_path, "import dependency\nresult = 3\n")
+        assert result["return_code"] == 2
+        row = payload["detailed_results"][0]
+        assert row["status"] == "incomplete"
+        assert row["metrics"]["import_coverage"]["unprocessed_import_statements"] == ["import dependency"]
+
+    def test_sweep_executes_every_supported_configuration(self, tmp_path):
+        result, payload = self._run(tmp_path, "result = 3\n", "--config-sweep")
+        assert result["return_code"] == 0, result["combined_output"]
+        rows = payload["detailed_results"]
+        assert {row["config_name"] for row in rows} == {"base", "k_1", "k_3", "widening"}
+        assert all(row["metrics"]["ai_analysis"]["available"] for row in rows)
+
+    @pytest.mark.parametrize("options, diagnostic", [
+        (["--skip-pointer"], "requires KCFA"),
+        (["--parallel", "2"], "unsupported"),
+        (["--timeout", "0"], "finite positive"),
+        (["--field-sensitivity", "elem", "--containers-mode", "precise"], "conflicting"),
+    ])
+    def test_unsupported_or_conflicting_options_rejected(self, options, diagnostic):
+        result = run_script(BENCHMARK_SCRIPT, options)
+        assert result["return_code"] == 2
+        assert diagnostic in result["stderr"]
+
 
 
 class TestAdvancedUseCases:
-    """Advanced test cases and usage scenarios."""
-    
-    def test_error_handling_comprehensive(self):
-        """Test comprehensive error handling scenarios."""
-        test_cases = [
-            # Invalid arguments
-            (["--invalid-arg"], "should handle invalid arguments"),
-            (["--snippet"], "should handle missing snippet name"),  
-            (["--file"], "should handle missing file path"),
-            (["--k", "invalid"], "should handle invalid k value"),
-            (["--timeout", "invalid"], "should handle invalid timeout"),
-        ]
-        
-        for args, description in test_cases:
-            result = run_script(DO_AI_SCRIPT, args)
-            # These should all fail
-            assert not result["success"], f"Test failed: {description}"
-    
-    def test_analysis_with_complex_code(self):
-        """Test analysis with more complex code patterns."""
-        complex_code = '''
-class Calculator:
-    def __init__(self):
-        self.history = []
-        self.memory = 0
-    
-    def add(self, a, b):
-        result = a + b
-        self.history.append(('add', a, b, result))
-        return result
-    
-    def multiply(self, a, b):
-        result = a * b
-        self.history.append(('multiply', a, b, result))
-        return result
-    
-    def calculate_expression(self, expr):
-        try:
-            if '+' in expr:
-                parts = expr.split('+')
-                return self.add(float(parts[0]), float(parts[1]))
-            elif '*' in expr:
-                parts = expr.split('*')
-                return self.multiply(float(parts[0]), float(parts[1]))
-            else:
-                return float(expr)
-        except (ValueError, IndexError):
-            return None
-    
-    def get_history(self):
-        return list(self.history)
+    def test_error_handling_comprehensive(self, tmp_path):
+        for arguments in (["--invalid-arg"], ["--snippet"], ["--file"], ["--k", "invalid"], ["--timeout", "invalid"]):
+            assert run_script(DO_AI_SCRIPT, arguments)["return_code"] == 2
+        invalid = tmp_path / "bad.json"
+        invalid.write_text('{"unknown_option": true}')
+        result = run_script(DO_AI_SCRIPT, ["--snippet", "simple", "--pta-options", str(invalid)])
+        assert result["return_code"] == 2
+        assert json.loads(result["stdout"])["status"] == "input_or_analysis_error"
 
-def process_calculations(expressions):
-    calc = Calculator()
-    results = []
-    
-    for expr in expressions:
-        result = calc.calculate_expression(expr)
-        if result is not None:
-            results.append(result)
-    
-    return results, calc.get_history()
+    def test_analysis_with_complex_code(self, tmp_path):
+        source = tmp_path / "subject.py"
+        source.write_text(COMPLEX_SOURCE)
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--file", str(source)]))
+        assert any("Calculator" in name for name in payload["summaries"])
 
-def main():
-    expressions = ["5+3", "2*4", "invalid", "7+1"]
-    results, history = process_calculations(expressions)
-    
-    total = sum(results)
-    return {
-        'results': results,
-        'history': history,
-        'total': total
-    }
+    def test_recursive_function_analysis(self, tmp_path):
+        source = tmp_path / "subject.py"
+        source.write_text(RECURSIVE_SOURCE)
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--file", str(source)]))
+        assert any("factorial" in name for name in payload["summaries"])
 
-if __name__ == "__main__":
-    main()
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(complex_code)
-            temp_file = f.name
-        
-        try:
-            result = run_script(DO_AI_SCRIPT, [
-                "--file", temp_file,
-                "--no-pointer",
-                "--verbose",
-                "--timeout", "45"
-            ])
-            
-            if result["success"]:
-                output = result["combined_output"]
-                assert "Analysis completed" in output
-                # Should analyze multiple scopes
-                assert "scopes" in output.lower()
-            else:
-                pytest.skip(f"Complex code analysis failed: {result['stderr']}")
-                
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
-    def test_recursive_function_analysis(self):
-        """Test analysis with recursive functions."""
-        recursive_code = '''
-def factorial(n):
-    if n <= 1:
-        return 1
-    else:
-        return n * factorial(n - 1)
+    def test_exception_handling_analysis(self, tmp_path):
+        source = tmp_path / "subject.py"
+        source.write_text(EXCEPTION_SOURCE)
+        payload = assert_ai_payload(run_script(DO_AI_SCRIPT, ["--file", str(source)]))
+        assert payload["summaries"]
 
-def fibonacci(n):
-    if n <= 1:
-        return n
-    else:
-        return fibonacci(n - 1) + fibonacci(n - 2)
-
-def tree_sum(node):
-    if node is None:
-        return 0
-    if isinstance(node, dict):
-        total = node.get('value', 0)
-        for child in node.get('children', []):
-            total += tree_sum(child)
-        return total
-    else:
-        return node
-
-def main():
-    # Test factorial
-    fact_5 = factorial(5)
-    
-    # Test fibonacci
-    fib_10 = fibonacci(10)
-    
-    # Test tree sum
-    tree = {
-        'value': 1,
-        'children': [
-            {'value': 2, 'children': []},
-            {'value': 3, 'children': [{'value': 4, 'children': []}]}
-        ]
-    }
-    tree_total = tree_sum(tree)
-    
-    return {
-        'factorial': fact_5,
-        'fibonacci': fib_10,
-        'tree_sum': tree_total
-    }
-
-if __name__ == "__main__":
-    main()
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(recursive_code)
-            temp_file = f.name
-        
-        try:
-            result = run_script(DO_AI_SCRIPT, [
-                "--file", temp_file,
-                "--no-pointer",
-                "--widening",  # Use widening for recursive functions
-                "--timeout", "45"
-            ])
-            
-            if result["success"]:
-                output = result["combined_output"]
-                assert "Analysis completed" in output
-            else:
-                pytest.skip(f"Recursive function analysis failed: {result['stderr']}")
-                
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
-    def test_exception_handling_analysis(self):
-        """Test analysis with exception handling patterns."""
-        exception_code = '''
-class CustomError(Exception):
-    def __init__(self, message, code=None):
-        super().__init__(message)
-        self.code = code
-
-def risky_division(a, b):
-    if b == 0:
-        raise CustomError("Division by zero", code=100)
-    return a / b
-
-def safe_division(a, b):
-    try:
-        return risky_division(a, b)
-    except CustomError as e:
-        print(f"Custom error: {e}, code: {e.code}")
-        return None
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return None
-
-def process_divisions(pairs):
-    results = []
-    errors = []
-    
-    for a, b in pairs:
-        try:
-            result = safe_division(a, b)
-            if result is not None:
-                results.append(result)
-        except Exception as e:
-            errors.append(str(e))
-    
-    return results, errors
-
-def main():
-    test_pairs = [(10, 2), (5, 0), (8, 4), (3, 0)]
-    results, errors = process_divisions(test_pairs)
-    
-    return {
-        'results': results,
-        'errors': errors,
-        'success_count': len(results)
-    }
-
-if __name__ == "__main__":
-    main()
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(exception_code)
-            temp_file = f.name
-        
-        try:
-            result = run_script(DO_AI_SCRIPT, [
-                "--file", temp_file,
-                "--no-pointer",
-                "--timeout", "45"
-            ])
-            
-            if result["success"]:
-                output = result["combined_output"]
-                assert "Analysis completed" in output
-            else:
-                pytest.skip(f"Exception handling analysis failed: {result['stderr']}")
-                
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
 
 
 class TestScriptIntegration:
-    """Integration tests for script interactions."""
-    
     def test_ai_logging_import(self):
-        """Test that AI logging module can be imported."""
-        test_code = '''
-import sys
-sys.path.insert(0, ".")
-try:
-    from pythonstan.analysis.ai.logging import AILogger, configure_logging
-    print("SUCCESS: AI logging imported")
-except ImportError as e:
-    print(f"ERROR: {e}")
-    sys.exit(1)
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(test_code)
-            temp_file = f.name
-        
-        try:
-            result = subprocess.run(
-                [sys.executable, temp_file],
-                capture_output=True,
-                text=True,
-                cwd=PROJECT_ROOT
-            )
-            
-            if result.returncode == 0:
-                output = result.stdout + result.stderr
-                assert "SUCCESS" in output
-            else:
-                pytest.skip(f"AI logging import failed: {result.stderr}")
-                
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
-    
+        import logging
+        from pythonstan.analysis.pointer.ai.interpreter import logger
+        assert isinstance(logger, logging.Logger)
+        assert logger.name == "pythonstan.analysis.pointer.ai.interpreter"
+
     def test_pointer_adapter_import(self):
-        """Test that pointer adapter can be imported."""
-        test_code = '''
-import sys
-sys.path.insert(0, ".")
-try:
-    from pythonstan.analysis.ai.pointer_adapter import PointerResults, MockPointerResults
-    print("SUCCESS: Pointer adapter imported")
-except ImportError as e:
-    print(f"ERROR: {e}")
-    sys.exit(1)
-'''
-        
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write(test_code)
-            temp_file = f.name
-        
-        try:
-            result = subprocess.run(
-                [sys.executable, temp_file],
-                capture_output=True,
-                text=True,
-                cwd=PROJECT_ROOT
-            )
-            
-            if result.returncode == 0:
-                output = result.stdout + result.stderr
-                assert "SUCCESS" in output
-            else:
-                pytest.skip(f"Pointer adapter import failed: {result.stderr}")
-                
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        from pythonstan.analysis.pointer.ai import PtaQuery
+        from pythonstan.analysis.pointer.kcfa.pta_query_adapter import PtaQueryAdapter
+        assert callable(PtaQueryAdapter.points_to)
+        assert callable(PtaQueryAdapter.field_points_to)
+        assert callable(PtaQueryAdapter.get_class_mro)
+
 
 
 # Pytest configuration
