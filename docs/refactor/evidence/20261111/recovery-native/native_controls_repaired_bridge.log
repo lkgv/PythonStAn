@@ -1,0 +1,39 @@
+......................F......................F...................        [100%]
+=================================== FAILURES ===================================
+________ test_unknown_tracking_controls_diagnostics_but_not_real_havoc _________
+
+    def test_unknown_tracking_controls_diagnostics_but_not_real_havoc():
+        source="class Box: pass\nbox=Box()\nbox.value=1\neval('box.value=7')\nresult=box.value\n"
+        off,_=worker(source,track_unknowns=False)
+        on,_=worker(source,track_unknowns=True)
+>       assert signature(off)==signature(on)
+E       AssertionError: assert {'values': {'...lls': [], ...} == {'values': {'...lls': [], ...}
+E         
+E         Omitting 7 identical items, use -vv to show
+E         Differing items:
+E         {'effects': {'havoc': [{'kind': 'heap_havoc', 'origin': '__main__:4:0:$tmp_3 = eval($const_1)#0', 'scope': 'all_known_...unknown_exception', 'origin': '__main__:3:0:box.value = $tmp_1#0', 'exception': 'BaseException', 'order': 'unknown'}]}} != {'effects': {'havoc': [{'kind': 'heap_havoc', 'origin': '__main__:4:0:$tmp_3 = eval($const_1)#0', 'scope': 'all_known_...unknown_exception', 'origin': '__main__:5:0:result = box.value#0', 'exception': 'BaseException', 'order': 'unknown'}]}}
+E         Use -v to get more diff
+
+tests/refactor/engines/test_native_control_witnesses.py:117: AssertionError
+_______ test_nested_intrinsic_budget_is_not_a_configuration_only_switch ________
+
+    def test_nested_intrinsic_budget_is_not_a_configuration_only_switch():
+        complete=probe('intrinsic_getattr',enable_ai_intrinsics=True)
+        limited=probe('intrinsic_getattr',enable_ai_intrinsics=True,ai_budget={'max_iterations':0})
+>       assert complete['statistics']['ai_intrinsic_work']>limited['statistics']['ai_intrinsic_work']
+E       assert 3 > 3
+
+tests/refactor/engines/test_native_control_witnesses.py:167: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_native_control_witnesses.py::test_unknown_tracking_controls_diagnostics_but_not_real_havoc
+FAILED tests/refactor/engines/test_native_control_witnesses.py::test_nested_intrinsic_budget_is_not_a_configuration_only_switch
+2 failed, 63 passed, 1 warning in 8.42s

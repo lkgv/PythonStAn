@@ -26,8 +26,8 @@ NATIVE={
  "context_policy":("supported",P+"context_selector.ContextSelector.select_call_context","Finite registered method-context selection; all19strategies retained."),
  "max_iterations":("supported",P+"solver.PointerSolver._next_work_item","Native selected-work window bound; global resource ledger also charges nestedAI and eagerbootstrap."),
  "max_points_to_size":("rejected_nondefault",P+"config.Config.__post_init__","OnlyNone; no points-to truncation implementation."),
- "verbose":("diagnostic",P+"solver.PointerSolver._apply_call","Extra diagnostic logging; no semantic precision effect."),
- "log_level":("diagnostic",P+"analysis.PointerAnalysis._setup_logging","Child-local logging level."),
+ "verbose":("diagnostic",P+"solver.PointerSolver._mark_unknown_call","Once-per-new-unknown-call diagnostic on the actual live path; complete semantic state/work remains invariant."),
+ "log_level":("diagnostic","pythonstan.compat.native_worker.main","Requested child-local logging level; captured stderr remains outside strict NDJSON frames."),
  "enable_instrumentation":("rejected_nondefault",P+"config.Config.__post_init__","OnlyFalse; use actual solver statistics."),
  "entry_points":("legacy_only",P+"analysis.PointerAnalysis.analyze","Legacy source roots; public worker derives roots from inputs.entries and overrides this field."),
  "enable_synthetic_method_contexts":("supported_entry_expansion",P+"analysis.PointerAnalysis._create_synthetic_method_contexts","True expands actual roots with synthetic receivers; publicdefault mustbeFalse forinitialization_only, orcontract mustrecordexpansion."),
@@ -82,14 +82,29 @@ LEGACY_BUDGET={
  "enable_dict_identity_keys":(A+"domains.mapslots.KeyDecomposer.decompose","Objectidentity keypartitions, withcoveringfallbackwhenoff."),
  "max_dict_identity_keys":(A+"domains.mapslots.KeyDecomposer.decompose","Identitykey partitioncap; earlyidentitybranch mustrespectit."),
 }
+# Historical locators remain provenance only after the second interpreter is
+# retired. Current legacy calls either project into the one shared core or
+# reject a nondefault control before executing target semantics.
+HISTORICAL_LEGACY = dict(LEGACY_BUDGET)
+LEGACY_SUPPORTED = {"max_iterations","max_stmt_visits","max_addr_set_size","max_const_strings",
+                    "enable_narrowing","narrowing_iterations","enable_value_partition",
+                    "max_value_partitions","strict_exceptions"}
+LEGACY_BUDGET = {name:("pythonstan.compat.legacy_ai.api.AISummaryEngine.analyze_callee" if name=="strict_exceptions"
+                else "pythonstan.compat.shared_ai.options",
+                ("Host-internal error policy at direct legacy API boundary; does not prune target exceptions." if name=="strict_exceptions"
+                 else "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer." if name in LEGACY_SUPPORTED
+                 else "Retired private control: nondefault rejects; historical default retained only for old configuration round trips."))
+          for name in HISTORICAL_LEGACY}
+
 NEW_AI={
  "max_const_strings":(D+"values.ValueOperations.__init__","Active run-local StringDomaincapacity; used byjoin/widen."),
  "max_iterations":(N+"driver.InterproceduralDriver._solve","Perunit/SCC equation revisitlimit; globalwork isresources.max_work."),
- "max_stmt_visits":(N+"transfer.Transfer.while_loop","Loopiteration guard beforecheckedwiden/narrow; differsfromlegacyperblockmeaning."),
+ "max_stmt_visits":(N+"driver.InterproceduralDriver.tick","Canonical charged statement guard plus covering loop limit; zero prevents actual statement transfer."),
  "enable_narrowing":(N+"transfer.Transfer.while_loop","Controls checked looppostfixpoint refinement/publicoutcomes."),
  "narrowing_iterations":(N+"transfer.Transfer.while_loop","Maximumcheckednarrowpasses."),
  "enable_value_partition":(N+"transfer.Transfer.getitem","Actualkey-handler/value relationpartitioning, notstringcapacity."),
- "max_value_partitions":(N+"transfer.Transfer.getitem","KeyValueRelation.coarsen cap, withcovering relationalprecisionloss."),
+ "max_value_partitions":(N+"transfer.Transfer.getitem","Whole-lookup branch budget; overflow retains a covering unpartitioned key-handler union/product."),
+ "max_addr_set_size":(N+"driver.InterproceduralDriver.coarsen_flows","Actual host-wide roots/heap/cells/continuations/defaults/subscriber address coarsening with weak summary writes."),
 }
 SOLVER_OPTIONS={
  "widen_delay":(2,"supported",N+"driver.InterproceduralDriver._request",N+"transfer.Transfer.while_loop"),
@@ -102,11 +117,13 @@ SOLVER_OPTIONS={
  "max_total_traces":(32,"legacy_only",A+"_trace_partition.TraceStateStore.evict_traces_if_over_budget"),
 }
 NEW_EXTRA={
- "abstract.context_depth":(N+"driver.InterproceduralDriver.request_function","Finite sourcecallsite contextword length."),
- "abstract.int_domain_max_consts":(D+"values.ValueOperations.__init__","Integer domaincapacity; notlegacy max_const_ints enumeration."),
- "abstract.relations":(None,"Currentlypolicyrecordonly; enable_value_partition isactualrelationconsumer; rejectnondefaultuntilwired."),
- "abstract.max_scalar_pairs":(D+"values.ValueOperations.scalar_binary","Actualoperation enumerationcap readinternally but notcurrentlypubliccatalog; exposewithvalidationorleaveunavailable."),
- "abstract.max_range_size":(N+"transfer.Transfer","Actualrange model enumerationcap readinternally but notcurrentlypubliccatalog."),
+ "abstract.context_depth":(N+"driver.InterproceduralDriver.request_function","Finite source callsite contextword length."),
+ "abstract.int_domain_max_consts":(D+"values.ValueOperations.__init__","Integer widening/compression capacity; never an alias for retired legacy index-enumeration max_const_ints."),
+ "abstract.relations":("pythonstan.config.resolve.resolve_config","Public alias of actual enable_value_partition; conflicting explicit spellings reject."),
+ "abstract.refine_booleans":(N+"transfer.Transfer.refine_test","State cofactoring after actual truth/protocol effects; disabled mode preserves both states."),
+ "abstract.max_scalar_pairs":(D+"values.ValueOperations.scalar_binary","Pure scalar Cartesian enumeration window with covering typed fallback."),
+ "abstract.max_range_size":(N+"transfer.Transfer.builtin","Finite range model enumeration window; overflow is explicitly Open with covering value."),
+ "abstract.attribute_name_limit":(N+"attributes.AttributeOperations.builtin","Reflective name enumeration window independent from StringDomain widening cap; residual setter covers every omitted name."),
 }
 
 class References(ast.NodeVisitor):
@@ -133,7 +150,7 @@ class References(ast.NodeVisitor):
 def main():
     legacy=json.loads((ROOT/"pythonstan/config/legacy_defaults.json").read_text())
     budget_names=[field.name for field in fields(AnalysisBudget)]
-    names=set(NATIVE)|set(budget_names)|set(SOLVER_OPTIONS)|{"context_depth","int_domain_max_consts","relations","max_scalar_pairs","max_range_size"}
+    names=set(NATIVE)|set(budget_names)|set(SOLVER_OPTIONS)|{"context_depth","int_domain_max_consts","relations","max_scalar_pairs","max_range_size","refine_booleans","attribute_name_limit"}
     references=[];source_hashes={}
     source_roots=[ROOT/"pythonstan/analysis",ROOT/"pythonstan/compat"]
     for directory in source_roots:
@@ -149,9 +166,9 @@ def main():
         for row in references:
             if row["name"]!=name:continue
             module=row["symbol"]
-            if group=="native" and ".pointer.kcfa." not in module and ".native_intrinsics." not in module:continue
+            if group=="native" and ".pointer.kcfa." not in module and ".native_intrinsics." not in module and ".native_worker." not in module:continue
             if group=="new" and ".engines.abstract." not in module and ".domains.values." not in module:continue
-            if group=="legacy" and ".pointer.ai." not in module and ".domains." not in module:continue
+            if group=="legacy" and ".pointer.ai." not in module and ".domains." not in module and ".compat.legacy_ai." not in module and ".compat.shared_ai." not in module:continue
             if ".config." in module or ".contracts.budgets" in module:continue
             selected.append(row)
         return selected
@@ -163,39 +180,40 @@ def main():
     for name in budget_names:
         consumer,note=LEGACY_BUDGET[name]
         new=NEW_AI.get(name)
-        budgets.append({"old_name":name,"old_default":getattr(AnalysisBudget(),name),"legacy_path":"andersen.ai_budget."+name,"legacy_applies_to_engines":["native","native_then_ai"],"legacy_activation":"andersen.enable_ai_intrinsics=true and eligible builtin call","legacy_consumer":consumer,"legacy_meaning":note,"legacy_source_references":refs(name,"legacy"),"new_path":"abstract."+name,"new_ai_status":"supported" if new else "legacy_only_reject_nondefault","new_ai_consumer":new[0] if new else None,"new_ai_meaning":new[1] if new else ("ReplacedbySCCjointfixpoint; no depthcap" if name=="max_recursion_depth" else "Noactive consumer innewAI; donotacceptas precisioncontrol"),"new_ai_source_references":refs(name,"new")})
+        budgets.append({"old_name":name,"old_default":getattr(AnalysisBudget(),name),"legacy_path":"andersen.ai_budget."+name,"legacy_applies_to_engines":["native","native_then_ai"],"legacy_activation":"andersen.enable_ai_intrinsics=true and eligible builtin call","legacy_consumer":consumer,"legacy_meaning":note,"legacy_status":"supported_shared_core" if name in LEGACY_SUPPORTED else "retired_reject_nondefault","historical_legacy_consumer":HISTORICAL_LEGACY[name][0],"legacy_source_references":refs(name,"legacy"),"new_path":"abstract."+name,"new_ai_status":"supported" if new else "legacy_only_reject_nondefault","new_ai_consumer":new[0] if new else None,"new_ai_meaning":new[1] if new else ("ReplacedbySCCjointfixpoint; no depthcap" if name=="max_recursion_depth" else "Noactive consumer innewAI; donotacceptas precisioncontrol"),"new_ai_source_references":refs(name,"new")})
     solver=[]
     for name,(default,status,*consumers) in SOLVER_OPTIONS.items():
-        solver.append({"path":"abstract.solver_options."+name,"legacy_default":default,"new_ai_status":status,"actual_new_consumers":consumers if status=="supported" else [],"legacy_consumers":[A+"config.Config.to_solver_config"]+(consumers if status!="supported" else [A+"solver.AISolver.solve"]),"new_references":refs(name,"new"),"legacy_references":refs(name,"legacy"),"unsupported_behavior":"rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly" if status!="supported" else "validatedactivecontrol"})
+        solver.append({"path":"abstract.solver_options."+name,"legacy_default":default,"new_ai_status":status,"actual_new_consumers":consumers if status=="supported" else [],"legacy_consumers":["pythonstan.compat.shared_ai.options"],"legacy_status":"supported_shared_alias" if name=="loop_unroll" else "supported_shared_core" if status=="supported" else "retired_reject_nondefault","new_references":refs(name,"new"),"legacy_references":refs(name,"legacy"),"unsupported_behavior":"rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly" if status!="supported" else "validatedactivecontrol"})
     context_tree=ast.parse((ROOT/"pythonstan/analysis/pointer/kcfa/context_selector.py").read_text())
     context_class=next(node for node in context_tree.body if isinstance(node,ast.ClassDef) and node.name=="ContextPolicy")
     context_names=[node.value.value for node in context_class.body if isinstance(node,ast.Assign) and isinstance(node.value,ast.Constant) and type(node.value.value) is str]
     contexts=[{"policy":policy,"status":"supported_finite","consumer":P+"context_selector.ContextSelector.select_call_context","heap_consumer":P+"context_selector.ContextSelector.select_alloc_context","contract":"Finiteatoms; parameterpositions/names retained; callerScope/Context notembedded; heap family projection forgetsunavailablehistory","evidence":["tests/refactor/engines/test_native_context.py","docs/refactor/evidence/20261110/PTA-01/native_matrix.json"]} for policy in context_names]
     extra=[]
     for path,(consumer,note) in NEW_EXTRA.items():
-        if path=="abstract.max_range_size":
-            located=refs("max_range_size","new")
+        if path in {"abstract.max_range_size","abstract.attribute_name_limit"}:
+            located=refs(path.rsplit(".",1)[-1],"new")
             consumer=located[0]["symbol"] if located else None
-        extra.append({"path":path,"consumer":consumer,"status":"supported" if consumer and path in {"abstract.context_depth","abstract.int_domain_max_consts"} else "not_public_or_not_wired","meaning":note})
+        extra.append({"path":path,"consumer":consumer,"status":"supported" if consumer else "unavailable","meaning":note})
     data={"schema_version":1,"review_state":"author_traced_pending_independent_review","source_commit":__import__('subprocess').check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),"counts":{"native_legacy_fields":len(native),"registered_contexts":len(contexts),"legacy_ai_budget_fields":len(budgets),"additional_solver_options":len(solver)},"native_options":native,"context_policies":contexts,"ai_budget_options":budgets,"solver_options":solver,"new_options":extra,"new_ai_supported_old_budget_names":sorted(NEW_AI),"new_ai_unsupported_old_budget_names":sorted(set(budget_names)-set(NEW_AI)),"source_hashes":source_hashes,"discipline":["ASTreferences arelocators, notproofthat optionsareeffective","Perenginecapability isnotinferredfromschemaacceptance","No unsupported oldcontrol iscreditedtonewAI","Native19contextstrategies remainimplemented; notretired","Globalresources andperengineworklimits areseparate; all nestedwork charged"]}
     driver_controls={
-        "pta_analysis_name":(A+"analysis.AIAnalysisDriver._get_pta_results","Oldlocalpass predecessor selection; newCusesfrozenNativeSnapshot, notthisselector"),
-        "plan_scopes":(A+"plan.build_plan","Oldlocalpass manualscopeplan; newfunction/SCCselection belongs toregions"),
-        "entry_scope":(A+"plan.build_plan","Oldlocalpass entryscope; newroots belong toinputs.entries"),
-        "context_policy":(A+"analysis.AIAnalysisDriver._validate_context_policy","Oldpass checks inherited Nativecontext; newAIusesabstract.context_depth"),
-        "log_level":(A+"analysis.AIAnalysisDriver._setup_logging","Oldlocalpass logging only; noactive newAIlogging consumer"),
-        "type":(A+"config.Config.__post_init__","Oldfixed AIanalysis drivertag; publicengineenum controls actualexecution"),
-        "solver_options":(A+"config.Config.to_solver_config","Oldsolver optionprojection; peroption newcapabilities arelisted separately"),
+        "pta_analysis_name":("pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._get_pta_results","Oldlocalpass predecessor selection; newCusesfrozenNativeSnapshot, notthisselector"),
+        "plan_scopes":("pythonstan.compat.legacy_ai.plan.build_plan","Oldlocalpass manualscopeplan; newfunction/SCCselection belongs toregions"),
+        "entry_scope":("pythonstan.compat.legacy_ai.plan.build_plan","Oldlocalpass entryscope; newroots belong toinputs.entries"),
+        "context_policy":("pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._validate_context_policy","Oldpass checks inherited Nativecontext; newAIusesabstract.context_depth"),
+        "log_level":("pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._setup_logging","Oldlocalpass logging only; noactive newAIlogging consumer"),
+        "type":("pythonstan.compat.legacy_ai.config.Config.__post_init__","Oldfixed AIanalysis drivertag; publicengineenum controls actualexecution"),
+        "solver_options":("pythonstan.compat.legacy_ai.config.Config.to_solver_config","Oldsolver optionprojection; peroption newcapabilities arelisted separately"),
     }
+    data["native_heap_options"]=[
+        {"path":"andersen."+name,"default":None,"applies_to_engines":["native","native_then_ai"],
+         "actual_consumer":P+"context_selector.ContextSelector.select_alloc_context",
+         "legacy_status":"supported","meaning":meaning}
+        for name,meaning in [
+            ("heap_context_policy","Heap family independently projects only represented method history; switching family may safely forget history."),
+            ("heap_context_depth","Independent0..3 bound on available heap history; zero merges actual allocations and preserves may values.")]]
     data["legacy_ai_driver_options"]=[{"path":"abstract."+name,"old_default":legacy["abstract"][name],
         "legacy_consumer":consumer,"new_ai_status":"supported_subset" if name=="solver_options" else "legacy_only_reject_nondefault",
         "meaning":meaning} for name,(consumer,meaning) in driver_controls.items()]
-    data["native_heap_options"]=[{"path":"andersen.heap_context_policy","default":None,
-        "applies_to_engines":["native","native_then_ai"],"consumer":P+"context_selector.ContextSelector.select_alloc_context",
-        "meaning":"Independent registered heapfamily; projection forgets unavailable methodhistory"},
-        {"path":"andersen.heap_context_depth","default":None,"applies_to_engines":["native","native_then_ai"],
-         "consumer":P+"context_selector.ContextSelector.select_alloc_context","range":[0,3],
-         "meaning":"Independent heapdepth upperbound on represented finitehistory"}]
     encoded=json.dumps(data,ensure_ascii=False,indent=2)+"\n"
     for target in (ROOT/"pythonstan/config/control_metadata.json",ROOT/"docs/refactor/old_to_new_options.json"):
         target.parent.mkdir(parents=True,exist_ok=True);target.write_text(encoded)

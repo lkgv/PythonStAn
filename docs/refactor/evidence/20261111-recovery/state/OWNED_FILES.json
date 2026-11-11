@@ -1,0 +1,15 @@
+{
+  "frozen": true,
+  "files": {
+    "pythonstan/analysis/domains/reabstract.py": "97f8ffb1b80947108a79ae0eed2b631f7a3d433d842c0688d335d5c7819beb4b",
+    "pythonstan/analysis/domains/values.py": "20d87e335b1ea284a43b46bfa1bd426244420ba61f9cd44cc286889e4c2dc2e9",
+    "pythonstan/analysis/engines/abstract/state_transform.py": "fb26d13e559102620bfb0c62d5775dfe769fdb5fabf56c2b1d0f73e3018b73e6",
+    "pythonstan/analysis/engines/abstract/state.py": "aebe30f7af7b1e147d2614fd5a1b7c028c0461ee4bd4f335c04acbcb1298cddf",
+    "pythonstan/analysis/engines/abstract/driver.py": "23e87231fcc227cb83ac418043341aef08558f5aadbc1987e17d3afb37e50332",
+    "pythonstan/analysis/composition/reabstract.py": "47286accd8aad46b823bb81a087aae5ca27fbdafe88ed3cfd02ad9e2810c89c4",
+    "pythonstan/analysis/composition/state_adapter.py": "9dd57e32fae33ddbd2fcd77c7748835540eff6b735b47bbdc713a0d3b23f85a5",
+    "pythonstan/analysis/composition/region_scheduler.py": "0a3e21035d451c8d2ceaae37283084ffddb6de0850ef8308221ac6bda3ea98d9",
+    "tests/refactor/engines/test_state_recovery.py": "8fdc50b1b12d81aa933dbba6c204d2c7aed7e7f7e65cd88a033476b784fd868a"
+  },
+  "evidence": "frozen_receipt.json"
+}

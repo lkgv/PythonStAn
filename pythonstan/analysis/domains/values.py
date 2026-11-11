@@ -10,12 +10,13 @@ from typing import Iterable
 import ast
 import operator
 import math
+import struct
 from .ints import IntDomain, IntLattice, Parity
 from .strings import StringDomain, StrLattice
 from .relations import PartitionToken,KeyValueRelation
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Value:
     ints: IntLattice = field(default_factory=IntLattice.bottom)
     strings: StrLattice = field(default_factory=StrLattice.bottom)
@@ -27,6 +28,25 @@ class Value:
     top: bool = False
     unbound: bool = False
     relations: frozenset[PartitionToken] = frozenset()
+
+    def __post_init__(self):
+        raw=tuple(self.floats)
+        signed_zeros={struct.pack("!d",value) for value in raw if value==0.0}
+        floating=frozenset(value for value in raw if math.isfinite(value))
+        sorts=frozenset(self.top_sorts)
+        if len(signed_zeros)>1:floating=frozenset();sorts|={"float"}
+        if any(not math.isfinite(value) for value in raw):sorts|={"float"}
+        object.__setattr__(self,"floats",floating);object.__setattr__(self,"top_sorts",sorts)
+        for name in ("bools","refs","relations"):object.__setattr__(self,name,frozenset(getattr(self,name)))
+
+    def _equality_key(self):
+        return (self.ints,self.strings,self.bools,tuple(sorted(struct.pack("!d",value) for value in self.floats)),
+                self.none,self.refs,self.top_sorts,self.top,self.unbound,self.relations)
+
+    def __eq__(self,other):
+        return type(other) is Value and self._equality_key()==other._equality_key()
+
+    def __hash__(self):return hash(self._equality_key())
 
     @classmethod
     def bottom(cls): return cls()
@@ -93,17 +113,28 @@ class ValuePolicy:
 
 
 class ValueOperations:
-    def __init__(self, policy=None):
+    def __init__(self, policy=None, arena=None):
+        from .reabstract import IdentityArena
+        self.arena=arena or IdentityArena()
         self.policy = policy or ValuePolicy()
         self.integer = IntDomain(max_consts=self.policy.max_const_ints)
         self.string = StringDomain(max_consts=self.policy.max_const_strings)
 
+    def normalize(self,value):
+        if not self.arena.aliases:return value
+        return self.remap(value,self.arena.aliases)
+
     def join(self, a: Value, b: Value):
+        a=self.normalize(a);b=self.normalize(b)
         if a.is_bottom(): return b
         if b.is_bottom(): return a
         floats = a.floats | b.floats
         sorts = a.top_sorts | b.top_sorts
-        if len(floats) > self.policy.max_const_ints: floats, sorts = frozenset(), sorts | {"float"}
+        zero_signs={struct.pack("!d",value) for value in (*a.floats,*b.floats) if value==0.0}
+        # Python's frozenset equates the two zero signs.  Losing one would make
+        # str/repr and division observations unsound, so use a float-only cover.
+        if len(floats) > self.policy.max_const_ints or len(zero_signs)>1:
+            floats, sorts = frozenset(), sorts | {"float"}
         return Value(ints=self.integer.join(a.ints,b.ints), strings=self.string.join(a.strings,b.strings),
                      bools=a.bools | b.bools, floats=floats, none=a.none or b.none, refs=a.refs | b.refs,
                      top_sorts=frozenset(sorts), top=a.top or b.top, unbound=a.unbound or b.unbound,relations=a.relations|b.relations)
@@ -111,10 +142,13 @@ class ValueOperations:
     def join_all(self, values: Iterable[Value]): return reduce(self.join, values, Value.bottom())
 
     def leq(self, a, b):
+        a=self.normalize(a);b=self.normalize(b)
         if b.top: return (not a.unbound or b.unbound) and a.refs<=b.refs and a.relations<=b.relations
         if a.top: return False
-        return (self.integer.leq(a.ints,b.ints) and self.string.leq(a.strings,b.strings)
-                and a.bools <= b.bools and a.floats <= b.floats and (not a.none or b.none)
+        return (("int" in b.top_sorts or self.integer.leq(a.ints,b.ints)) and ("str" in b.top_sorts or self.string.leq(a.strings,b.strings))
+                and ("bool" in b.top_sorts or a.bools <= b.bools)
+                and ("float" in b.top_sorts or {struct.pack("!d",x) for x in a.floats}<={struct.pack("!d",x) for x in b.floats})
+                and (not a.none or b.none or "none" in b.top_sorts)
                 and a.refs <= b.refs and a.top_sorts <= b.top_sorts and (not a.unbound or b.unbound) and a.relations<=b.relations)
 
     def widen(self, a, b):
@@ -135,7 +169,10 @@ class ValueOperations:
             if value.strings.has_unknown or "" in value.strings.consts or "" in value.strings.prefixes or "" in value.strings.suffixes: result.add(False)
         return frozenset(result)
 
-    def remap(self, value, mapping): return replace(value, refs=frozenset(mapping.get(r,r) for r in value.refs))
+    def remap(self, value, mapping):
+        from .reabstract import resolve_mapping
+        return replace(value,refs=frozenset(resolve_mapping(r,mapping) for r in value.refs),
+                       relations=frozenset(replace(token,handler=resolve_mapping(token.handler,mapping)) for token in value.relations))
 
     def refine(self, value, op, constant, truth=True):
         if type(constant) is int and not value.top:
@@ -148,7 +185,13 @@ class ValueOperations:
         funcs={ast.Eq:operator.eq,ast.NotEq:operator.ne,ast.Is:operator.is_,ast.IsNot:operator.is_not,ast.Lt:operator.lt,ast.LtE:operator.le,ast.Gt:operator.gt,ast.GtE:operator.ge}
         func=funcs.get(type(op))
         if constants is not None and func:
-            try: return self.join_all(Value.constant(x) for x in constants if bool(func(x,constant))==truth)
+            try:
+                def allowed(x):
+                    if isinstance(op,(ast.Is,ast.IsNot)):
+                        answer,_=self.scalar_binary(op,Value.constant(x),Value.constant(constant))
+                        return truth in answer.bools
+                    return bool(func(x,constant))==truth
+                return self.join_all(Value.constant(x) for x in constants if allowed(x))
             except (TypeError,ValueError): pass
         return value
 
@@ -177,6 +220,13 @@ class ValueOperations:
                             values.append(Value(ints=IntLattice.top()));continue
                         if isinstance(op,ast.LShift) and type(x) is int and type(y) is int and y>=0 and x.bit_length()+y>self.policy.max_int_bits:
                             values.append(Value(ints=IntLattice.top()));continue
+                        if isinstance(op,(ast.Is,ast.IsNot)):
+                            if x is None or y is None or type(x) is bool or type(y) is bool:
+                                identities={x is y}
+                            elif type(x) is not type(y) or x!=y:identities={False}
+                            else:identities={False,True}
+                            values.append(Value(bools=frozenset(not item if isinstance(op,ast.IsNot) else item for item in identities)))
+                            continue
                         result=func(x,y)
                         if type(result) is int and result.bit_length()>self.policy.max_int_bits: values.append(Value(top_sorts=frozenset(("int",))))
                         elif type(result) is str and len(result)>self.policy.max_int_bits: values.append(Value(strings=StrLattice.top()))

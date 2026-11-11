@@ -124,7 +124,12 @@ class GuardedDispatchProvider:
 
     @property
     def statistics(self):
-        return {**self._stats,"total_work":sum(self._stats[key] for key in ("proposal_work","checker_work","bridge_setup_work","runtime_validation_work","application_work","state_invalidation_work")),
+        total=sum(self._stats[key] for key in ("proposal_work","checker_work","bridge_setup_work","runtime_validation_work","application_work","state_invalidation_work"))
+        unpaid=max(0,total-self._stats['charged_to_driver_work'])
+        return {**self._stats,"total_work":total,'attempted_work':total,
+                'consumed_driver_work':self._stats['charged_to_driver_work'],'uncharged_attempted_work':unpaid,
+                'work_count_status':'fully_charged' if not unpaid else 'unpaid_reported_work',
+                'state_work_scope':'Committed invalidations; aborted detached preparation is measured by the host reabstract_summary_work counter',
                 "total_seconds":sum(self._stats[key] for key in ("proposer_seconds","checker_seconds","application_seconds")),
                 "required_property_points":len(self.required_property_points)}
 
@@ -132,7 +137,7 @@ class GuardedDispatchProvider:
     def proof_records(self):
         return tuple(freeze_snapshot(self._records[key]) for key in sorted(self._records))
 
-    def prepare_state_epoch(self,epoch):
+    def prepare_state_epoch(self,epoch,charge=None):
         """Detach revocation before the host charges and atomically coarsens.
 
         A checked acyclic source call has a stable fresh allocation name on
@@ -141,23 +146,29 @@ class GuardedDispatchProvider:
         this provider's applications is covering: the ordinary shared engine
         executes subsequent calls with the host's new address abstraction.
         """
-        if epoch<=self._state_epoch:return {"unchanged":True,"work":0}
-        records={};record_work=0
+        if epoch<=self._state_epoch:return {"unchanged":True,"work":0,'work_precharged':charge is not None}
+        work=0
+        def spend(amount):
+            nonlocal work
+            if charge is not None:charge(amount)
+            work+=amount
+        spend(1+len(self._stats)+len(self.programs));base_stats=dict(self._stats)
+        records={}
         for key,record in self._records.items():
+            spend(1+len(record)+len(record.get('open_obligations',())))
             obligations=list(dict.fromkeys([*record.get("open_obligations",()),
                 "host address epoch changed; checked frame/fresh bounds revoked"]))
             records[key]={**record,"status":"unknown","open_obligations":[
                 *obligations]}
-            record_work+=len(record)+len(obligations)
+        spend(1+len(self._retired_allocation_ids)+len(self._applied_allocation_ids))
         retired=self._retired_allocation_ids|self._applied_allocation_ids
-        work=1+record_work+len(retired)+len(self.programs)
-        stats={**self._stats,"state_invalidations":self._stats["state_invalidations"]+1,
-               "state_invalidation_work":self._stats["state_invalidation_work"]+work,
-               "charged_to_driver_work":self._stats["charged_to_driver_work"]+work}
+        stats={**base_stats,"state_invalidations":base_stats["state_invalidations"]+1,
+               "state_invalidation_work":base_stats["state_invalidation_work"]+work,
+               "charged_to_driver_work":base_stats["charged_to_driver_work"]+work}
         return {"unchanged":False,"epoch":epoch,"programs":{},"records":records,
-                "retired":retired,"stats":stats,"work":work}
+                "retired":retired,"stats":stats,"work":work,'work_precharged':charge is not None}
 
-    def commit_state_epoch(self,prepared):
+    def commit_state_epoch(self,prepared,*,charged=True):
         # Assignment only.  All allocation and host budget checks happened in
         # the detached prepare phase, before any address aliases were exposed.
         if prepared["unchanged"]:return
@@ -166,10 +177,13 @@ class GuardedDispatchProvider:
         self._records=prepared["records"]
         self._retired_allocation_ids=prepared["retired"]
         self._stats=prepared["stats"]
+        if not charged:self._stats['charged_to_driver_work']-=prepared['work']
 
-    def invalidate_state_epoch(self,epoch):
-        """Compatibility hook; transaction-capable hosts use prepare/commit."""
-        self.commit_state_epoch(self.prepare_state_epoch(epoch))
+    def invalidate_state_epoch(self,epoch,driver=None):
+        """Retire authority; standalone calls do not fabricate billed work."""
+        charge=(lambda amount:driver.charge(amount,'llm_state_invalidation_work')) if driver is not None else None
+        prepared=self.prepare_state_epoch(epoch,charge=charge)
+        self.commit_state_epoch(prepared,charged=driver is not None)
 
     def _charge(self,driver,amount):
         driver.charge(amount,"llm_proposer_checker_application_work")
@@ -219,8 +233,7 @@ class GuardedDispatchProvider:
         if epoch!=self._state_epoch:
             # A foreign host which skipped the transaction hook cannot retain
             # stale Verified records.  Charge revocation before publishing it.
-            prepared=self.prepare_state_epoch(epoch)
-            self._charge(driver,prepared["work"])
+            prepared=self.prepare_state_epoch(epoch,charge=lambda amount:driver.charge(amount,'llm_state_invalidation_work'))
             self.commit_state_epoch(prepared)
             return None
         info = driver.functions.get(identifier)

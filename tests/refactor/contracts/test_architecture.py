@@ -62,6 +62,32 @@ class ArchitectureContractTests(unittest.TestCase):
             self.assertEqual(self.module.main(["--root", str(self.root), "--release"]), 1)
         self.assertIn('"mode": "release"', output.getvalue())
 
+    def test_new_core_cannot_reverse_depend_on_compatibility_or_composition(self):
+        self.write("pythonstan/analysis/engines/abstract/driver.py", "from pythonstan.compat import shared_ai\nfrom pythonstan.analysis.composition import state_adapter\n")
+        rules = {row["rule"] for row in self.module.inspect_root(self.root)}
+        self.assertIn("new-core-must-not-call-compat-shim", rules)
+        self.assertIn("core-must-not-own-composition", rules)
+
+    def test_current_inventory_keeps_frozen_targets_and_archive_is_not_a_delegate(self):
+        import json
+        spec = importlib.util.spec_from_file_location("module_inventory", Path(__file__).resolve().parents[3]/"scripts/refactor/update_module_inventory.py")
+        inventory = importlib.util.module_from_spec(spec);spec.loader.exec_module(inventory)
+        row={"old_module":"pythonstan.old","old_path":"pythonstan/old.py","new_module":"pythonstan.new"}
+        record=inventory.record_for_row(row,self.root,archives={"pythonstan/old.py":{"path":"historical.py"}})
+        self.assertEqual(record["status"],"historical_noninstalled_archive")
+        self.assertIsNone(record["current_module"])
+        self.assertFalse(record["supported_import"])
+        missing=inventory.record_for_row(row,self.root,archives={})
+        self.assertEqual(missing["status"],"removed_without_active_destination")
+        self.assertIsNone(missing["current_module"])
+        self.write("pythonstan/old.py","class OriginalImplementation: pass\n")
+        self.write("pythonstan/new.py","class IntendedImplementation: pass\n")
+        retained=inventory.record_for_row(row,self.root,archives={})
+        self.assertEqual(retained["status"],"retained_at_original_location")
+        self.assertEqual(retained["current_module"],"pythonstan.old")
+        mapping=json.loads((Path(__file__).resolve().parents[3]/"docs/refactor/module_map.json").read_text())
+        self.assertEqual(len(mapping["modules"]),150)
+
     def test_checker_self_test(self):
         self.module.self_test()
 

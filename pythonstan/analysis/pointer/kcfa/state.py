@@ -133,6 +133,7 @@ class PointerAnalysisState:
         self.source_metadata = {}
         self.input_bindings = {}
         self._input_seeded = set()
+        self.synthetic_method_roots = []
         self.unknown_effects = None
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()
@@ -159,6 +160,7 @@ class PointerAnalysisState:
 
         # Note: scope_manager is set lazily when needed
         self._scope_manager = None
+        self.entry_module = None
     
     def select_allocation_context(self, context, site, alloc_type=None, *, identity="fresh"):
         """Run-local allocation boundary, injected by the native solver."""

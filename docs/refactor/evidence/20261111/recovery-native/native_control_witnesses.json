@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "author": "recover_native_arch",
+  "scope": "31 historical Native declarations+2 independent heap controls;19 registered contexts; actual behavior/invariance/rejection, never schema existence",
+  "rows": [
+    {
+      "path": "andersen.ai_budget",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Nested max_iterations0 denies actual shared-core transfer before executed-work charging; ordinary budget performs positive work. Remaining25 nested classifications are separately audited, not inferred from wrapper.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_nested_intrinsic_budget_is_not_a_configuration_only_switch"
+      ]
+    },
+    {
+      "path": "andersen.build_class_hierarchy",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[build_class_hierarchy]"
+      ]
+    },
+    {
+      "path": "andersen.builtin_bootstrap_policy",
+      "mode": "effect_and_completed_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Guarded eager publication changes real initialization stores/selectedwork while preserving complete logical work/facts; shared budget cannot renew.",
+      "test_nodes": [
+        "tests/round14_bootstrap/test_guarded_publication.py::test_selected_and_bootstrap_work_are_separate_and_complete_logical_work_is_equal",
+        "tests/refactor/engines/test_native_services.py::test_eager_publications_share_global_budget_and_cannot_renew_it"
+      ]
+    },
+    {
+      "path": "andersen.context_policy",
+      "mode": "effect_and_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "All19 real selectors separate distinct call/receiver/parameter inputs, except0-cfa whose insensitive invariance is asserted; real recursive Source solves stabilize without truncation.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance",
+        "tests/refactor/engines/test_native_context.py::test_recursive_native_context_counts_stabilize_without_budget_stop",
+        "tests/refactor/engines/test_native_context.py::test_ordered_parameter_native_result_does_not_cross_pair"
+      ]
+    },
+    {
+      "path": "andersen.debug_inheritance",
+      "mode": "diagnostic_and_semantic_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "False\u2192True changes actual warning/inheritance diagnostics on live consumers; all8 semantic roots and exact global work equal. Only host-id scratch names alpha-rename; unordered may-event channels compare as multisets.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_diagnostic_switch_changes_log_without_changing_semantics"
+      ]
+    },
+    {
+      "path": "andersen.debug_log_interval",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[debug_log_interval]"
+      ]
+    },
+    {
+      "path": "andersen.debug_output_dir",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[debug_output_dir]"
+      ]
+    },
+    {
+      "path": "andersen.enable_ai_intrinsics",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "False\u2192True causes real shared-core builtin execution and positive charged AI work; Native model retains exact7 and all ledger costs are accounted.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_intrinsic_toggle_changes_actual_charged_service_work_and_preserves_result"
+      ]
+    },
+    {
+      "path": "andersen.enable_debug_monitor",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[enable_debug_monitor]"
+      ]
+    },
+    {
+      "path": "andersen.enable_instrumentation",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[enable_instrumentation]"
+      ]
+    },
+    {
+      "path": "andersen.enable_synthetic_method_contexts",
+      "mode": "entry_expansion",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "True registers actual synthetic receiver method root and new call edge. Native contract records expansion; C retains declared AI scope and labels extra Native prepass roots separately.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_synthetic_receiver_option_changes_actual_roots_and_calls",
+        "tests/refactor/engines/test_native_control_witnesses.py::test_public_synthetic_entry_scope_preserves_stage_specific_coverage"
+      ]
+    },
+    {
+      "path": "andersen.entry_points",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[entry_points]"
+      ]
+    },
+    {
+      "path": "andersen.export_debug_data",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[export_debug_data]"
+      ]
+    },
+    {
+      "path": "andersen.heap_context_depth",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "This control alone changes actual factory allocations2\u21921 and left/right values{1}/{2}\u2192{1,2}, retaining all witnesses.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_each_heap_control_changes_actual_object_aliases_without_losing_values"
+      ]
+    },
+    {
+      "path": "andersen.heap_context_policy",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "This control alone changes actual factory allocations2\u21921 and left/right values{1}/{2}\u2192{1,2}, retaining all witnesses.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_each_heap_control_changes_actual_object_aliases_without_losing_values"
+      ]
+    },
+    {
+      "path": "andersen.index_sensitive",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Key-sensitive actual dictionary read returns1 versus covering1,2 when disabled. This does not claim precise list initializer indexing.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_index_sensitivity_changes_real_dictionary_key_values"
+      ]
+    },
+    {
+      "path": "andersen.keyword_context_limit",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Actual finite protocol bucket quota overflows to one covering join, preserving every callback; only active with receiver_key_v1.",
+      "test_nodes": [
+        "tests/round14_formal/test_key_context_model.py::test_exact_quota_overflow_has_one_join_without_losing_any_callback"
+      ]
+    },
+    {
+      "path": "andersen.keyword_context_model",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Explicit receiver_key_v1 changes actual key-handler pairing across real helper calls/allocations; none baseline retains original imprecision.",
+      "test_nodes": [
+        "tests/round14_formal/test_key_context_model.py::test_default_none_preserves_original_imprecision_in_a_separate_arm",
+        "tests/round14_formal/test_key_context_model.py::test_explicit_context_arm_keeps_key_result_relation_across_helpers_and_allocations"
+      ]
+    },
+    {
+      "path": "andersen.library_paths",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[library_paths]"
+      ]
+    },
+    {
+      "path": "andersen.log_level",
+      "mode": "diagnostic_and_semantic_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "ERROR\u2192INFO changes actual child diagnostics; all8 semantic roots and global work equal; every stdout line is valid NDJSON.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_user_log_level_changes_actual_worker_stderr_with_semantic_invariance"
+      ]
+    },
+    {
+      "path": "andersen.log_unknown_details",
+      "mode": "diagnostic_and_semantic_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "False\u2192True changes actual warning/inheritance diagnostics on live consumers; all8 semantic roots and exact global work equal. Only host-id scratch names alpha-rename; unordered may-event channels compare as multisets.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_diagnostic_switch_changes_log_without_changing_semantics"
+      ]
+    },
+    {
+      "path": "andersen.max_import_depth",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[max_import_depth]"
+      ]
+    },
+    {
+      "path": "andersen.max_iterations",
+      "mode": "effect",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "One selected step stops with pending state;1000 permits convergence and exact7; selected work counts differ.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_native_iteration_limit_changes_completion_without_fabricating_work"
+      ]
+    },
+    {
+      "path": "andersen.max_points_to_size",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[max_points_to_size]"
+      ]
+    },
+    {
+      "path": "andersen.points_work_policy",
+      "mode": "effect_and_completed_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "FIFO/consumer-fair actual pointqueue prefix progress differs; completed entire environments match.",
+      "test_nodes": [
+        "tests/round12_scheduler/test_consumer_fair.py::test_same_budget_prefix_progress_and_entire_completed_environment_equality"
+      ]
+    },
+    {
+      "path": "andersen.project_path",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[project_path]"
+      ]
+    },
+    {
+      "path": "andersen.track_object_flow",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[track_object_flow]"
+      ]
+    },
+    {
+      "path": "andersen.track_pfg_activation",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[track_pfg_activation]"
+      ]
+    },
+    {
+      "path": "andersen.track_unknowns",
+      "mode": "diagnostic_and_semantic_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Diagnostic record switch suppresses records; actual heap/global/callback/exception havoc remains; all8 semantic outputs invariant.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_unknown_tracking_controls_diagnostics_but_not_real_havoc",
+        "tests/pointer/kcfa/test_unknown_tracking.py::test_track_unknowns_disabled_suppresses_records"
+      ]
+    },
+    {
+      "path": "andersen.type",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[type]"
+      ]
+    },
+    {
+      "path": "andersen.use_mro_resolution",
+      "mode": "rejected_nondefault",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Concrete nondefault rejects before Native execution; fixed or unavailable declarations are not credited as operational semantic controls.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_fixed_or_unavailable_public_native_option_rejects_nondefault[use_mro_resolution]"
+      ]
+    },
+    {
+      "path": "andersen.verbose",
+      "mode": "diagnostic_and_semantic_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "False\u2192True changes actual warning/inheritance diagnostics on live consumers; all8 semantic roots and exact global work equal. Only host-id scratch names alpha-rename; unordered may-event channels compare as multisets.",
+      "test_nodes": [
+        "tests/refactor/engines/test_native_control_witnesses.py::test_diagnostic_switch_changes_log_without_changing_semantics"
+      ]
+    },
+    {
+      "path": "andersen.work_scheduling_policy",
+      "mode": "effect_and_completed_invariance",
+      "status": "implemented_author_witnesses_pending_independent_review",
+      "actual_effect_or_invariance": "Same16-step prefix services0 vs8 point items for legacy/fair; enough-work completed environments are equal and all target32facts retained.",
+      "test_nodes": [
+        "tests/round11_scheduler/test_starvation_control.py::test_same_fixed_budget_services_points_and_keeps_pending_obligations"
+      ]
+    }
+  ],
+  "registered_context_cases": [
+    {
+      "policy": "0-cfa",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[0-cfa]"
+    },
+    {
+      "policy": "1-cfa",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1-cfa]"
+    },
+    {
+      "policy": "2-cfa",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2-cfa]"
+    },
+    {
+      "policy": "3-cfa",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[3-cfa]"
+    },
+    {
+      "policy": "1-obj",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1-obj]"
+    },
+    {
+      "policy": "2-obj",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2-obj]"
+    },
+    {
+      "policy": "3-obj",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[3-obj]"
+    },
+    {
+      "policy": "1-type",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1-type]"
+    },
+    {
+      "policy": "2-type",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2-type]"
+    },
+    {
+      "policy": "3-type",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[3-type]"
+    },
+    {
+      "policy": "1-rcv",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1-rcv]"
+    },
+    {
+      "policy": "2-rcv",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2-rcv]"
+    },
+    {
+      "policy": "3-rcv",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[3-rcv]"
+    },
+    {
+      "policy": "1-param",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1-param]"
+    },
+    {
+      "policy": "2-param",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2-param]"
+    },
+    {
+      "policy": "3-param",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[3-param]"
+    },
+    {
+      "policy": "1c1o",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1c1o]"
+    },
+    {
+      "policy": "2c1o",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[2c1o]"
+    },
+    {
+      "policy": "1c2o",
+      "test_node": "tests/refactor/engines/test_native_control_witnesses.py::test_each_context_policy_has_actual_discrimination_or_insensitive_invariance[1c2o]"
+    }
+  ]
+}

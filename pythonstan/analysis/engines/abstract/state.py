@@ -5,6 +5,10 @@ from typing import Any
 import ast
 from pythonstan.analysis.domains.values import Value, ValueOperations
 
+def semantic_payload_equal(left,right,seen=None):
+    from .state_transform import semantic_payload_equal as equal
+    return equal(left,right,seen)
+
 Slot = tuple[str, str, Any]
 
 @dataclass
@@ -19,7 +23,8 @@ class HeapObject:
     havoc: bool = False
 
     def copy(self):
-        return replace(self, fields=dict(self.fields), maybe_missing=set(self.maybe_missing), metadata=dict(self.metadata))
+        from .state_transform import detached_payload
+        return detached_payload(self)
 
     def join(self, other, ops):
         result=self.copy(); result.singleton=self.singleton and other.singleton
@@ -27,13 +32,16 @@ class HeapObject:
         # store order. If distinct metadata cannot be represented jointly, the
         # object becomes a declared conservative havoc object; consumers must
         # not reuse the retained representative as an exact execution state.
-        metadata_changed=self.metadata!=other.metadata
-        result.havoc=self.havoc or other.havoc or metadata_changed
+        metadata_changed=not semantic_payload_equal(self.metadata,other.metadata)
+        incompatible=self.kind!=other.kind or self.kind=="class" and self.class_ids!=other.class_ids
+        result.havoc=self.havoc or other.havoc or metadata_changed or incompatible
+        if incompatible:result.kind="summary";result.singleton=False
         result.default=ops.join(self.default,other.default)
+        if incompatible:result.default=ops.join(result.default,Value.unknown())
         result.class_ids=self.class_ids | other.class_ids
         for key in self.fields.keys()|other.fields.keys():
             result.fields[key]=ops.join(self.fields.get(key,self.default),other.fields.get(key,other.default))
-            if key not in self.fields or key not in other.fields or key in other.maybe_missing: result.maybe_missing.add(key)
+            if key not in self.fields or key not in other.fields or key in self.maybe_missing or key in other.maybe_missing: result.maybe_missing.add(key)
         return result
 
 @dataclass
@@ -46,6 +54,8 @@ class Store:
     obligations: frozenset[str] = frozenset()
     havoc_namespaces: frozenset[str] = frozenset()
     havoc_imports: bool = False
+    guards: dict[str, tuple] = field(default_factory=dict)
+    identity_epoch: int = 0
 
     def effective_cell(self,cell):
         if cell in self.cells:return self.cells[cell]
@@ -53,16 +63,34 @@ class Store:
         return Value(top=True,unbound=True) if module in self.havoc_namespaces else Value(unbound=True)
 
     def copy(self):
-        return Store(dict(self.cells),{k:v.copy() for k,v in self.heap.items()},dict(self.initialized),set(self.writes),self.events,self.obligations,self.havoc_namespaces,self.havoc_imports)
+        from .state_transform import detached_payload
+        return detached_payload(self)
+
+    def ensure_current(self,ops):
+        arena=getattr(ops,"arena",None)
+        if arena is not None and self.identity_epoch!=arena.epoch:
+            from .state_transform import remap_store
+            mapped=remap_store(self,arena.aliases,ops,epoch=arena.epoch)
+            self.__dict__.update(mapped.__dict__)
+        return self
+
+    def invalidate_guards(self,owner=None):
+        if owner is None:self.guards.clear()
+        else:self.guards={key:fact for key,fact in self.guards.items() if not fact or fact[0]!=owner}
+
 
     def clear_effects(self):
         result=self.copy();result.writes=set();result.events=();return result
 
     def write_cell(self, cell, value, *, weak=False, ops=None):
+        if ops is not None:
+            self.ensure_current(ops);value=ops.normalize(value);cell=ops.arena.resolve(cell)
+        self.guards.pop(cell,None)
         if weak and cell in self.cells: value=ops.join(self.cells[cell],value)
         self.cells[cell]=value;self.writes.add(("cell",cell,None))
 
     def read_slot(self, objid, key, ops):
+        self.ensure_current(ops);objid=ops.arena.resolve(objid)
         obj=self.heap.get(objid)
         if obj is None: return Value.unknown(),True
         value=obj.fields.get(key,obj.default)
@@ -70,11 +98,17 @@ class Store:
         return value,key in obj.maybe_missing or key not in obj.fields
 
     def write_slot(self, objid, key, value, ops, *, weak=False):
-        obj=self.heap[objid]
-        if weak or not obj.singleton: value=ops.join(obj.fields.get(key,obj.default),value)
-        obj.fields[key]=value;obj.maybe_missing.discard(key);self.writes.add(("heap",objid,key))
+        self.ensure_current(ops);objid=ops.arena.resolve(objid);value=ops.normalize(value)
+        obj=self.heap[objid];weak=weak or not obj.singleton
+        was_missing=key not in obj.fields or key in obj.maybe_missing
+        if weak:value=ops.join(obj.fields.get(key,obj.default),value)
+        obj.fields[key]=value
+        if weak and was_missing:obj.maybe_missing.add(key)
+        elif not weak:obj.maybe_missing.discard(key)
+        self.invalidate_guards(objid);self.writes.add(("heap",objid,key))
 
     def join(self, other, ops, *, widen=False):
+        self.ensure_current(ops);other.ensure_current(ops)
         result=self.copy();join=ops.widen if widen else ops.join
         for cell in self.cells.keys()|other.cells.keys():
             a=self.effective_cell(cell);b=other.effective_cell(cell)
@@ -87,6 +121,7 @@ class Store:
             b=other.initialized.get(module,"maybe" if other.havoc_imports else "unseen")
             result.initialized[module]=a if a==b else "maybe"
         result.writes |= other.writes
+        result.guards={key:fact for key,fact in self.guards.items() if key in other.guards and semantic_payload_equal(fact,other.guards[key])}
         result.obligations |= other.obligations
         result.havoc_namespaces |= other.havoc_namespaces
         # Events are may-prefix observations, not an order proof.
@@ -94,6 +129,11 @@ class Store:
         return result
 
     def leq(self, other, ops):
+        self.ensure_current(ops);other.ensure_current(ops)
+        if not self.writes<=other.writes:return False
+        from .state_transform import payload_signature
+        if not {payload_signature(x) for x in self.events}<={payload_signature(x) for x in other.events}:return False
+        if any(key not in self.guards or not semantic_payload_equal(self.guards[key],fact) for key,fact in other.guards.items()):return False
         for cell,value in self.cells.items():
             if not ops.leq(value,other.effective_cell(cell)): return False
         for key,obj in self.heap.items():
@@ -101,7 +141,7 @@ class Store:
             rhs=other.heap[key]
             if obj.havoc and not rhs.havoc: return False
             if not obj.singleton and rhs.singleton:return False
-            if not rhs.havoc and obj.metadata!=rhs.metadata:return False
+            if not rhs.havoc and not semantic_payload_equal(obj.metadata,rhs.metadata):return False
             if not ops.leq(obj.default,rhs.default): return False
             for field,value in obj.fields.items():
                 if not ops.leq(value,rhs.fields.get(field,rhs.default)): return False
@@ -114,21 +154,22 @@ class Store:
         return self.obligations<=other.obligations and self.havoc_namespaces<=other.havoc_namespaces
 
     def remap(self,mapping,ops):
-        """One address substitution covers roots, every heap edge and effects."""
-        result=self.copy();result.cells={k:ops.remap(v,mapping) for k,v in self.cells.items()};result.heap={}
-        for old,obj in self.heap.items():
-            new=mapping.get(old,old);copy=obj.copy();copy.fields={k:ops.remap(v,mapping) for k,v in copy.fields.items()}
-            copy.default=ops.remap(copy.default,mapping);copy.class_ids=frozenset(mapping.get(x,x) for x in copy.class_ids)
-            if new!=old: copy.singleton=False
-            result.heap[new]=result.heap[new].join(copy,ops) if new in result.heap else copy
-        result.writes={(kind,mapping.get(obj,obj) if kind=="heap" else obj,key) for kind,obj,key in self.writes}
-        return result
+        from .state_transform import remap_store
+        return remap_store(self,mapping,ops,epoch=ops.arena.epoch)
 
     def apply(self,outcome,ops):
         """Apply only callee writes; preserve caller frame and untouched slots."""
+        self.ensure_current(ops);outcome.store.ensure_current(ops)
         result=self.copy();callee=outcome.store
+        if callee.writes or callee.havoc_namespaces or callee.havoc_imports:result.invalidate_guards()
         for objid,obj in callee.heap.items():
             if objid not in result.heap: result.heap[objid]=obj.copy()
+            else:
+                # Cardinality and unknown-object covers are abstraction facts,
+                # not source writes: losing either can enable an invalid strong
+                # update after a reused fresh allocation summary.
+                result.heap[objid].singleton &= obj.singleton
+                result.heap[objid].class_ids |= obj.class_ids
         # Escaping closures need their allocated cells even if never reassigned.
         for cell,value in callee.cells.items():
             if cell not in result.cells: result.cells[cell]=value
@@ -136,8 +177,10 @@ class Store:
             if kind=="cell": result.cells[objid]=callee.cells.get(objid,Value(unbound=True))
             elif objid in callee.heap:
                 source=callee.heap[objid];target=result.heap[objid]
-                target.metadata=dict(source.metadata)
-                if key is None: target.default=ops.join(target.default,source.default);target.havoc|=source.havoc
+                from .state_transform import detached_payload
+                target.metadata=detached_payload(source.metadata)
+                if kind=="heap_default": target.default=ops.join(target.default,source.default);target.havoc|=source.havoc
+                elif kind=="heap_meta":target.havoc|=source.havoc
                 elif key in source.fields:
                     target.fields[key]=source.fields[key]
                     if key in source.maybe_missing: target.maybe_missing.add(key)

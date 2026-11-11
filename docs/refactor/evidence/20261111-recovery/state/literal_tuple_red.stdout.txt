@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_source_literal_tuple_key_never_becomes_internal_address_tag _______
+
+    def test_source_literal_tuple_key_never_becomes_internal_address_tag():
+        ops=ValueOperations();state=Store(heap={'A':HeapObject('dict',{('ref','A'):Value.constant('target-literal')})})
+        mapped=remap_store(state,{'A':'S'},ops)
+>       assert ('ref','A') in mapped.heap['S'].fields and ('ref','S') not in mapped.heap['S'].fields
+E       AssertionError: assert (('ref', 'A') in {('ref', 'S'): Value(ints=IntLattice(consts=frozenset(), lo=None, hi=None, parity=<Parity.BOTTOM: 'bottom'>, is_bottom...ats=frozenset(), none=False, refs=frozenset(), top_sorts=frozenset(), top=False, unbound=False, relations=frozenset())})
+E        +  where {('ref', 'S'): Value(ints=IntLattice(consts=frozenset(), lo=None, hi=None, parity=<Parity.BOTTOM: 'bottom'>, is_bottom...ats=frozenset(), none=False, refs=frozenset(), top_sorts=frozenset(), top=False, unbound=False, relations=frozenset())} = HeapObject(kind='dict', fields={('ref', 'S'): Value(ints=IntLattice(consts=frozenset(), lo=None, hi=None, parity=<Pari...d=False, relations=frozenset()), maybe_missing=set(), singleton=False, class_ids=frozenset(), metadata={}, havoc=False).fields
+
+tests/refactor/engines/test_state_recovery.py:138: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_state_recovery.py::test_source_literal_tuple_key_never_becomes_internal_address_tag
+1 failed, 1 warning in 0.11s

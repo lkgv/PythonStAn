@@ -40,6 +40,14 @@ def test_supported_consumer_symbols_are_defined_and_unsupported_are_honest():
             if consumer is not None:assert consumer in definitions,consumer
     budgets={row["old_name"]:row for row in metadata["ai_budget_options"]}
     assert budgets["max_recursion_depth"]["new_ai_status"]=="legacy_only_reject_nondefault"
-    assert budgets["max_addr_set_size"]["new_ai_consumer"] is None
+    assert budgets["max_addr_set_size"]["new_ai_consumer"].endswith("InterproceduralDriver.coarsen_flows")
+    assert budgets["max_addr_set_size"]["new_ai_status"]=="supported"
     assert budgets["max_const_ints"]["new_ai_consumer"] is None
+    assert budgets["max_const_ints"]["legacy_status"]=="retired_reject_nondefault"
     assert budgets["max_const_strings"]["new_ai_consumer"].endswith("ValueOperations.__init__")
+    assert {name for name,row in budgets.items() if row["legacy_status"]=="supported_shared_core"}=={
+        "max_iterations","max_stmt_visits","max_addr_set_size","max_const_strings",
+        "enable_narrowing","narrowing_iterations","enable_value_partition",
+        "max_value_partitions","strict_exceptions"}
+    for row in metadata["solver_options"]:
+        assert all(consumer in definitions for consumer in row["actual_new_consumers"]+row["legacy_consumers"])

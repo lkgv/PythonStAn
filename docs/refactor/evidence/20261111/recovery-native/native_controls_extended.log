@@ -1,0 +1,34 @@
+............................................FF.........                  [100%]
+=================================== FAILURES ===================================
+_ test_intrinsic_toggle_changes_actual_charged_service_work_and_preserves_result _
+
+    def test_intrinsic_toggle_changes_actual_charged_service_work_and_preserves_result():
+        plain=probe('intrinsic_getattr',enable_ai_intrinsics=False)
+        assisted=probe('intrinsic_getattr',enable_ai_intrinsics=True)
+        assert plain['statistics']['ai_intrinsic_work']==0
+>       assert assisted['statistics']['ai_intrinsic_work']>0
+E       assert 0 > 0
+
+tests/refactor/engines/test_native_control_witnesses.py:158: AssertionError
+_______ test_nested_intrinsic_budget_is_not_a_configuration_only_switch ________
+
+    def test_nested_intrinsic_budget_is_not_a_configuration_only_switch():
+        complete=probe('intrinsic_getattr',enable_ai_intrinsics=True)
+        limited=probe('intrinsic_getattr',enable_ai_intrinsics=True,ai_budget={'max_iterations':0})
+>       assert complete['statistics']['ai_intrinsic_work']>limited['statistics']['ai_intrinsic_work']
+E       assert 0 > 0
+
+tests/refactor/engines/test_native_control_witnesses.py:167: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_native_control_witnesses.py::test_intrinsic_toggle_changes_actual_charged_service_work_and_preserves_result
+FAILED tests/refactor/engines/test_native_control_witnesses.py::test_nested_intrinsic_budget_is_not_a_configuration_only_switch
+2 failed, 53 passed, 1 warning in 7.06s

@@ -90,3 +90,36 @@ def test_actual_l2_authority_is_revoked_and_retired_fresh_id_is_not_reapplied():
     assert provider.statistics['applications']==applied
     current=next(flow.store for flow in unit.outcomes if flow.kind=='normal')
     assert fresh not in current.heap and not current.heap['summary:fresh'].singleton
+
+
+def test_oracle_preparation_checks_budget_before_cloning_each_fact(monkeypatch):
+    from pythonstan.analysis.composition.oracle import IncrementalInclusionStore
+    driver,_,_=driver_for();kernel=IncrementalInclusionStore(driver.ops)
+    for index in range(64):kernel.add_fact(('field',f'owner{index}','value'),Value.ref('left'))
+    remapped=[];original=driver.ops.remap
+    def observed(value,mapping):remapped.append(value);return original(value,mapping)
+    monkeypatch.setattr(driver.ops,'remap',observed)
+    before=driver.work;driver.max_work=before+2
+    with pytest.raises(BudgetStop):
+        kernel.prepare_reabstract({'left':'summary'},driver.ops,
+            charge=lambda amount:driver.charge(amount,'test_oracle_prepare'))
+    assert driver.work==before+1 and remapped==[]
+    assert len(kernel.facts)==64 and driver.ops.arena.epoch==0
+    assert all(value.refs==frozenset({'left'}) for value in kernel.facts.values())
+
+
+@pytest.mark.parametrize('billed',[False,True])
+def test_standalone_invalidation_does_not_fabricate_driver_charges(billed):
+    module=SourceModule('example','example.py',SOURCE)
+    config={'engine':'ai_primary','resources':{'max_work':100000,'max_seconds':0,'max_memory_mb':0},
+            'llm':{'enabled':True,'level2':True,'provider':'offline'}}
+    provider=make_summary_provider(SimpleNamespace(modules=(module,)),config)
+    driver=InterproceduralDriver((module,),options=config);driver.summary_provider=provider
+    driver.run((EntryScenario('example'),));before=driver.work;paid=provider.statistics['charged_to_driver_work']
+    assert provider.statistics['uncharged_attempted_work']==0
+    provider.invalidate_state_epoch(1,driver=driver if billed else None)
+    added=provider.statistics['state_invalidation_work']
+    assert added>0 and all(record['status']=='unknown' for record in provider.proof_records)
+    assert driver.work-before==(added if billed else 0)
+    assert provider.statistics['charged_to_driver_work']-paid==(added if billed else 0)
+    assert provider.statistics['uncharged_attempted_work']==(0 if billed else added)

@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "--import-mode=importlib",
+    "-q",
+    "tests/refactor/engines/test_state_recovery.py::test_source_literal_tuple_key_never_becomes_internal_address_tag"
+  ],
+  "exit": 1
+}

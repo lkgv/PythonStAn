@@ -1,0 +1,29 @@
+......................F...................                               [100%]
+=================================== FAILURES ===================================
+________ test_unknown_tracking_controls_diagnostics_but_not_real_havoc _________
+
+    def test_unknown_tracking_controls_diagnostics_but_not_real_havoc():
+        source="class Box: pass\nbox=Box()\nbox.value=1\neval('box.value=7')\nresult=box.value\n"
+        off,_=worker(source,track_unknowns=False)
+        on,_=worker(source,track_unknowns=True)
+>       assert signature(off)==signature(on)
+E       AssertionError: assert {'values': {'...lls': [], ...} == {'values': {'...lls': [], ...}
+E         
+E         Omitting 7 identical items, use -vv to show
+E         Differing items:
+E         {'obligations': [{'kind': 'legacy_source_coverage', 'reason': 'Native constraint convergence does not establish exhaus...in__:2:4:$tmp_0 = Box()#0', 'reason': 'unknown callable value', 'context': 'Ctx[0]', 'return_target': None, ...}, ...]} != {'obligations': [{'kind': 'legacy_source_coverage', 'reason': 'Native constraint convergence does not establish exhaus...callable value', 'context': 'Ctx[0]', 'return_target': '$new_result@2:4:0@139951412689328@139951410658768', ...}, ...]}
+E         Use -v to get more diff
+
+tests/refactor/engines/test_native_control_witnesses.py:108: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_native_control_witnesses.py::test_unknown_tracking_controls_diagnostics_but_not_real_havoc
+1 failed, 41 passed, 1 warning in 3.52s

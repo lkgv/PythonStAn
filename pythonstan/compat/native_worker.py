@@ -116,6 +116,13 @@ def main(payload, publish=None):
             query = native_result.query()
             stats = query.get_statistics()
             native_seconds = time.monotonic()-started
+            if native["enable_synthetic_method_contexts"]:
+                contract=aggregate.setdefault("synthetic_entry_contract",{
+                    "enabled":True,"entry_coverage":"initialization_and_synthetic_method_contexts",
+                    "coverage":"candidate_method_discovery_not_arbitrary_external_requests","roots":[]})
+                contract["roots"].extend({**root,"scenario_id":scenario["scenario_id"]}
+                                         for root in stats.get("synthetic_method_roots",()))
+                aggregate["stats"]["synthetic_method_root_count"]=len(contract["roots"])
             aggregate["stats"]["scenarios"] += 1
             aggregate["stats"]["native_work"] += stats.get("selected_work_items", stats.get("iterations", 0))
             for name in ("global_work_used", "ai_intrinsic_work", "intrinsic_bridge_work", "native_selected_work", "ai_intrinsic_seconds", "input_publications"):
@@ -148,7 +155,12 @@ def main(payload, publish=None):
                                if isinstance(query, dict) and query.get("kind") == "value"
                                and query.get("module") == name and query.get("symbol"))
                 for symbol in sorted(symbols):
-                    value = _value(query.points_to_at(symbol, scope))
+                    points = query.points_to_at(symbol, scope)
+                    if not points and not stats.get("converged"):
+                        aggregate["obligations"].append({"kind":"native_pending_value","module":name,
+                            "symbol":symbol,"reason":"Empty points-to observation before fixed point is unavailable, not proved Bottom"})
+                        continue
+                    value = _value(points)
                     if symbol in values:
                         previous = values[symbol]
                         typed = {(type(v).__name__, json.dumps(v, sort_keys=True)): v for v in previous["constants"] + value["constants"]}

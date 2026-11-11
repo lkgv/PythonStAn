@@ -3,7 +3,6 @@ import warnings
 from typing import Any,Dict,List,Set,Tuple,Optional,Union,Iterable
 from pythonstan.ir.ir_statements import (IRScope,IRModule,IRFunc,IRClass,IRCall,
     IRLoadAttr,IRStoreAttr,IRLoadSubscr,IRAssign,IRCopy)
-from pythonstan.world import World
 from .solver_interface import ISolverQuery
 from .state import PointerAnalysisState
 from .context import Ctx,Scope,CallSite,AbstractContext
@@ -27,11 +26,11 @@ class SolverQuery(ISolverQuery):
         self._unknown_tracker = unknown_tracker
         self._class_hierarchy = class_hierarchy
         self._solver = solver
+        self._entry_module = state.entry_module
 
     def _scope_label(self, scope: IRScope) -> str:
         if isinstance(scope, IRModule):
-            entry_module = World().get_entry_module()
-            if scope is entry_module:
+            if scope is self._entry_module:
                 return "__main__"
         return scope.get_qualname()
 
@@ -534,6 +533,7 @@ class SolverQuery(ISolverQuery):
                 "allocation_policy_decisions": allocations,
                 "heap_context_policy": (self._solver.config.heap_context_policy if self._solver is not None else None),
                 "heap_context_depth": (self._solver.config.heap_context_depth if self._solver is not None else None),
+                "synthetic_method_roots": [dict(row) for row in self._state.synthetic_method_roots],
                 "residual_effect_count": len(getattr(self._state, "_residual_effects", {}))}
 
     def get_all_objects(self) -> Iterable['AbstractObject']:

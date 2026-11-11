@@ -13,7 +13,7 @@ from pythonstan.analysis.contracts import stable_digest
 
 def _address(identifier,ops,mapping=()):
     """Resolve an address without treating an ordinary string key as one."""
-    mapping=dict(mapping);seen=set()
+    mapping=mapping or {};seen=set()
     while identifier in mapping and mapping[identifier]!=identifier:
         if identifier in seen:raise ValueError("cyclic oracle address substitution")
         seen.add(identifier);identifier=mapping[identifier]
@@ -22,7 +22,7 @@ def _address(identifier,ops,mapping=()):
 
 def _payload(value,ops,mapping=()):
     if isinstance(value,Value):
-        value=ops.remap(value,dict(mapping)) if mapping else value
+        value=ops.remap(value,mapping) if mapping else value
         normalize=getattr(ops,"normalize",None)
         return normalize(value) if normalize is not None else value
     if isinstance(value,tuple):return tuple(_payload(item,ops,mapping) for item in value)
@@ -102,39 +102,45 @@ class IncrementalInclusionStore:
         return not self.queue
     def value(self,node):self.deliveries+=1;return self.facts.get(_node(node,self.ops),Value.bottom())
 
-    def prepare_reabstract(self,mapping,ops=None):
+    def prepare_reabstract(self,mapping,ops=None,charge=None):
         """Build a detached covering kernel; never invoke live callbacks here."""
-        ops=ops or self.ops;result=IncrementalInclusionStore(ops);work=0
+        ops=ops or self.ops;work=0
+        def spend(amount):
+            nonlocal work
+            if charge is not None:charge(amount)
+            work+=amount
+        spend(1);result=IncrementalInclusionStore(ops)
         for node,value in self.facts.items():
+            spend(1+len(value.refs)+len(self.origins.get(node,())))
             changed=_node(node,ops,mapping);converted=_payload(value,ops,mapping)
             result.facts[changed]=ops.join(result.facts.get(changed,Value.bottom()),converted)
             result.origins[changed].update(self.origins.get(node,()))
-            work+=1+len(value.refs)
         for source,targets in self.edges.items():
-            result.edges[_node(source,ops,mapping)].update(_node(target,ops,mapping) for target in targets);work+=1+len(targets)
+            spend(1+len(targets));result.edges[_node(source,ops,mapping)].update(_node(target,ops,mapping) for target in targets)
         for source,rules in self.loads.items():
-            result.loads[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules);work+=1+len(rules)
+            spend(1+len(rules));result.loads[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules)
         for source,rules in self.stores.items():
-            result.stores[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules);work+=1+len(rules)
+            spend(1+len(rules));result.stores[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules)
         for source,rules in self.operations.items():
+            spend(1)
             target=result.operations[_node(source,ops,mapping)]
             for inputs,output,function in rules:
+                spend(1+len(inputs))
                 converted=(tuple(_node(item,ops,mapping) for item in inputs),_node(output,ops,mapping),function)
                 if converted not in target:target.append(converted)
-                work+=1+len(inputs)
         for source,callbacks in self.listeners.items():
+            spend(1+len(callbacks))
             target=result.listeners[_node(source,ops,mapping)]
             for callback in callbacks:
                 if callback not in target:target.append(callback)
-            work+=1+len(callbacks)
         # Replaying every producer is necessary even when its own value did not
         # change: an alias collision may create a new load/store destination.
-        result.queue=deque(dict.fromkeys([*(_node(node,ops,mapping) for node in self.queue),*result.facts]))
+        spend(len(self.queue)+len(result.facts)+len(self.errors));result.queue=deque(dict.fromkeys([*(_node(node,ops,mapping) for node in self.queue),*result.facts]))
         result.queued=set(result.queue)
         result.version=self.version+1
         result.work=self.work;result.publications=self.publications;result.deliveries=self.deliveries;result.replays=self.replays
         result.errors=set(self.errors)
-        return {"kernel":result,"work":work}
+        return {"kernel":result,"work":work,"work_precharged":charge is not None}
     def statistics(self):return {"work":self.work,"facts":len(self.facts),"edges":sum(map(len,self.edges.values())),"publications":self.publications,"deliveries":self.deliveries,"late_edge_replays":self.replays,"pending":len(self.queue),"version":self.version}
 
 class IncrementalCandidateOracle:
@@ -143,9 +149,11 @@ class IncrementalCandidateOracle:
         self.source_digest=source_digest;self.profile=profile;self.policy_digest=policy_digest;self.model_digest=model_digest
         self.kernel=IncrementalInclusionStore(ops);self.max_work=max_work;self.driver=None
         self.actual_consumptions=0;self.nonempty_consumptions=0;self.calls=set();self._subscriptions=set()
-    def prepare_reabstract(self,mapping,ops=None):
-        prepared=self.kernel.prepare_reabstract(mapping,ops)
-        return {**prepared,"subscriptions":set(self._subscriptions),"calls":set(self.calls)}
+    def prepare_reabstract(self,mapping,ops=None,charge=None):
+        prepared=self.kernel.prepare_reabstract(mapping,ops,charge=charge)
+        own_work=1+len(self._subscriptions)+len(self.calls)
+        if charge is not None:charge(own_work)
+        return {**prepared,"subscriptions":set(self._subscriptions),"calls":set(self.calls),"work":prepared['work']+own_work}
     def commit_reabstract(self,prepared):
         """The host has charged and published its address epoch before this."""
         self.kernel=prepared["kernel"]

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "review_state": "author_traced_pending_independent_review",
-  "source_commit": "c1e8f46007594ebb3e95633b773543dda3c1600a",
+  "source_commit": "992e14b859276ecca1165a927efcaaee0ba7f66a",
   "counts": {
     "native_legacy_fields": 31,
     "registered_contexts": 19,
@@ -25,13 +25,13 @@
         {
           "name": "context_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.__init__",
-          "line": 105,
+          "line": 108,
           "read_kind": "attribute_read"
         },
         {
           "name": "context_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 263,
+          "line": 269,
           "read_kind": "attribute_read"
         }
       ],
@@ -61,6 +61,12 @@
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._next_work_item",
           "line": 581,
           "read_kind": "attribute_read"
+        },
+        {
+          "name": "max_iterations",
+          "symbol": "pythonstan.compat.native_worker.main",
+          "line": 95,
+          "read_kind": "mapping_read"
         }
       ],
       "public_recommendation": "preserve_registered_behavior"
@@ -90,8 +96,8 @@
       ],
       "other_engine_consumer": null,
       "legacy_status": "diagnostic",
-      "actual_consumer": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._apply_call",
-      "meaning": "Extra diagnostic logging; no semantic precision effect.",
+      "actual_consumer": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._mark_unknown_call",
+      "meaning": "Once-per-new-unknown-call diagnostic on the actual live path; complete semantic state/work remains invariant.",
       "source_references": [
         {
           "name": "verbose",
@@ -103,6 +109,12 @@
           "name": "verbose",
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._apply_call",
           "line": 1365,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "verbose",
+          "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._mark_unknown_call",
+          "line": 1394,
           "read_kind": "attribute_read"
         }
       ],
@@ -118,14 +130,20 @@
       ],
       "other_engine_consumer": null,
       "legacy_status": "diagnostic",
-      "actual_consumer": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis._setup_logging",
-      "meaning": "Child-local logging level.",
+      "actual_consumer": "pythonstan.compat.native_worker.main",
+      "meaning": "Requested child-local logging level; captured stderr remains outside strict NDJSON frames.",
       "source_references": [
         {
           "name": "log_level",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis._setup_logging",
-          "line": 645,
+          "line": 674,
           "read_kind": "attribute_read"
+        },
+        {
+          "name": "log_level",
+          "symbol": "pythonstan.compat.native_worker.main",
+          "line": 99,
+          "read_kind": "mapping_read"
         }
       ],
       "public_recommendation": "preserve_registered_behavior"
@@ -161,7 +179,7 @@
         {
           "name": "entry_points",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 162,
+          "line": 168,
           "read_kind": "attribute_read"
         }
       ],
@@ -183,8 +201,14 @@
         {
           "name": "enable_synthetic_method_contexts",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 251,
+          "line": 257,
           "read_kind": "attribute_read"
+        },
+        {
+          "name": "enable_synthetic_method_contexts",
+          "symbol": "pythonstan.compat.native_worker.main",
+          "line": 119,
+          "read_kind": "mapping_read"
         }
       ],
       "public_recommendation": "preserve_registered_behavior"
@@ -235,13 +259,13 @@
         {
           "name": "project_path",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 262,
+          "line": 268,
           "read_kind": "attribute_read"
         },
         {
           "name": "project_path",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 262,
+          "line": 268,
           "read_kind": "attribute_read"
         }
       ],
@@ -293,7 +317,7 @@
         {
           "name": "track_unknowns",
           "symbol": "pythonstan.analysis.pointer.kcfa.query.SolverQuery.get_semantic_status",
-          "line": 567,
+          "line": 568,
           "read_kind": "attribute_read"
         },
         {
@@ -357,7 +381,32 @@
       "legacy_status": "fixed_tag",
       "actual_consumer": "pythonstan.analysis.pointer.kcfa.config.Config.__post_init__",
       "meaning": "Onlypointer analysis; no strategy choice.",
-      "source_references": [],
+      "source_references": [
+        {
+          "name": "type",
+          "symbol": "pythonstan.analysis.pointer.kcfa.input_bindings.alternatives",
+          "line": 24,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "type",
+          "symbol": "pythonstan.analysis.pointer.kcfa.input_bindings.alternatives",
+          "line": 25,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "type",
+          "symbol": "pythonstan.analysis.pointer.kcfa.input_bindings.alternatives",
+          "line": 26,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "type",
+          "symbol": "pythonstan.compat.native_worker.main",
+          "line": 168,
+          "read_kind": "mapping_read"
+        }
+      ],
       "public_recommendation": "preserve_registered_behavior"
     },
     {
@@ -376,13 +425,13 @@
         {
           "name": "index_sensitive",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.__init__",
-          "line": 126,
+          "line": 129,
           "read_kind": "attribute_read"
         },
         {
           "name": "index_sensitive",
           "symbol": "pythonstan.analysis.pointer.kcfa.bootstrap._signature",
-          "line": 201,
+          "line": 200,
           "read_kind": "getattr_read"
         },
         {
@@ -499,12 +548,6 @@
       "source_references": [
         {
           "name": "work_scheduling_policy",
-          "symbol": "pythonstan.analysis.pointer.kcfa.bootstrap._signature",
-          "line": 130,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "work_scheduling_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver.__init__",
           "line": 88,
           "read_kind": "attribute_read"
@@ -519,6 +562,18 @@
           "name": "work_scheduling_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver.__iter__",
           "line": 361,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "work_scheduling_policy",
+          "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._select_work_kind",
+          "line": 505,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "work_scheduling_policy",
+          "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._pop_scheduled",
+          "line": 509,
           "read_kind": "attribute_read"
         }
       ],
@@ -540,7 +595,7 @@
         {
           "name": "points_work_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis._initialize_builtins",
-          "line": 605,
+          "line": 634,
           "read_kind": "attribute_read"
         },
         {
@@ -580,19 +635,19 @@
         {
           "name": "builtin_bootstrap_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis._initialize_builtins",
-          "line": 583,
+          "line": 612,
           "read_kind": "attribute_read"
         },
         {
           "name": "builtin_bootstrap_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.bootstrap.try_publish_builtin_seed",
-          "line": 236,
+          "line": 235,
           "read_kind": "attribute_read"
         },
         {
           "name": "builtin_bootstrap_policy",
           "symbol": "pythonstan.analysis.pointer.kcfa.bootstrap.bootstrap_statistics",
-          "line": 307,
+          "line": 306,
           "read_kind": "attribute_read"
         },
         {
@@ -794,7 +849,7 @@
         {
           "name": "export_debug_data",
           "symbol": "pythonstan.analysis.pointer.kcfa.analysis.PointerAnalysis.analyze",
-          "line": 258,
+          "line": 264,
           "read_kind": "attribute_read"
         }
       ],
@@ -884,7 +939,7 @@
         {
           "name": "enable_ai_intrinsics",
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver._try_ai_intrinsic",
-          "line": 1636,
+          "line": 1638,
           "read_kind": "attribute_read"
         }
       ],
@@ -906,7 +961,7 @@
         {
           "name": "ai_budget",
           "symbol": "pythonstan.analysis.pointer.kcfa.solver.PointerSolver.intrinsic_budget_options",
-          "line": 1655,
+          "line": 1657,
           "read_kind": "attribute_read"
         }
       ],
@@ -1134,19 +1189,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-      "legacy_meaning": "CFG worklimit; directintrinsic dispatch has noCFGiterationloop.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
       "legacy_source_references": [
         {
           "name": "max_iterations",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 182,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_iterations",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-          "line": 447,
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 497,
           "read_kind": "attribute_read"
         }
       ],
@@ -1158,13 +1209,13 @@
         {
           "name": "max_iterations",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.__init__",
-          "line": 43,
+          "line": 46,
           "read_kind": "mapping_read"
         },
         {
           "name": "max_iterations",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver._solve",
-          "line": 291,
+          "line": 459,
           "read_kind": "mapping_read"
         }
       ]
@@ -1178,25 +1229,45 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-      "legacy_meaning": "Perblock visitguard via max_block_visits.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
       "legacy_source_references": [
         {
           "name": "max_stmt_visits",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 183,
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 497,
           "read_kind": "attribute_read"
         }
       ],
       "new_path": "abstract.max_stmt_visits",
       "new_ai_status": "supported",
-      "new_ai_consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
-      "new_ai_meaning": "Loopiteration guard beforecheckedwiden/narrow; differsfromlegacyperblockmeaning.",
+      "new_ai_consumer": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.tick",
+      "new_ai_meaning": "Canonical charged statement guard plus covering loop limit; zero prevents actual statement transfer.",
       "new_ai_source_references": [
         {
           "name": "max_stmt_visits",
+          "symbol": "pythonstan.analysis.engines.abstract.continuations.ContinuationEngine.collect",
+          "line": 225,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "max_stmt_visits",
+          "symbol": "pythonstan.analysis.engines.abstract.continuations.ContinuationEngine.advance_for",
+          "line": 270,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "max_stmt_visits",
+          "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.tick",
+          "line": 78,
+          "read_kind": "mapping_read"
+        },
+        {
+          "name": "max_stmt_visits",
           "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
-          "line": 646,
+          "line": 770,
           "read_kind": "mapping_read"
         }
       ]
@@ -1210,16 +1281,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter.invoke_callee",
-      "legacy_meaning": "Legacy nestedinvocation depthcap; notnewSCC scheduling.",
-      "legacy_source_references": [
-        {
-          "name": "max_recursion_depth",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter.invoke_callee",
-          "line": 2772,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter.invoke_callee",
+      "legacy_source_references": [],
       "new_path": "abstract.max_recursion_depth",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1235,19 +1301,21 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.api.AISummaryEngine.analyze_callee",
-      "legacy_meaning": "Internal Python exceptionreporting; shared-workexhaustion isalwaysnormalincomplete.",
+      "legacy_consumer": "pythonstan.compat.legacy_ai.api.AISummaryEngine.analyze_callee",
+      "legacy_meaning": "Host-internal error policy at direct legacy API boundary; does not prune target exceptions.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.api.AISummaryEngine.analyze_callee",
       "legacy_source_references": [
         {
           "name": "strict_exceptions",
-          "symbol": "pythonstan.analysis.pointer.ai.api.AISummaryEngine.analyze_callee",
-          "line": 465,
+          "symbol": "pythonstan.compat.legacy_ai.api.AISummaryEngine.analyze_callee",
+          "line": 365,
           "read_kind": "attribute_read"
         },
         {
           "name": "strict_exceptions",
-          "symbol": "pythonstan.analysis.pointer.ai.api.AISummaryEngine.analyze_intrinsic",
-          "line": 675,
+          "symbol": "pythonstan.compat.legacy_ai.api.AISummaryEngine.analyze_intrinsic",
+          "line": 374,
           "read_kind": "attribute_read"
         }
       ],
@@ -1266,8 +1334,10 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.state.AIState.widen",
-      "legacy_meaning": "Legacy full-state reabstraction/address summarization; no truncation.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.state.AIState.widen",
       "legacy_source_references": [
         {
           "name": "max_addr_set_size",
@@ -1277,27 +1347,27 @@
         },
         {
           "name": "max_addr_set_size",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 186,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_addr_set_size",
-          "symbol": "pythonstan.analysis.pointer.ai.state.AIState.widen",
-          "line": 685,
+          "symbol": "pythonstan.compat.legacy_ai.state.AIState.widen",
+          "line": 666,
           "read_kind": "attribute_read"
         }
       ],
       "new_path": "abstract.max_addr_set_size",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "new_ai_consumer": null,
-      "new_ai_meaning": "Noactive consumer innewAI; donotacceptas precisioncontrol",
+      "new_ai_status": "supported",
+      "new_ai_consumer": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.coarsen_flows",
+      "new_ai_meaning": "Actual host-wide roots/heap/cells/continuations/defaults/subscriber address coarsening with weak summary writes.",
       "new_ai_source_references": [
         {
           "name": "max_addr_set_size",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.__init__",
-          "line": 38,
+          "line": 41,
           "read_kind": "mapping_read"
+        },
+        {
+          "name": "max_addr_set_size",
+          "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.coarsen_flows",
+          "line": 159,
+          "read_kind": "attribute_read"
         }
       ]
     },
@@ -1310,16 +1380,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.iterators.GeneratorSemantics.alloc_generator_obj",
-      "legacy_meaning": "Generator/iterator metadatafield capacity; notordinarynamespacecap.",
-      "legacy_source_references": [
-        {
-          "name": "max_field_keys",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.iterators.GeneratorSemantics.alloc_generator_obj",
-          "line": 294,
-          "read_kind": "getattr_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.iterators.GeneratorSemantics.alloc_generator_obj",
+      "legacy_source_references": [],
       "new_path": "abstract.max_field_keys",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1335,8 +1400,10 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.state.AIState.widen",
-      "legacy_meaning": "Run-localStringDomaincapacity plusbounded name/key enumeration inlegacyconsumers.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.state.AIState.widen",
       "legacy_source_references": [
         {
           "name": "max_const_strings",
@@ -1353,38 +1420,20 @@
         {
           "name": "max_const_strings",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.__init__",
-          "line": 99,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_const_strings",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.builtins.BuiltinAttributeSemantics.handle_getattr",
           "line": 121,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_const_strings",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.builtins.BuiltinAttributeSemantics.handle_setattr",
-          "line": 308,
+          "symbol": "pythonstan.compat.legacy_ai.state.AIState.widen",
+          "line": 679,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_const_strings",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.load_subscr",
-          "line": 163,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_const_strings",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.store_subscr",
-          "line": 309,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_const_strings",
-          "symbol": "pythonstan.analysis.pointer.ai.state.AIState.widen",
-          "line": 698,
-          "read_kind": "attribute_read"
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 496,
+          "read_kind": "mapping_read"
         }
       ],
       "new_path": "abstract.max_const_strings",
@@ -1395,13 +1444,13 @@
         {
           "name": "max_const_strings",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.__init__",
-          "line": 99,
+          "line": 121,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_const_strings",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.__init__",
-          "line": 38,
+          "line": 41,
           "read_kind": "mapping_read"
         }
       ]
@@ -1415,8 +1464,10 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.callable.CallableDomain.on_reduce_value",
-      "legacy_meaning": "Callable/type tokenreduction; notcontext k.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.callable.CallableDomain.on_reduce_value",
       "legacy_source_references": [
         {
           "name": "max_ho_tokens",
@@ -1426,38 +1477,38 @@
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.base.create_default_registry",
+          "symbol": "pythonstan.compat.legacy_ai.domains.base.create_default_registry",
           "line": 19,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.base.create_default_registry",
+          "symbol": "pythonstan.compat.legacy_ai.domains.base.create_default_registry",
           "line": 20,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.base.create_default_registry",
+          "symbol": "pythonstan.compat.legacy_ai.domains.base.create_default_registry",
           "line": 21,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.callable.CallableDomain.on_reduce_value",
-          "line": 227,
+          "symbol": "pythonstan.compat.legacy_ai.domains.callable.CallableDomain.on_reduce_value",
+          "line": 220,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.type_domain.TypeDomain.on_reduce_value",
-          "line": 171,
+          "symbol": "pythonstan.compat.legacy_ai.domains.type_domain.TypeDomain.on_reduce_value",
+          "line": 165,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_ho_tokens",
-          "symbol": "pythonstan.analysis.pointer.ai.state.AIState.widen",
-          "line": 699,
+          "symbol": "pythonstan.compat.legacy_ai.state.AIState.widen",
+          "line": 680,
           "read_kind": "attribute_read"
         }
       ],
@@ -1476,22 +1527,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-      "legacy_meaning": "Checked publicsummary rebuilding after narrowing.",
-      "legacy_source_references": [
-        {
-          "name": "enable_narrowing",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 184,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "enable_narrowing",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-          "line": 528,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
+      "legacy_source_references": [],
       "new_path": "abstract.enable_narrowing",
       "new_ai_status": "supported",
       "new_ai_consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
@@ -1500,7 +1540,7 @@
         {
           "name": "enable_narrowing",
           "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
-          "line": 675,
+          "line": 800,
           "read_kind": "mapping_read"
         }
       ]
@@ -1514,22 +1554,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai._narrowing.NarrowingPass.run",
-      "legacy_meaning": "Narrowingpasses; notfreshsolverworkbudget.",
-      "legacy_source_references": [
-        {
-          "name": "narrowing_iterations",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 185,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "narrowing_iterations",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-          "line": 539,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai._narrowing.NarrowingPass.run",
+      "legacy_source_references": [],
       "new_path": "abstract.narrowing_iterations",
       "new_ai_status": "supported",
       "new_ai_consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
@@ -1538,7 +1567,7 @@
         {
           "name": "narrowing_iterations",
           "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
-          "line": 676,
+          "line": 801,
           "read_kind": "mapping_read"
         }
       ]
@@ -1552,32 +1581,22 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner.refine",
-      "legacy_meaning": "Legacybranch/value refinement; distinctfromwholetrace partitioning.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner.refine",
       "legacy_source_references": [
         {
           "name": "enable_value_partition",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner.refine",
-          "line": 69,
-          "read_kind": "getattr_read"
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 494,
+          "read_kind": "mapping_read"
         },
         {
           "name": "enable_value_partition",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._refine_branch",
-          "line": 2334,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "enable_value_partition",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 187,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "enable_value_partition",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._process_block_with_trace",
-          "line": 648,
-          "read_kind": "attribute_read"
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 495,
+          "read_kind": "mapping_read"
         }
       ],
       "new_path": "abstract.enable_value_partition",
@@ -1587,8 +1606,8 @@
       "new_ai_source_references": [
         {
           "name": "enable_value_partition",
-          "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.getitem",
-          "line": 1016,
+          "symbol": "pythonstan.analysis.engines.abstract.dictionaries.DictionaryOperations.getitem",
+          "line": 134,
           "read_kind": "mapping_read"
         }
       ]
@@ -1602,31 +1621,27 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
-      "legacy_meaning": "Legacypervalue/branchpartition caps viaSolverConfig andConditionSemantics.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Projects into the shared source driver; exact active target consumer is listed in new_ai_consumer.",
+      "legacy_status": "supported_shared_core",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.solver.AISolver.solve",
       "legacy_source_references": [
         {
           "name": "max_value_partitions",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 188,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_value_partitions",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._process_block_with_trace",
-          "line": 649,
-          "read_kind": "attribute_read"
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 494,
+          "read_kind": "mapping_read"
         }
       ],
       "new_path": "abstract.max_value_partitions",
       "new_ai_status": "supported",
       "new_ai_consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.getitem",
-      "new_ai_meaning": "KeyValueRelation.coarsen cap, withcovering relationalprecisionloss.",
+      "new_ai_meaning": "Whole-lookup branch budget; overflow retains a covering unpartitioned key-handler union/product.",
       "new_ai_source_references": [
         {
           "name": "max_value_partitions",
-          "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.getitem",
-          "line": 1017,
+          "symbol": "pythonstan.analysis.engines.abstract.dictionaries.DictionaryOperations.getitem",
+          "line": 133,
           "read_kind": "mapping_read"
         }
       ]
@@ -1640,22 +1655,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner._refine_for_str_equality",
-      "legacy_meaning": "Enumeration boundforstringpredicatepartitions; notStringDomaincapacity.",
-      "legacy_source_references": [
-        {
-          "name": "value_partition_str_cap",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner._refine_for_str_equality",
-          "line": 275,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "value_partition_str_cap",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 189,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.conditions.ConditionRefiner._refine_for_str_equality",
+      "legacy_source_references": [],
       "new_path": "abstract.value_partition_str_cap",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1671,38 +1675,22 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.load_subscr",
-      "legacy_meaning": "Legacy exactindex/key enumeration cap; distinctfromnew int_domain_max_consts domaincapacity.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.load_subscr",
       "legacy_source_references": [
         {
           "name": "max_const_ints",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.__init__",
-          "line": 98,
+          "line": 120,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_const_ints",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.join",
-          "line": 106,
+          "line": 136,
           "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_const_ints",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.load_subscr",
-          "line": 164,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_const_ints",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.subscripts.SubscriptSemantics.store_subscr",
-          "line": 310,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_const_ints",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_len_builtin",
-          "line": 818,
-          "read_kind": "getattr_read"
         }
       ],
       "new_path": "abstract.max_const_ints",
@@ -1713,13 +1701,13 @@
         {
           "name": "max_const_ints",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.__init__",
-          "line": 98,
+          "line": 120,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_const_ints",
           "symbol": "pythonstan.analysis.domains.values.ValueOperations.join",
-          "line": 106,
+          "line": 136,
           "read_kind": "attribute_read"
         }
       ]
@@ -1733,22 +1721,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
-      "legacy_meaning": "Exact tupleshapematerialization length; coveringfallback retained.",
-      "legacy_source_references": [
-        {
-          "name": "max_tuple_len_exact",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_list_intrinsic",
-          "line": 1867,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_tuple_len_exact",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
-          "line": 1945,
-          "read_kind": "getattr_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
+      "legacy_source_references": [],
       "new_path": "abstract.max_tuple_len_exact",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1764,26 +1741,16 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
-      "legacy_meaning": "Tuple shapealternative materialization budget.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
       "legacy_source_references": [
         {
           "name": "max_tuple_alts",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.decompose",
-          "line": 1158,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.decompose",
+          "line": 1146,
           "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_tuple_alts",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_list_intrinsic",
-          "line": 1868,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_tuple_alts",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._handle_tuple_intrinsic",
-          "line": 1946,
-          "read_kind": "getattr_read"
         }
       ],
       "new_path": "abstract.max_tuple_alts",
@@ -1801,16 +1768,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
-      "legacy_meaning": "Starargument tupleexpansion length.",
-      "legacy_source_references": [
-        {
-          "name": "max_star_expand_len",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
-          "line": 2039,
-          "read_kind": "getattr_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
+      "legacy_source_references": [],
       "new_path": "abstract.max_star_expand_len",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1826,16 +1788,11 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
-      "legacy_meaning": "Starargument shapealternatives.",
-      "legacy_source_references": [
-        {
-          "name": "max_star_expand_alts",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
-          "line": 2040,
-          "read_kind": "getattr_read"
-        }
-      ],
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._try_expand_starred_arg",
+      "legacy_source_references": [],
       "new_path": "abstract.max_star_expand_alts",
       "new_ai_status": "legacy_only_reject_nondefault",
       "new_ai_consumer": null,
@@ -1851,31 +1808,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.SlotMapSemantics._get_or_create_slots",
-      "legacy_meaning": "EffectiveSlotMap partitioncap andkwargs materialization; notarbitraryobjectnamespacecap.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.SlotMapSemantics._get_or_create_slots",
       "legacy_source_references": [
         {
           "name": "max_dict_parts",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.SlotMapSemantics._get_or_create_slots",
-          "line": 1646,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_dict_parts",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.scopes.ScopeSemantics.eval_locals_dict",
-          "line": 546,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_dict_parts",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._transfer_call",
-          "line": 1376,
-          "read_kind": "getattr_read"
-        },
-        {
-          "name": "max_dict_parts",
-          "symbol": "pythonstan.analysis.pointer.ai.interpreter.IRInterpreter._collector_value",
-          "line": 2690,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.SlotMapSemantics._get_or_create_slots",
+          "line": 1634,
           "read_kind": "getattr_read"
         }
       ],
@@ -1894,13 +1835,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-      "legacy_meaning": "Finite stringkey enumerationcap.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
       "legacy_source_references": [
         {
           "name": "max_dict_key_const_strs",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1052,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1040,
           "read_kind": "getattr_read"
         }
       ],
@@ -1919,13 +1862,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-      "legacy_meaning": "Finite integerkey enumerationcap, usingexactenumeration contracts.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
       "legacy_source_references": [
         {
           "name": "max_dict_key_const_ints",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1053,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1041,
           "read_kind": "getattr_read"
         }
       ],
@@ -1944,13 +1889,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-      "legacy_meaning": "Tuplekey decompositionlength budget.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
       "legacy_source_references": [
         {
           "name": "max_dict_key_tuple_len",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1054,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1042,
           "read_kind": "getattr_read"
         }
       ],
@@ -1969,13 +1916,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-      "legacy_meaning": "Tuplekey alternatives budget.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
       "legacy_source_references": [
         {
           "name": "max_dict_key_tuple_alts",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1055,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1043,
           "read_kind": "getattr_read"
         }
       ],
@@ -1994,13 +1943,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.decompose",
-      "legacy_meaning": "Objectidentity keypartitions, withcoveringfallbackwhenoff.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.decompose",
       "legacy_source_references": [
         {
           "name": "enable_dict_identity_keys",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1056,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1044,
           "read_kind": "getattr_read"
         }
       ],
@@ -2019,13 +1970,15 @@
         "native_then_ai"
       ],
       "legacy_activation": "andersen.enable_ai_intrinsics=true and eligible builtin call",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.decompose",
-      "legacy_meaning": "Identitykey partitioncap; earlyidentitybranch mustrespectit.",
+      "legacy_consumer": "pythonstan.compat.shared_ai.options",
+      "legacy_meaning": "Retired private control: nondefault rejects; historical default retained only for old configuration round trips.",
+      "legacy_status": "retired_reject_nondefault",
+      "historical_legacy_consumer": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.decompose",
       "legacy_source_references": [
         {
           "name": "max_dict_identity_keys",
-          "symbol": "pythonstan.analysis.pointer.ai.domains.mapslots.KeyDecomposer.__init__",
-          "line": 1057,
+          "symbol": "pythonstan.compat.legacy_ai.domains.mapslots.KeyDecomposer.__init__",
+          "line": 1045,
           "read_kind": "getattr_read"
         }
       ],
@@ -2046,28 +1999,40 @@
         "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop"
       ],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver.solve"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "supported_shared_core",
       "new_references": [
         {
           "name": "widen_delay",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver._request",
-          "line": 107,
+          "line": 233,
           "read_kind": "mapping_read"
         },
         {
           "name": "widen_delay",
           "symbol": "pythonstan.analysis.engines.abstract.transfer.Transfer.while_loop",
-          "line": 646,
+          "line": 770,
           "read_kind": "mapping_read"
         }
       ],
       "legacy_references": [
         {
           "name": "widen_delay",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item",
-          "line": 747,
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 491,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "widen_delay",
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 491,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "widen_delay",
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 491,
           "read_kind": "attribute_read"
         }
       ],
@@ -2079,15 +2044,27 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "supported_shared_alias",
       "new_references": [],
       "legacy_references": [
         {
           "name": "loop_unroll",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item",
-          "line": 745,
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 492,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "loop_unroll",
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 492,
+          "read_kind": "attribute_read"
+        },
+        {
+          "name": "loop_unroll",
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 492,
           "read_kind": "attribute_read"
         }
       ],
@@ -2099,24 +2076,11 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "retired_reject_nondefault",
       "new_references": [],
-      "legacy_references": [
-        {
-          "name": "loop_iters",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item",
-          "line": 742,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "loop_iters",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._update_state_for_item",
-          "line": 743,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_references": [],
       "unsupported_behavior": "rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly"
     },
     {
@@ -2125,18 +2089,11 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver.solve"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "retired_reject_nondefault",
       "new_references": [],
-      "legacy_references": [
-        {
-          "name": "enable_trace_partitioning",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._is_trace_partition_enabled",
-          "line": 284,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_references": [],
       "unsupported_behavior": "rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly"
     },
     {
@@ -2145,24 +2102,11 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver.solve"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "retired_reject_nondefault",
       "new_references": [],
-      "legacy_references": [
-        {
-          "name": "infer_merge_points",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._is_trace_partition_enabled",
-          "line": 285,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "infer_merge_points",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._maybe_infer_merge_points",
-          "line": 299,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_references": [],
       "unsupported_behavior": "rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly"
     },
     {
@@ -2171,30 +2115,11 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver.solve"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "retired_reject_nondefault",
       "new_references": [],
-      "legacy_references": [
-        {
-          "name": "merge_points",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._is_trace_partition_enabled",
-          "line": 286,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "merge_points",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._is_merge_point",
-          "line": 295,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "merge_points",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver._maybe_infer_merge_points",
-          "line": 312,
-          "read_kind": "attribute_read"
-        }
-      ],
+      "legacy_references": [],
       "unsupported_behavior": "rejectnondefaultinnewAI; retainlegacyintrinsic/schema compatibilityonly"
     },
     {
@@ -2205,28 +2130,28 @@
         "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.compact"
       ],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai.solver.AISolver.solve"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "supported_shared_core",
       "new_references": [
         {
           "name": "max_traces_per_block",
           "symbol": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.__init__",
-          "line": 46,
+          "line": 51,
           "read_kind": "mapping_read"
         }
       ],
       "legacy_references": [
         {
           "name": "max_traces_per_block",
-          "symbol": "pythonstan.analysis.pointer.ai._trace_partition.TraceStateStore.evict_traces_if_over_budget",
+          "symbol": "pythonstan.compat.legacy_ai._trace_partition.TraceStateStore.evict_traces_if_over_budget",
           "line": 266,
           "read_kind": "attribute_read"
         },
         {
           "name": "max_traces_per_block",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 210,
+          "symbol": "pythonstan.compat.shared_ai.options",
+          "line": 493,
           "read_kind": "attribute_read"
         }
       ],
@@ -2238,21 +2163,15 @@
       "new_ai_status": "legacy_only",
       "actual_new_consumers": [],
       "legacy_consumers": [
-        "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-        "pythonstan.analysis.pointer.ai._trace_partition.TraceStateStore.evict_traces_if_over_budget"
+        "pythonstan.compat.shared_ai.options"
       ],
+      "legacy_status": "retired_reject_nondefault",
       "new_references": [],
       "legacy_references": [
         {
           "name": "max_total_traces",
-          "symbol": "pythonstan.analysis.pointer.ai._trace_partition.TraceStateStore.evict_traces_if_over_budget",
+          "symbol": "pythonstan.compat.legacy_ai._trace_partition.TraceStateStore.evict_traces_if_over_budget",
           "line": 294,
-          "read_kind": "attribute_read"
-        },
-        {
-          "name": "max_total_traces",
-          "symbol": "pythonstan.analysis.pointer.ai.solver.AISolver.__init__",
-          "line": 211,
           "read_kind": "attribute_read"
         }
       ],
@@ -2264,36 +2183,49 @@
       "path": "abstract.context_depth",
       "consumer": "pythonstan.analysis.engines.abstract.driver.InterproceduralDriver.request_function",
       "status": "supported",
-      "meaning": "Finite sourcecallsite contextword length."
+      "meaning": "Finite source callsite contextword length."
     },
     {
       "path": "abstract.int_domain_max_consts",
       "consumer": "pythonstan.analysis.domains.values.ValueOperations.__init__",
       "status": "supported",
-      "meaning": "Integer domaincapacity; notlegacy max_const_ints enumeration."
+      "meaning": "Integer widening/compression capacity; never an alias for retired legacy index-enumeration max_const_ints."
     },
     {
       "path": "abstract.relations",
-      "consumer": null,
-      "status": "not_public_or_not_wired",
-      "meaning": "Currentlypolicyrecordonly; enable_value_partition isactualrelationconsumer; rejectnondefaultuntilwired."
+      "consumer": "pythonstan.config.resolve.resolve_config",
+      "status": "supported",
+      "meaning": "Public alias of actual enable_value_partition; conflicting explicit spellings reject."
+    },
+    {
+      "path": "abstract.refine_booleans",
+      "consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.refine_test",
+      "status": "supported",
+      "meaning": "State cofactoring after actual truth/protocol effects; disabled mode preserves both states."
     },
     {
       "path": "abstract.max_scalar_pairs",
       "consumer": "pythonstan.analysis.domains.values.ValueOperations.scalar_binary",
-      "status": "not_public_or_not_wired",
-      "meaning": "Actualoperation enumerationcap readinternally but notcurrentlypubliccatalog; exposewithvalidationorleaveunavailable."
+      "status": "supported",
+      "meaning": "Pure scalar Cartesian enumeration window with covering typed fallback."
     },
     {
       "path": "abstract.max_range_size",
       "consumer": "pythonstan.analysis.engines.abstract.transfer.Transfer.builtin",
-      "status": "not_public_or_not_wired",
-      "meaning": "Actualrange model enumerationcap readinternally but notcurrentlypubliccatalog."
+      "status": "supported",
+      "meaning": "Finite range model enumeration window; overflow is explicitly Open with covering value."
+    },
+    {
+      "path": "abstract.attribute_name_limit",
+      "consumer": "pythonstan.analysis.engines.abstract.attributes.AttributeOperations.reflective",
+      "status": "supported",
+      "meaning": "Reflective name enumeration window independent from StringDomain widening cap; residual setter covers every omitted name."
     }
   ],
   "new_ai_supported_old_budget_names": [
     "enable_narrowing",
     "enable_value_partition",
+    "max_addr_set_size",
     "max_const_strings",
     "max_iterations",
     "max_stmt_visits",
@@ -2302,7 +2234,6 @@
   ],
   "new_ai_unsupported_old_budget_names": [
     "enable_dict_identity_keys",
-    "max_addr_set_size",
     "max_const_ints",
     "max_dict_identity_keys",
     "max_dict_key_const_ints",
@@ -2322,55 +2253,53 @@
   ],
   "source_hashes": {
     "pythonstan/analysis/analysis.py": "6c37c82b6f1941a23397043770ea43a4a2145eeceff17b1bec070fa5861106e4",
-    "pythonstan/analysis/composition/guarded_dispatch.py": "887ef60ad1d0249b5e0d4275485ca7900c10f416692d700fb92ba33b22fe0e22",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "0a72559d283bf3326c1e8507b4d2b0f58c47056bd8aefb7fb717b66de4aefb70",
     "pythonstan/analysis/composition/hybrid.py": "794ee176967177afe2a3f6388fc1d3b80fb63a0fee39ecab22a3f24f2e033196",
     "pythonstan/analysis/composition/native_intrinsics.py": "8faca2a4232749961faf72a086bbb974c4e56a318b6db839e9e99b820fc26762",
     "pythonstan/analysis/composition/native_snapshot.py": "4b7b02a41762629f5eb175926ad85ee912d3beae0e89a7e7289fb347c1a0f4e4",
-    "pythonstan/analysis/composition/oracle.py": "1bd6147141ea4d645e5c56aa093d9725639666ec880838988f8882a0c580537d",
-    "pythonstan/analysis/composition/region_scheduler.py": "5b83eeab543dca806f2feb6d9a7dbf10dd275a24ec43118b1b86e491ea4676f3",
-    "pythonstan/analysis/composition/state_adapter.py": "0385518349a9ee205874f6d95b813288c6cc12b4eeb7184100fc217218106d90",
+    "pythonstan/analysis/composition/oracle.py": "fe2e2bbc8c9d1bf7bcfe4e89f525d43a9293e28ea5ded2c11018de6547a2af7b",
+    "pythonstan/analysis/composition/region_scheduler.py": "0a3e21035d451c8d2ceaae37283084ffddb6de0850ef8308221ac6bda3ea98d9",
+    "pythonstan/analysis/composition/state_adapter.py": "9dd57e32fae33ddbd2fcd77c7748835540eff6b735b47bbdc713a0d3b23f85a5",
     "pythonstan/analysis/domains/bundle.py": "48d66fde0ba2978bab91db628d2f74183195ee87a87df983135ff3d73def9327",
-    "pythonstan/analysis/domains/values.py": "4a93bb08df70097a8a44a4630cefbaaa180a29cc9e7e3f9e3ea8449cd75e5020",
-    "pythonstan/analysis/engines/abstract/driver.py": "8a52f0dccdee33ad226cbdbc23f3431739d43e88d166112717bdb2de9810cfb8",
-    "pythonstan/analysis/engines/abstract/transfer.py": "dea0bb95cbcdf2a41f5a7bcd098c615cb6d2bdde9cb44609a0366189ba17fddf",
-    "pythonstan/analysis/pointer/ai/_trace_partition.py": "fa14d40daa8b003e3fa7c8ad512a0da774b088a2adde02dc003a7b621df63a0f",
-    "pythonstan/analysis/pointer/ai/analysis.py": "50b764e4fbd8669dd9549ad363a63ff06395188cbc94d53b8deeabee3ca318e2",
-    "pythonstan/analysis/pointer/ai/api.py": "4207022eb7c6da0820ce3adb4bc41047ecc193c6d7c788f2295388f14f9d424e",
-    "pythonstan/analysis/pointer/ai/config.py": "70f3d43a20c9e1b7bd6256ecf72e17641cd4344330dc28e2a194dc9006de8294",
-    "pythonstan/analysis/pointer/ai/domains/base.py": "8ff1805fcb3ddc0afa37d5f715231dc2bb40f4febc20257f65ab0ebba8c05c7a",
-    "pythonstan/analysis/pointer/ai/domains/builtins.py": "c1ca50f9353e71e88b3a59768437b52907f1c7e57e904ab97fbee8227966a9db",
-    "pythonstan/analysis/pointer/ai/domains/callable.py": "36d15f653ad255e9a84950e0671590beee6f632f8f02b02ddb53fab032524a84",
-    "pythonstan/analysis/pointer/ai/domains/conditions.py": "8a0b5767a7a809d267342c885cfac7209eed125dde81bafa46d2ea33325972ed",
-    "pythonstan/analysis/pointer/ai/domains/iterators.py": "abe903a0280a01a2face4dbb0843188ab0d38f355b4b51b7fc4b30fdbed6ae97",
-    "pythonstan/analysis/pointer/ai/domains/mapslots.py": "8920c60173304a1553eb1dacfde339b7d7482eefa6eaf5445c47de82d7dd5389",
-    "pythonstan/analysis/pointer/ai/domains/scopes.py": "36273521473f9386a497d05c63b5fa0e6f81e240efd7b72713c85808edb09447",
-    "pythonstan/analysis/pointer/ai/domains/subscripts.py": "41449b84eb8a4616fafc7eb2be02aa8296eb66d69f3ccb37bd2d6d1e185162c4",
-    "pythonstan/analysis/pointer/ai/domains/type_domain.py": "6bf14b20efe2bbafa01b933272ef260784d56e3a18dbe7989e1ebabc881cac05",
+    "pythonstan/analysis/domains/values.py": "20d87e335b1ea284a43b46bfa1bd426244420ba61f9cd44cc286889e4c2dc2e9",
+    "pythonstan/analysis/engines/abstract/attributes.py": "56073853a06c62aeea7131d1924b586174c16b57728996e12dac0fe20f83dec2",
+    "pythonstan/analysis/engines/abstract/continuations.py": "1549094463ff5176a237538a2a984b347d4f4956a483b178936768896936d174",
+    "pythonstan/analysis/engines/abstract/dictionaries.py": "5e6618b7095a9ee0e75f0c09e3f867573bce25b74b87041ca1e61404327db2c3",
+    "pythonstan/analysis/engines/abstract/driver.py": "23e87231fcc227cb83ac418043341aef08558f5aadbc1987e17d3afb37e50332",
+    "pythonstan/analysis/engines/abstract/transfer.py": "63a2884c415e26e7f80c67fc134ba47a5ba96be9cf6276ee9ad7619fe7947e2b",
     "pythonstan/analysis/pointer/ai/generator_protocol.py": "3403fa52a094650fc3eeeeb03bed3431b71133fe5e264d65d96943d7c3b8c928",
-    "pythonstan/analysis/pointer/ai/interpreter.py": "23b0b27bf7cfa17814725fcb7a4f2ebf57447dbdb5f660b64318bcbcde5f7207",
     "pythonstan/analysis/pointer/ai/lexical_bindings.py": "f7b16341b2ee0cd7df9872ea68821a5cbb63710dfd458e29bf9541041fed7c68",
-    "pythonstan/analysis/pointer/ai/solver.py": "df83122b99eac442e101e44012cd9da930b9e1e5183c87bc90b0835955ae607d",
-    "pythonstan/analysis/pointer/ai/state.py": "c2fae80dab323b61e9329b70377e20d57fdfa80a25f68a2e482c605f5a02c69a",
-    "pythonstan/analysis/pointer/kcfa/analysis.py": "1793ade1915a95179b71bc903224b32194cd2b9bfc3b9c9c71f8e26b82cdd5e0",
-    "pythonstan/analysis/pointer/kcfa/bootstrap.py": "d0cf55886b23f1a686cb73b507eb110afe82b3621d3d166bb190d2c61cdcce76",
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "ece26b9651f634cac4a9aff137a765bc9a215e793e1cdc8aff5b695a028a29df",
+    "pythonstan/analysis/pointer/kcfa/bootstrap.py": "99b86eaa947978d7dfbb9e3f5a200e1d935c74a838e330d4bb32b699720aa5ac",
     "pythonstan/analysis/pointer/kcfa/builtin_api_handler.py": "a6e54c65b67a0e52505d6f92dda327a1bf847fb6da31e85f00441919b9bf28f5",
     "pythonstan/analysis/pointer/kcfa/config.py": "703ca5e588a18f50533e453845e8eee45a92ae1656cdd1aef4c104f3245b84d9",
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": "070c45e4f295efda097b83d4e334e5f1dda9757409037b31b75e40339ff298ee",
     "pythonstan/analysis/pointer/kcfa/ir_translator.py": "5d3be6d5443f322da90c61c6701faf8a60d019c8200eaf74c7e7705259116ffd",
     "pythonstan/analysis/pointer/kcfa/native_mapping.py": "bcafa03f449987af189d906b9a580a554df0a8350e5bf7a72f6c4dd4b9fd29d6",
     "pythonstan/analysis/pointer/kcfa/processor/class_protocol.py": "4563490c9ac12d405338345ffcbb9e55dbda0779ceecfc1741bd143199fddd5e",
     "pythonstan/analysis/pointer/kcfa/processor/container.py": "a55395367451b8d6bae77055a0ad66e4f16d21b4cbb4d54865a0335b61dbab79",
     "pythonstan/analysis/pointer/kcfa/processor/heap_mapping.py": "84d444804bc1bfa4a84ff0c28280b93a9e395a6732a2adb80050f168cf592617",
     "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py": "be6fbde0d92aa20bd34d46db863e3af3789f53d2aa835976adb87faf3e681636",
-    "pythonstan/analysis/pointer/kcfa/query.py": "fd2af692c56b247388aaef16cc815735ec5dd4bed9920bd92810c117d576a91a",
-    "pythonstan/analysis/pointer/kcfa/solver.py": "2a176cfec6560870c38537b7a6f287bb05b3889a70d65b4f952bc1db83e0202a",
+    "pythonstan/analysis/pointer/kcfa/query.py": "38986c913ee574d41061498f715466402cc20739ca93bd63699a16f84c4240df",
+    "pythonstan/analysis/pointer/kcfa/solver.py": "2c54633b54e81de3cf50786a24bcc6776f75d65e853dbd5f7284fad77a274364",
     "pythonstan/analysis/pointer/kcfa/unknown_tracker.py": "cd393c2fb4eb3c289d2d0e45f5d48eb54885122a970600e173c410417aed7b27",
     "pythonstan/analysis/project/analysis.py": "d06e81e34f5366525de06bb9b949bf2505aeac38418a579eb119a0f217ab02ab",
     "pythonstan/analysis/transform/ir.py": "53ea3f9486130b263115df1738caf1b0416151c05e571af210d8af43c8d35c5b",
     "pythonstan/analysis/transform/three_address.py": "410a388e5d60b34e726bce1af7b2a0a96dc94ae1980220298718f94b66ca8049",
     "pythonstan/analysis/verification/closed_effects/checker.py": "803b2bb8d3429bdcc7f5c9c47739f5f3201a2bd4a57da5178c20c53286ab94bf",
     "pythonstan/analysis/verification/guarded_dispatch/apply.py": "a94e8ec6ef67067b098f5b440e8cce8d40830f0c7d61f5effba711ed0ae64d60",
-    "pythonstan/compat/native_services.py": "db6d5581fef27da843ed6772fc031b88e39e1a7741ce637afab14f01290c9371",
-    "pythonstan/compat/native_worker.py": "b0d169412fcb265f6056b45965da9a34444b8806d1a144c54d441da20bcd9545"
+    "pythonstan/compat/legacy_ai/_trace_partition.py": "363592a3ef21b0b800f50307ac9cb234baedfd36699b18970605690e19e04409",
+    "pythonstan/compat/legacy_ai/analysis.py": "2607e370d2c1f95115e0597c3ecc7cbc6a6466f5af51482f5468fd64380f9eff",
+    "pythonstan/compat/legacy_ai/api.py": "94b9cc38f802873e7e6c89c771c95db3d2ab0935884057e38a3a74ae2003336d",
+    "pythonstan/compat/legacy_ai/config.py": "943c19b8e064e96d2dd6e22bae69e9ed7b2d9cda330d33dab7526ca2c814d248",
+    "pythonstan/compat/legacy_ai/domains/base.py": "06eb17ea856754c95c7385ab4de683082fe05fd6e2790f9be9effe2f8254b5a1",
+    "pythonstan/compat/legacy_ai/domains/callable.py": "c3fce6bb29b2feefbf3c416a0335348afab76f469afcb78b2599c26fd6792dcf",
+    "pythonstan/compat/legacy_ai/domains/mapslots.py": "20611e28c4f9822ed668d3092fa94f8cd3d377f936342232d759c3989fdfa90b",
+    "pythonstan/compat/legacy_ai/domains/type_domain.py": "f831e317d3ef74f58fd71d9de63d3611a51f5c1b4e5845ff8d6a8f4c68d8539a",
+    "pythonstan/compat/legacy_ai/state.py": "3ece47f412a35be093d2abb72f2667ac8b3967ecd595d6c30f91235e817a3b03",
+    "pythonstan/compat/native_services.py": "d616fa5b9a5391e7d9b42c978a74f519ab4f0c1ba549dd9b6be7dd5e756f520c",
+    "pythonstan/compat/native_worker.py": "992febac1c9fee667c45a71f8b7a8e9984343fcc49b3ea2ae7b2992270910d2a",
+    "pythonstan/compat/shared_ai.py": "6a3e506308fb823779c34a31caa336f7bc5789cf8164736e66d7fc409674ccc3"
   },
   "discipline": [
     "ASTreferences arelocators, notproofthat optionsareeffective",
@@ -2378,57 +2307,6 @@
     "No unsupported oldcontrol iscreditedtonewAI",
     "Native19contextstrategies remainimplemented; notretired",
     "Globalresources andperengineworklimits areseparate; all nestedwork charged"
-  ],
-  "legacy_ai_driver_options": [
-    {
-      "path": "abstract.pta_analysis_name",
-      "old_default": "kcfa",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.analysis.AIAnalysisDriver._get_pta_results",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldlocalpass predecessor selection; newCusesfrozenNativeSnapshot, notthisselector"
-    },
-    {
-      "path": "abstract.plan_scopes",
-      "old_default": null,
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.plan.build_plan",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldlocalpass manualscopeplan; newfunction/SCCselection belongs toregions"
-    },
-    {
-      "path": "abstract.entry_scope",
-      "old_default": null,
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.plan.build_plan",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldlocalpass entryscope; newroots belong toinputs.entries"
-    },
-    {
-      "path": "abstract.context_policy",
-      "old_default": "inherit",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.analysis.AIAnalysisDriver._validate_context_policy",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldpass checks inherited Nativecontext; newAIusesabstract.context_depth"
-    },
-    {
-      "path": "abstract.log_level",
-      "old_default": "INFO",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.analysis.AIAnalysisDriver._setup_logging",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldlocalpass logging only; noactive newAIlogging consumer"
-    },
-    {
-      "path": "abstract.type",
-      "old_default": "ai analysis",
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.config.Config.__post_init__",
-      "new_ai_status": "legacy_only_reject_nondefault",
-      "meaning": "Oldfixed AIanalysis drivertag; publicengineenum controls actualexecution"
-    },
-    {
-      "path": "abstract.solver_options",
-      "old_default": {},
-      "legacy_consumer": "pythonstan.analysis.pointer.ai.config.Config.to_solver_config",
-      "new_ai_status": "supported_subset",
-      "meaning": "Oldsolver optionprojection; peroption newcapabilities arelisted separately"
-    }
   ],
   "native_heap_options": [
     {
@@ -2438,8 +2316,9 @@
         "native",
         "native_then_ai"
       ],
-      "consumer": "pythonstan.analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
-      "meaning": "Independent registered heapfamily; projection forgets unavailable methodhistory"
+      "actual_consumer": "pythonstan.analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
+      "legacy_status": "supported",
+      "meaning": "Heap family independently projects only represented method history; switching family may safely forget history."
     },
     {
       "path": "andersen.heap_context_depth",
@@ -2448,12 +2327,60 @@
         "native",
         "native_then_ai"
       ],
-      "consumer": "pythonstan.analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
-      "range": [
-        0,
-        3
-      ],
-      "meaning": "Independent heapdepth upperbound on represented finitehistory"
+      "actual_consumer": "pythonstan.analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
+      "legacy_status": "supported",
+      "meaning": "Independent0..3 bound on available heap history; zero merges actual allocations and preserves may values."
+    }
+  ],
+  "legacy_ai_driver_options": [
+    {
+      "path": "abstract.pta_analysis_name",
+      "old_default": "kcfa",
+      "legacy_consumer": "pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._get_pta_results",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldlocalpass predecessor selection; newCusesfrozenNativeSnapshot, notthisselector"
+    },
+    {
+      "path": "abstract.plan_scopes",
+      "old_default": null,
+      "legacy_consumer": "pythonstan.compat.legacy_ai.plan.build_plan",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldlocalpass manualscopeplan; newfunction/SCCselection belongs toregions"
+    },
+    {
+      "path": "abstract.entry_scope",
+      "old_default": null,
+      "legacy_consumer": "pythonstan.compat.legacy_ai.plan.build_plan",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldlocalpass entryscope; newroots belong toinputs.entries"
+    },
+    {
+      "path": "abstract.context_policy",
+      "old_default": "inherit",
+      "legacy_consumer": "pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._validate_context_policy",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldpass checks inherited Nativecontext; newAIusesabstract.context_depth"
+    },
+    {
+      "path": "abstract.log_level",
+      "old_default": "INFO",
+      "legacy_consumer": "pythonstan.compat.legacy_ai.analysis.AIAnalysisDriver._setup_logging",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldlocalpass logging only; noactive newAIlogging consumer"
+    },
+    {
+      "path": "abstract.type",
+      "old_default": "ai analysis",
+      "legacy_consumer": "pythonstan.compat.legacy_ai.config.Config.__post_init__",
+      "new_ai_status": "legacy_only_reject_nondefault",
+      "meaning": "Oldfixed AIanalysis drivertag; publicengineenum controls actualexecution"
+    },
+    {
+      "path": "abstract.solver_options",
+      "old_default": {},
+      "legacy_consumer": "pythonstan.compat.legacy_ai.config.Config.to_solver_config",
+      "new_ai_status": "supported_subset",
+      "meaning": "Oldsolver optionprojection; peroption newcapabilities arelisted separately"
     }
   ]
 }

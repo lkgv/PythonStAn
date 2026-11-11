@@ -16,6 +16,8 @@ from typing import Mapping
 from pythonstan.analysis.contracts import SourceModule, EntryScenario, EngineSnapshot,stable_digest
 from pythonstan.analysis.domains.values import Value, ValueOperations, ValuePolicy
 from .state import Store, HeapObject, Frame, Flow, FunctionInfo, Unit
+from .state_transform import PayloadTransformer,remap_payload,semantic_payload_equal,payload_signature
+from pythonstan.analysis.contracts.private_slots import positional_default_slot,keyword_default_slot
 
 class BudgetStop(Exception): pass
 
@@ -32,6 +34,7 @@ class InterproceduralDriver:
             if expected!=dict(program.modules):raise ValueError("pre-parsed SourceProgram input identity mismatch")
         program=parse_sources(modules) if program is None else program
         self.modules=program.modules;self.trees=program.trees;self.nodes=program.nodes;self.node_modules=program.node_modules
+        self.generated_points={};self.generated_nodes={}
         self.source_digest=stable_digest({name:source.digest for name,source in sorted(self.modules.items())})
         self.policy_digest=stable_digest(self.options);self.model_digest="pythonstan-builtins-v1"
         self.future_annotations=frozenset(module for module,tree in self.trees.items() if any(isinstance(node,ast.ImportFrom) and node.module=="__future__" and any(alias.name=="annotations" for alias in node.names) for node in tree.body))
@@ -42,21 +45,143 @@ class InterproceduralDriver:
         self.work=0;self.started=0;self.stats=defaultdict(int);self.root_keys=[];self.phase_trace=[];self.solver_status="converged"
         self.max_work=int(self.resources.get("max_work",self.abstract.get("max_iterations",100000)))
         self.max_seconds=float(self.resources.get("max_seconds",0) or 0)
+        self.max_memory_mb=float(self.resources.get("max_memory_mb",0) or 0)
+        self._last_memory_work=-64;self._statement_visits=defaultdict(int);self._in_reabstract=False;self._activation_occurrences=defaultdict(int)
         self.context_depth=int(self.abstract.get("context_depth",2))
         self.max_paths=max(1,int(self.abstract.get("max_traces_per_block",8)))
         self.region_engine=None;self.region_plan=None;self.region_scheduler=None;self.summary_provider=None
         from .transfer import Transfer
         self.transfer=Transfer(self)
 
-    def point(self,node):return self.nodes.get(id(node),f"generated:{type(node).__name__}")
+    def point(self,node):return self.generated_points.get(id(node),self.nodes.get(id(node),f"generated:{type(node).__name__}"))
+    def register_generated(self,node,point):
+        self.generated_points[id(node)]=point;self.generated_nodes[id(node)]=node
+        return node
+    def _check_limits(self,force=False):
+        if self.started and self.max_seconds and time.monotonic()-self.started>self.max_seconds:raise BudgetStop("max_seconds")
+        if self.max_memory_mb and (force or self.work-self._last_memory_work>=64):
+            import os
+            with open("/proc/self/statm",encoding="ascii") as stream:resident=int(stream.read().split()[1])*os.sysconf("SC_PAGE_SIZE")
+            self._last_memory_work=self.work;self.stats["memory_checks"]+=1;self.stats["resident_memory_bytes"]=resident
+            self.stats["peak_sampled_resident_bytes"]=max(resident,self.stats["peak_sampled_resident_bytes"])
+            if resident>self.max_memory_mb*1024*1024:raise BudgetStop("max_memory_mb")
+
     def charge(self,amount,category):
         if amount<0:raise ValueError("negative work charge")
+        self._check_limits()
         if amount>self.max_work-self.work:raise BudgetStop("max_work")
         self.work+=amount;self.stats[category]+=amount
+
     def tick(self,node=None):
+        key=(self.current,self.point(node) if node is not None else "<statement>")
+        self._statement_visits[key]+=1
+        if self._statement_visits[key]>int(self.abstract.get("max_stmt_visits",50)):raise BudgetStop("max_stmt_visits")
         self.charge(1,"ast_work")
-        if self.max_seconds and time.monotonic()-self.started>self.max_seconds:raise BudgetStop("max_seconds")
         if node is not None:self.emit("transfer",point=self.point(node),unit=self.current,operation=type(node).__name__)
+
+    def allocate_identity(self,identifier):return self.ops.arena.resolve(identifier)
+
+    def reabstract_addresses(self,mapping,extra_payloads=()):
+        """Prepare the entire host quotient, then publish one alias epoch.
+
+        Every preparation visit is charged before its clone is made. Failed
+        time/work/memory preparation publishes neither aliases nor new roots.
+        Current local stores outside the host are normalized lazily by epoch.
+        """
+        if self._in_reabstract:raise RuntimeError("Nested address quotient")
+        self.charge(len(self.ops.arena.aliases)+len(mapping),"reabstract_alias_prepare_work")
+        prepared_aliases=self.ops.arena.prepare(mapping)
+        if prepared_aliases==self.ops.arena.aliases:
+            return remap_payload(tuple(extra_payloads),prepared_aliases,self.ops,epoch=self.ops.arena.epoch)
+        epoch=self.ops.arena.epoch+1
+        self._in_reabstract=True
+        try:
+            transform=PayloadTransformer(prepared_aliases,self.ops,epoch=epoch,
+                charge=lambda amount:self.charge(amount,"reabstract_prepare_work"))
+            payload=transform.visit({"units":self.units,"functions":self.functions,"extras":tuple(extra_payloads),"events":self.events})
+            functions={};ambiguous=set()
+            for info in payload["functions"].values():
+                if info.identifier in functions and not semantic_payload_equal(functions[info.identifier].node,info.node):ambiguous.add(info.identifier)
+                functions.setdefault(info.identifier,info)
+            if ambiguous:
+                seen=set()
+                def mark(value):
+                    if id(value) in seen:return
+                    seen.add(id(value))
+                    if isinstance(value,Store):
+                        for identifier in ambiguous:
+                            if identifier in value.heap:value.heap[identifier].havoc=True;value.heap[identifier].default=self.ops.join(value.heap[identifier].default,Value.unknown())
+                    if isinstance(value,ast.AST) or isinstance(value,Value):return
+                    if isinstance(value,dict):
+                        for item in value.values():mark(item)
+                    elif isinstance(value,(tuple,list,set,frozenset)):
+                        for item in value:mark(item)
+                    elif hasattr(value,"__dataclass_fields__"):
+                        for name in value.__dataclass_fields__:mark(getattr(value,name))
+                mark(payload)
+            oracle_prepared=None;provider_prepared=None
+            if self.oracle is not None:
+                if not hasattr(self.oracle,"prepare_reabstract"):raise ValueError("Oracle lacks full-state reabstraction contract")
+                oracle_prepared=self.oracle.prepare_reabstract(prepared_aliases,self.ops,charge=lambda amount:self.charge(amount,"reabstract_oracle_work"))
+                if not oracle_prepared.get("work_precharged"):self.charge(oracle_prepared.get("work",0),"reabstract_oracle_work")
+            if self.summary_provider is not None:
+                if not hasattr(self.summary_provider,"prepare_state_epoch"):raise ValueError("Summary provider lacks state-epoch invalidation")
+                provider_prepared=self.summary_provider.prepare_state_epoch(epoch,charge=lambda amount:self.charge(amount,"reabstract_summary_work"))
+                if not provider_prepared.get("work_precharged"):self.charge(provider_prepared.get("work",0),"reabstract_summary_work")
+            self.charge(len(prepared_aliases),"reabstract_prepare_work")
+            prepared_summaries=self.ops.arena.summaries|set(prepared_aliases.values())
+            reads=set();writes=set()
+            for old,target in ((self.reads,reads),(self.writes,writes)):
+                for owner,key,point in old:
+                    self.charge(1,"reabstract_prepare_work");target.add((prepared_aliases.get(owner,owner),key,point))
+            queue=deque(self.queue);queued=set(self.queued);newly_queued=[]
+            for key in payload["units"]:
+                self.charge(1,"reabstract_prepare_work")
+                if key not in queued:queue.append(key);queued.add(key);newly_queued.append(key)
+            self._check_limits(force=True)
+            # Publication consists solely of assignments to already prepared
+            # objects. External service commit hooks have the same contract.
+            self.ops.arena.publish(prepared_aliases,summaries=prepared_summaries)
+            self.units=payload["units"];self.functions=functions;self.events=payload["events"]
+            self.reads=reads;self.writes=writes;self.queue=queue;self.queued=queued
+            if oracle_prepared is not None:self.oracle.commit_reabstract(oracle_prepared)
+            if provider_prepared is not None:self.summary_provider.commit_state_epoch(provider_prepared)
+            self.stats["address_reabstract_epochs"]+=1;self.stats["address_aliases"]=len(prepared_aliases)
+            for key in newly_queued:self.emit("work_enqueue",unit=key,reason="address_epoch_changed")
+            self.emit("state_reabstract",epoch=epoch,aliases=len(prepared_aliases))
+            return payload["extras"]
+        finally:self._in_reabstract=False
+
+    def coarsen_flows(self,flows,operations=None):
+        operations=operations or self.ops
+        aliases=operations.arena.aliases
+        if aliases:flows=list(remap_payload(tuple(flows),aliases,operations,epoch=operations.arena.epoch))
+        cap=int(operations.policy.max_addr_set_size)
+        seen=set();overflow=set()
+        def inspect(value):
+            if isinstance(value,Value):
+                refs={operations.arena.resolve(ref) for ref in value.refs}
+                if len(refs)>cap:overflow.update(refs)
+                return
+            if value is None or isinstance(value,(str,int,float,bool,bytes,ast.AST)):return
+            if id(value) in seen:return
+            seen.add(id(value))
+            if isinstance(value,dict):
+                for key,item in value.items():inspect(key);inspect(item)
+            elif isinstance(value,(tuple,list,set,frozenset)):
+                for item in value:inspect(item)
+            elif hasattr(value,"__dataclass_fields__"):
+                for name in value.__dataclass_fields__:inspect(getattr(value,name))
+        inspect(flows)
+        if overflow:
+            # A single conservative quotient bounds the overflowing reference
+            # component. Concrete keys and all heap values remain represented.
+            kinds={obj.kind for flow in flows for ref in overflow if (obj:=flow.store.heap.get(ref)) is not None}
+            target="summary:addresses:"+(next(iter(kinds)) if len(kinds)==1 else "mixed")
+            mapping={ref:target for ref in overflow if ref!=target}
+            if mapping:flows=list(self.reabstract_addresses(mapping,flows));self.stats["address_capacity_collapses"]+=1
+        return flows
+
     def emit(self,kind,**data):
         event={"schema_version":1,"kind":kind,**data}
         self.stats["observation_events"]+=1
@@ -72,8 +197,9 @@ class InterproceduralDriver:
         if store is not None:store.obligations|=frozenset((reason,))
         self.emit("open_obligation",reason=reason,point=self.point(node) if node else None)
     def register_module(self,module,store):
-        identifier=f"module:{module}"
-        if identifier not in store.heap:store.heap[identifier]=HeapObject("module",metadata={"module":module})
+        store.ensure_current(self.ops)
+        identifier=self.allocate_identity(f"module:{module}")
+        if identifier not in store.heap:store.heap[identifier]=HeapObject("module",singleton=not self.ops.arena.is_summary(identifier),metadata={"module":module})
         return Value.ref(identifier)
     def module_key(self,module):return f"{self.scenario}:module:{module}"
     def request_module(self,module,store,caller=None,site=None):
@@ -111,6 +237,8 @@ class InterproceduralDriver:
         if caller:self.emit("call_dependency",caller=caller,callee=key,revision=self.units[key].revision)
 
     def request_function(self,identifier,args,keywords,store,caller_frame,site):
+        store.ensure_current(self.ops);identifier=self.ops.arena.resolve(identifier)
+        args=tuple(self.ops.normalize(value) for value in args);keywords=tuple((name,self.ops.normalize(value)) for name,value in keywords)
         info=self.functions[identifier]
         from pythonstan.analysis.semantics.binding import bind_arguments
         function_object=store.heap.get(identifier)
@@ -118,8 +246,8 @@ class InterproceduralDriver:
         if function_object is not None and function_object.havoc:
             return self.transfer.unknown(store,site,"havoc_function_metadata")
         if function_object is not None:
-            defaults=tuple(function_object.fields.get(f"$default:{i}",value) for i,value in enumerate(info.defaults))
-            kw_defaults=tuple((key,function_object.fields.get("$kwdefault:"+key,value)) for key,value in info.kw_defaults)
+            defaults=tuple(function_object.fields.get(positional_default_slot(i),value) for i,value in enumerate(info.defaults))
+            kw_defaults=tuple((key,function_object.fields.get(keyword_default_slot(key),value)) for key,value in info.kw_defaults)
             if function_object.havoc:
                 defaults=tuple(self.ops.join(value,Value.unknown()) for value in defaults)
                 kw_defaults=tuple((key,self.ops.join(value,Value.unknown())) for key,value in kw_defaults)
@@ -141,19 +269,48 @@ class InterproceduralDriver:
         heap_partition=self.semantic_input_partition(info,args,keywords,defaults,store)
         key=f"{self.scenario}:call:{identifier}@{'|'.join(context)}:heap={heap_partition}"
         closure=tuple(function_object.metadata.get("closure",info.closure)) if function_object is not None else info.closure
-        frame=Frame(info.module,info.qualname,context,key,info.locals,closure,info.globals,info.nonlocals)
-        entry=store.clear_effects()
+        activation=None;frame_identity=key
+        if info.is_generator or info.is_async:
+            occurrence_key=(self.current,caller_frame.identity,self.point(site),identifier)
+            self._activation_occurrences[occurrence_key]+=1
+            count=self._activation_occurrences[occurrence_key]
+            activation=count if count<=32 else "many"
+            frame_identity=f"{key}:activation={activation}"
+        frame=Frame(info.module,info.qualname,context,frame_identity,info.locals,closure,info.globals,info.nonlocals)
+        if info.is_generator or info.is_async:
+            # A lazy frame owns local bindings, not a creation-time copy of all
+            # globals or every older generator. Referenced objects stay in the
+            # returned caller heap and are read live when execution resumes.
+            entry=Store(cells={cell:store.effective_cell(cell) for _,cell in closure},identity_epoch=self.ops.arena.epoch)
+        else:entry=store.clear_effects()
         for name in frame.locals:entry.cells[frame.cell(name)]=Value(unbound=True)
         for name,value in bound.bindings:entry.cells[frame.cell(name)]=value
         if info.node.args.vararg:
-            objid=f"varargs:{key}";entry.heap[objid]=HeapObject("tuple",{i:v for i,v in enumerate(bound.varargs)},metadata={"length":len(bound.varargs)})
+            objid=self.allocate_identity(f"varargs:{frame.identity}")
+            collector=HeapObject("tuple",{i:v for i,v in enumerate(bound.varargs)},singleton=activation!="many" and not self.ops.arena.is_summary(objid),metadata={"length":len(bound.varargs)})
+            if objid in entry.heap:collector=entry.heap[objid].join(collector,self.ops);collector.singleton=False
+            entry.heap[objid]=collector
             entry.cells[frame.cell(info.node.args.vararg.arg)]=Value.ref(objid)
         if info.node.args.kwarg:
-            objid=f"kwargs:{key}";entry.heap[objid]=HeapObject("dict",dict(bound.kwargs),metadata={"length":len(bound.kwargs)})
+            objid=self.allocate_identity(f"kwargs:{frame.identity}")
+            collector=HeapObject("dict",dict(bound.kwargs),singleton=activation!="many" and not self.ops.arena.is_summary(objid),metadata={"length":len(bound.kwargs)})
+            if objid in entry.heap:collector=entry.heap[objid].join(collector,self.ops);collector.singleton=False
+            entry.heap[objid]=collector
             entry.cells[frame.cell(info.node.args.kwarg.arg)]=Value.ref(objid)
         if info.is_generator or info.is_async:
-            objid=f"{'coroutine' if info.is_async else 'generator'}:{key}:{self.point(site)}"
-            result=store.copy();result.heap[objid]=HeapObject("coroutine" if info.is_async else "generator",metadata={"function":identifier,"frame":frame,"entry":entry,"body":tuple(info.node.body),"stage":"created","index":0})
+            kind="async_generator" if info.is_async and info.is_generator else "coroutine" if info.is_async else "generator"
+            objid=self.allocate_identity(f"{kind}:{frame.identity}:{self.point(site)}")
+            result=store.copy()
+            for bound_id,bound_object in entry.heap.items():result.heap[bound_id]=bound_object.copy()
+            # Argument collector containers are caller-heap objects as well;
+            # the suspended entry only needs their reference-valued locals.
+            entry.heap={}
+            created=HeapObject(kind,singleton=activation!="many" and not self.ops.arena.is_summary(objid),metadata={"function":identifier,"frame":frame,"entry":entry,"body":tuple(info.node.body),"stage":"created","index":0})
+            old=result.heap.get(objid)
+            if old is not None:created=old.join(created,self.ops);created.singleton=False;created.havoc=True
+            if activation=="many":created.havoc=True;self.open("suspended_activation_summary",result,site)
+            result.heap[objid]=created
+            self.calls.add((caller_frame.qualname,info.qualname,self.point(site)))
             return [Flow(result,value=Value.ref(objid))]
         body=(ast.Return(info.node.body),) if isinstance(info.node,ast.Lambda) else tuple(info.node.body)
         self._request(key,frame,body,entry,False,self.current)
@@ -185,12 +342,19 @@ class InterproceduralDriver:
         names={node.id for node in ast.walk(info.node) if isinstance(node,ast.Name) and isinstance(node.ctx,ast.Load)}-set(info.locals)
         values.extend(store.cells.get(f"global:{info.module}:{name}",Value.bottom()) for name in names)
         pending=[ref for value in values for ref in value.refs];seen=set();tokens=[]
+        # Two zero signs have observably different str/repr behavior but Python
+        # frozensets cannot retain both. This finite two-atom input partition
+        # keeps separate equations rather than silently forgetting a sign.
+        import struct
+        for index,value in enumerate(values):
+            if value.floats and all(item==0.0 for item in value.floats):
+                tokens.append(("scalar-input",index,tuple(sorted(struct.pack("!d",item).hex() for item in value.floats))))
         while pending and len(seen)<64:
             ref=pending.pop()
             if ref in seen:continue
             seen.add(ref);obj=store.heap.get(ref)
             if obj is None:continue
-            for name in ("index","length","stage"):
+            for name in ("index","length","stage","resume_count"):
                 if name not in obj.metadata:continue
                 value=obj.metadata[name]
                 if type(value) is int:value=value if 0<=value<32 else "many"
@@ -203,11 +367,12 @@ class InterproceduralDriver:
         return stable_digest(sorted(tokens,key=str))[:16]
 
     def compact(self,flows):
+        flows=self.coarsen_flows(flows)
         # Subsumption removes repeated recursive approximations before counting
         # paths; otherwise duplicate return paths can oscillate below the cap.
         maximal=[]
         for flow in flows:
-            same=lambda other:(flow.kind,flow.exception,flow.continuation,flow.cleanups)==(other.kind,other.exception,other.continuation,other.cleanups)
+            same=lambda other:flow.kind==other.kind and flow.exception==other.exception and semantic_payload_equal((flow.continuation,flow.cleanups,flow.resume_target),(other.continuation,other.cleanups,other.resume_target))
             if any(same(old) and self.ops.leq(flow.value,old.value) and flow.store.leq(old.store,self.ops) for old in maximal):continue
             maximal=[old for old in maximal if not (same(old) and self.ops.leq(old.value,flow.value) and old.store.leq(flow.store,self.ops))]
             maximal.append(flow)
@@ -215,7 +380,7 @@ class InterproceduralDriver:
         if len(flows)<=self.max_paths:return flows
         buckets={}
         for flow in flows:
-            key=(flow.kind,flow.exception,flow.continuation,flow.cleanups)
+            key=(flow.kind,flow.exception,payload_signature((flow.continuation,flow.cleanups,flow.resume_target)))
             if key not in buckets:buckets[key]=flow
             else:
                 old=buckets[key];buckets[key]=replace(flow,store=old.store.join(flow.store,self.ops),value=self.ops.join(old.value,flow.value))
@@ -225,6 +390,7 @@ class InterproceduralDriver:
     def _outcomes_equal(self,left,right):
         if len(left)!=len(right):return False
         for a,b in zip(sorted(left,key=lambda f:(f.kind,f.exception or "")),sorted(right,key=lambda f:(f.kind,f.exception or ""))):
+            if not semantic_payload_equal((a.continuation,a.cleanups,a.resume_target),(b.continuation,b.cleanups,b.resume_target)):return False
             if a.kind!=b.kind or a.exception!=b.exception or not self.ops.leq(a.value,b.value) or not self.ops.leq(b.value,a.value) or not a.store.leq(b.store,self.ops) or not b.store.leq(a.store,self.ops):return False
         return True
 
@@ -241,6 +407,7 @@ class InterproceduralDriver:
         # Query demand changes scheduling, never the declared root set.
         entries=tuple(sorted(enumerate(entries),key=lambda pair:(getattr(pair[1],"root_module",None) not in query_modules,pair[0])))
         try:
+            self._check_limits(force=True)
             if self.oracle is not None and hasattr(self.oracle,"bind"):self.oracle.bind(self)
             if self.summary_provider is not None and hasattr(self.summary_provider,"charge_setup"):self.summary_provider.charge_setup(self)
             for index,entry in entries:
@@ -276,7 +443,7 @@ class InterproceduralDriver:
             for identifier in callee.refs:
                 info=self.functions.get(identifier)
                 if info:
-                    if not arguments:
+                    if isinstance(entry,Mapping) and ("arguments" not in entry or entry.get("arguments") is None):
                         args=[Value.unknown() for _ in (*info.node.args.posonlyargs,*info.node.args.args)]
                         keywords=[(x.arg,Value.unknown()) for x in info.node.args.kwonlyargs if x.arg not in dict(info.kw_defaults)]
                     fake=info.node
@@ -288,10 +455,14 @@ class InterproceduralDriver:
         while self.queue:
             key=self.queue.popleft();self.queued.discard(key);unit=self.units[key];self.current=key
             self.scenario=self.unit_scenarios[key];unit.visits+=1;self.stats["unit_evaluations"]+=1
+            self._activation_occurrences.clear()
             if unit.visits>int(self.abstract.get("max_iterations",100)):raise BudgetStop("unit_iterations")
             self.emit("work_dequeue",unit=key,revision=unit.revision)
             entry=unit.entry.clear_effects()
             flows=self.transfer.block(unit.body,[Flow(entry)],unit.frame)
+            # Address quotient publication may replace the host unit graph
+            # while this transfer is suspended in a nested call.
+            unit=self.units[key]
             normalized=[]
             for flow in flows:
                 if not unit.is_module and flow.kind=="normal":flow=Flow(flow.store,"return",Value.constant(None))
@@ -356,8 +527,11 @@ class InterproceduralDriver:
                     bound=flow.store.effective_cell(f"global:{module}:{symbol}")
                     values.setdefault(module,{})[symbol]=self.ops.join(values.get(module,{}).get(symbol,Value.bottom()),bound)
         for obj in heaps.values():
-            if obj.kind in ("generator","coroutine"):
-                info=self.functions[obj.metadata["function"]]
+            if obj.kind in ("generator","coroutine","async_generator"):
+                info=self.functions.get(obj.metadata.get("function"))
+                if info is None:
+                    self.open("unrepresented_suspended_function")
+                    continue
                 returns.setdefault(info.qualname,Value.bottom())
                 procedure_meta[info.qualname]={"normal_exit":False,"exceptions":set(),"suspends":info.is_generator,"body_executed_at_creation":False}
                 outcomes.setdefault(info.qualname,[])

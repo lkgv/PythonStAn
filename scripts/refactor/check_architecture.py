@@ -76,6 +76,10 @@ def violations(source: str, target: str):
         yield "contracts-must-be-engine-neutral"
     if a == "domains" and b in {"andersen", "abstract", "legacy_andersen", "legacy_abstract", "compat"}:
         yield "domains-must-not-depend-on-engine"
+    if a in core and b == "compat":
+        yield "new-core-must-not-call-compat-shim"
+    if a in core and b == "composition":
+        yield "core-must-not-own-composition"
     if a in {"andersen", "abstract"} and b in {"andersen", "abstract"} and a != b:
         yield "engines-bridge-only-through-composition"
     if a in {"legacy_andersen", "legacy_abstract"} and b in {"legacy_andersen", "legacy_abstract"} and a != b:

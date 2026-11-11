@@ -97,6 +97,9 @@ class PointerAnalysis(AnalysisDriver):
             logger.info(f"Debug monitoring enabled, output to: {self.kcfa_config.debug_output_dir}")
         
         self.state = PointerAnalysisState(debug_monitor=self.debug_monitor)
+        # Capture this arena's manager now, before a later Pipeline can replace
+        # World. The manager is populated by preprocessing after construction.
+        self.state._scope_manager = self.world.scope_manager
         
         # Initialize PFG with debug monitor
         from .pointer_flow_graph import PointerFlowGraph
@@ -142,6 +145,9 @@ class PointerAnalysis(AnalysisDriver):
         Returns:
             AnalysisResult containing points-to information and call graph
         """
+        # Capture the actual entry identity for passive queries after World reset.
+        from pythonstan.ir import IRModule
+        self.state.entry_module = entry_scope if isinstance(entry_scope,IRModule) else self.world.get_entry_module()
         # Reset object ID table for clean state each analysis run
         reset_object_table()
         
@@ -457,12 +463,33 @@ class PointerAnalysis(AnalysisDriver):
                     ctx_self_var = self.state.get_variable(method_scope, method_context, self_var)
                     self.state._worklist.add((method_scope, NormalNode(ctx_self_var), self_pts))
                     
+                    # These optional roots are real analysis work, not ordinary
+                    # module initialization. Export their bounded input contract.
+                    root_record = {"module": defining_module.get_qualname(),
+                                   "qualname": method_qualname,
+                                   "context": str(method_context),
+                                   "kind": "synthetic_instance_method",
+                                   "argument_contract": "synthetic_self_only; other external arguments unmodeled",
+                                   "translation_status": "registered"}
+                    self.state.synthetic_method_roots.append(root_record)
                     # Translate the method body and add constraints
                     try:
                         method_constraints = self.translator.translate_function(method_ir)
                         for constraint in method_constraints:
                             self.solver.add_constraint(method_scope, method_context, constraint)
                     except Exception as e:
+                        root_record["translation_status"] = "failed_open"
+                        self.state._residual_effects[(method_scope,"synthetic_translation")] = {
+                            "origin": method_qualname,"reason": f"synthetic method translation failed: {type(e).__name__}: {e}",
+                            "effects": ["untranslated_source","may_mutate_heap","may_invoke_callbacks","may_raise"]}
+                        from .object import UnknownValue
+                        unknown_site=AllocSite(("synthetic_translation",method_ir),AllocKind.UNKNOWN)
+                        top=UnknownValue(self.state.select_allocation_context(method_context,unknown_site),unknown_site)
+                        self.state._heap.set_obj(method_scope,method_context,unknown_site,top)
+                        self.state.obj_scope[top]=method_scope
+                        self.state.apply_unknown_effects(method_scope,top,method_qualname)
+                        ret=self.solver.variable_factory.make_variable("$return",VariableKind.TEMPORARY)
+                        self.solver.handle_new_points_to(self.state.get_variable(method_scope,method_context,ret),method_scope,PointsToSet.singleton(top))
                         logger.warning(f"Error translating method {method_qualname}: {e}")
         
         logger.info(f"Created synthetic contexts for {method_count} methods in {class_count} classes")
