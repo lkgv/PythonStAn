@@ -205,8 +205,11 @@ class AbsVal:
                     projection = cls.from_int(literal)
                 elif type(literal) is str:
                     projection = cls.from_str(literal)
+                elif type(literal) is float:
+                    # Finite float witnesses have an exact Native value even
+                    # though this compatibility product has no float facet.
+                    projection = cls.bottom()
                 else:
-                    # This legacy scalar product has no float/bytes domain.
                     projection = cls.top_non_none()
                 value = value.join(projection)
         return cls(addrs=addrs, components=value.components, scalar_kinds=value.scalar_kinds,

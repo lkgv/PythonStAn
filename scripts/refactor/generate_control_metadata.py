@@ -53,7 +53,7 @@ NATIVE={
  "debug_output_dir":("unavailable_nondefault",P+"analysis.PointerAnalysis.__init__","Onlyoptionalmonitor outputpath; noindependentanalysisconsumer."),
  "debug_inheritance":("diagnostic",P+"solver.PointerSolver._alloc_class","Inheritance diagnostics only."),
  "enable_ai_intrinsics":("supported",P+"solver.PointerSolver._try_ai_intrinsic","Injecteddeterministic optionalgetattr/setattr/hasattr bridge; notanAI-primary mode."),
- "ai_budget":("supported_legacy_intrinsic_only","pythonstan.analysis.composition.native_intrinsics.LegacyIntrinsicProvider.apply","25validatednestedlegacyAI controls; directdispatch vsnestedCFG applicability separated; sharedgloballedger preventsfreepercallwork."),
+ "ai_budget":("supported_legacy_intrinsic_only","pythonstan.analysis.composition.native_intrinsics.LegacyIntrinsicProvider.apply","Eligible intrinsic calls use the shared-core bridge:9 supported legacy controls and16 retired nondefaults with explicit rejection; per-field consumers below. Nested work uses the shared global ledger."),
 }
 LEGACY_BUDGET={
  "max_iterations":(A+"solver.AISolver.solve","CFG worklimit; directintrinsic dispatch has noCFGiterationloop."),
@@ -102,8 +102,8 @@ NEW_AI={
  "max_stmt_visits":(N+"driver.InterproceduralDriver.tick","Canonical charged statement guard plus covering loop limit; zero prevents actual statement transfer."),
  "enable_narrowing":(N+"transfer.Transfer.while_loop","Controls checked looppostfixpoint refinement/publicoutcomes."),
  "narrowing_iterations":(N+"transfer.Transfer.while_loop","Maximumcheckednarrowpasses."),
- "enable_value_partition":(N+"transfer.Transfer.getitem","Actualkey-handler/value relationpartitioning, notstringcapacity."),
- "max_value_partitions":(N+"transfer.Transfer.getitem","Whole-lookup branch budget; overflow retains a covering unpartitioned key-handler union/product."),
+ "enable_value_partition":(N+"dictionaries.DictionaryOperations.getitem","Actualkey-handler/value relationpartitioning, notstringcapacity."),
+ "max_value_partitions":(N+"dictionaries.DictionaryOperations.getitem","Whole-lookup branch budget; overflow retains a covering unpartitioned key-handler union/product."),
  "max_addr_set_size":(N+"driver.InterproceduralDriver.coarsen_flows","Actual host-wide roots/heap/cells/continuations/defaults/subscriber address coarsening with weak summary writes."),
 }
 SOLVER_OPTIONS={
@@ -123,7 +123,7 @@ NEW_EXTRA={
  "abstract.refine_booleans":(N+"transfer.Transfer.refine_test","State cofactoring after actual truth/protocol effects; disabled mode preserves both states."),
  "abstract.max_scalar_pairs":(D+"values.ValueOperations.scalar_binary","Pure scalar Cartesian enumeration window with covering typed fallback."),
  "abstract.max_range_size":(N+"transfer.Transfer.builtin","Finite range model enumeration window; overflow is explicitly Open with covering value."),
- "abstract.attribute_name_limit":(N+"attributes.AttributeOperations.builtin","Reflective name enumeration window independent from StringDomain widening cap; residual setter covers every omitted name."),
+ "abstract.attribute_name_limit":(N+"attributes.AttributeOperations.reflective","Reflective name enumeration window independent from StringDomain widening cap; residual setter covers every omitted name."),
 }
 
 class References(ast.NodeVisitor):

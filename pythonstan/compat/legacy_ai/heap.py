@@ -55,6 +55,10 @@ class AIAddr:
     """
     alloc_site: 'AllocSite'
     context: 'AbstractContext'
+    # Bound and unbound Native method objects can have the same allocation and
+    # context while denoting different receiver-bearing representations. The
+    # optional flat token preserves them without embedding contextual objects.
+    projection: tuple = ()
 
     def __str__(self) -> str:
         return f"{self.alloc_site}@{self.context}"
@@ -62,7 +66,14 @@ class AIAddr:
     @classmethod
     def from_kcfa_obj(cls, obj: 'AbstractObject') -> 'AIAddr':
         """Create AIAddr from kcfa AbstractObject."""
-        return cls(obj.alloc_site, obj.context)
+        from pythonstan.analysis.pointer.kcfa.object import MethodObject, BuiltinMethodObject
+        from pythonstan.analysis.pointer.kcfa.context import finite_context_atom
+        projection=()
+        if isinstance(obj,MethodObject):
+            projection=('method',finite_context_atom(obj.class_obj),None if obj.instance_obj is None else finite_context_atom(obj.instance_obj))
+        elif isinstance(obj,BuiltinMethodObject):
+            projection=('builtin_method',obj.method_name,finite_context_atom(obj.receiver))
+        return cls(obj.alloc_site, obj.context, projection)
 
 
 # =============================================================================
@@ -81,6 +92,13 @@ class ObjKind(Enum):
     SET = "set"
     TUPLE = "tuple"
     ITERATOR = "iterator"
+    NAMESPACE = "namespace"
+    BOUND_METHOD = "bound_method"
+    BUILTIN_METHOD = "builtin_method"
+    STATICMETHOD = "staticmethod"
+    CLASSMETHOD = "classmethod"
+    PROPERTY = "property"
+    EXCEPTION = "exception"
     FOREIGN = "foreign"
     UNKNOWN = "unknown"
 

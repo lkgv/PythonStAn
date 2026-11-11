@@ -156,6 +156,8 @@ def parse_sources(modules, *, parsed_trees=None) -> SourceProgram:
         # alone accepts (e.g. return outside a function). This code object is
         # immediately discarded and is never executed.
         compile(tree, source.filename, "exec", dont_inherit=True)
+        from .private_names import lower_private_names
+        tree=lower_private_names(tree)
         trees[name] = tree
         _index_tree(name, source, tree, nodes, node_modules, synthetic)
     frozen_sources = MappingProxyType(sources)

@@ -34,6 +34,19 @@ def test_fresh_box_payload_is_checked_as_a_full_value():
             'values':{'example':{'out_0_0':value(),'out_0_1':box}}}
     assert family().quality(result,SimpleNamespace(functions={}),2,1)['exact_matching_answers']==1
 
+
+@pytest.mark.parametrize('changes',[{'havoc':True},{'default':value(top=True)},
+    {'default':value(bottom=True)},{'maybe_missing':['value']}])
+def test_fresh_box_known_slot_cannot_hide_unknown_default_havoc_or_missing_key(changes):
+    slot={'object':'fresh','entries':[{'key':'value','value':value()}],
+          'havoc':False,'maybe_missing':[],'default':value(constants=[],bottom=True)}
+    box=value(constants=[],objects=['fresh'],slots=[slot])
+    result={'solver_status':'converged','coverage_status':'closed_under_profile',
+            'values':{'example':{'out_0_0':value(),'out_0_1':box}}}
+    assert family().quality(result,SimpleNamespace(functions={}),2,1)['all_gold_useful']
+    slot.update(changes)
+    assert not family().quality(result,SimpleNamespace(functions={}),2,1)['all_gold_useful']
+
 def test_full_process_cost_and_complete_denominator_govern_release_benefit():
     module=family();rows=[]
     for arm in module.ARMS:

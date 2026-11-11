@@ -419,7 +419,7 @@ class AIState:
             if isinstance(item, dict):
                 return {remap(k): remap(v) for k, v in item.items()}
             if is_dataclass(item) and item.__class__.__module__.startswith((
-                    'pythonstan.analysis.pointer.ai.domains', 'pythonstan.analysis.domains')):
+                    'pythonstan.analysis.pointer.ai.domains', 'pythonstan.compat.legacy_ai.domains', 'pythonstan.analysis.domains')):
                 return replace(item, **{f.name: remap(getattr(item, f.name)) for f in fields(item)})
             return item
         return remap(value)

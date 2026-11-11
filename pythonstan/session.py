@@ -63,6 +63,7 @@ class AnalysisSession:
         started = self.started
         config = self.config.to_dict()
         mode = config["engine"]
+        native_phase = None
         execution_config = self.config.to_dict()
         elapsed = time.monotonic() - self.started
         seconds = config["resources"]["max_seconds"]
@@ -161,6 +162,12 @@ class AnalysisSession:
                       config_provenance=self.config.provenance, actual_engine=mode,
                       profile=config["semantic_profile"])
         result["entry_contract"]["execution_order"] = [entry.scenario_id for entry in self.execution_snapshot.scenarios]
+        if mode == "native" and result.get("synthetic_entry_contract"):
+            result["entry_contract"]["entry_coverage"] = "initialization_and_synthetic_method_contexts"
+            result["entry_contract"]["synthetic_method_contexts"] = copy.deepcopy(result["synthetic_entry_contract"])
+        elif mode == "native_then_ai" and native_phase and native_phase.get("synthetic_entry_contract"):
+            result["entry_contract"]["native_prepass_synthetic_method_contexts"] = copy.deepcopy(native_phase["synthetic_entry_contract"])
+            result["entry_contract"]["final_query_scope"] = "Declared source-driver scenarios only; Native synthetic contexts are additional prepass candidates, not AI external-input coverage."
         requested_properties = {query["property"] for query in self.queries if query["kind"] == "property"}
         proof = result.setdefault("proof", {"properties": {}})
         for name in requested_properties:

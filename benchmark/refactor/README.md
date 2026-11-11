@@ -90,3 +90,10 @@ Capture races, incomplete/duplicate arm sets and changed captured sources block
 a release-level benefit claim. Missing/Top/typedTop/unbound and extra scalar
 facets cannot count as exact finite query answers. Every run requires a new
 evidence directory, including failed and timed-out arms.
+
+For returned boxes, the quality measure checks the exported finite `value`
+slot, an empty unknown default, no heap havoc, and distinct returned object
+IDs. Its historical `fresh_boxes` and `fresh_identities_distinct` labels describe
+those observed IDs. The export does not retain per-key presence or allocation
+singleton metadata, so this measure cannot establish a must-present slot or a
+fresh allocation guarantee.

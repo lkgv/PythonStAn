@@ -110,14 +110,30 @@ result = outer()
                          ai_options={"plan_scopes": ["subject.outer"],
                          "strict_exceptions": True, "enable_narrowing": False}) as program:
         summary = program.ai.get_summary("subject.outer")
-        assert summary.is_complete, summary.incomplete_reasons
-        assert "after" in summary.ret_value.get_const_strs()
-        targets = {callee.ir.get_qualname() for _, callees in summary.calls
-                   for callee in callees if hasattr(callee, "ir")}
-        assert "subject.Manager.__enter__" in targets
-        assert "subject.Manager.__exit__" in targets
-        assert not summary.may_raise
-        assert "ValueError" in summary.prefix_exceptions
+        # Native positive method facts are candidates, with no coverage or
+        # MUST-presence proof. Their complement executes the real unknown-call
+        # transfer and preserves normal, exceptional and effect obligations.
+        assert not summary.is_complete
+        assert summary.ret_value.addr_top
+        assert "BaseException" in summary.may_raise
+        assert {effect.kind for effect in summary.unknown_effects} == {"may_read", "may_write", "may_call"}
+        assert summary.exit_state.overlay_havoc
+        assert summary.exceptional_exit_states
+
+    # The byte-identical program as a complete Source input retains the
+    # original positive semantic oracle independently of Native may-facts.
+    from pythonstan import Source, ValueQuery, analyze
+    result = analyze(Source(source, module="subject"), config={
+        "engine": "ai_primary", "resources": {"max_work": 80000, "max_seconds": 0},
+    }, queries=["values", "calls", "effects", "outcomes"])
+    assert result.coverage_status == "closed_under_profile"
+    value = result.query(ValueQuery("subject", "result")).value
+    assert value["constants"] == ["after"] and not value["top"] and not value["may_unbound"]
+    targets = {row["callee"] for row in result.query("calls").value}
+    assert "subject.Manager.__enter__" in targets
+    assert "subject.Manager.__exit__" in targets
+    assert all(flow["kind"] != "raise" for flows in result.query("outcomes").value.values() for flow in flows)
+    assert "ValueError" in result.query("effects").value["exceptions"]
 
 
 LOOP = """def outer():
@@ -150,18 +166,19 @@ def test_checked_narrowing_rebuilds_the_public_summary(tmp_path):
 
 
 def test_invalid_narrowed_entry_cannot_replace_the_established_result(tmp_path, monkeypatch):
-    from pythonstan.analysis.pointer.ai._narrowing import NarrowingPass
+    from pythonstan.analysis.engines.abstract.transfer import Transfer
+    from pythonstan.analysis.domains.values import Value
 
-    original = NarrowingPass.run
+    original = Transfer.loop_narrowing_candidate
 
-    def corrupt_entry(self, iterations):
-        original(self, iterations)
-        entry = self.cfg_adapter.get_entry_block_id()
-        state = self.block_states[entry].copy()
-        state.env["i"] = AbsVal.from_int(999)
-        self.block_states[entry] = state
+    def corrupt_entry(self, initial, back_states):
+        candidate = original(self, initial, back_states)
+        for cell in tuple(candidate.cells):
+            if cell.endswith(":i"):
+                candidate.cells[cell] = Value.constant(999)
+        return candidate
 
-    monkeypatch.setattr(NarrowingPass, "run", corrupt_entry)
+    monkeypatch.setattr(Transfer, "loop_narrowing_candidate", corrupt_entry)
     result = loop_summary(tmp_path / "invalid", True)
     assert result.is_complete
     assert result.ret_value.get_int_lattice().lo == 3

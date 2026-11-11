@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional
 
-from pythonstan.compat.legacy_ai.domains.base import Domain, Fact
+from pythonstan.analysis.domains.base import Domain, Fact
 
 __all__ = ["BoolDomain", "BoolLattice", "BoolVal"]
 

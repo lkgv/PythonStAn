@@ -22,7 +22,8 @@ class ValueQuery:
     def __post_init__(self):
         if self.point not in ("module_exit", "function_exit"):
             raise ValueError("ValueQuery.point must be module_exit or function_exit")
-        if not self.module or not self.symbol: raise ValueError("ValueQuery needs module and symbol")
+        if not isinstance(self.module,str) or not isinstance(self.symbol,str) or not self.module or not self.symbol:
+            raise ValueError("ValueQuery needs nonempty string module and symbol")
 
     def to_dict(self):
         return {"kind": "value", "module": self.module, "symbol": self.symbol, "point": self.point}
@@ -55,6 +56,8 @@ class OutputSpec:
 
     def __post_init__(self):
         for field in ("views", "modules", "functions", "regions", "contexts", "fields"):
+            if isinstance(getattr(self,field),(str,bytes)):
+                raise ValueError(f"{field} must be a sequence of strings")
             value = tuple(getattr(self, field))
             if any(not isinstance(x, str) for x in value): raise ValueError(f"{field} must contain strings")
             object.__setattr__(self, field, value)
@@ -158,6 +161,31 @@ def _project_payload(view, value, spec, snapshot):
     """Select and bound retained records; never recompute semantic values."""
     if value is None:
         return None, 0, 0, False, None, None
+    if view == "relations":
+        unavailable = _joined_unavailable(spec)
+        if unavailable:
+            return unavailable
+    if view == "proof":
+        if spec.modules or spec.functions or spec.regions or spec.contexts:
+            return None, 0, 0, False, "unavailable", "A global certificate cannot be relabeled as a scoped proof by output filtering"
+        if spec.max_items == 0:
+            return None, 1, 0, True, "unavailable", "The complete proof envelope was omitted by the item limit"
+        return value, 1, 1, False, None, None
+    if view == "effects" and isinstance(value, dict):
+        if spec.modules or spec.functions or spec.regions or spec.contexts:
+            return None, 0, 0, False, "unavailable", "Joined effects lack a retained scope-specific frame and residual attribution"
+        selected = {key: item for key, item in value.items() if not spec.fields or key in spec.fields}
+        total=sum(len(item) if isinstance(item,(tuple,list,dict)) else 1 for item in selected.values())
+        remaining=spec.max_items;bounded={}
+        for key,item in selected.items():
+            if isinstance(item,(tuple,list)):
+                bounded[key]=item[:remaining];remaining-=len(bounded[key])
+            elif isinstance(item,dict):
+                bounded[key]=dict(list(item.items())[:remaining]);remaining-=len(bounded[key])
+            elif remaining:
+                bounded[key]=item;remaining-=1
+        count=spec.max_items-remaining
+        return bounded,total,count,count<total,None,None
     if view in ("values", "returns") and isinstance(value, dict):
         unavailable = _joined_unavailable(spec)
         if unavailable:
@@ -308,6 +336,9 @@ class AnalysisResult:
             else:
                 payload = data.get("returns", {}).get(normalized["module"] + "." + normalized["symbol"])
             if payload is None: status = "unavailable"
+            elif isinstance(payload, Mapping) and payload.get("bottom") and self.solver_status != "converged":
+                status = "unavailable"
+                payload = None
         elif kind == "property":
             payload = data.get("proof", {}).get("queries", {}).get(query_key(normalized)) or data.get("proof", {}).get("properties", {}).get(normalized["property"],
                         {"status": "unknown", "reason": "No closed certificate for the requested property"})
@@ -354,6 +385,7 @@ class AnalysisResult:
             projection["total_items"] += total; projection["output_items"] += count
             projection["truncated"] |= truncated
             if status: answer["status"] = status; answer["reason"] = reason
+            if status == "unavailable" and view == "proof":answer["proof_status"]="unknown"
             answer["value"] = value
             answers[view] = answer
         for query in self._queries:
@@ -372,11 +404,17 @@ class AnalysisResult:
                 projection["total_items"] += total
                 projection["output_items"] += count
                 projection["truncated"] |= truncated
+            elif query["kind"] == "property":
+                value,total,count,truncated,status,reason=_project_payload("proof",answer["value"],spec,data)
+                answer["value"]=value
+                if status:answer.update(status=status,reason=reason,proof_status="unknown")
+                projection["total_items"]+=total;projection["output_items"]+=count;projection["truncated"]|=truncated
             answers[key] = answer
         result["answers"] = answers; result["projection"] = projection
         return result
 
-    def serialize(self, format="json", output=None):
+    def serialize(self, format=None, output=None):
+        format = format or (output.format if isinstance(output,OutputSpec) else (output or {}).get("format",self.output.format))
         data = self.to_dict(output)
         if format == "json": return json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n"
         if format != "text": raise ValueError("format must be json or text")
@@ -386,7 +424,7 @@ class AnalysisResult:
         if data["projection"]["truncated"]: lines.append("Output truncated; see projection metadata.")
         return "\n".join(lines) + "\n"
 
-    def write(self, destination, format="json", output=None):
+    def write(self, destination, format=None, output=None):
         text = self.serialize(format=format, output=output)
         if hasattr(destination, "write"): destination.write(text)
         else: Path(destination).write_text(text, encoding="utf-8")

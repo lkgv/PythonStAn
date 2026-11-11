@@ -336,336 +336,64 @@ class ArgBinding:
 # =============================================================================
 
 class AISummaryEngine:
-    """Entry point for PTA to invoke AI analysis on a callee/scope.
-    
-    Usage:
-        engine = AISummaryEngine(pta_query, budget)
-        summary = engine.analyze_callee(scope_ir, call_context, arg_bindings)
-    
-    The engine maintains a summary cache keyed by (callee, context, input_fingerprint).
+    """Source-backed compatibility facade over the sole shared abstract driver.
+
+    Each invocation has fresh mutable state.  ``_summary_cache`` remains an
+    inspectable compatibility field, but no caller/heap-dependent result is
+    reused without a complete dependency protocol.
     """
-
-    def __init__(
-        self,
-        pta_query: PtaQuery,
-        budget: Optional[AnalysisBudget] = None,
-        solver_config: Optional['SolverConfig'] = None,
-        work_ledger: Optional[Any] = None,
-    ):
-        """Initialize the AI engine.
-        
-        Args:
-            pta_query: Interface to query PTA
-            budget: Analysis budget limits
-        """
+    def __init__(self,pta_query,budget=None,solver_config=None,work_ledger=None):
         from copy import deepcopy
+        self.pta_query=pta_query
+        self.budget=deepcopy(budget) if budget is not None else AnalysisBudget()
+        self.solver_config=deepcopy(solver_config)
+        from pythonstan.compat.shared_ai import options
+        # Configuration errors precede driver construction and are independent
+        # of the host runtime exception fallback policy.
+        options(self.budget,self.solver_config)
+        self.work_ledger=work_ledger
+        self._summary_cache={}
 
-        self.pta_query = pta_query
-        self.budget = deepcopy(budget) if budget is not None else AnalysisBudget()
-        self.solver_config = deepcopy(solver_config)
-        self.work_ledger = work_ledger
-        self._summary_cache: Dict[Tuple[Any, ...], AISummary] = {}
-
-    def analyze_callee(
-        self,
-        scope_ir: 'IRScope',
-        call_context: 'AbstractContext',
-        arg_bindings: List[ArgBinding],
-        caller_scope: Optional['Scope'] = None,
-        recursion_depth: int = 0,
-        caller_state: Optional['AIState'] = None,
-    ) -> AISummary:
-        """Analyze a callee scope and produce a summary.
-        
-        This is the main entry point for PTA to invoke AI.
-        
-        Exception Handling:
-        - All exceptions are caught at this boundary.
-        - When budget.strict_exceptions=True, exceptions are re-raised.
-        - Otherwise, exceptions are logged and a conservative summary is returned.
-        
-        Args:
-            scope_ir: IR of the callee (IRFunc, IRClass, etc.)
-            call_context: Context at the call site
-            arg_bindings: Parameter bindings from caller arguments
-            caller_scope: Optional caller scope for context
-            recursion_depth: Current recursion depth for nested AI calls
-            
-        Returns:
-            AISummary with returns, writes, and effects
-        """
-        from pythonstan.analysis.pointer.ai.solver import AISolver
+    def analyze_callee(self,scope_ir,call_context,arg_bindings,caller_scope=None,recursion_depth=0,caller_state=None):
         from pythonstan.compat.legacy_ai.state import AIState
-        from copy import deepcopy
-
-        # A mutable PTA without an explicit snapshot token cannot validate
-        # cached reads, closure cells or MRO dependencies. Recompute in that
-        # case; argument equality alone is not an invalidation mechanism.
-        from dataclasses import replace
-        cacheable, dependency_token = self._cache_dependency_token()
-        # Caller-local heap/cells are not represented by the PTA cache token.
-        # Until their complete dependency versions are part of this cache,
-        # bypass reuse whenever a complete incoming state is supplied.
+        from pythonstan.compat.shared_ai import execute_scope
+        initial=AIState.from_arg_bindings(arg_bindings,self.pta_query,self.budget)
         if caller_state is not None:
-            cacheable = False
-        cache_key = self._make_cache_key(
-            scope_ir, call_context, arg_bindings, caller_scope, recursion_depth,
-            dependency_token,
-        )
-        if cacheable and cache_key in self._summary_cache:
-            return replace(self._summary_cache[cache_key])
-
+            parameters=initial.env
+            initial=caller_state.copy();initial.env=parameters
+            initial.pta_query=self.pta_query;initial.budget=self.budget
         try:
-            # Create initial state from arg bindings
-            initial_state = AIState.from_arg_bindings(
-                arg_bindings,
-                self.pta_query,
-                self.budget,
-            )
-            if caller_state is not None:
-                parameter_env = initial_state.env
-                initial_state = caller_state.copy()
-                initial_state.env = parameter_env
-                initial_state.pta_query = self.pta_query
-                initial_state.budget = self.budget
-                initial_state.exn = None
+            result,_,_,_=execute_scope(scope_ir,initial,self.pta_query,self.budget,caller_scope,call_context,self.solver_config,self.work_ledger)
+            return result
+        except Exception as error:
+            if self.budget.strict_exceptions:raise
+            logger.warning("Shared AI analysis failed for %s: %s",getattr(scope_ir,"qualname","<unknown>"),error,exc_info=True)
+            return self._conservative_summary(initial,call_context,reason=type(error).__name__+':'+str(error))
 
-            # Run the solver
-            solver = AISolver(
-                scope_ir=scope_ir,
-                initial_state=initial_state,
-                pta_query=self.pta_query,
-                budget=self.budget,
-                caller_scope=caller_scope,
-                call_context=call_context,
-                recursion_depth=recursion_depth,
-                config=deepcopy(self.solver_config),
-                work_ledger=self.work_ledger,
-            )
-            summary = solver.solve()
+    def analyze_intrinsic(self,builtin_name,call_context,arg_bindings,caller_scope=None,target_name=None):
+        from pythonstan.compat.shared_ai import execute_intrinsic
+        from pythonstan.compat.legacy_ai.state import AIState
+        try:return execute_intrinsic(builtin_name,arg_bindings,self.pta_query,self.budget,caller_scope,call_context,self.solver_config,self.work_ledger)
+        except Exception as error:
+            if self.budget.strict_exceptions:raise
+            logger.warning("Shared intrinsic failed for %s: %s",builtin_name,error,exc_info=True)
+            return self._conservative_summary(AIState.from_arg_bindings(arg_bindings,self.pta_query,self.budget),call_context,reason=type(error).__name__+':'+str(error))
 
-            # A partial observation is not a reusable callee summary.
-            if cacheable and summary.is_complete:
-                self._summary_cache[cache_key] = replace(summary)
-            return summary
-        except Exception as e:
-            # Exception boundary: decide whether to re-raise or return conservative
-            if self.budget.strict_exceptions:
-                raise
-            # Log with context for debugging
-            scope_name = "<unknown>"
-            try:
-                if hasattr(scope_ir, "get_qualname"):
-                    scope_name = scope_ir.get_qualname()
-                elif hasattr(scope_ir, "name"):
-                    scope_name = scope_ir.name
-            except Exception:
-                pass
-            logger.warning(
-                "AI analysis failed for scope %s (context=%s, depth=%d): %s",
-                scope_name, call_context, recursion_depth, e,
-                exc_info=True,
-            )
-            return self._conservative_summary()
+    def invalidate_cache(self):self._summary_cache.clear()
 
-    def _make_cache_key(
-        self,
-        scope_ir: 'IRScope',
-        call_context: 'AbstractContext',
-        arg_bindings: List[ArgBinding],
-        caller_scope: Optional['Scope'] = None,
-        recursion_depth: int = 0,
-        dependency_token: Any = None,
-    ) -> Tuple[Any, ...]:
-        """Create a cache key for memoization.
-        
-        Includes fingerprint of ArgBinding.value when present to ensure
-        different constant values don't reuse summaries.
-        """
-        # Use frozensets for arg bindings to make them hashable
-        bindings_key = tuple(
-            self._make_binding_key(b)
-            for b in sorted(arg_bindings, key=lambda b: b.param_name)
-        )
-        budget_key = tuple(sorted(vars(self.budget).items()))
-        return (id(scope_ir), call_context, bindings_key, id(caller_scope),
-                recursion_depth, budget_key, repr(self.solver_config), dependency_token)
-
-    def _cache_dependency_token(self) -> Tuple[bool, Any]:
-        """Require a query-provided immutable token covering all dependencies."""
-        if self.pta_query is None:
-            return True, None
-        token_provider = getattr(self.pta_query, "analysis_cache_token", None)
-        if token_provider is None:
-            return False, None
-        try:
-            token = token_provider() if callable(token_provider) else token_provider
-            hash(token)
-        except Exception:
-            return False, None
-        return True, (id(self.pta_query), token)
-    
-    def _make_binding_key(self, binding: ArgBinding) -> Tuple[Any, ...]:
-        """Create a hashable key for a single ArgBinding.
-        
-        Includes the full AbsVal fingerprint when value is present.
-        """
-        base_key: Tuple[Any, ...] = (binding.param_name, binding.points_to)
-        
-        if binding.value is not None:
-            # Include the full AbsVal fingerprint in the key
-            return base_key + (binding.value.fingerprint(),)
-        
-        return base_key
-
-    def invalidate_cache(self) -> None:
-        """Clear the summary cache."""
-        self._summary_cache.clear()
-
-    def _conservative_summary(self) -> AISummary:
-        """Report an unavailable result; empty address sets do not mean top."""
-        return AISummary(
-            ret=frozenset(),
-            writes=(),
-            reads=(),
-            calls=(),
-            unknown_effects=(),
-            may_raise=frozenset({"Exception"}),
-            is_complete=False,
-            incomplete_reasons=("analysis_error",),
-        )
-
-    def analyze_intrinsic(
-        self,
-        builtin_name: str,
-        call_context: 'AbstractContext',
-        arg_bindings: List[ArgBinding],
-        caller_scope: Optional['Scope'] = None,
-        target_name: Optional[str] = None,
-    ) -> AISummary:
-        """Analyze a single builtin intrinsic call (no CFG needed).
-        
-        This is used for getattr/setattr/hasattr where we can directly invoke
-        the AI interpreter's builtin handler without building a full CFG.
-        
-        Exception Handling:
-        - All exceptions are caught at this boundary.
-        - When budget.strict_exceptions=True, exceptions are re-raised.
-        - Otherwise, exceptions are logged and a conservative summary is returned.
-        
-        Args:
-            builtin_name: Name of builtin (getattr, setattr, hasattr)
-            call_context: Context at the call site
-            arg_bindings: Argument bindings (obj, name, value/default)
-            caller_scope: Caller's scope for field queries
-            target_name: Name of target variable for return value (or None)
-            
-        Returns:
-            AISummary with returns and writes
-        """
-        from pythonstan.compat.legacy_ai.state import AIState, AbsVal
-        from pythonstan.compat.legacy_ai.summary import SummaryAccumulator
-        from pythonstan.analysis.pointer.ai.interpreter import IRInterpreter
-
-        try:
-            # Create initial state from arg bindings
-            initial_state = AIState.from_arg_bindings(
-                arg_bindings,
-                self.pta_query,
-                self.budget,
-            )
-
-            # Create summary accumulator
-            summary_acc = SummaryAccumulator()
-            if any(value.addr_top for value in initial_state.env.values()):
-                summary_acc.mark_incomplete("unknown_address_input")
-
-            # Create interpreter
-            interpreter = IRInterpreter(
-                pta_query=self.pta_query,
-                budget=self.budget,
-                scope_ir=None,
-                caller_scope=caller_scope,
-                call_context=call_context,
-                solver_config=self.solver_config,
-                work_ledger=self.work_ledger,
-            )
-
-            # Create a stub IRCall-like object for the interpreter
-            class IntrinsicCallStub:
-                """Minimal stub mimicking IRCall interface for builtin handlers."""
-                
-                def __init__(stub_self, target: Optional[str], func_name: str, bindings: List[ArgBinding]):
-                    stub_self._target = target
-                    stub_self._func_name = func_name
-                    stub_self._bindings = bindings
-                
-                def get_target(stub_self) -> Optional[str]:
-                    return stub_self._target
-                
-                def get_func_name(stub_self) -> str:
-                    return stub_self._func_name
-                
-                def get_args(stub_self) -> List[Tuple[str, bool]]:
-                    # Return (param_name, is_starred) pairs
-                    return [(b.param_name, False) for b in stub_self._bindings]
-                
-                def get_keywords(stub_self) -> List:
-                    return []
-
-            stub = IntrinsicCallStub(target_name, builtin_name, arg_bindings)
-
-            # The direct intrinsic dispatch is real abstract work even though
-            # it does not enter AISolver.transfer. Nested source calls share
-            # this exact run ledger and charge their own statement transfers.
-            if self.work_ledger is not None and self.work_ledger.consume(kind="abstract_transfer") is False:
-                return AISummary(is_complete=False, incomplete_reasons=("shared_work_budget",))
-
-            # Dispatch to appropriate handler
-            if builtin_name == "getattr":
-                result = interpreter._handle_getattr(stub, initial_state, summary_acc)
-            elif builtin_name == "setattr":
-                result = interpreter._handle_setattr(stub, initial_state, summary_acc)
-            elif builtin_name == "hasattr":
-                result = interpreter._handle_hasattr(stub, initial_state, summary_acc)
-            else:
-                return AISummary(
-                    is_complete=False,
-                    incomplete_reasons=("unsupported_intrinsic",),
-                )
-
-            # Extract return value addresses from the result state
-            ret_addrs: FrozenSet['AbstractObject'] = frozenset()
-            target_val = None
-            final_state = None
-            if target_name and result.states:
-                # Get the first (and typically only) result state
-                _, final_state = result.states[0]
-                target_val = final_state.get_var(target_name)
-                target_val = interpreter._materialize_scalar_return(target_val, "intrinsic:" + builtin_name)
-                ret_addrs = target_val.addrs
-                if target_val.addr_top:
-                    summary_acc.mark_incomplete("unknown_return_addresses")
-
-            # Build and return AISummary
-            ai_summary = summary_acc.to_summary()
-            
-            # Merge in return addresses
-            if target_val is not None:
-                from dataclasses import replace
-                ai_summary = replace(ai_summary, ret=ai_summary.ret | ret_addrs,
-                                     ret_value=target_val, normal_exit=True,
-                                     exit_state=final_state.copy())
-
-            return ai_summary
-        except Exception as e:
-            # Exception boundary: decide whether to re-raise or return conservative
-            if self.budget.strict_exceptions:
-                raise
-            logger.warning(
-                "AI intrinsic analysis failed for %s (context=%s): %s",
-                builtin_name, call_context, e,
-                exc_info=True,
-            )
-            return self._conservative_summary()
-
+    def _conservative_summary(self,initial=None,context=None,reason="analysis_error"):
+        from pythonstan.compat.legacy_ai.state import AIState
+        from pythonstan.compat.legacy_ai.value_domain import AbsVal
+        from pythonstan.analysis.pointer.kcfa.object import UnknownValue,AllocSite,AllocKind
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext
+        initial=(initial or AIState(pta_query=self.pta_query,budget=self.budget)).copy()
+        targets=set(initial.overlay_havoc)
+        for value in (*initial.env.values(),*initial.overlay.values(),*initial.shared_bindings.values()):targets.update(value.addrs)
+        initial.overlay_havoc|=targets
+        initial.shared_bindings={key:AbsVal.top(initial.registry) for key in initial.shared_bindings}
+        unknown=UnknownValue(context or CallStringContext(),AllocSite("shared-unavailable",AllocKind.UNKNOWN))
+        value=AbsVal.top(initial.registry).with_addrs(frozenset((unknown,)))
+        return AISummary(ret=value.addrs,ret_value=value,normal_exit=True,exit_state=initial,
+            unknown_effects=tuple(UnknownEffect(kind,frozenset(targets)) for kind in ("may_read","may_write","may_call")),
+            may_raise=frozenset(("BaseException",)),prefix_exceptions=frozenset(("BaseException",)),
+            exceptional_exit_states=(("BaseException",initial.copy()),),is_complete=False,incomplete_reasons=(reason,))

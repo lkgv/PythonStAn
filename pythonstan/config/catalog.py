@@ -83,7 +83,7 @@ def _build():
         if path == "semantic_profile": extra["choices"] = ("python-core-v1", "python-protocol-v1")
         if path == "output.format": extra["choices"] = ("json", "text")
         if path == "llm.provider": extra["choices"] = ("offline", "recorded", "adversarial")
-        if path.startswith("resources.") or path in {"output.max_items", "llm.checker_budget", "observation.max_events"}:
+        if path.startswith("resources.") or path in {"output.max_items", "llm.checker_budget", "llm.max_proposals", "observation.max_events"}:
             extra["minimum"] = 0
         result.append(_descriptor(path, default, consumer, **extra))
     fixed_native = {"max_points_to_size", "enable_instrumentation", "build_class_hierarchy",
@@ -111,8 +111,8 @@ def _build():
         _descriptor("abstract.context_depth", 2, "analysis.engines.abstract.driver.InterproceduralDriver", minimum=0),
         _descriptor("abstract.relations", True, "config.resolve.resolve_config", note="Alias of enable_value_partition; conflicting explicit values reject."),
         _descriptor("abstract.refine_booleans", True, "analysis.engines.abstract.transfer.Transfer.refine_test", note="State cofactoring; protocol truth evaluation always executes."),
-        _descriptor("abstract.attribute_name_limit", 256, "analysis.engines.abstract.transfer.Transfer.getattr", minimum=0, note="Reflective name enumeration window with covering residuals."),
-        _descriptor("abstract.int_domain_max_consts", 10, "analysis.domains.bundle.DomainBundle", minimum=1),
+        _descriptor("abstract.attribute_name_limit", 256, "analysis.engines.abstract.attributes.AttributeOperations.reflective", minimum=0, note="Reflective name enumeration window with covering residuals."),
+        _descriptor("abstract.int_domain_max_consts", 10, "analysis.domains.values.ValueOperations.__init__", minimum=1),
         _descriptor("abstract.max_scalar_pairs", 256, "analysis.domains.values.ValueOperations.scalar_binary", minimum=1),
         _descriptor("abstract.max_range_size", 1000, "analysis.engines.abstract.transfer.Transfer.builtin", minimum=1),
     ]
@@ -180,6 +180,7 @@ def json_schema():
         elif option.path in {"andersen.entry_points","andersen.library_paths","abstract.plan_scopes"}: value["type"]=["null","array"]
         if option.choices: value["enum"] = list(option.choices)
         if option.minimum is not None: value["minimum"] = option.minimum
+        if not option.configurable: value["const"] = copy.deepcopy(option.default)
         node.setdefault("properties", {})[parts[-1]] = value
     for option in OPTIONS:
         unsupported=[engine for engine in ENGINES if engine not in option.engines]

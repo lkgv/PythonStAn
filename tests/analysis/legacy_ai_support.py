@@ -61,7 +61,8 @@ class CFGBackedSolver(AISolver):
 def build_source(source, name="subject"):
     """Lower source with the real TAC/IR transforms and build its block CFG."""
     tree = ast.parse(source)
-    module = IRModule(name, tree, name=name, filename=f"{name}.py")
+    from pythonstan.analysis.contracts import SourceModule
+    module = IRModule(name, tree, name=name, filename=f"{name}.py", source_snapshot=SourceModule(name,f"{name}.py",source))
     tac = ThreeAddressTransformer().visit(tree)
     transformer = IRTransformer(module)
     transformer.process_stmts(tac.body)
@@ -73,6 +74,8 @@ def build_source(source, name="subject"):
 
 def terminal_state(solver):
     """Join only terminal block observations, not arbitrary transient states."""
+    if getattr(solver,"exit_state",None) is not None:
+        return solver.exit_state
     states = [state for bid, state in solver.block_out_states.items()
               if not solver.cfg_adapter.get_successors(bid)]
     if not states:

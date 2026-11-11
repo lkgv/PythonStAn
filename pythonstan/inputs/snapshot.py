@@ -105,15 +105,18 @@ def _entry(module, qualname):
     parts = qualname.split(".")
     nodes = ast.parse(module.source).body
     found = None
+    private = None
     for part in parts:
         found = next((n for n in nodes if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n.name == part), None)
         if found is None: raise InputError(f"Unresolved entry: {module.module}:{qualname}")
+        if isinstance(found,ast.ClassDef):private=found.name
         nodes = getattr(found, "body", [])
     if not isinstance(found, (ast.FunctionDef, ast.AsyncFunctionDef)):
         raise InputError(f"Entry is not a source function: {module.module}:{qualname}")
     required = len(found.args.posonlyargs) + len(found.args.args) - len(found.args.defaults)
     arguments = tuple({"top": True, "input_contract": "arbitrary_python_value"} for _ in range(required))
-    arguments += tuple({"keyword": arg.arg, "abstract_value": {"top": True, "input_contract": "arbitrary_python_value"}}
+    from pythonstan.frontend.private_names import mangle
+    arguments += tuple({"keyword": mangle(private,arg.arg), "abstract_value": {"top": True, "input_contract": "arbitrary_python_value"}}
                        for arg, default in zip(found.args.kwonlyargs, found.args.kw_defaults) if default is None)
     return EntryScenario(module.module, qualname, arguments=arguments, coverage="declared_abstract_inputs")
 

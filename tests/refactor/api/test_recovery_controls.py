@@ -16,6 +16,7 @@ def test_precise_override_changes_real_core_capacity(engine):
 
 @pytest.mark.parametrize('options',[
     {'abstract':{'narrowing_iterations':-1}},
+    {'llm':{'max_proposals':-1}},
     {'inputs':{'source_roots':[None]}},
     {'inputs':{'bindings':{'bad.x':{'constants':[1],'top':True}}}},
     {'inputs':{'bindings':{'bad.x':{'value':True,'type':'int'}}}},

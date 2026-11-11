@@ -30,6 +30,10 @@ def _precise(value):
 def _exact_payload(value):
     return _precise(value) and value.get("constants")==["payload"] and not value.get("objects")
 
+def _empty_default(value):
+    return (isinstance(value,dict) and value.get('bottom') is True and value.get('top') is False
+            and not any(value.get(key) for key in ('constants','objects','types','top_sorts','may_unbound','integer_interval','string_patterns')))
+
 
 def family_source(size,repeats):
     lines = []
@@ -69,6 +73,8 @@ def quality(result,driver,size,repeats):
             else:
                 slots = value.get("slots",())
                 exact = not value.get("constants") and len(value.get("objects",())) == 1 and len(slots) == 1
+                exact = exact and slots[0].get('havoc',True) is False and _empty_default(slots[0].get('default'))
+                exact = exact and not slots[0].get('maybe_missing')
                 exact = exact and len(slots[0].get("entries",())) == 1
                 exact = exact and slots[0]["entries"][0]["key"] == "value" and _exact_payload(slots[0]["entries"][0]["value"])
                 if exact:
@@ -82,6 +88,7 @@ def quality(result,driver,size,repeats):
             "missing_answers":missing,"decidable_requested_queries":correct if closed else 0,
             "key_handler_mispairs":mispairs,"fresh_boxes":len(fresh),
             "fresh_identities_distinct":len(fresh) == len(set(fresh)),
+            "precision_scope":"Exported finite scalar/slot payloads, empty unknown defaults, no havoc, and distinct returned object IDs. Per-key presence and allocation singleton metadata are unavailable in this export.",
             "all_gold_useful":closed and correct == expected and mispairs == 0 and len(fresh) == len(set(fresh))}
 
 
