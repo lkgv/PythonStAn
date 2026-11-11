@@ -9,14 +9,18 @@ import sys
 def aggregate(directory):
     directory = Path(directory)
     manifest = json.loads((directory / "run_manifest.json").read_text())
-    records = [json.loads(p.read_text()) for p in sorted(directory.glob("*/*/record.json"))]
+    # A completed project snapshot can be large.  Keep one raw receipt in
+    # memory at a time; the projected summary is intentionally bounded.
+    record_paths = sorted(directory.glob("*/*/record.json"))
     expected = len(manifest["selected_cases"]) * len(manifest["selected_modes"])
     expected_pairs = {(case, mode) for case in manifest["selected_cases"] for mode in manifest["selected_modes"]}
-    unique = {(row["case_id"], row["mode"]) for row in records}
+    unique = set()
     protocol_cases = {case["id"]: case for case in manifest.get("protocol", {}).get("cases", [])}
     rows, modes = [], {}
-    for row in records:
-        snapshot = row.get("result", {})
+    for path in record_paths:
+        row=json.loads(path.read_text())
+        unique.add((row["case_id"],row["mode"]))
+        snapshot = row.get("result") or {}
         stats = snapshot.get("stats", {})
         cost = row.get("cost", {})
         receipt = row.get("process_receipt", {})
@@ -38,7 +42,7 @@ def aggregate(directory):
         # JSON followed by a timeout/failed exit cannot become a useful result.
         answer = row.get("answer") or {}
         reference = protocol_cases.get(row["case_id"], {}).get("reference_fact", row.get("reference_fact")) or {}
-        quality = {"query_status": answer.get("status", "no_reference_query"),
+        quality = {"query_status": answer.get("status", "no_data" if reference else "no_reference_query"),
                    "reference_kind": reference.get("kind"), "not_top": False,
                    "contains_reference": None, "exact_reference": None,
                    "useful_reference_hit": False, "proof_claim": False,
@@ -57,30 +61,41 @@ def aggregate(directory):
             quality.update(not_top=not_top, contains_reference=contains,
                            exact_reference=exact,
                            useful_reference_hit=exact and reference.get("kind") in ("pure_module_literal", "controlled_semantics"))
+        entry_contract=snapshot.get("entry_contract") or {}
+        module_exits=snapshot.get("module_exits")
         record = {"case_id": row["case_id"], "mode": row["mode"], "category": row.get("category"),
                   "process_status": row["process_status"], "capture_status": row.get("capture_status"),
                   "solver_status": row.get("solver_status"), "coverage_status": row.get("coverage_status"),
                   "proof_status": row.get("proof_status"), "matched_version_valid": version_valid,
                   "matched_input_valid": input_valid,
                   "declared_inventory": row.get("expected_inventory_count"),
-                  "actual_inventory": len(snapshot.get("inventory", [])),
-                  "declared_entry_scenarios": len(snapshot.get("entry_contract", {}).get("scenarios", [])),
-                  "analyzed_units": stats.get("units"), "published_module_exits": len(snapshot.get("module_exits", {})),
-                  "call_count": len(snapshot.get("calls", [])), "obligation_count": len(snapshot.get("obligations", [])),
+                  "actual_inventory": len(snapshot["inventory"]) if "inventory" in snapshot else None,
+                  "declared_entry_scenarios": len(entry_contract["scenarios"]) if "scenarios" in entry_contract else None,
+                  "expected_root_scenarios": row.get("expected_inventory_count"),
+                  "discovered_units": stats.get("units"),
+                  "analyzed_units": stats.get("analyzed_units"),
+                  "initialized_roots": stats.get("initialized_roots"),
+                  "published_module_exits": sum(len(exits) for exits in module_exits.values()) if isinstance(module_exits,dict) else None,
+                  "call_count": len(snapshot["calls"]) if "calls" in snapshot else None,
+                  "obligation_count": len(snapshot["obligations"]) if "obligations" in snapshot else None,
                   "wall_seconds_inclusive": receipt.get("outer_wall_seconds", cost.get("worker_inclusive_wall_seconds")),
                   "cpu_seconds_inclusive": None,
-                  "cpu_seconds_before_final_json_export": sum(cost.get(k, 0) for k in ("cpu_user_seconds_self", "cpu_system_seconds_self", "cpu_user_seconds_children", "cpu_system_seconds_children")) if cost else None,
+                  "cpu_seconds_before_final_json_export": sum(cost[k] for k in ("cpu_user_seconds_self", "cpu_system_seconds_self", "cpu_user_seconds_children", "cpu_system_seconds_children")) if all(isinstance(cost.get(k),(int,float)) for k in ("cpu_user_seconds_self", "cpu_system_seconds_self", "cpu_user_seconds_children", "cpu_system_seconds_children")) else None,
                   "cpu_measurement_scope": "Worker self plus waited-child CPU is collected before final result JSON serialization/printing; complete export-inclusive process CPU is unavailable.",
                   "sampled_peak_tree_rss_bytes": receipt.get("sampled_peak_process_tree_rss_bytes"),
                   "kernel_peak_self_rss_kib": cost.get("peak_self_rss_kib"),
-                  "native_phase_seconds_inclusive": sum(p["seconds"] for p in native_phases) if native_phases and all("seconds" in p for p in native_phases) else None,
+                  "native_phase_seconds_inclusive": sum(p["seconds"] for p in native_phases) if native_phases and all(isinstance(p.get("seconds"),(int,float)) for p in native_phases) else None,
                   "native_work": stats.get("native_work", stats.get("pta_work")),
                   "legacy_native_work": stats.get("native_work"),
+                  "native_prepass_work": stats.get("native_prepass_work"),
+                  "native_selected_work": stats.get("native_selected_work",stats.get("selected_work")),
                   "pta_work": stats.get("pta_work"),
                   "total_charged_work": stats.get("total_work"),
                   "abstract_work": stats.get("ast_work", stats.get("work") if row["mode"] in ("D", "E") else None),
                   "oracle_work": stats.get("oracle_work", oracle_stats.get("work")),
                   "intrinsic_work": stats.get("ai_intrinsic_work"),
+                  "intrinsic_bridge_work": stats.get("ai_intrinsic_bridge_work",stats.get("intrinsic_bridge_work")),
+                  "source_preparation_seconds": stats.get("source_preparation_seconds"),
                   "phase_measurements": row.get("phase_measurements", {}),
                   "quality": quality,
                   "missing_counter_note": "Missing counters are null, never inferred zero; phase clocks can be nested and are not summed to invent total cost."}
@@ -94,18 +109,19 @@ def aggregate(directory):
                        "non_top_reference_matches": sum(row["quality"].get("not_top", False) and row["quality"].get("contains_reference", False) for row in selected),
                        "valid_same_version_rows": sum(row["matched_version_valid"] for row in selected)}
     summary = {"schema_version": 1, "stage": manifest["stage"], "executable": {k: manifest["executable"][k] for k in ("git_commit", "code_sha256")},
-               "expected_rows": expected, "record_count": len(records), "unique_rows": len(unique),
-               "denominator_complete": len(records) == expected == len(unique) and unique == expected_pairs,
+               "aggregation":{"raw_input":"one receipt at a time; retained projections only","missing_fields":"null rather than inferred zero"},
+               "expected_rows": expected, "record_count": len(record_paths), "unique_rows": len(unique),
+               "denominator_complete": len(record_paths) == expected == len(unique) and unique == expected_pairs,
                "missing_pairs": [list(pair) for pair in sorted(expected_pairs - unique)],
                "unexpected_pairs": [list(pair) for pair in sorted(unique - expected_pairs)],
                "same_version_valid": bool(rows) and all(row["matched_version_valid"] for row in rows),
                "same_input_valid": bool(rows) and all(row["matched_input_valid"] for row in rows),
                "modes": modes, "records": rows,
-               "large_ai_primary_useful_paths": [row["case_id"] for row in rows if row["mode"] == "D" and row.get("declared_inventory", 0) >= 500 and row["quality"].get("useful_reference_hit")],
+               "large_ai_primary_useful_paths": [row["case_id"] for row in rows if row["mode"] == "D" and (row.get("declared_inventory") or 0) >= 500 and row["quality"].get("useful_reference_hit")],
                "limits": ["Initialization roots are not arbitrary application-request coverage.", "Found files/parsed ASTs are distinct from executed abstract scopes or source coverage.", "Literal hits and finite witnesses do not establish full-Python soundness or whole-project call recall.", "All failures/timeouts/no-data retained; no speed ratios are inferred from censored observations."]}
     (directory / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2))
     lines = ["# A–E refactor experiments", "", f"Stage: {summary['stage']}. Executable: `{summary['executable']['git_commit']}`.", "",
-             f"Retained {len(records)}/{expected} expected rows; denominator complete: {summary['denominator_complete']}; same executable: {summary['same_version_valid']}; supplied/observed input identities valid: {summary['same_input_valid']}.", "",
+             f"Retained {len(record_paths)}/{expected} expected rows; denominator complete: {summary['denominator_complete']}; same executable: {summary['same_version_valid']}; supplied/observed input identities valid: {summary['same_input_valid']}.", "",
              "| Mode | Rows | Valid result receipts | Useful reference hits | Solver states | Coverage states |",
              "| --- | ---: | ---: | ---: | --- | --- |"]
     for mode, data in modes.items():

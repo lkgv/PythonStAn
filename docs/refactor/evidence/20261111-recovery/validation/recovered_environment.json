@@ -1,0 +1,123 @@
+{
+  "restored_commit": "3c565ee1c36429d58d69d0e45a7d8c4ca46f1db6",
+  "historical_latest_lost_commit": "5c4b96855bcdd3716c8a9a83bc81f06b67ca431a",
+  "prior_experiment_data_current": false,
+  "corpus_archive_count": 14,
+  "archives": [
+    {
+      "case": "django",
+      "archive": "django-6.1.3.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/django-6.1.3.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/django-6.1.3.tar.gz",
+      "sha256": "b5d2d9e35295065d13b1927b3f19a59bd119f737aa6299def14ccca1ae3c8c0d",
+      "bytes": 11306257
+    },
+    {
+      "case": "djangorestframework",
+      "archive": "djangorestframework-3.18.3.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/djangorestframework-3.18.3.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/djangorestframework-3.18.3.tar.gz",
+      "sha256": "446a9b352e7eff630421ab3f2328bd2401b109a9470afa4a31189994911ed030",
+      "bytes": 923563
+    },
+    {
+      "case": "wagtail",
+      "archive": "wagtail-8.1.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/wagtail-8.1.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/wagtail-8.1.tar.gz",
+      "sha256": "5c1abb0e11efc31454db0b5312d6786b5d8fdfbef5c815b7d8bacb2ad6bd486c",
+      "bytes": 7073619
+    },
+    {
+      "case": "fastapi",
+      "archive": "fastapi-0.162.0.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/fastapi-0.162.0.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/fastapi-0.162.0.tar.gz",
+      "sha256": "6a22c1e2e6e32e0633ee7e170f00009a29b8228b16feb219ee42f32fd8d88a8f",
+      "bytes": 527867
+    },
+    {
+      "case": "agno",
+      "archive": "agno-3.1.12.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/agno-3.1.12.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/agno-3.1.12.tar.gz",
+      "sha256": "e3425e04cbfff850d9cd482d4247a149fdfb362fe906de7b58a84370c2989c3f",
+      "bytes": 4155683
+    },
+    {
+      "case": "langserve",
+      "archive": "langserve-0.3.3.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/langserve-0.3.3.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/langserve-0.3.3.tar.gz",
+      "sha256": "2d0f74fb8e633e98fdbd5038fe9774a9dcf136e5c779aa9c6475ac26b5c88d0a",
+      "bytes": 1141255
+    },
+    {
+      "case": "ansible_core",
+      "archive": "ansible_core-2.22.0.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/ansible_core-2.22.0.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/ansible_core-2.22.0.tar.gz",
+      "sha256": "bf50b4a0cfa985e30585c7ba301897ea7050d224ca49d2816cab10e33a160e1c",
+      "bytes": 3476434
+    },
+    {
+      "case": "prefect",
+      "archive": "prefect-3.9.1.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/prefect-3.9.1.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/prefect-3.9.1.tar.gz",
+      "sha256": "56f091cd49a06e6c3f98eea93648208f6750361d1dd0aeb60b5faa0e9cb5c458",
+      "bytes": 6340922
+    },
+    {
+      "case": "invoke",
+      "archive": "invoke-3.0.3.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/invoke-3.0.3.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/invoke-3.0.3.tar.gz",
+      "sha256": "437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c",
+      "bytes": 343419
+    },
+    {
+      "case": "ansible_runner",
+      "archive": "ansible_runner-2.4.3.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/ansible_runner-2.4.3.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/ansible_runner-2.4.3.tar.gz",
+      "sha256": "5f3025529bb968fdc3b627457dd8d418dbf9d53bc73735d50e69c28544d53031",
+      "bytes": 154148
+    },
+    {
+      "case": "accelerate",
+      "archive": "accelerate-1.15.0.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/accelerate-1.15.0.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/accelerate-1.15.0.tar.gz",
+      "sha256": "5654f8c5eaa0d4fa68b33e287a97765da6849bf6d51dcac874e73fbbddfb6134",
+      "bytes": 422615
+    },
+    {
+      "case": "transformers",
+      "archive": "transformers-5.22.1.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/transformers-5.22.1.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/transformers-5.22.1.tar.gz",
+      "sha256": "bed9fd76d6f43b4a1a9fc5d0c565ace7c77edbd029784f8cbcdf772cb5e924d8",
+      "bytes": 10381794
+    },
+    {
+      "case": "lightning",
+      "archive": "lightning-2.6.6.tar.gz",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/lightning-2.6.6.tar.gz",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/lightning-2.6.6.tar.gz",
+      "sha256": "1c6329e241f8a85f29fedead89c1ee138b36caa08de60c260c6a7eaee81c8295",
+      "bytes": 659902
+    },
+    {
+      "case": "torchtune",
+      "archive": "torchtune-0.6.1-py3-none-any.whl",
+      "source": "/workspace/scratch/51644872aa92/audit_project/corpus_archives/torchtune-0.6.1-py3-none-any.whl",
+      "destination": "/workspace/scratch/ae58bd919d84/project/corpus_archives/torchtune-0.6.1-py3-none-any.whl",
+      "sha256": "bcbc4ee9774b5c5829a5ff13df851e0b0e32416c018af8db53faa3472ac256e7",
+      "bytes": 910674
+    }
+  ],
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "gold_sha256": "ace61498c7680dfd19000d8157d4554e158bf41998058d09ace415b9451f3fdb"
+}

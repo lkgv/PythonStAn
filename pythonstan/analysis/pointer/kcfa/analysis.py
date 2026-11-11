@@ -299,6 +299,8 @@ class PointerAnalysis(AnalysisDriver):
         # immutable identity differs from the temporary legacy preprocessing
         # copy; do not rewrite IR filenames or import-resolution roots.
         values.update(self.state.source_metadata.get(name, {}))
+        from .input_bindings import seed_module_input_bindings
+        seed_module_input_bindings(self.solver,module_scope,context)
         for field_name, value in values.items():
             obj = canonical_constant(self.state, context, AllocSite(('module_metadata', module, field_name), AllocKind.CONSTANT), value)
             variable = self.state.get_variable(module_scope, context, Variable(field_name, VariableKind.GLOBAL))

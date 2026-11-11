@@ -133,7 +133,7 @@ def _signature(solver):
             or type(ledger.used) is not int or ledger.used<0
             or type(ledger.by_kind) is not Counter or type(ledger.denials) is not Counter):
         return None
-    allowed_work={"native_selected","bootstrap_publication","intrinsic_bridge","abstract_transfer"}
+    allowed_work={"native_selected","bootstrap_publication","input_publication","intrinsic_bridge","abstract_transfer"}
     if any(len(counts)>len(allowed_work) or any(type(k) is not str or k not in allowed_work
                or type(v) is not int or v<0 for k,v in counts.items())
            for counts in (ledger.by_kind,ledger.denials)):

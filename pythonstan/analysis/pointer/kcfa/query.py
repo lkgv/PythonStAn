@@ -528,7 +528,8 @@ class SolverQuery(ISolverQuery):
                 "intrinsic_bridge_work":ledger["by_kind"].get("intrinsic_bridge",0),
                 "ai_intrinsic_seconds":self._solver.intrinsic_seconds if self._solver is not None else 0.0,
                 "ai_intrinsic_seconds_scope":"subset_of_inclusive_native_phase",
-                "native_selected_work":ledger["by_kind"].get("native_selected",0)}
+                "native_selected_work":ledger["by_kind"].get("native_selected",0),
+                "input_publications":ledger["by_kind"].get("input_publication",0)}
         return {**state_stats, **current_stats, **unknown_stats, **bootstrap_stats, **nested,
                 "allocation_policy_decisions": allocations,
                 "heap_context_policy": (self._solver.config.heap_context_policy if self._solver is not None else None),

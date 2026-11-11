@@ -1,0 +1,159 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+____ test_actual_initial_bindings_are_published_before_native_work[source] _____
+
+kind = 'source'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-0/test_actual_initial_bindings_a0')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+>       assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'result', 'point': 'module_exit'}), st...': True, 'relations': ()}), approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert ('answered' == 'answered'
+E         
+E           answered and [] == [7]
+E         
+E         Right contains one more item: 7
+E         Use -v to get more diff)
+
+tests/refactor/engines/test_native_restored_boundaries.py:23: AssertionError
+_____ test_actual_initial_bindings_are_published_before_native_work[file] ______
+
+kind = 'file'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-0/test_actual_initial_bindings_a1')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+>       assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'result', 'point': 'module_exit'}), st...': True, 'relations': ()}), approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert ('answered' == 'answered'
+E         
+E           answered and [] == [7]
+E         
+E         Right contains one more item: 7
+E         Use -v to get more diff)
+
+tests/refactor/engines/test_native_restored_boundaries.py:23: AssertionError
+____ test_actual_initial_bindings_are_published_before_native_work[project] ____
+
+kind = 'project'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-0/test_actual_initial_bindings_a2')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+>       assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'result', 'point': 'module_exit'}), st...': True, 'relations': ()}), approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert ('answered' == 'answered'
+E         
+E           answered and [] == [7]
+E         
+E         Right contains one more item: 7
+E         Use -v to get more diff)
+
+tests/refactor/engines/test_native_restored_boundaries.py:23: AssertionError
+_______ test_bare_input_query_is_retained_even_without_source_assignment _______
+
+    def test_bare_input_query_is_retained_even_without_source_assignment():
+        result,answer=get(Source('pass',module='subject'),symbol='seed',inputs={'bindings':{'subject.seed':11}})
+>       assert answer.status=='answered' and answer.value['constants']==[11] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'seed', 'point': 'module_exit'}), stat...navailable', _payload=None, approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert ('unavailable' == 'answered'
+E         
+E         - answered
+E         + unavailable)
+
+tests/refactor/engines/test_native_restored_boundaries.py:29: AssertionError
+_ test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication _
+
+    def test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication():
+        result,answer=get(Source('result=seed',module='subject'),inputs={'bindings':{'subject.seed':{'constants':[7,False,None,'after']}}})
+>       assert {(item['type'],repr(item['value'])) for item in answer.value['tagged_constants']}=={('int','7'),('bool','False'),('NoneType','None'),('str',"'after'")}
+E       assert set() == {('NoneType',...', "'after'")}
+E         
+E         Extra items in the right set:
+E         ('bool', 'False')
+E         ('int', '7')
+E         ('str', "'after'")
+E         ('NoneType', 'None')
+E         Use -v to get more diff
+
+tests/refactor/engines/test_native_restored_boundaries.py:34: AssertionError
+_________ test_typed_top_input_widens_honestly_and_records_projection __________
+
+    def test_typed_top_input_widens_honestly_and_records_projection():
+        result,answer=get(Source('result=seed',module='subject'),inputs={'bindings':{'subject.seed':{'type':'str','top':True}}})
+>       assert answer.value['top'] and result.coverage_status=='open'
+E       assert (False)
+
+tests/refactor/engines/test_native_restored_boundaries.py:41: AssertionError
+___ test_source_cookie_never_redecodes_unicode_when_worker_materializes_utf8 ___
+
+    def test_source_cookie_never_redecodes_unicode_when_worker_materializes_utf8():
+        source="# coding: latin-1\nresult='café😀'\n"
+        result,answer=get(Source(source,module='subject'))
+>       assert answer.value['constants']==['café😀'] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'result', 'point': 'module_exit'}), st...: False, 'relations': ()}), approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert (['cafÃ©ð\x9f\x98\x80'] == ['café😀']
+E         
+E         At index 0 diff: 'cafÃ©ð\x9f\x98\x80' != 'café😀'
+E         Use -v to get more diff)
+
+tests/refactor/engines/test_native_restored_boundaries.py:48: AssertionError
+__________ test_actual_latin1_file_retains_original_decoded_snapshot ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-0/test_actual_latin1_file_retain0')
+
+    def test_actual_latin1_file_retains_original_decoded_snapshot(tmp_path):
+        path=tmp_path/'subject.py';path.write_bytes(b"# coding: latin-1\nresult='caf\xe9'\n")
+        result,answer=get(File(path))
+>       assert answer.value['constants']==['café'] and not answer.value['top'],answer
+E       AssertionError: QueryAnswer(query=mappingproxy({'kind': 'value', 'module': 'subject', 'symbol': 'result', 'point': 'module_exit'}), st...: False, 'relations': ()}), approximation='flow_insensitive_may', coverage_status='open', proof_status='not_requested')
+E       assert (['cafÃ©'] == ['café']
+E         
+E         At index 0 diff: 'cafÃ©' != 'café'
+E         Use -v to get more diff)
+
+tests/refactor/engines/test_native_restored_boundaries.py:54: AssertionError
+_____ test_input_budget_denial_never_publishes_uncharged_remaining_values ______
+
+    def test_input_budget_denial_never_publishes_uncharged_remaining_values():
+        result,answer=get(Source('result=seed',module='subject'),symbol='seed',inputs={'bindings':{'subject.seed':{'constants':[1,2,3]}}},resources={'max_work':2})
+        data=result.raw_snapshot()
+        assert result.solver_status=='budget_exhausted'
+>       assert data['stats']['global_work_used']==2 and data['stats']['input_publications']==2
+                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'input_publications'
+
+tests/refactor/engines/test_native_restored_boundaries.py:61: KeyError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[source]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[file]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[project]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_bare_input_query_is_retained_even_without_source_assignment
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_typed_top_input_widens_honestly_and_records_projection
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_source_cookie_never_redecodes_unicode_when_worker_materializes_utf8
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_latin1_file_retains_original_decoded_snapshot
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_input_budget_denial_never_publishes_uncharged_remaining_values
+9 failed, 1 warning in 2.28s

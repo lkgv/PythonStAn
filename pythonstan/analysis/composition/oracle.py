@@ -11,6 +11,31 @@ from typing import Any
 from pythonstan.analysis.domains.values import Value,ValueOperations
 from pythonstan.analysis.contracts import stable_digest
 
+def _address(identifier,ops,mapping=()):
+    """Resolve an address without treating an ordinary string key as one."""
+    mapping=dict(mapping);seen=set()
+    while identifier in mapping and mapping[identifier]!=identifier:
+        if identifier in seen:raise ValueError("cyclic oracle address substitution")
+        seen.add(identifier);identifier=mapping[identifier]
+    arena=getattr(ops,"arena",None)
+    return arena.resolve(identifier) if arena is not None else identifier
+
+def _payload(value,ops,mapping=()):
+    if isinstance(value,Value):
+        value=ops.remap(value,dict(mapping)) if mapping else value
+        normalize=getattr(ops,"normalize",None)
+        return normalize(value) if normalize is not None else value
+    if isinstance(value,tuple):return tuple(_payload(item,ops,mapping) for item in value)
+    if isinstance(value,frozenset):return frozenset(_payload(item,ops,mapping) for item in value)
+    return value
+
+def _node(node,ops,mapping=()):
+    # Only the owner of a field node denotes an address.  Cell names and plain
+    # dictionary string keys may happen to equal an address and stay literal.
+    if isinstance(node,tuple) and len(node)==3 and node[0]=="field":
+        return ("field",_address(node[1],ops,mapping),_payload(node[2],ops,mapping))
+    return _payload(node,ops,mapping)
+
 @dataclass(frozen=True)
 class CandidateAnswer:
     values: Value
@@ -27,27 +52,32 @@ class IncrementalInclusionStore:
         self.queue=deque();self.queued=set();self.listeners=defaultdict(list);self.version=0
         self.work=0;self.publications=0;self.deliveries=0;self.replays=0;self.origins=defaultdict(set);self.errors=set()
     def add_fact(self,node,value,origin="input"):
+        node=_node(node,self.ops);value=_payload(value,self.ops)
         old=self.facts.get(node,Value.bottom());new=self.ops.join(old,value)
         if self.ops.leq(new,old) and new.refs<=old.refs and new.relations<=old.relations:return False
         self.facts[node]=new;self.origins[node].add(origin);self.version+=1;self.publications+=1
         if node not in self.queued:self.queued.add(node);self.queue.append(node)
         return True
     def add_edge(self,source,target):
+        source=_node(source,self.ops);target=_node(target,self.ops)
         if target in self.edges[source]:return False
         self.edges[source].add(target);self.replays+=1
         self.add_fact(target,self.facts.get(source,Value.bottom()),"late_edge_replay")
         return True
     def add_load(self,base,key,target):
+        base=_node(base,self.ops);key=_payload(key,self.ops);target=_node(target,self.ops)
         rule=(key,target)
         if rule in self.loads[base]:return
         self.loads[base].add(rule)
         for ref in self.facts.get(base,Value.bottom()).refs:self.add_edge(("field",ref,key),target)
     def add_store(self,base,key,source):
+        base=_node(base,self.ops);key=_payload(key,self.ops);source=_node(source,self.ops)
         rule=(key,source)
         if rule in self.stores[base]:return
         self.stores[base].add(rule)
         for ref in self.facts.get(base,Value.bottom()).refs:self.add_edge(source,("field",ref,key))
     def add_operation(self,inputs,target,function):
+        inputs=tuple(_node(source,self.ops) for source in inputs);target=_node(target,self.ops)
         rule=(tuple(inputs),target,function)
         for source in inputs:self.operations[source].append(rule)
         self._operation(rule)
@@ -56,6 +86,7 @@ class IncrementalInclusionStore:
         if any(x.is_bottom() for x in values):return
         value,errors=function(*values);self.errors.update(errors);self.add_fact(target,value,"scalar_transfer")
     def subscribe(self,node,callback):
+        node=_node(node,self.ops)
         if callback not in self.listeners[node]:self.listeners[node].append(callback)
     def solve(self,max_work=None):
         selected=0
@@ -69,7 +100,41 @@ class IncrementalInclusionStore:
             for rule in tuple(self.operations[node]):self._operation(rule)
             for callback in tuple(self.listeners[node]):callback(node,self.version)
         return not self.queue
-    def value(self,node):self.deliveries+=1;return self.facts.get(node,Value.bottom())
+    def value(self,node):self.deliveries+=1;return self.facts.get(_node(node,self.ops),Value.bottom())
+
+    def prepare_reabstract(self,mapping,ops=None):
+        """Build a detached covering kernel; never invoke live callbacks here."""
+        ops=ops or self.ops;result=IncrementalInclusionStore(ops);work=0
+        for node,value in self.facts.items():
+            changed=_node(node,ops,mapping);converted=_payload(value,ops,mapping)
+            result.facts[changed]=ops.join(result.facts.get(changed,Value.bottom()),converted)
+            result.origins[changed].update(self.origins.get(node,()))
+            work+=1+len(value.refs)
+        for source,targets in self.edges.items():
+            result.edges[_node(source,ops,mapping)].update(_node(target,ops,mapping) for target in targets);work+=1+len(targets)
+        for source,rules in self.loads.items():
+            result.loads[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules);work+=1+len(rules)
+        for source,rules in self.stores.items():
+            result.stores[_node(source,ops,mapping)].update((_payload(key,ops,mapping),_node(target,ops,mapping)) for key,target in rules);work+=1+len(rules)
+        for source,rules in self.operations.items():
+            target=result.operations[_node(source,ops,mapping)]
+            for inputs,output,function in rules:
+                converted=(tuple(_node(item,ops,mapping) for item in inputs),_node(output,ops,mapping),function)
+                if converted not in target:target.append(converted)
+                work+=1+len(inputs)
+        for source,callbacks in self.listeners.items():
+            target=result.listeners[_node(source,ops,mapping)]
+            for callback in callbacks:
+                if callback not in target:target.append(callback)
+            work+=1+len(callbacks)
+        # Replaying every producer is necessary even when its own value did not
+        # change: an alias collision may create a new load/store destination.
+        result.queue=deque(dict.fromkeys([*(_node(node,ops,mapping) for node in self.queue),*result.facts]))
+        result.queued=set(result.queue)
+        result.version=self.version+1
+        result.work=self.work;result.publications=self.publications;result.deliveries=self.deliveries;result.replays=self.replays
+        result.errors=set(self.errors)
+        return {"kernel":result,"work":work}
     def statistics(self):return {"work":self.work,"facts":len(self.facts),"edges":sum(map(len,self.edges.values())),"publications":self.publications,"deliveries":self.deliveries,"late_edge_replays":self.replays,"pending":len(self.queue),"version":self.version}
 
 class IncrementalCandidateOracle:
@@ -78,6 +143,14 @@ class IncrementalCandidateOracle:
         self.source_digest=source_digest;self.profile=profile;self.policy_digest=policy_digest;self.model_digest=model_digest
         self.kernel=IncrementalInclusionStore(ops);self.max_work=max_work;self.driver=None
         self.actual_consumptions=0;self.nonempty_consumptions=0;self.calls=set();self._subscriptions=set()
+    def prepare_reabstract(self,mapping,ops=None):
+        prepared=self.kernel.prepare_reabstract(mapping,ops)
+        return {**prepared,"subscriptions":set(self._subscriptions),"calls":set(self.calls)}
+    def commit_reabstract(self,prepared):
+        """The host has charged and published its address epoch before this."""
+        self.kernel=prepared["kernel"]
+        self._subscriptions=prepared["subscriptions"]
+        self.calls=prepared["calls"]
     def bind(self,driver,*,source_digest=None,profile=None,policy_digest=None):
         actual_source=driver.source_digest
         if source_digest is not None and source_digest!=actual_source:raise ValueError("oracle source identity override mismatch")

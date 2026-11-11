@@ -1,7 +1,7 @@
 """Explicit runtime service injection for the retained legacy Pipeline."""
 
 
-def configure_native_services(manager, *, max_work=None, source_metadata=None):
+def configure_native_services(manager, *, max_work=None, source_metadata=None, input_bindings=None):
     configured=[]
     metadata=None
     if source_metadata is not None:
@@ -20,6 +20,11 @@ def configure_native_services(manager, *, max_work=None, source_metadata=None):
             if solver._work_iteration_started or solver.work_ledger.used:
                 raise ValueError("Source metadata must be fixed before execution")
             solver.state.source_metadata={name:dict(values) for name,values in metadata.items()}
+        if input_bindings is not None:
+            from pythonstan.analysis.pointer.kcfa.input_bindings import validate_input_bindings
+            if solver._work_iteration_started or solver.work_ledger.used:
+                raise ValueError("Input bindings must be fixed before execution")
+            solver.state.input_bindings = validate_input_bindings(input_bindings)
         if max_work is not None:
             solver.set_global_work_limit(max_work)
         if solver.config.enable_ai_intrinsics and solver.intrinsic_provider is None:

@@ -390,6 +390,9 @@ def main(argv=None):
     args.output.mkdir(parents=True, exist_ok=True)
     args.cache.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(args.manifest.read_text())
+    workers = manifest["resources"]["parallel_workers"] if args.workers is None else args.workers
+    if workers < 1 or workers > manifest["resources"]["parallel_workers"]:
+        parser.error("workers must be within the frozen global parallel limit")
     cases = manifest["cases"]
     if args.cases:
         if set(args.cases)-{case["id"] for case in cases}:
@@ -414,15 +417,13 @@ def main(argv=None):
     run_manifest = {"schema_version": 1, "stage": args.stage, "executable": identity,
                     "protocol": manifest, "selected_cases": [case["id"] for case in cases],
                     "selected_modes": args.modes or list("ABCDE"), "python": sys.version,
+                    "actual_parallel_workers":workers,
                     "input_preparation_seconds": time.monotonic()-setup_start,
                     "input_preparation_failures": failures,
                     "input_identities": {k: {"digest": v.get("input_digest"), "files": v.get("input_files_sha256")} for k, v in prepared.items()}}
     (args.output / "run_manifest.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2))
     jobs = [(prepared[case["id"]], mode) for case in cases for mode in run_manifest["selected_modes"]]
     rows = []
-    workers = args.workers or manifest["resources"]["parallel_workers"]
-    if workers < 1 or workers > manifest["resources"]["parallel_workers"]:
-        parser.error("workers must be within the frozen global parallel limit")
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(run_one, case, mode, args, manifest, identity, failures.get(case["id"])): (case["id"], mode) for case, mode in jobs}
         for future in as_completed(futures):

@@ -1,0 +1,90 @@
+FFF.F...F                                                                [100%]
+=================================== FAILURES ===================================
+____ test_actual_initial_bindings_are_published_before_native_work[source] _____
+
+kind = 'source'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-2/test_actual_initial_bindings_a0')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+        assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+>       assert result.raw_snapshot()['stats']['input_publications']==1
+E       assert 0 == 1
+
+tests/refactor/engines/test_native_restored_boundaries.py:24: AssertionError
+_____ test_actual_initial_bindings_are_published_before_native_work[file] ______
+
+kind = 'file'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-2/test_actual_initial_bindings_a1')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+        assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+>       assert result.raw_snapshot()['stats']['input_publications']==1
+E       assert 0 == 1
+
+tests/refactor/engines/test_native_restored_boundaries.py:24: AssertionError
+____ test_actual_initial_bindings_are_published_before_native_work[project] ____
+
+kind = 'project'
+tmp_path = PosixPath('/tmp/pytest-of-agent/pytest-2/test_actual_initial_bindings_a2')
+
+    @pytest.mark.parametrize('kind',['source','file','project'])
+    def test_actual_initial_bindings_are_published_before_native_work(kind,tmp_path):
+        source='result=seed\n'
+        path=tmp_path/'subject.py';path.write_text(source)
+        target={'source':Source(source,module='subject'),'file':File(path),'project':Project(tmp_path)}[kind]
+        result,answer=get(target,inputs={'bindings':{'subject.seed':{'value':7}}})
+        assert answer.status=='answered' and answer.value['constants']==[7] and not answer.value['top'],answer
+>       assert result.raw_snapshot()['stats']['input_publications']==1
+E       assert 0 == 1
+
+tests/refactor/engines/test_native_restored_boundaries.py:24: AssertionError
+_ test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication _
+
+    def test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication():
+        result,answer=get(Source('result=seed',module='subject'),inputs={'bindings':{'subject.seed':{'constants':[7,False,None,'after']}}})
+>       assert {(item['type'],repr(item['value'])) for item in answer.value['tagged_constants']}=={('int','7'),('bool','False'),('NoneType','None'),('str',"'after'")}
+E       assert {('bool', 'Fa...', "'after'")} == {('NoneType',...', "'after'")}
+E         
+E         Extra items in the left set:
+E         ('none', 'None')
+E         Extra items in the right set:
+E         ('NoneType', 'None')
+E         Use -v to get more diff
+
+tests/refactor/engines/test_native_restored_boundaries.py:34: AssertionError
+_____ test_input_budget_denial_never_publishes_uncharged_remaining_values ______
+
+    def test_input_budget_denial_never_publishes_uncharged_remaining_values():
+        result,answer=get(Source('result=seed',module='subject'),symbol='seed',inputs={'bindings':{'subject.seed':{'constants':[1,2,3]}}},resources={'max_work':2})
+        data=result.raw_snapshot()
+        assert result.solver_status=='budget_exhausted'
+>       assert data['stats']['global_work_used']==2 and data['stats']['input_publications']==2
+E       assert (2 == 2 and 0 == 2)
+
+tests/refactor/engines/test_native_restored_boundaries.py:61: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14
+  /opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/anyio/pytest_plugin.py:14: PytestRemovedIn10Warning: _pytest.python.CallSpec2 has been renamed to CallSpec.
+  The CallSpec2 alias will be removed in pytest 10.
+  Update imports to use CallSpec instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#callspec2-renamed
+    from _pytest.python import CallSpec2
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[source]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[file]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_actual_initial_bindings_are_published_before_native_work[project]
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_finite_input_alternatives_keep_scalar_types_and_charge_each_publication
+FAILED tests/refactor/engines/test_native_restored_boundaries.py::test_input_budget_denial_never_publishes_uncharged_remaining_values
+5 failed, 4 passed, 1 warning in 1.92s

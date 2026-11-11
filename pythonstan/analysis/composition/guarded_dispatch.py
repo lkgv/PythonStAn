@@ -42,8 +42,12 @@ class GuardedDispatchProvider:
                        "proposal_work":0,"checker_work":0,"application_work":0,
                        "bridge_setup_work":0,"runtime_validation_work":0,
                        "proposer_seconds":0.0,"checker_seconds":0.0,"application_seconds":0.0,
-                       "applications":0,"fallbacks":0,"charged_to_driver_work":0}
+                       "applications":0,"fallbacks":0,"charged_to_driver_work":0,
+                       "state_invalidations":0,"state_invalidation_work":0}
         self._charged_drivers = set()
+        self._state_epoch=0
+        self._applied_allocation_ids=set()
+        self._retired_allocation_ids=set()
         modules = tuple(snapshot.modules if hasattr(snapshot,"modules") else snapshot.values())
         self.required_property_points = []
         max_proposals = config.get("llm",{}).get("max_proposals",2)
@@ -120,13 +124,52 @@ class GuardedDispatchProvider:
 
     @property
     def statistics(self):
-        return {**self._stats,"total_work":sum(self._stats[key] for key in ("proposal_work","checker_work","bridge_setup_work","runtime_validation_work","application_work")),
+        return {**self._stats,"total_work":sum(self._stats[key] for key in ("proposal_work","checker_work","bridge_setup_work","runtime_validation_work","application_work","state_invalidation_work")),
                 "total_seconds":sum(self._stats[key] for key in ("proposer_seconds","checker_seconds","application_seconds")),
                 "required_property_points":len(self.required_property_points)}
 
     @property
     def proof_records(self):
         return tuple(freeze_snapshot(self._records[key]) for key in sorted(self._records))
+
+    def prepare_state_epoch(self,epoch):
+        """Detach revocation before the host charges and atomically coarsens.
+
+        A checked acyclic source call has a stable fresh allocation name on
+        equation replay.  Once that name has been summarized it cannot be
+        reintroduced as a singleton by replaying the certificate.  Retiring
+        this provider's applications is covering: the ordinary shared engine
+        executes subsequent calls with the host's new address abstraction.
+        """
+        if epoch<=self._state_epoch:return {"unchanged":True,"work":0}
+        records={};record_work=0
+        for key,record in self._records.items():
+            obligations=list(dict.fromkeys([*record.get("open_obligations",()),
+                "host address epoch changed; checked frame/fresh bounds revoked"]))
+            records[key]={**record,"status":"unknown","open_obligations":[
+                *obligations]}
+            record_work+=len(record)+len(obligations)
+        retired=self._retired_allocation_ids|self._applied_allocation_ids
+        work=1+record_work+len(retired)+len(self.programs)
+        stats={**self._stats,"state_invalidations":self._stats["state_invalidations"]+1,
+               "state_invalidation_work":self._stats["state_invalidation_work"]+work,
+               "charged_to_driver_work":self._stats["charged_to_driver_work"]+work}
+        return {"unchanged":False,"epoch":epoch,"programs":{},"records":records,
+                "retired":retired,"stats":stats,"work":work}
+
+    def commit_state_epoch(self,prepared):
+        # Assignment only.  All allocation and host budget checks happened in
+        # the detached prepare phase, before any address aliases were exposed.
+        if prepared["unchanged"]:return
+        self._state_epoch=prepared["epoch"]
+        self.programs=prepared["programs"]
+        self._records=prepared["records"]
+        self._retired_allocation_ids=prepared["retired"]
+        self._stats=prepared["stats"]
+
+    def invalidate_state_epoch(self,epoch):
+        """Compatibility hook; transaction-capable hosts use prepare/commit."""
+        self.commit_state_epoch(self.prepare_state_epoch(epoch))
 
     def _charge(self,driver,amount):
         driver.charge(amount,"llm_proposer_checker_application_work")
@@ -147,7 +190,7 @@ class GuardedDispatchProvider:
         if not self._only_refs(value) or len(value.refs) != 1:
             return False
         table = store.heap.get(next(iter(value.refs)))
-        if (table is None or table.kind != "dict" or table.havoc or table.maybe_missing
+        if (table is None or table.kind != "dict" or not table.singleton or table.havoc or table.maybe_missing
                 or not table.default.is_bottom() or set(table.fields) != {key for key,_ in certificate.source_facts.table}):
             return False
         for key,name in certificate.source_facts.table:
@@ -155,8 +198,10 @@ class GuardedDispatchProvider:
             if not self._only_refs(handler) or len(handler.refs) != 1:
                 return False
             info = driver.functions.get(next(iter(handler.refs)))
+            function=store.heap.get(next(iter(handler.refs)))
             fact = next(item for item in certificate.source_facts.handlers if item.name == name)
-            if (info is None or info.qualname != module+"."+name
+            if (function is None or function.kind!="function" or function.havoc or not function.singleton
+                    or info is None or info.qualname != module+"."+name
                     or hashlib.sha256(ast.dump(info.node,include_attributes=False).encode()).hexdigest() != fact.digest):
                 return False
         return True
@@ -170,6 +215,14 @@ class GuardedDispatchProvider:
 
     def _try_apply(self,driver,identifier,args,keywords,store,frame,site):
         self.charge_setup(driver)
+        epoch=getattr(getattr(driver.ops,"arena",None),"epoch",0)
+        if epoch!=self._state_epoch:
+            # A foreign host which skipped the transaction hook cannot retain
+            # stale Verified records.  Charge revocation before publishing it.
+            prepared=self.prepare_state_epoch(epoch)
+            self._charge(driver,prepared["work"])
+            self.commit_state_epoch(prepared)
+            return None
         info = driver.functions.get(identifier)
         if info is None or info.module not in self.programs or not frame.is_module:
             return None
@@ -230,6 +283,12 @@ class GuardedDispatchProvider:
             driver.calls.add((info.qualname,info.module+"."+handler,handler_site))
             driver.reads.add((next(iter(args[0].refs)),repr(outcome["key"]),handler_site))
             for allocation in application.allocations:
+                if allocation["object"] in self._retired_allocation_ids:
+                    self._stats["fallbacks"] += 1
+                    self._records[point]={**self._records[point],"status":"unknown",
+                        "open_obligations":["checked fresh identity was retired by address coarsening"]}
+                    return None
+                self._applied_allocation_ids.add(allocation["object"])
                 current.heap[allocation["object"]] = HeapObject("dict",{"value":args[2]},metadata={"length":1,"fresh_source_call":point})
                 current.writes.add(("heap",allocation["object"],"value"))
                 driver.writes.add((allocation["object"],"value",point))

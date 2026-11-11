@@ -1391,6 +1391,8 @@ class PointerSolver:
         }
         obj = self._unknown_results.get(identity)
         if obj is None:
+            if self.config.verbose:
+                logger.warning("[UNKNOWN] %s at %s", reason, call.call_site)
             site = AllocSite(call.call_site.statement, AllocKind.UNKNOWN)
             obj = UnknownValue(self.state.select_allocation_context(scope.context, site), site)
             self._unknown_results[identity] = obj

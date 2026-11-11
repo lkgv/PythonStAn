@@ -68,11 +68,13 @@ def main(payload, publish=None):
         resource.setrlimit(resource.RLIMIT_AS, (cap, cap))
     from pythonstan.world.pipeline import Pipeline
     from pythonstan.analysis.pointer.kcfa.config import Config
+    from pythonstan.analysis.contracts import SourceModule
     aggregate = {"engine": config["engine"], "solver_status": "converged", "coverage_status": "open",
                  "values": {}, "returns": {}, "outcomes": {}, "calls": [], "effects": {},
                  "obligations": [{"kind": "legacy_source_coverage", "reason": "Native constraint convergence does not establish exhaustive Python source coverage"}],
                  "diagnostics": [], "stats": {"scenarios": 0, "native_work": 0}, "phase_trace": []}
     modules = {m["module"]: m for m in payload["modules"]}
+    source_snapshots = {name: SourceModule(**module) for name, module in modules.items()}
     with tempfile.TemporaryDirectory(prefix="pythonstan-legacy-") as directory:
         root = Path(directory)
         paths = {}
@@ -91,18 +93,24 @@ def main(payload, publish=None):
             native["entry_points"] = ([scenario["root_module"] + "." + scenario["entry_qualname"]]
                                       if scenario["entry_qualname"] else [])
             native["max_iterations"] = min(native["max_iterations"], remaining_work)
-            native["log_level"] = "ERROR"; native["project_path"] = str(root)
+            native["project_path"] = str(root)
+            # This isolated child owns logging; diagnostics never enter NDJSON.
+            import logging
+            logging.basicConfig(level=getattr(logging,native["log_level"]),stream=sys.stderr,
+                                format="%(levelname)s: %(message)s",force=True)
             native = Config.from_dict(native).to_dict()
             analysis = [{"name": "pta", "id": "PointerAnalysis", "prev_analysis": ["ir"], "options": native}]
             started = time.monotonic()
             pipeline = Pipeline(config={"filename": str(paths[scenario["root_module"]]),
                                         "project_path": str(root), "library_paths": [], "import_level": -1,
-                                        "mock_libs": False, "time_count": False, "analysis": analysis})
+                                        "mock_libs": False, "time_count": False, "analysis": analysis},
+                                source_snapshots=source_snapshots)
             from pythonstan.compat.native_services import configure_native_services
             source_metadata = {name: {"__file__": module["filename"], "__name__": name,
                                      "__package__": name if module["is_package"] else name.rpartition(".")[0]}
                                for name, module in modules.items()}
-            configure_native_services(pipeline.analysis_manager, max_work=remaining_work, source_metadata=source_metadata)
+            configure_native_services(pipeline.analysis_manager, max_work=remaining_work, source_metadata=source_metadata,
+                                      input_bindings=config["inputs"]["bindings"])
             pipeline.run()
             native_result = pipeline.analysis_manager.get_results("pta")
             query = native_result.query()
@@ -110,7 +118,7 @@ def main(payload, publish=None):
             native_seconds = time.monotonic()-started
             aggregate["stats"]["scenarios"] += 1
             aggregate["stats"]["native_work"] += stats.get("selected_work_items", stats.get("iterations", 0))
-            for name in ("global_work_used", "ai_intrinsic_work", "intrinsic_bridge_work", "native_selected_work", "ai_intrinsic_seconds"):
+            for name in ("global_work_used", "ai_intrinsic_work", "intrinsic_bridge_work", "native_selected_work", "ai_intrinsic_seconds", "input_publications"):
                 aggregate["stats"][name] = aggregate["stats"].get(name, 0) + stats.get(name, 0)
             if hasattr(query, "get_unknown_effect_events"):
                 events = query.get_unknown_effect_events()
@@ -133,7 +141,13 @@ def main(payload, publish=None):
                 name = scope.get_qualname()
                 if name not in modules: continue
                 values = aggregate["values"].setdefault(name, {})
-                for symbol in sorted(_names(modules[name]["source"])):
+                symbols = _names(modules[name]["source"])
+                symbols.update(binding.rpartition(".")[2] for binding in config["inputs"]["bindings"]
+                               if binding.rpartition(".")[0] == name)
+                symbols.update(query.get("symbol") for query in config["queries"]
+                               if isinstance(query, dict) and query.get("kind") == "value"
+                               and query.get("module") == name and query.get("symbol"))
+                for symbol in sorted(symbols):
                     value = _value(query.points_to_at(symbol, scope))
                     if symbol in values:
                         previous = values[symbol]
@@ -166,7 +180,9 @@ if __name__ == "__main__":
                 sys.__stdout__.write(json.dumps({"kind": "progress", "result": partial}, allow_nan=False) + "\n")
                 sys.__stdout__.flush()
             result = main(payload, publish=publish)
-        result["diagnostics"].append({"kind": "legacy_log", "message": log.getvalue()[-2000:]}) if log.getvalue() else None
+        result["diagnostics"].append({"kind": "legacy_log", "message": log.getvalue()[-2000:],
+                                      "truncated": len(log.getvalue())>2000,
+                                      "total_characters": len(log.getvalue())}) if log.getvalue() else None
     except Exception:
         result = {"error": traceback.format_exc(), "captured_log": log.getvalue()[-2000:]}
     sys.stdout.write(json.dumps({"kind": "result", "result": result}, allow_nan=False) + "\n")

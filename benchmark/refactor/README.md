@@ -68,3 +68,25 @@ gold, arbitrary application-request coverage or a soundness proof. Parsed files,
 declared initialization roots, analyzed units, published exits and query answers
 are separate fields. `REPORT.md` and `summary.json` are regenerated from raw
 records, and version/input/denominator checks are recomputed by the aggregator.
+The aggregator reads one full raw receipt at a time, keeping only its small
+projection; an independent review should use the same bounded-memory approach.
+An absent snapshot is unavailable data, not an observed empty inventory,
+zero initialized roots, zero calls, or zero work. The run manifest records
+actual parallel workers separately from the protocol's maximum.
+
+The four-arm guarded-dispatch family has a separate reproducible runner:
+
+```bash
+python benchmark/refactor/guarded_dispatch_family.py --output /absolute/new_family
+```
+
+Default sizes2/8/24 and repeats1/4/16 produce36 raw rows. Each row uses the same
+captured executable and captured experiment script. The ordinary baseline does
+not import optional verification/proposal modules. Candidate import, proposal,
+checking and application setup are included in the arm timer. Full child-process
+CPU and outer process wall additionally include Python startup and final gzip
+JSON serialization; the inner solve timer alone cannot establish a cost gain.
+Capture races, incomplete/duplicate arm sets and changed captured sources block
+a release-level benefit claim. Missing/Top/typedTop/unbound and extra scalar
+facets cannot count as exact finite query answers. Every run requires a new
+evidence directory, including failed and timed-out arms.

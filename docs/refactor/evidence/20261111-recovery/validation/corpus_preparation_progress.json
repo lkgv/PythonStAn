@@ -1,0 +1,156 @@
+[
+  {
+    "case": "django",
+    "archive_sha256": "b5d2d9e35295065d13b1927b3f19a59bd119f737aa6299def14ccca1ae3c8c0d",
+    "archive_bytes": 11306257,
+    "source_files": 909,
+    "expected_source_files": 909,
+    "input_digest": "fb2a5846b0c6b79551a66764e7c078a5c79042363c3b45d86d2246be81976cda",
+    "actual_public_inventory_equal": true,
+    "scenarios": 909,
+    "seconds": 5.585078704999432
+  },
+  {
+    "case": "djangorestframework",
+    "archive_sha256": "446a9b352e7eff630421ab3f2328bd2401b109a9470afa4a31189994911ed030",
+    "archive_bytes": 923563,
+    "source_files": 73,
+    "expected_source_files": 73,
+    "input_digest": "3579de542bce2557ec563241e7291578871330d4baa2e1e18925d24d139761d5",
+    "actual_public_inventory_equal": true,
+    "scenarios": 73,
+    "seconds": 0.25376119400061725
+  },
+  {
+    "case": "wagtail",
+    "archive_sha256": "5c1abb0e11efc31454db0b5312d6786b5d8fdfbef5c815b7d8bacb2ad6bd486c",
+    "archive_bytes": 7073619,
+    "source_files": 1331,
+    "expected_source_files": 1331,
+    "input_digest": "0cf62de88fc52f10f822dd9277a007542c84ac98cd6ed2ba38284ce805570063",
+    "actual_public_inventory_equal": true,
+    "scenarios": 1331,
+    "seconds": 6.700760353999613
+  },
+  {
+    "case": "fastapi",
+    "archive_sha256": "6a22c1e2e6e32e0633ee7e170f00009a29b8228b16feb219ee42f32fd8d88a8f",
+    "archive_bytes": 527867,
+    "source_files": 52,
+    "expected_source_files": 52,
+    "input_digest": "502ca7c2601481ca4e7d123995469ba8299138074395874a415a45a5193c71b3",
+    "actual_public_inventory_equal": true,
+    "scenarios": 52,
+    "seconds": 0.4606043200001295
+  },
+  {
+    "case": "agno",
+    "archive_sha256": "e3425e04cbfff850d9cd482d4247a149fdfb362fe906de7b58a84370c2989c3f",
+    "archive_bytes": 4155683,
+    "source_files": 1182,
+    "expected_source_files": 1182,
+    "input_digest": "7087ced49cf53326009983c1d5f8da06a3dd470a372e9628a3d10d2514096d63",
+    "actual_public_inventory_equal": true,
+    "scenarios": 1182,
+    "seconds": 10.790661280999302
+  },
+  {
+    "case": "langserve",
+    "archive_sha256": "2d0f74fb8e633e98fdbd5038fe9774a9dcf136e5c779aa9c6475ac26b5c88d0a",
+    "archive_bytes": 1141255,
+    "source_files": 13,
+    "expected_source_files": 13,
+    "input_digest": "3ad6132641cbe8e3722071a10284df2a40c6f3c2ad4e624a0843a8f4a0f2a22e",
+    "actual_public_inventory_equal": true,
+    "scenarios": 13,
+    "seconds": 0.09141688599993358
+  },
+  {
+    "case": "ansible_core",
+    "archive_sha256": "bf50b4a0cfa985e30585c7ba301897ea7050d224ca49d2816cab10e33a160e1c",
+    "archive_bytes": 3476434,
+    "source_files": 590,
+    "expected_source_files": 590,
+    "input_digest": "51b603bf69f0cf90a5dda5dd104ddef978d51a3f8ebc3639a3a259dd4f67c866",
+    "actual_public_inventory_equal": true,
+    "scenarios": 590,
+    "seconds": 2.9902609989994744
+  },
+  {
+    "case": "prefect",
+    "archive_sha256": "56f091cd49a06e6c3f98eea93648208f6750361d1dd0aeb60b5faa0e9cb5c458",
+    "archive_bytes": 6340922,
+    "source_files": 864,
+    "expected_source_files": 864,
+    "input_digest": "f891cc28408f0d8e1a6793accd181463a9a771b279de65de270932b6aedb6666",
+    "actual_public_inventory_equal": true,
+    "scenarios": 864,
+    "seconds": 2.8619001170000047
+  },
+  {
+    "case": "invoke",
+    "archive_sha256": "437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c",
+    "archive_bytes": 343419,
+    "source_files": 47,
+    "expected_source_files": 47,
+    "input_digest": "1cf68a8b84ac12adb2f778391a673965a81b49b32058e938bed5438d92457815",
+    "actual_public_inventory_equal": true,
+    "scenarios": 47,
+    "seconds": 0.12741698500030907
+  },
+  {
+    "case": "ansible_runner",
+    "archive_sha256": "5f3025529bb968fdc3b627457dd8d418dbf9d53bc73735d50e69c28544d53031",
+    "archive_bytes": 154148,
+    "source_files": 27,
+    "expected_source_files": 27,
+    "input_digest": "1748d0d4285cbb5948fd23c8c63934ee86e7f4abcd8acb8eed509296e22ba686",
+    "actual_public_inventory_equal": true,
+    "scenarios": 27,
+    "seconds": 0.09939555999972072
+  },
+  {
+    "case": "accelerate",
+    "archive_sha256": "5654f8c5eaa0d4fa68b33e287a97765da6849bf6d51dcac874e73fbbddfb6134",
+    "archive_bytes": 422615,
+    "source_files": 84,
+    "expected_source_files": 84,
+    "input_digest": "6bb4681c113d517ecc5c577ae524efab3c6cd799a8a4a29d174497309f820e68",
+    "actual_public_inventory_equal": true,
+    "scenarios": 84,
+    "seconds": 0.23069128099996306
+  },
+  {
+    "case": "transformers",
+    "archive_sha256": "bed9fd76d6f43b4a1a9fc5d0c565ace7c77edbd029784f8cbcdf772cb5e924d8",
+    "archive_bytes": 10381794,
+    "source_files": 2809,
+    "expected_source_files": 2809,
+    "input_digest": "e88a0bcef3ef63133d94d592a29a955f58d9c9c7a19a88cab03971230b831eb1",
+    "actual_public_inventory_equal": true,
+    "scenarios": 2809,
+    "seconds": 23.897417697000492
+  },
+  {
+    "case": "lightning",
+    "archive_sha256": "1c6329e241f8a85f29fedead89c1ee138b36caa08de60c260c6a7eaee81c8295",
+    "archive_bytes": 659902,
+    "source_files": 266,
+    "expected_source_files": 266,
+    "input_digest": "ad42cd569c426451d86360e84e7960ae6ff4498e1ee8b51171b6d101b1500a3a",
+    "actual_public_inventory_equal": true,
+    "scenarios": 266,
+    "seconds": 0.6665967290000481
+  },
+  {
+    "case": "torchtune",
+    "archive_sha256": "bcbc4ee9774b5c5829a5ff13df851e0b0e32416c018af8db53faa3472ac256e7",
+    "archive_bytes": 910674,
+    "source_files": 235,
+    "expected_source_files": 235,
+    "input_digest": "60fe1aba5e09c5e8a04b1831b07b46e69f0fec8303ef7fe09393926c9e9e330f",
+    "actual_public_inventory_equal": true,
+    "scenarios": 235,
+    "seconds": 0.3118929330003084
+  }
+]

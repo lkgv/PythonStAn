@@ -16,7 +16,7 @@ class Pipeline:
     config: Config
     analysis_manager: AnalysisManager
 
-    def __init__(self, config=None, filename=None):
+    def __init__(self, config=None, filename=None, *, source_snapshots=None):
         if config is not None:
             self.config = config if isinstance(config, Config) else Config.from_dict(config)
         elif filename is not None:
@@ -25,6 +25,8 @@ class Pipeline:
             raise ValueError("No proper configuration for pipeline!")
         World().setup()
         World().build(self.config)
+        if source_snapshots is not None:
+            World().scope_manager.install_source_snapshots(source_snapshots)
         self.analysis_manager = AnalysisManager()
         self.analysis_manager.build(self.config.get_analysis_list())
         from pythonstan.compat.native_services import configure_native_services

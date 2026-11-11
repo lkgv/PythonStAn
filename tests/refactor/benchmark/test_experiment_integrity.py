@@ -112,3 +112,75 @@ def test_distribution_sibling_exclusions_keep_all_runtime_package_files(tmp_path
     snapshot = snapshot_target(target, config)
     actual = {str(Path(item["filename"]).relative_to(tmp_path)) for item in snapshot.inventory}
     assert actual == package_files
+
+
+def test_no_snapshot_means_unknown_coverage_counters_not_an_empty_project(tmp_path):
+    fixture_run(tmp_path)
+    path=tmp_path/'one/B/record.json'
+    row=json.loads(path.read_text());row.pop('result');row['expected_inventory_count']=909
+    path.write_text(json.dumps(row))
+    summary=load_module('aggregate').aggregate(tmp_path)
+    failed=next(row for row in summary['records'] if row['mode']=='B')
+    assert failed['expected_root_scenarios']==909
+    assert all(failed[name] is None for name in ('actual_inventory','declared_entry_scenarios',
+        'discovered_units','analyzed_units','initialized_roots','published_module_exits',
+        'call_count','obligation_count','total_charged_work'))
+    # An observed empty inventory is different and remains the measured zero.
+    row['result']={'inventory':[],'entry_contract':{'scenarios':[]},'calls':[],
+                   'obligations':[],'module_exits':{},'stats':{'units':20,'analyzed_units':3,'initialized_roots':2,
+                   'native_prepass_work':17,'native_work':8,'ai_intrinsic_bridge_work':9}}
+    path.write_text(json.dumps(row))
+    observed=next(row for row in load_module('aggregate').aggregate(tmp_path)['records'] if row['mode']=='B')
+    assert observed['actual_inventory']==observed['declared_entry_scenarios']==observed['published_module_exits']==0
+    assert (observed['discovered_units'],observed['analyzed_units'],observed['initialized_roots'])==(20,3,2)
+    assert observed['native_prepass_work']==17 and observed['legacy_native_work']==8 and observed['intrinsic_bridge_work']==9
+
+
+def test_aggregation_does_not_retain_all_large_raw_snapshots(tmp_path,monkeypatch):
+    import weakref
+    module=load_module('aggregate');identity={'git_commit':'frozen','code_sha256':'bytes'}
+    names=[f'case{index}' for index in range(24)]
+    manifest={'stage':'official','executable':identity,'selected_cases':names,'selected_modes':['D'],
+              'input_identities':{name:{'digest':name} for name in names}}
+    (tmp_path/'run_manifest.json').write_text(json.dumps(manifest))
+    for name in names:
+        directory=tmp_path/name/'D';directory.mkdir(parents=True)
+        row={'case_id':name,'mode':'D','process_status':'timeout','executable':identity,
+             'executable_before':identity,'executable_after':identity,'matched_version_valid':True,
+             'input_digest':name,'result':{'values':{'payload':'x'*4096}}}
+        (directory/'record.json').write_text(json.dumps(row))
+    class Receipt(dict):pass
+    live=peak=0;original=module.json.loads
+    def release():
+        nonlocal live
+        live-=1
+    def observed_loads(text,*args,**kwargs):
+        nonlocal live,peak
+        value=original(text,*args,**kwargs)
+        if isinstance(value,dict) and 'case_id' in value:
+            value=Receipt(value);live+=1;peak=max(peak,live);weakref.finalize(value,release)
+        return value
+    monkeypatch.setattr(module.json,'loads',observed_loads)
+    result=module.aggregate(tmp_path)
+    assert result['denominator_complete'] and result['record_count']==24
+    assert peak<=2,'The aggregator must stream raw snapshots rather than retaining every complete result'
+
+
+def test_partial_cost_receipt_and_missing_requested_answer_remain_unavailable(tmp_path):
+    fixture_run(tmp_path);path=tmp_path/'one/B/record.json';row=json.loads(path.read_text())
+    row['cost']={'worker_inclusive_wall_seconds':1.25,'cpu_user_seconds_self':0.1}
+    row['reference_fact']={'kind':'pure_module_literal','expected':'after'}
+    path.write_text(json.dumps(row))
+    observed=next(row for row in load_module('aggregate').aggregate(tmp_path)['records'] if row['mode']=='B')
+    assert observed['wall_seconds_inclusive']==1.25
+    assert observed['cpu_seconds_before_final_json_export'] is None
+    assert observed['quality']['query_status']=='no_data'
+
+
+@pytest.mark.parametrize('workers',[0,3])
+def test_invalid_worker_count_rejects_before_input_preparation(tmp_path,monkeypatch,workers):
+    module=load_module('runner')
+    manifest=tmp_path/'manifest.json';manifest.write_text(json.dumps({'resources':{'parallel_workers':2},'cases':[]}))
+    def forbidden(*args,**kwargs):raise AssertionError('Invalid concurrency reached source preparation')
+    monkeypatch.setattr(module,'prepare_case',forbidden)
+    with pytest.raises(SystemExit):module.main(['--manifest',str(manifest),'--output',str(tmp_path/'new'),'--workers',str(workers)])

@@ -151,7 +151,19 @@ class ScopeManager:
         self._scope_ir_owners = {}
         self.scope_ir = {}
         self.file2mod = {}
+        self._source_snapshots = {}
         
+    def install_source_snapshots(self, snapshots):
+        """Fix immutable decoded source identity before any module is lowered."""
+        from pythonstan.analysis.contracts import SourceModule
+        if self.scopes or self.file2mod:
+            raise ValueError("Source snapshots must be installed before building scopes")
+        copied = dict(snapshots)
+        if any(type(name) is not str or not isinstance(source, SourceModule) or source.module != name
+               for name, source in copied.items()):
+            raise TypeError("Source snapshots map exact module names to SourceModule")
+        self._source_snapshots = copied
+
     def get_module_graph(self) -> ModuleGraph:
         return self.module_graph
 
@@ -238,11 +250,17 @@ class ScopeManager:
 
     def add_module(self, ns: Namespace, filename: str) -> Optional[IRModule]:
         if filename in self.file2mod or ns.to_str() in self.names2scope:
-            return self.file2mod[filename]        
+            return self.file2mod.get(filename, self.names2scope.get(ns.to_str()))        
         if not os.path.isfile(filename):
             return None
         # Capture bytes and decoded source before any in-place TAC lowering.
-        mod = IRModule.load_module(ns.to_str(), filename)
+        snapshot = self._source_snapshots.get(ns.to_str())
+        if snapshot is None:
+            mod = IRModule.load_module(ns.to_str(), filename)
+        else:
+            tree = ast.parse(snapshot.source, snapshot.filename, type_comments=True, feature_version=(3, 12))
+            mod = IRModule(ns.to_str(), tree, name=ns.names[-1], filename=filename,
+                           source_snapshot=snapshot)
         self.scopes.add(mod)
         self.names2scope[mod.get_qualname()] = mod
         self.file2mod[filename] = mod

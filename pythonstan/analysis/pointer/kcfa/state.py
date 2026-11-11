@@ -131,6 +131,8 @@ class PointerAnalysisState:
         """
         self.allocation_policy = None
         self.source_metadata = {}
+        self.input_bindings = {}
+        self._input_seeded = set()
         self.unknown_effects = None
         self._env: Dict['Variable', PointsToSet] = {}
         self._heap = HeapModel()

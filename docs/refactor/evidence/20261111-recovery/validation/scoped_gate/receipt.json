@@ -1,0 +1,42 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+    "-m",
+    "pytest",
+    "--import-mode=importlib",
+    "-q",
+    "tests/refactor/benchmark",
+    "tests/refactor/composition",
+    "tests/refactor/verification/test_guarded_dispatch.py",
+    "tests/refactor/verification/test_public_l2.py"
+  ],
+  "exit": 0,
+  "elapsed_seconds": 1.3082632929999818,
+  "owned_files_before": {
+    "pythonstan/analysis/composition/oracle.py": "fcdac90ca3fb840c5560bbccee847e0cbd7fe4de7ef3983b1da4ed82fec3a125",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "9cb70b97da3151424dc0b8310639fa15d33c85552182ca35fd8ef7cb99e38fd0",
+    "benchmark/refactor/aggregate.py": "1bbe6901e5fc5f185e0afcfe7f4c75b3c52daba83997c5ab16c2029e4aa3c784",
+    "benchmark/refactor/guarded_dispatch_family.py": "73cb5b4754ffd54c469685447db8bdf5efcd047f5dde7a94c776e53db3cbf532",
+    "benchmark/refactor/runner.py": "5f1e1765c68bfed6da61a949fd95344da3603b3d8e24bd8c70e1aaaa80bdba12",
+    "benchmark/refactor/README.md": "a1a6bd6fbae9e47d45c8172ca3e9089b6d2fbe27426b5cc8db87709578055f3e",
+    "tests/refactor/benchmark/test_family_integrity.py": "2d69c20b41f3c29779671ee762a0870ef28e12e172728e14d8a5e247da3fd560",
+    "tests/refactor/benchmark/test_independent_experiment_review.py": "d9a49f7c05921c4f23e48cb59b1ab759be635fc9cfc0439326f7a2eefe02f3f6",
+    "tests/refactor/benchmark/test_experiment_integrity.py": "e882c2ecfa5dbbfbe7f3fdc5b3f8597dad8bf2f23de6c403ecc62e4d35f584ca",
+    "tests/refactor/composition/test_epoch_recovery.py": "a1db1cc1b1d712636c1b28db28de841e2324f6ae5537cc4e1295ba2b28f59565"
+  },
+  "owned_files_after": {
+    "pythonstan/analysis/composition/oracle.py": "fcdac90ca3fb840c5560bbccee847e0cbd7fe4de7ef3983b1da4ed82fec3a125",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "9cb70b97da3151424dc0b8310639fa15d33c85552182ca35fd8ef7cb99e38fd0",
+    "benchmark/refactor/aggregate.py": "1bbe6901e5fc5f185e0afcfe7f4c75b3c52daba83997c5ab16c2029e4aa3c784",
+    "benchmark/refactor/guarded_dispatch_family.py": "73cb5b4754ffd54c469685447db8bdf5efcd047f5dde7a94c776e53db3cbf532",
+    "benchmark/refactor/runner.py": "5f1e1765c68bfed6da61a949fd95344da3603b3d8e24bd8c70e1aaaa80bdba12",
+    "benchmark/refactor/README.md": "a1a6bd6fbae9e47d45c8172ca3e9089b6d2fbe27426b5cc8db87709578055f3e",
+    "tests/refactor/benchmark/test_family_integrity.py": "2d69c20b41f3c29779671ee762a0870ef28e12e172728e14d8a5e247da3fd560",
+    "tests/refactor/benchmark/test_independent_experiment_review.py": "d9a49f7c05921c4f23e48cb59b1ab759be635fc9cfc0439326f7a2eefe02f3f6",
+    "tests/refactor/benchmark/test_experiment_integrity.py": "e882c2ecfa5dbbfbe7f3fdc5b3f8597dad8bf2f23de6c403ecc62e4d35f584ca",
+    "tests/refactor/composition/test_epoch_recovery.py": "a1db1cc1b1d712636c1b28db28de841e2324f6ae5537cc4e1295ba2b28f59565"
+  },
+  "owned_files_unchanged": true,
+  "scope": "Operational oracle/provider epoch hooks, fair experiment runner and aggregation. Other owners may still mutate core; this is not final current-source whole-repository qualification.",
+  "commit_at_run": "3da81a4700e4fb20f93fa8c16e4ac7dbacfb7629"
+}
