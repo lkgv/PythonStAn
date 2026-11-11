@@ -240,6 +240,9 @@ class AttributeOperations:
                     continue
             if obj.kind == 'module':
                 module = obj.metadata['module']
+                if module not in self.d.modules or module not in self.d.trees:
+                    result.extend(self.unknown(state, node, 'external_module_attribute:' + module + '.' + name))
+                    continue
                 if name == '__dict__':
                     result.append(Flow(state, value=self.t.namespaces.global_view(module, state)))
                     continue

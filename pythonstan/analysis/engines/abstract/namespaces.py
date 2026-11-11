@@ -28,6 +28,13 @@ class NamespaceOperations:
                 '__package__':module if source.is_package else module.rpartition('.')[0],
                 '__doc__':ast.get_docstring(tree,clean=False)}
     def _seed_module(self,module,store):
+        if module not in self.d.modules or module not in self.d.trees:
+            # A dotted external import can have a parent module identity
+            # without source. Its namespace is unknown, never a closed empty
+            # mapping or fabricated local filename/package/doc metadata.
+            store.havoc_namespaces|=frozenset((module,))
+            self.d.open('external_module_namespace:'+module,store)
+            return
         if module in store.havoc_namespaces:return
         for name,value in self._metadata(module).items():
             cell=f'global:{module}:{name}'

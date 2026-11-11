@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "review_state": "author_traced_pending_independent_review",
-  "source_commit": "bd09a16f29319eb85e834b38453f9959c8767ba6",
+  "source_commit": "27bbd886819346aa7f38147f0022f06d9bb5d980",
   "counts": {
     "native_legacy_fields": 31,
     "registered_contexts": 19,
@@ -2311,7 +2311,7 @@
     "pythonstan/analysis/composition/state_adapter.py": "9dd57e32fae33ddbd2fcd77c7748835540eff6b735b47bbdc713a0d3b23f85a5",
     "pythonstan/analysis/domains/bundle.py": "48d66fde0ba2978bab91db628d2f74183195ee87a87df983135ff3d73def9327",
     "pythonstan/analysis/domains/values.py": "20d87e335b1ea284a43b46bfa1bd426244420ba61f9cd44cc286889e4c2dc2e9",
-    "pythonstan/analysis/engines/abstract/attributes.py": "8a7eb964ba6d1493d057b303ea51242063ea4c5fda38f77b21eb95622ed8ea3c",
+    "pythonstan/analysis/engines/abstract/attributes.py": "969c7d836e0190157407f537bcfa4fee33c2748cbeacf217e601505144ad6d66",
     "pythonstan/analysis/engines/abstract/continuations.py": "4d4553205fba66fddd19dd71ef6d3ffc37c6ef10b399cc1a1346f9991fac2a5c",
     "pythonstan/analysis/engines/abstract/dictionaries.py": "68afeb2cf25f14b25ec8b8b03b2a0d0c461474e6c4185d9d4e905ef149fae6bf",
     "pythonstan/analysis/engines/abstract/driver.py": "23e87231fcc227cb83ac418043341aef08558f5aadbc1987e17d3afb37e50332",
