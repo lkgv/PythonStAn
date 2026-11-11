@@ -11,7 +11,26 @@
 
 PythonStAn is yet another **Python** **St**atic **An**alysis framework.
 
-Latest checkpoint: [round 14 implementation and empirical report](docs/certified_analysis/ROUND14_REPORT_ZH.md), [inspector usage](docs/inspector/README_ZH.md), [explicit keyword-context audit](docs/certified_analysis/ROUND14_KEY_CORRELATION_AUDIT.md), and [14-project protocol](docs/certified_analysis/ROUND14_PROJECT_PROTOCOL.md). Offline inspector answers are about sealed snapshots. Passing local regressions or the module-solver/report gate does not establish full Python soundness, arbitrary effects or end-to-end defensive properties. The report retains incomplete analyses, failed timing gates and explicit remaining obligations.
+The maintained API supports explicit Source/File/Project inputs, independent AI-primary execution, versioned hybrid composition, strict configuration, and bounded offline LLM validation. Python 3.12 is required. Install with `python -m pip install .`.
+
+```python
+from pythonstan import analyze, Source, File, Project, ValueQuery
+q = ValueQuery(module="example", symbol="result")
+r = analyze(Source("def f(x): return x\nresult=f('after')", module="example"), queries=(q,))
+print(r.query(q).value)
+# The same facade accepts File("demo.py") and Project("app", entries=("main:run",)).
+```
+
+```bash
+pythonstan analyze --code "result = 'after'" --format json
+pythonstan analyze --file demo.py --query values
+pythonstan analyze --project app --entry main:run --config pythonstan.yaml
+pythonstan config list-options
+```
+
+The balanced default uses AI-driven hybrid analysis. Select `engine: ai_primary` to run without the incremental oracle, or `engine: native` for explicit points-to analysis. LLM proposals are disabled by default. Project defaults cover module initialization scenarios; convergence, semantic coverage and finite-property verification are separate result states. See [semantic profiles](docs/specs/semantic-profile.md) and the [experiment protocol](benchmark/refactor/README.md). Earlier reports below retain their original version scope.
+
+Historical checkpoint: [round 14 implementation and empirical report](docs/certified_analysis/ROUND14_REPORT_ZH.md), [inspector usage](docs/inspector/README_ZH.md), [explicit keyword-context audit](docs/certified_analysis/ROUND14_KEY_CORRELATION_AUDIT.md), and [14-project protocol](docs/certified_analysis/ROUND14_PROJECT_PROTOCOL.md). Offline inspector answers are about sealed snapshots. Passing local regressions or the module-solver/report gate does not establish full Python soundness, arbitrary effects or end-to-end defensive properties. The report retains incomplete analyses, failed timing gates and explicit remaining obligations.
 
 Previous algorithm repair and evaluation: [round 11 report](docs/certified_analysis/ROUND11_REPORT.md) and [architecture decisions](docs/certified_analysis/round11_architecture.md).
 

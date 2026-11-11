@@ -14,10 +14,10 @@ from pythonstan.inputs import snapshot_target, InputError
 def test_source_never_reads_cwd_configuration(tmp_path, monkeypatch):
     (tmp_path / "pythonstan.yaml").write_text("unknown: bad")
     monkeypatch.chdir(tmp_path)
-    assert resolve_config(Source("x=1"))["engine"] == "native"
+    assert resolve_config(Source("x=1"))["engine"] == "hybrid"
     with pytest.raises(ConfigurationError):
         resolve_config(File(tmp_path / "file.py"))
-    assert resolve_config(File(tmp_path / "file.py"), {})["engine"] == "native"
+    assert resolve_config(File(tmp_path / "file.py"), {})["engine"] == "hybrid"
 
 
 def test_config_priority_duplicate_unknown_and_conflicts(tmp_path):

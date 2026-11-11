@@ -78,6 +78,7 @@ def main():
                 assert payload['actual_engine']==args.expected_engine and payload['solver_status']=='converged'
                 module='snippet' if name in {'code','stdin'} else 'subject'
                 value=payload['answers']['values']['value'][module]['result'];assert value['constants']==['after'] and value['tagged_constants']==[{'type':'str','value':'after'}] and value['types']==['str'] and not value['objects'] and not value['top'] and not value['top_sorts'] and not value['may_unbound'] and not value['bottom'] and 'integer_interval' not in value and 'string_patterns' not in value
+            run('inspector-help',[str(envpath/'bin/pythonstan-inspector'),'--help'],cwd=work)
             for name,options in [('options',['config','list-options']),('effective',['config','show-effective','--file','subject.py']),('plan',['plan','--project','.'])]:
                 json.loads(run(name,[cli,*options],cwd=work))
             result={'accepted':True,'installed':installed,'wheel':wheels[0].name,'wheel_sha256':hashlib.sha256(wheels[0].read_bytes()).hexdigest()}

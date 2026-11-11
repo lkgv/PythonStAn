@@ -44,7 +44,7 @@ def _build():
     common = {
         "schema_version": (1, "config.resolve.resolve_config"),
         "preset": ("balanced", "config.resolve.resolve_config"),
-        "engine": ("native", "session.AnalysisSession.execute"),
+        "engine": ("hybrid", "session.AnalysisSession.execute"),
         "semantic_profile": ("python-core-v1", "analysis.engines.abstract.driver.InterproceduralDriver"),
         "inputs.project_root": (None, "inputs.snapshot.snapshot_target"),
         "inputs.source_roots": ([], "inputs.snapshot.snapshot_target"),

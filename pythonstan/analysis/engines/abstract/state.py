@@ -134,18 +134,28 @@ class Store:
         from .state_transform import payload_signature
         if not {payload_signature(x) for x in self.events}<={payload_signature(x) for x in other.events}:return False
         if any(key not in self.guards or not semantic_payload_equal(self.guards[key],fact) for key,fact in other.guards.items()):return False
-        for cell,value in self.cells.items():
-            if not ops.leq(value,other.effective_cell(cell)): return False
+        # An omitted cell is an observable unbound alternative (or namespace
+        # havoc), not Bottom.  Both explicit key sets therefore participate.
+        for cell in self.cells.keys()|other.cells.keys():
+            if not ops.leq(self.effective_cell(cell),other.effective_cell(cell)): return False
         for key,obj in self.heap.items():
             if key not in other.heap: return False
             rhs=other.heap[key]
+            shape_cover=rhs.kind=="summary" and rhs.havoc
+            if obj.kind!=rhs.kind and not shape_cover:return False
+            if not obj.class_ids<=rhs.class_ids and not shape_cover:return False
             if obj.havoc and not rhs.havoc: return False
             if not obj.singleton and rhs.singleton:return False
             if not rhs.havoc and not semantic_payload_equal(obj.metadata,rhs.metadata):return False
             if not ops.leq(obj.default,rhs.default): return False
-            for field,value in obj.fields.items():
-                if not ops.leq(value,rhs.fields.get(field,rhs.default)): return False
-            if not obj.maybe_missing<=rhs.maybe_missing: return False
+            for field in obj.fields.keys()|rhs.fields.keys()|obj.maybe_missing|rhs.maybe_missing:
+                if not ops.leq(obj.fields.get(field,obj.default),rhs.fields.get(field,rhs.default)): return False
+                # A residual/default value does not establish key presence.
+                # read_slot reports untracked keys as possibly absent, while
+                # a havoc object also covers absence of a tracked key.
+                absent=field not in obj.fields or field in obj.maybe_missing
+                covered_absent=rhs.havoc or field not in rhs.fields or field in rhs.maybe_missing
+                if absent and not covered_absent:return False
         if self.havoc_imports and not other.havoc_imports:return False
         for module in self.initialized.keys()|other.initialized.keys():
             a=self.initialized.get(module,"maybe" if self.havoc_imports else "unseen")
