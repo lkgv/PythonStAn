@@ -413,14 +413,15 @@
       "evidence_directory": "artifacts/next/evidence/N4-TYPE-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "running",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "root integration; domain_native_baseline runtime; semantic_baseline graph/provider/context; input_typing bridge/inputs; quality_tools contracts/oracle/intrinsics; client_preregistration worker/API",
         "reviewer": "requirements_audit",
         "commit": null,
         "evidence": [
           "docs/development/next/TYPE_CHECKPOINT_20261112.json",
-          "docs/development/next/evidence/type_checkpoint_20261112"
+          "docs/development/next/evidence/type_checkpoint_20261112",
+          "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
         ],
         "remaining_obligations": [
           "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
@@ -441,7 +442,13 @@
           "docs/development/next/reviews/W1-domain-config-input.md",
           "docs/development/next/reviews/W1-effect-slice.md",
           "docs/development/next/reviews/W1-low-contracts-ports.md"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "Execution environment unavailable; exec-server transport disconnected/recovery timed out; no usable execution environment.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
+        }
       }
     },
     {
@@ -3514,8 +3521,8 @@
     "tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
     "dirty_at_clone": false
   },
-  "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
-  "current_phase": "W1",
+  "status_note": "W0 and API acceptances retained. TYPE is externally blocked; later uncommitted workspace results are not published-source acceptance.",
+  "current_phase": "W1 TYPE implementation; externally blocked by unavailable execution environment",
   "qualification": {
     "core_qualified": false,
     "scale_qualified": false,
@@ -3533,7 +3540,22 @@
     "previous_published_tree": "00bc89c85fbf885b40fff426abf6a1e77add2bbf",
     "publication_mode": "Exact local candidate tree compared with connector tree before expected-SHA ref update; containing commit identifies this snapshot.",
     "history_note": "Original local formatting/implementation history is retained under checkpoint refs; connector publication commit identities can differ while trees match.",
-    "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged."
+    "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged.",
+    "last_verified_code_checkpoint": {
+      "commit": "0f19ceb3a9418bf0a745f833a847fffcb2f9d8fd",
+      "tree": "3f2be48c00525c2fe29a805351f1e507087ff03b",
+      "original_stage_passed": 1001,
+      "new_controls_passed": 4001,
+      "canonical_modules": 98,
+      "canonical_ordinary_errors": 0,
+      "canonical_ruff_errors": 0,
+      "canonical_any_expression_errors": 12,
+      "quality_new_diagnostics": 431,
+      "quality_modified_unit_diagnostics": 515,
+      "quality_negative_controls_passed": true,
+      "qualification": false
+    },
+    "unpublished_workspace_handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
   },
-  "checkpoint_note": "Actual runtime checkpoint: original1001 and new4001 controls pass on fixed source;98core ordinary/Ruff own0, strongAny12. Quality gate fails 431new/515modified-unit diagnostics; negativecontrols pass. TYPE remains running; no final qualification."
+  "checkpoint_note": "Public code0f19ceb is preserved. Later local1001+4048/98core strong0 snapshot and additional partial edits are uncommitted; environment is unavailable, so recovery and final checks are pending."
 }

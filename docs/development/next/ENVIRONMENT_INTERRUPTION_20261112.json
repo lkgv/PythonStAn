@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "status": "blocked_external",
+  "reason": "Execution environment unavailable; exec-server transport disconnected/recovery timed out; no usable execution environment.",
+  "repository": "lkgv/PythonStAn",
+  "branch": "dev-cocktail-analysis",
+  "published_code_checkpoint": {
+    "commit": "0f19ceb3a9418bf0a745f833a847fffcb2f9d8fd",
+    "tree": "3f2be48c00525c2fe29a805351f1e507087ff03b",
+    "original_stage_passed": 1001,
+    "new_controls_passed": 4001,
+    "canonical_modules": 98,
+    "canonical_ordinary_errors": 0,
+    "canonical_ruff_errors": 0,
+    "canonical_any_expression_errors": 12,
+    "quality_new_diagnostics": 431,
+    "quality_modified_unit_diagnostics": 515,
+    "quality_negative_controls_passed": true,
+    "qualification": false
+  },
+  "later_workspace_snapshot": {
+    "publication_status": "not_committed_or_pushed",
+    "evidence": "artifacts/next/evidence/resume-freeze-20261112",
+    "original_stage_passed": 1001,
+    "new_controls_passed": 4048,
+    "source_test_benchmark_stable_during_snapshot": true,
+    "canonical_modules": 98,
+    "canonical_ordinary_errors": 0,
+    "canonical_any_expression_errors": 0,
+    "canonical_ruff_errors": 0,
+    "quality_new_diagnostics": 206,
+    "quality_modified_unit_diagnostics": 458,
+    "quality_negative_controls_passed": true,
+    "note": "These results belong to a later fixed local snapshot. More edits followed; they do not certify the final interrupted working tree or the published source."
+  },
+  "local_unpublished_format_commits": [
+    "0722094",
+    "31d0811",
+    "0c006b8326193189a4e4a4f08d9415bc195ff8c7",
+    "d038706"
+  ],
+  "workspace": {
+    "last_path": "/workspace/scratch/8d3426210943/PythonStAn",
+    "state": "Contains uncommitted source/test changes and ignored raw evidence if the workspace survives; availability and retention must be checked before reuse.",
+    "rule": "Inspect and preserve the working tree, index, checkpoint refs and untracked files before checkout/reset/reconstruction. Do not overwrite newer work from the public checkpoint."
+  },
+  "owners": {
+    "root": {
+      "scope": [
+        "project/analysis.py",
+        "project/frontend_lifetime.py",
+        "quality frontier/policy/integration/publication"
+      ],
+      "completed_unpublished": [
+        "Canonical closed-effects check_source candidate annotation now truthfully object; parser/body unchanged.",
+        "Whole legacy tuple service strict/AnyExpr/Ruff clean; independent486-case old/current differential and163 checker tests passed.",
+        "Separate prior-HEAD formatter commits and immutable publication mapping retained locally."
+      ],
+      "not_started": [
+        "Project report/lifetime full typing; raw inventory/report schema and real observation hooks."
+      ]
+    },
+    "resume_quality": {
+      "scope": [
+        "Native solver/query/solver_interface/bootstrap/diagnostics/worklist",
+        "scheduler/allocation/variable/constraints/base+compose processors",
+        "Native MRO/ClassHierarchy",
+        "debug boundary/solver statistics",
+        "core dictionaries/oracle"
+      ],
+      "progress": "Bootstrap, query, solver interface, debug boundary and Native ClassHierarchy whole-file ordinary/AnyExpr clean;37 bootstrap and14 debug/entrance controls passed. Core12 Any expressions fixed locally. Not FINAL READY.",
+      "pending": [
+        "Fresh no-incremental scan; prior Solver31/Diagnostics19 strong records may include subsequently fixed peer ports.",
+        "valid_seed_rows actual names require Sequence[str], not tuple-only.",
+        "Actual typed callback/default/class/instance override controls and qualname-only metadata delta retained."
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/solver-worklist; resume-quality"
+    },
+    "resume_input": {
+      "scope": [
+        "Native State/Object/Heap/PFG/IR",
+        "legacy AIState",
+        "input bindings/source exports",
+        "actual AbstractCallGraph constructor"
+      ],
+      "progress": "General custom Context truncate/summarize compatibility restored;7 new controls passed. State peeks/export/input seeding and actual source-export service typed. Latest small test/style edits unverified after outage.",
+      "pending": [
+        "Re-run final v3 types/lint/runtime/cold orders.",
+        "Verify source-export cache supported foreign collections and identity; malformed cache diagnostic is an explicit bounded delta.",
+        "Preserve absent residual-effect storage until real Solver activation, nullable scopes, live dict_values and actual propagation lists."
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/native-input-resume"
+    },
+    "resume_context": {
+      "scope": [
+        "context/protocol/context selector/PointsToSet",
+        "normal_call/generator/container/super_resolve",
+        "class_protocol/keyword_expansion/native_mapping/super_lookup"
+      ],
+      "progress": "Ten whole consumer/helper modules ordinary/AnyExpr/Ruff clean. Broad runtime394 passed8 failed; not globally frozen because an imported provider changed. No final acceptance.",
+      "pending": [
+        "Classify all8 failures against exact0f19ceb; missing fixtures and historical precision failures are not automatically regressions or successes.",
+        "Restore/check general ContextSelector custom AbstractContext input compatibility; current split_native_protocol_context may reject previously accepted custom roots. This is a source audit finding; the planned38-case runtime comparison did not finish.",
+        "Rebind actual new/modified-unit checks and preserve all19 policies, keys/hashes, Hybrid two forms and readonly dynamic metadata."
+      ],
+      "next_lease_not_started": [
+        "dataflow/driver.py",
+        "dataflow/analysis.py",
+        "dataflow/solver.py",
+        "analysis/closure.py"
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/native-couplings"
+    },
+    "resume_analysis": {
+      "scope": [
+        "Native analysis/IRTranslator",
+        "legacy AIConfig",
+        "certified driver",
+        "TAC/TempVar/IR transformer",
+        "exception_models seed/construct helpers"
+      ],
+      "progress": "Real custom IRScope filename regression fixed;95 certified tests and83 Native initialization/template controls passed. IRTranslator/TempVar migrations partial. TAC/IR producer work incomplete; LegacyConfig unchanged from prior factory implementation.",
+      "pending": [
+        "Shared pure iteration boundary before TAC codecs; never import Builtin from frontend.",
+        "Finish actual producer types and final own/imported diagnostics.",
+        "Preserve module-metadata/builtin cache/None package behavior and optional missing-debug-module failure."
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/resume-analysis"
+    },
+    "resume_review": {
+      "scope": [
+        "type/truth/heap/construction helpers",
+        "Builtin API and actual descriptor records/AttributeProcessor",
+        "shared compat/host_iteration.py sole writer"
+      ],
+      "progress": "Four helper modules and AttributeProcessor strong clean;10 parameter-metadata controls passed. Broader131-selection diagnostic run was interrupted after4 failures by72 cases; not acceptance.",
+      "pending": [
+        "Create compat/host_iteration.py::iter_objects; file was NOT created before outage.",
+        "Use fixed stdlib iter/next primitives with eager invocation, legacy getitem special slots, yielded identity, exceptions and terminal payload; no fake Iterable/Callable Protocol or Native import.",
+        "Replace Builtin ABC iteration clipping, reuse in TAC/path codecs, run cold orders and classify4 failures against public baseline."
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/resume-producer-ports"
+    },
+    "resume_world": {
+      "scope": [
+        "Analysis/AnalysisDriver and Transform bases",
+        "World/Pipeline/ScopeManager/config/registry/Inspector"
+      ],
+      "progress": "Base/Transform4 files whole ordinary/AnyExpr/Ruff clean;89 runtime passed. Inspector adapter/collector/projection/capture DTO4 files strong/Ruff clean;32 controls passed,5 missing-benchmark failures retained. Runner typed but final output unread. TraceRecorder untouched.",
+      "pending": [
+        "Read collector-runtime-v1.txt and runner-strong-v1.jsonl, reproduce missing benchmark failures.",
+        "Finish actual runner/TraceRecorder chain and final source-bound checks.",
+        "Keep open plugin registries, three config validation fixes, nullable early lifecycle and offline reader stdlib-only dependencies."
+      ],
+      "evidence": "artifacts/next/evidence/N4-TYPE-01/world-quality"
+    }
+  },
+  "resume_order": [
+    "Restore execution availability, then inventory git HEAD/tree/index/dirty and untracked files without resetting. Verify published0f19ceb and preserve checkpoint/local-contract-ad5f04e.",
+    "Recover latest owner receipts and actual source hashes; re-scan before editing stale diagnostic line numbers. Every owner has paused writes.",
+    "Create the shared pure iteration codec, resolve measured/custom-selector compatibility and actual producer blockers; no callers that hide untyped business implementations.",
+    "Complete honest Fact-free Dataflow execution and Closure typing. Preserve specialized CompactLivenessSolver, injected solver strategies, public result dictionary identity and retention; no fake covariance or generic Fact TypeGuards.",
+    "Finish root project/lifetime and Inspector paths, independently review actual changed bodies, expand only whole clean frontier modules.",
+    "Freeze all source/test/benchmark writers for full stage, audit3 controls and real quality gate with negative controls; keep mandatory-red suites separate.",
+    "Commit coherent verified slices, publish through expected-SHA non-force GitHub ref updates, and verify exact source tree. Continue all remaining43 task cards according to dependencies."
+  ],
+  "invariants": {
+    "quality_debt_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "no_debt_reset": true,
+    "no_frontier_retreat": true,
+    "no_new_suppressions_or_fake_contracts": true,
+    "no_gold_or_skip_changes": true,
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "real_llm_requests": 0,
+    "credentials": "Future real LLM tests only after offline verification and independent audit; read credentials from environment only."
+  }
+}
