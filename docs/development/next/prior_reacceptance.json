@@ -1,0 +1,593 @@
+{
+  "schema_version": 1,
+  "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "original_46": [
+    {
+      "id": "BOOT-01",
+      "next_tasks": [
+        "N4-BOOT-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SPEC-01",
+      "next_tasks": [
+        "N4-BOOT-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "ARCH-01",
+      "next_tasks": [
+        "N4-QUAL-01",
+        "N4-TYPE-01",
+        "N4-ARCH-01",
+        "N4-TYPE-02",
+        "N4-DOC-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CFG-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-CTRL-01",
+        "N4-DOC-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "RESULT-01",
+      "next_tasks": [
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-OBS-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "INPUT-01",
+      "next_tasks": [
+        "N4-API-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SESSION-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-API-01",
+        "N4-BUDGET-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "API-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-REL-01",
+        "N4-DOC-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CLI-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-REL-01",
+        "N4-DOC-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "DOM-01",
+      "next_tasks": [
+        "N4-DOM-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "DOM-02",
+      "next_tasks": [
+        "N4-RESULT-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "DOM-03",
+      "next_tasks": [
+        "N4-CTRL-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "DOM-04",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-AI-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "DOM-05",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-02",
+        "N4-PERF-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-01",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-03",
+        "N4-SEM-04"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-02",
+      "next_tasks": [
+        "N4-SEM-01",
+        "N4-SEM-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-03",
+      "next_tasks": [
+        "N4-SEM-02",
+        "N4-SEM-04"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-04",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-PTA-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-05",
+      "next_tasks": [
+        "N4-SEM-05"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PTA-01",
+      "next_tasks": [
+        "N4-PTA-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PTA-02",
+      "next_tasks": [
+        "N4-PTA-02",
+        "N4-PTA-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PTA-03",
+      "next_tasks": [
+        "N4-PTA-03",
+        "N4-HYB-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PTA-04",
+      "next_tasks": [
+        "N4-PTA-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "AI-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-SEM-04",
+        "N4-AI-01",
+        "N4-AI-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "AI-02",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03",
+        "N4-PERF-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "AI-03",
+      "next_tasks": [
+        "N4-SEM-05",
+        "N4-AI-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "AI-04",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "AI-05",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-AI-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "SEM-06",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-SEM-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CTRL-01",
+      "next_tasks": [
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CTRL-02",
+      "next_tasks": [
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "HYB-01",
+      "next_tasks": [
+        "N4-HYB-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CTRL-03",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-CTRL-01",
+        "N4-CTRL-02",
+        "N4-HYB-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CTRL-04",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-HYB-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CTRL-05",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-AI-03",
+        "N4-LLM-02",
+        "N4-LLM-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "VERIFY-01",
+      "next_tasks": [
+        "N4-LLM-02",
+        "N4-AUDIT-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "QUERY-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-PERF-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "LLM-01",
+      "next_tasks": [
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-LIVE-01",
+        "N4-LIVE-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "LLM-02",
+      "next_tasks": [
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-AUDIT-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "LLM-03",
+      "next_tasks": [
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-04",
+        "N4-BUDGET-01",
+        "N4-AUDIT-01",
+        "N4-EVAL-03",
+        "N4-LIVE-01",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "OBS-01",
+      "next_tasks": [
+        "N4-QUERY-01",
+        "N4-OBS-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "TEST-01",
+      "next_tasks": [
+        "N4-BOOT-02",
+        "N4-AUDIT-01",
+        "N4-EVAL-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "EVAL-01",
+      "next_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "EVAL-02",
+      "next_tasks": [
+        "N4-EVAL-01",
+        "N4-PERF-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "MIG-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "RELEASE-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-QUAL-01",
+        "N4-TYPE-02",
+        "N4-REL-01",
+        "N4-DOC-01",
+        "N4-REL-02"
+      ],
+      "current_reacceptance": "pending"
+    }
+  ],
+  "prior_22": [
+    {
+      "id": "AUD-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-01",
+      "next_tasks": [
+        "N4-SEM-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-02",
+      "next_tasks": [
+        "N4-SEM-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-03",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-04",
+      "next_tasks": [
+        "N4-SEM-04"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-05",
+      "next_tasks": [
+        "N4-SEM-05"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-06",
+      "next_tasks": [
+        "N4-PTA-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-07",
+      "next_tasks": [
+        "N4-PTA-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-08",
+      "next_tasks": [
+        "N4-STATE-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-09",
+      "next_tasks": [
+        "N4-STATE-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-10",
+      "next_tasks": [
+        "N4-RESULT-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "FIX-11",
+      "next_tasks": [
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "CFG-02",
+      "next_tasks": [
+        "N4-PTA-03",
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "API-02",
+      "next_tasks": [
+        "N4-API-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "TYPE-01",
+      "next_tasks": [
+        "N4-QUAL-01",
+        "N4-TYPE-01",
+        "N4-TYPE-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "ARCH-02",
+      "next_tasks": [
+        "N4-ARCH-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "LLM-04",
+      "next_tasks": [
+        "N4-LLM-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PERF-01",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "PERF-02",
+      "next_tasks": [
+        "N4-AI-03",
+        "N4-BUDGET-01",
+        "N4-PERF-01"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "EVAL-03",
+      "next_tasks": [
+        "N4-EVAL-01",
+        "N4-EVAL-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "EVAL-04",
+      "next_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "current_reacceptance": "pending"
+    },
+    {
+      "id": "REL-02",
+      "next_tasks": [
+        "N4-AUDIT-01",
+        "N4-REL-02"
+      ],
+      "current_reacceptance": "pending"
+    }
+  ],
+  "rule": "Historical classifications remain evidence, not current verified status."
+}

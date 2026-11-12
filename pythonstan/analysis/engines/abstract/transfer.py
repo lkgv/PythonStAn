@@ -3,1507 +3,3247 @@
 Only builtin scalar operators are evaluated by the host. Source functions,
 imports, descriptors and cleanup run through the abstract driver and store.
 """
+
 from __future__ import annotations
-from dataclasses import replace
+
 import ast
 import operator
+from dataclasses import replace
 from itertools import product
-from pythonstan.analysis.domains.values import Value
-from pythonstan.analysis.domains.relations import PartitionToken,KeyValueRelation
-from pythonstan.analysis.semantics.names import classify_bindings
-from pythonstan.analysis.semantics.control import resume_pending
-from .state import Store,HeapObject,Frame,Flow,FunctionInfo
-from pythonstan.analysis.contracts.private_slots import positional_default_slot,keyword_default_slot,function_annotations_slot
+from typing import TYPE_CHECKING
 
-from pythonstan.models.builtins import ABSTRACT_BUILTINS as _BUILTINS
+from pythonstan.analysis.contracts.identity import CellId, ContinuationId, FrameId
+from pythonstan.analysis.contracts.private_slots import (
+    function_annotations_slot,
+    keyword_default_slot,
+    positional_default_slot,
+)
+from pythonstan.analysis.domains.relations import KeyValueRelation, PartitionToken
+from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.semantics.control import resume_pending
+from pythonstan.analysis.semantics.names import classify_bindings
+from pythonstan.analysis.state.continuation import (
+    AssignResume,
+    Continuation,
+    ExceptionContext,
+    ExceptionRestoreRecord,
+    ExprResume,
+    OpaqueResume,
+    ReturnResume,
+    WhileResume,
+)
+from pythonstan.analysis.state.effects import Havoc, HeapDefaultWrite, HeapDelete
+from pythonstan.analysis.state.guards import MembershipGuard
+from pythonstan.frontend.private_names import source_annotation_text
 from pythonstan.models.builtin_attributes import known_builtin_attribute
+from pythonstan.models.builtins import ABSTRACT_BUILTINS as _BUILTINS
 from pythonstan.models.builtins import PYTHON312_BUILTIN_NAMES
-from pythonstan.models.exceptions import EXCEPTION_NAMES,builtin_exception_ancestors,canonical_builtin_exception_name
+from pythonstan.models.exceptions import (
+    EXCEPTION_NAMES,
+    builtin_exception_ancestors,
+    canonical_builtin_exception_name,
+)
+
+from .state import Flow, Frame, FunctionInfo, HeapObject, Store
+
+if TYPE_CHECKING:
+    from .driver import InterproceduralDriver
+
 _BUILTINS = _BUILTINS | PYTHON312_BUILTIN_NAMES
 
-class Transfer:
-    def __init__(self,driver):
-        self.d=driver;self.ops=driver.ops
-        from .continuations import ContinuationEngine
-        from .namespaces import NamespaceOperations
-        from .dictionaries import DictionaryOperations
-        from .attributes import AttributeOperations
-        from .dictionary_views import DictionaryViews
-        self.attributes=AttributeOperations(self)
-        self.continuations=ContinuationEngine(self)
-        self.namespaces=NamespaceOperations(self);self.dictionaries=DictionaryOperations(self)
-        self.dictionary_views=DictionaryViews(self)
 
-    def sync(self,store):
-        if hasattr(store,"ensure_current"):store.ensure_current(self.ops)
+class Transfer:
+    def __init__(self, driver: InterproceduralDriver) -> None:
+        self.d: InterproceduralDriver = driver
+        self.ops: ValueOperations = driver.ops
+        from .attributes import AttributeOperations
+        from .continuations import ContinuationEngine
+        from .dictionaries import DictionaryOperations
+        from .dictionary_views import DictionaryViews
+        from .namespaces import NamespaceOperations
+
+        self.attributes = AttributeOperations(self)
+        self.continuations = ContinuationEngine(self)
+        self.namespaces = NamespaceOperations(self)
+        self.dictionaries = DictionaryOperations(self)
+        self.dictionary_views = DictionaryViews(self)
+
+    def sync(self, store):
+        if hasattr(store, "ensure_current"):
+            store.ensure_current(self.ops)
         return store
 
-    def setup_annotations(self,body,flows,frame):
-        if not (frame.is_module or frame.is_class):return
-        marker="$annotation_setup:"+frame.identity
+    def setup_annotations(self, body, flows, frame):
+        if not (frame.is_module or frame.is_class):
+            return
+        marker = "$annotation_setup:" + frame.identity
+
         def contains(nodes):
             for item in nodes:
-                if isinstance(item,ast.AnnAssign):return True
-                if isinstance(item,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef,ast.Lambda)):continue
-                if isinstance(item,ast.AST) and contains(ast.iter_child_nodes(item)):return True
+                if isinstance(item, ast.AnnAssign):
+                    return True
+                if isinstance(
+                    item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+                ):
+                    continue
+                if isinstance(item, ast.AST) and contains(ast.iter_child_nodes(item)):
+                    return True
             return False
-        if not contains(body):return
+
+        if not contains(body):
+            return
         for flow in flows:
-            if marker in flow.store.cells:continue
-            flow.store.cells[marker]=Value.constant(True)
-            cell=frame.cell("__annotations__")
+            if marker in flow.store.cells:
+                continue
+            flow.store.cells[marker] = Value.constant(True)
+            cell = frame.cell("__annotations__")
             if cell not in flow.store.cells or flow.store.cells[cell].unbound:
-                value=self.alloc(body[0] if body else None,flow.store,frame,"dict",{}, {"length":0})
-                flow.store.write_cell(cell,value)
+                value = self.alloc(
+                    body[0] if body else None, flow.store, frame, "dict", {}, {"length": 0}
+                )
+                flow.store.write_cell(cell, value)
 
-    def has_suspension(self,node):
+    def has_suspension(self, node):
         def visit(item):
-            if isinstance(item,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef,ast.Lambda)):return False
-            return isinstance(item,(ast.Yield,ast.YieldFrom)) or any(visit(child) for child in ast.iter_child_nodes(item))
-        return isinstance(node,ast.AST) and visit(node)
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                return False
+            return isinstance(item, (ast.Yield, ast.YieldFrom)) or any(
+                visit(child) for child in ast.iter_child_nodes(item)
+            )
 
-    def normal(self,store,value=None):return Flow(store,value=Value.constant(None) if value is None else value)
-    def error(self,store,name):
-        self.d.exceptions.add(name);return Flow(store,"raise",Value.constant(name),name)
-    def unknown(self,store,node,reason,*,havoc=True):
-        self.sync(store);result=store.copy();self.d.open(reason,result,node)
+        return isinstance(node, ast.AST) and visit(node)
+
+    def normal(self, store, value=None):
+        return Flow(store, value=Value.constant(None) if value is None else value)
+
+    def error(self, store, name):
+        self.d.exceptions.add(name)
+        return Flow(store, "raise", Value.constant(name), name)
+
+    def unknown(
+        self, store: Store, node: ast.AST | None, reason: str, *, havoc: bool = True
+    ) -> list[Flow]:
+        self.sync(store)
+        result = store.copy()
+        self.d.open(reason, result, node)
         if havoc:
-            if hasattr(result,"guards"):result.guards.clear()
-            for objid,obj in result.heap.items():obj.havoc=True;result.writes.add(("heap_default",objid,None))
-            captured=set()
+            if hasattr(result, "guards"):
+                result.guards.clear()
+            for objid, obj in result.heap.items():
+                obj.havoc = True
+                result.writes.add(HeapDefaultWrite(objid))
+            captured: set[CellId] = set()
             for obj in result.heap.values():
-                captured.update(cell for _,cell in obj.metadata.get("closure",()))
-                suspended_frame=obj.metadata.get("frame")
-                if suspended_frame is not None:captured.update(cell for _,cell in suspended_frame.closure)
+                captured.update(cell for _, cell in obj.metadata.lookup("closure", ()))
+                suspended_frame = obj.metadata.lookup("frame")
+                if suspended_frame is not None:
+                    captured.update(cell for _, cell in suspended_frame.closure)
+            havoced_cells: set[CellId] = set()
             for cell in list(result.cells):
-                if cell.startswith("global:") or cell in captured or "local:" not in cell:result.write_cell(cell,Value(top=True,unbound=True))
-            result.havoc_namespaces|=frozenset(self.d.modules)
-            result.initialized={module:"maybe" for module in result.initialized};result.havoc_imports=True
-            self.d.writes.add(("unknown","reachable_heap_and_globals",self.d.point(node)))
-            self.d.calls.add(("<unknown>","<callback>",self.d.point(node)))
+                if cell.startswith("global:") or cell in captured or "local:" not in cell:
+                    result.write_cell(cell, Value(top=True, unbound=True))
+                    havoced_cells.add(cell)
+            result.havoc_namespaces |= frozenset(self.d.modules)
+            result.initialized = {module: "maybe" for module in result.initialized}
+            result.havoc_imports = True
+            result.writes.add(
+                Havoc(
+                    objects=frozenset(result.heap),
+                    cells=frozenset(havoced_cells),
+                    namespaces=result.havoc_namespaces,
+                    imports=True,
+                )
+            )
+            self.d.writes.add(("unknown", "reachable_heap_and_globals", self.d.point(node)))
+            self.d.calls.add(("<unknown>", "<callback>", self.d.point(node)))
         self.d.exceptions.add("BaseException")
-        return [Flow(result,value=Value.unknown()),Flow(result.copy(),"raise",Value.unknown(),"AnyException")]
+        return [
+            Flow(result, value=Value.unknown()),
+            Flow(result.copy(), "raise", Value.unknown(), "AnyException"),
+        ]
 
-    def block(self,body,flows,frame):return self.continuations.block(body,flows,frame)
+    def block(self, body, flows, frame):
+        return self.continuations.block(body, flows, frame)
 
-    def read_name(self,name,store,frame,node):
+    def read_name(self, name, store, frame, node):
         self.sync(store)
-        cell=frame.cell(name)
-        if frame.is_class and "local:"+frame.identity+":"+name in store.cells:cell="local:"+frame.identity+":"+name
-        self.d.reads.add((frame.qualname,name,self.d.point(node)))
-        value=store.effective_cell(cell)
-        if self.d.oracle is not None and hasattr(self.d.oracle,"candidates") and (value.top or value.unbound or value.is_bottom()):
-            candidate=self.d.oracle.candidates(cell,self.d.current)
+        cell = frame.cell(name)
+        if frame.is_class and "local:" + frame.identity + ":" + name in store.cells:
+            cell = "local:" + frame.identity + ":" + name
+        self.d.reads.add((frame.qualname, name, self.d.point(node)))
+        value = store.effective_cell(cell)
+        if (
+            self.d.oracle is not None
+            and hasattr(self.d.oracle, "candidates")
+            and (value.top or value.unbound or value.is_bottom())
+        ):
+            candidate = self.d.oracle.candidates(cell, self.d.current)
             if not candidate.values.is_bottom():
-                value=self.ops.join(value,candidate.values)
-                self.d.stats["oracle_values_consumed"]+=1
-        if cell not in store.cells and frame.module not in store.havoc_namespaces and value.unbound and name in ("__name__","__package__","__file__","__doc__") and (frame.is_module or name not in frame.locals and name not in dict(frame.closure) and name not in frame.nonlocals):
-            source=self.d.modules[frame.module]
-            metadata={"__name__":frame.module,"__file__":source.filename,"__package__":frame.module if source.is_package else frame.module.rpartition('.')[0],"__doc__":ast.get_docstring(self.d.trees[frame.module],clean=False)}
-            value=self.ops.join(value.without_unbound(),Value.constant(metadata[name]))
-        elif value.unbound and name in _BUILTINS and (frame.is_module or name not in frame.locals and name not in dict(frame.closure) and name not in frame.nonlocals):
-            if name in {"__name__","__package__","__debug__"}:builtin=Value.constant({"__name__":"builtins","__package__":"","__debug__":True}[name])
-            elif name=="__doc__":
-                self.d.open("builtin_module_metadata:__doc__",store,node);builtin=Value(strings=self.ops.string.top())
-            elif name in {"__loader__","__spec__"}:
-                self.d.open("builtin_module_metadata:"+name,store,node);builtin=Value.unknown()
-            else:builtin=Value.ref("builtin:"+name)
-            value=self.ops.join(value.without_unbound(),builtin)
-        if self.d.observer is not None:self.d.emit("name_read",point=self.d.point(node),unit=self.d.current,cell=cell,value=value.export())
-        out=[]
-        if not value.without_unbound().is_bottom():out.append(Flow(store.copy(),value=value.without_unbound()))
-        if value.unbound:out.append(self.error(store.copy(),"UnboundLocalError" if name in frame.locals else "NameError"))
+                value = self.ops.join(value, candidate.values)
+                self.d.stats["oracle_values_consumed"] += 1
+        if (
+            cell not in store.cells
+            and frame.module not in store.havoc_namespaces
+            and value.unbound
+            and name in ("__name__", "__package__", "__file__", "__doc__")
+            and (
+                frame.is_module
+                or name not in frame.locals
+                and name not in dict(frame.closure)
+                and name not in frame.nonlocals
+            )
+        ):
+            source = self.d.modules[frame.module]
+            metadata = {
+                "__name__": frame.module,
+                "__file__": source.filename,
+                "__package__": frame.module
+                if source.is_package
+                else frame.module.rpartition(".")[0],
+                "__doc__": ast.get_docstring(self.d.trees[frame.module], clean=False),
+            }
+            value = self.ops.join(value.without_unbound(), Value.constant(metadata[name]))
+        elif (
+            value.unbound
+            and name in _BUILTINS
+            and (
+                frame.is_module
+                or name not in frame.locals
+                and name not in dict(frame.closure)
+                and name not in frame.nonlocals
+            )
+        ):
+            if name in {"__name__", "__package__", "__debug__"}:
+                builtin = Value.constant(
+                    {"__name__": "builtins", "__package__": "", "__debug__": True}[name]
+                )
+            elif name == "__doc__":
+                self.d.open("builtin_module_metadata:__doc__", store, node)
+                builtin = Value(strings=self.ops.string.top())
+            elif name in {"__loader__", "__spec__"}:
+                self.d.open("builtin_module_metadata:" + name, store, node)
+                builtin = Value.unknown()
+            else:
+                builtin = Value.ref("builtin:" + name)
+            value = self.ops.join(value.without_unbound(), builtin)
+        if self.d.observer is not None:
+            self.d.emit(
+                "name_read",
+                point=self.d.point(node),
+                unit=self.d.current,
+                cell=cell,
+                value=value.export(),
+            )
+        out = []
+        if not value.without_unbound().is_bottom():
+            out.append(Flow(store.copy(), value=value.without_unbound()))
+        if value.unbound:
+            out.append(
+                self.error(
+                    store.copy(), "UnboundLocalError" if name in frame.locals else "NameError"
+                )
+            )
         return out
-    def write_name(self,name,value,store,frame,node):
-        cell=frame.cell(name);store.write_cell(cell,value)
-        if self.d.oracle is not None and hasattr(self.d.oracle,"publish_cell"):self.d.oracle.publish_cell(cell,value,"ai_name_write")
-        self.d.writes.add((frame.qualname,name,self.d.point(node)))
-        if self.d.observer is not None:self.d.emit("name_write",point=self.d.point(node),unit=self.d.current,cell=cell,value=value.export())
-    def alloc(self,node,store,frame,kind,fields=None,metadata=None,class_ids=()):
+
+    def write_name(self, name, value, store, frame, node):
+        cell = frame.cell(name)
+        store.write_cell(cell, value)
+        if self.d.oracle is not None and hasattr(self.d.oracle, "publish_cell"):
+            self.d.oracle.publish_cell(cell, value, "ai_name_write")
+        self.d.writes.add((frame.qualname, name, self.d.point(node)))
+        if self.d.observer is not None:
+            self.d.emit(
+                "name_write",
+                point=self.d.point(node),
+                unit=self.d.current,
+                cell=cell,
+                value=value.export(),
+            )
+
+    def alloc(self, node, store, frame, kind, fields=None, metadata=None, class_ids=()):
         self.sync(store)
-        original=f"{kind}:{self.d.point(node)}@{'|'.join(frame.context)}"
-        objid=self.d.allocate_identity(original) if hasattr(self.d,"allocate_identity") else original
-        old=store.heap.get(objid)
-        obj=HeapObject(kind,fields or {},singleton=old is None and objid==original,class_ids=frozenset(class_ids),metadata=metadata or {})
-        if old is not None:obj=old.join(obj,self.ops);obj.singleton=False
-        if old is not None and hasattr(store,"invalidate_guards"):store.invalidate_guards(objid)
-        store.heap[objid]=obj
-        if self.d.oracle is not None and hasattr(self.d.oracle,"publish_field"):
-            for key,value in obj.fields.items():self.d.oracle.publish_field(objid,key,value,"ai_allocation")
-        self.d.stats["allocations"]+=1
+        original = f"{kind}:{self.d.point(node)}@{'|'.join(frame.context)}"
+        objid = (
+            self.d.allocate_identity(original) if hasattr(self.d, "allocate_identity") else original
+        )
+        old = store.heap.get(objid)
+        obj = HeapObject(
+            kind,
+            fields or {},
+            singleton=old is None and objid == original,
+            class_ids=frozenset(class_ids),
+            metadata=metadata or {},
+        )
+        if old is not None:
+            obj = old.join(obj, self.ops)
+            obj.singleton = False
+        if old is not None and hasattr(store, "invalidate_guards"):
+            store.invalidate_guards(objid)
+        store.heap[objid] = obj
+        if self.d.oracle is not None and hasattr(self.d.oracle, "publish_field"):
+            for key, value in obj.fields.items():
+                self.d.oracle.publish_field(objid, key, value, "ai_allocation")
+        self.d.stats["allocations"] += 1
         return Value.ref(objid)
 
-    def eval_nodes(self,nodes,store,frame):
-        states=[(store,())];errors=[]
+    def eval_nodes(self, nodes, store, frame):
+        states = [(store, ())]
+        errors = []
         for node in nodes:
-            next_states=[]
-            for current,values in states:
-                for flow in self.expr(node,current,frame):
-                    if flow.kind=="normal":next_states.append((flow.store,(*values,flow.value)))
-                    else:errors.append(flow)
-            states=next_states
-        return states,errors
-    def expr(self,node,store,frame):
-        self.sync(store);self.d.tick(node)
-        if node is not None and not isinstance(node,(ast.Yield,ast.YieldFrom,ast.Lambda)) and self.has_suspension(node):
-            result=self.unknown(store,node,"nested_suspension_expression")
-            result.extend(Flow(out.store.copy(),"suspend",Value.unknown(),continuation=(("opaque_resume","nested_suspension_expression"),)) for out in tuple(result) if out.kind=="normal")
+            next_states = []
+            for current, values in states:
+                for flow in self.expr(node, current, frame):
+                    if flow.kind == "normal":
+                        next_states.append((flow.store, (*values, flow.value)))
+                    else:
+                        errors.append(flow)
+            states = next_states
+        return states, errors
+
+    def expr(self, node, store, frame):
+        self.sync(store)
+        self.d.tick(node)
+        if (
+            node is not None
+            and not isinstance(node, (ast.Yield, ast.YieldFrom, ast.Lambda))
+            and self.has_suspension(node)
+        ):
+            result = self.unknown(store, node, "nested_suspension_expression")
+            result.extend(
+                Flow(
+                    out.store.copy(),
+                    "suspend",
+                    Value.unknown(),
+                    continuation=Continuation(
+                        (OpaqueResume("nested_suspension_expression"),),
+                        ContinuationId(f"{self.d.current}:{self.d.point(node)}:opaque"),
+                        self.d.point(node),
+                    ),
+                )
+                for out in tuple(result)
+                if out.kind == "normal"
+            )
             return result
-        if node is None:return [self.normal(store.copy())]
-        if isinstance(node,ast.Constant):return [Flow(store.copy(),value=Value.constant(node.value))]
-        if isinstance(node,ast.Name):return self.read_name(node.id,store,frame,node)
-        if isinstance(node,ast.NamedExpr):
-            result=[]
-            for flow in self.expr(node.value,store,frame):
-                if flow.kind=="normal":self.assign(node.target,flow.value,flow.store,frame,node)
+        if node is None:
+            return [self.normal(store.copy())]
+        if isinstance(node, ast.Constant):
+            return [Flow(store.copy(), value=Value.constant(node.value))]
+        if isinstance(node, ast.Name):
+            return self.read_name(node.id, store, frame, node)
+        if isinstance(node, ast.NamedExpr):
+            result = []
+            for flow in self.expr(node.value, store, frame):
+                if flow.kind == "normal":
+                    self.assign(node.target, flow.value, flow.store, frame, node)
                 result.append(flow)
             return result
-        if isinstance(node,ast.Lambda):return self.define_function(node,store,frame,"<lambda>")
-        if isinstance(node,(ast.List,ast.Tuple,ast.Set)):
-            states,errors=self.eval_nodes(node.elts,store,frame);kind=type(node).__name__.lower();result=list(errors)
-            for current,values in states:
-                if kind=="set":
-                    known={};uncertain=False
+        if isinstance(node, ast.Lambda):
+            return self.define_function(node, store, frame, "<lambda>")
+        if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
+            states, errors = self.eval_nodes(node.elts, store, frame)
+            kind = type(node).__name__.lower()
+            result = list(errors)
+            for current, values in states:
+                if kind == "set":
+                    known = {}
+                    uncertain = False
                     for value in values:
-                        constants=value.exact_constants()
-                        if constants is None or len(constants)!=1:uncertain=True;break
-                        known.setdefault(constants[0],value)
+                        constants = value.exact_constants()
+                        if constants is None or len(constants) != 1:
+                            uncertain = True
+                            break
+                        known.setdefault(constants[0], value)
                     if uncertain:
-                        result.extend(self.unknown(current,node,"set_key_protocol"));continue
-                    values=tuple(known.values())
-                result.append(Flow(current,value=self.alloc(node,current,frame,kind,{i:v for i,v in enumerate(values)},{"length":len(values)})))
+                        result.extend(self.unknown(current, node, "set_key_protocol"))
+                        continue
+                    values = tuple(known.values())
+                result.append(
+                    Flow(
+                        current,
+                        value=self.alloc(
+                            node,
+                            current,
+                            frame,
+                            kind,
+                            {i: v for i, v in enumerate(values)},
+                            {"length": len(values)},
+                        ),
+                    )
+                )
             return result
-        if isinstance(node,ast.Dict):return self.dictionaries.build(node,store,frame)
-        if isinstance(node,ast.Attribute):
-            result=[]
-            for flow in self.expr(node.value,store,frame):
-                if flow.kind!="normal":result.append(flow)
-                else:result.extend(self.getattr(flow.value,node.attr,flow.store,frame,node))
+        if isinstance(node, ast.Dict):
+            return self.dictionaries.build(node, store, frame)
+        if isinstance(node, ast.Attribute):
+            result = []
+            for flow in self.expr(node.value, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                else:
+                    result.extend(self.getattr(flow.value, node.attr, flow.store, frame, node))
             return result
-        if isinstance(node,ast.Subscript):
-            states,errors=self.eval_nodes((node.value,node.slice),store,frame);result=list(errors)
-            for s,(base,key) in states:result.extend(self.getitem(base,key,s,frame,node))
+        if isinstance(node, ast.Subscript):
+            states, errors = self.eval_nodes((node.value, node.slice), store, frame)
+            result = list(errors)
+            for s, (base, key) in states:
+                result.extend(self.getitem(base, key, s, frame, node))
             return result
-        if isinstance(node,ast.Slice):
-            states,errors=self.eval_nodes(tuple(x for x in (node.lower,node.upper,node.step) if x is not None),store,frame)
-            return errors+[Flow(s,value=self.alloc(node,s,frame,"slice",{i:v for i,v in enumerate(vals)})) for s,vals in states]
-        if isinstance(node,ast.Call):return self.call(node,store,frame)
-        if isinstance(node,ast.BinOp):
-            states,errors=self.eval_nodes((node.left,node.right),store,frame);result=list(errors)
-            for s,(a,b) in states:
-                val,exc=self.ops.scalar_binary(node.op,a,b)
-                if not val.is_bottom():result.append(Flow(s.copy(),value=val))
+        if isinstance(node, ast.Slice):
+            states, errors = self.eval_nodes(
+                tuple(x for x in (node.lower, node.upper, node.step) if x is not None), store, frame
+            )
+            return errors + [
+                Flow(
+                    s, value=self.alloc(node, s, frame, "slice", {i: v for i, v in enumerate(vals)})
+                )
+                for s, vals in states
+            ]
+        if isinstance(node, ast.Call):
+            return self.call(node, store, frame)
+        if isinstance(node, ast.BinOp):
+            states, errors = self.eval_nodes((node.left, node.right), store, frame)
+            result = list(errors)
+            for s, (a, b) in states:
+                val, exc = self.ops.scalar_binary(node.op, a, b)
+                if not val.is_bottom():
+                    result.append(Flow(s.copy(), value=val))
                 for name in exc:
-                    if name.startswith(("unknown_","resource_")):
-                        result.extend(self.unknown(s,node,name))
-                    else:result.append(self.error(s.copy(),name))
+                    if name.startswith(("unknown_", "resource_")):
+                        result.extend(self.unknown(s, node, name))
+                    else:
+                        result.append(self.error(s.copy(), name))
             return result
-        if isinstance(node,ast.UnaryOp):
-            result=[]
-            for flow in self.expr(node.operand,store,frame):
-                if flow.kind!="normal":result.append(flow);continue
-                if isinstance(node.op,ast.Not):
-                    for tested in self.truth_flows(flow.value,flow.store,frame,node):
-                        result.append(Flow(tested.store,value=Value(bools=frozenset(not x for x in tested.value.bools))) if tested.kind=="normal" else tested)
+        if isinstance(node, ast.UnaryOp):
+            result = []
+            for flow in self.expr(node.operand, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                    continue
+                if isinstance(node.op, ast.Not):
+                    for tested in self.truth_flows(flow.value, flow.store, frame, node):
+                        result.append(
+                            Flow(
+                                tested.store,
+                                value=Value(bools=frozenset(not x for x in tested.value.bools)),
+                            )
+                            if tested.kind == "normal"
+                            else tested
+                        )
                     continue
                 else:
                     if flow.value.refs or flow.value.top:
-                        result.extend(self.unknown(flow.store,node,"unknown_unary_operator"));continue
-                    constants=flow.value.exact_constants();func={ast.USub:operator.neg,ast.UAdd:operator.pos,ast.Invert:operator.invert}.get(type(node.op))
-                    if constants is None or func is None:value=Value.unknown()
+                        result.extend(self.unknown(flow.store, node, "unknown_unary_operator"))
+                        continue
+                    constants = flow.value.exact_constants()
+                    func = {
+                        ast.USub: operator.neg,
+                        ast.UAdd: operator.pos,
+                        ast.Invert: operator.invert,
+                    }.get(type(node.op))
+                    if constants is None or func is None:
+                        value = Value.unknown()
                     else:
-                        values=[]
+                        values = []
                         for c in constants:
-                            try:values.append(Value.constant(func(c)))
-                            except (TypeError,ValueError):result.append(self.error(flow.store.copy(),"TypeError"))
-                        value=self.ops.join_all(values)
-                if not value.is_bottom():result.append(Flow(flow.store,value=value))
+                            try:
+                                values.append(Value.constant(func(c)))
+                            except (TypeError, ValueError):
+                                result.append(self.error(flow.store.copy(), "TypeError"))
+                        value = self.ops.join_all(values)
+                if not value.is_bottom():
+                    result.append(Flow(flow.store, value=value))
             return result
-        if isinstance(node,ast.Compare):return self.compare_expr(node,store,frame)
-        if isinstance(node,ast.BoolOp):
-            flows=self.expr(node.values[0],store,frame)
+        if isinstance(node, ast.Compare):
+            return self.compare_expr(node, store, frame)
+        if isinstance(node, ast.BoolOp):
+            flows = self.expr(node.values[0], store, frame)
             for operand in node.values[1:]:
-                next_flows=[]
+                next_flows = []
                 for flow in flows:
-                    if flow.kind!="normal":next_flows.append(flow);continue
-                    for tested in self.truth_flows(flow.value,flow.store,frame,node):
-                        if tested.kind!="normal":next_flows.append(tested);continue
-                        proceed=isinstance(node.op,ast.And)
-                        if (not proceed) in tested.value.bools:next_flows.append(Flow(tested.store.copy(),value=flow.value))
-                        if proceed in tested.value.bools:next_flows.extend(self.expr(operand,tested.store.copy(),frame))
-                flows=next_flows
-            return flows
-        if isinstance(node,ast.IfExp):
-            result=[]
-            for flow in self.expr(node.test,store,frame):
-                if flow.kind!="normal":result.append(flow);continue
-                for tested in self.truth_flows(flow.value,flow.store,frame,node):
-                    if tested.kind!="normal":result.append(tested);continue
-                    for truth,body in ((True,node.body),(False,node.orelse)):
-                        if truth in tested.value.bools:
-                            refined=self.refine_test(node.test,tested.store.copy(),frame,truth)
-                            if refined is not None:result.extend(self.expr(body,refined,frame))
-            return result
-        if isinstance(node,ast.JoinedStr):return self.formatted_string(node,store,frame)
-        if isinstance(node,ast.YieldFrom):return self.continuations.delegate_start(node,store,frame)
-        if isinstance(node,ast.Yield):
-            return [replace(flow,kind="suspend") if flow.kind=="normal" else flow for flow in self.expr(node.value,store,frame)]
-        if isinstance(node,ast.Await):
-            result=[]
-            for flow in self.expr(node.value,store,frame):
-                if flow.kind!="normal":result.append(flow)
-                else:result.extend(self.resume(flow.value,flow.store,frame,node,"await"))
-            return result
-        if isinstance(node,ast.GeneratorExp):return self.continuations.generator_expression(node,store,frame)
-        if isinstance(node,(ast.ListComp,ast.SetComp,ast.DictComp)):
-            return self.comprehension(node,store,frame)
-        return self.unknown(store,node,"unsupported_expression:"+type(node).__name__)
-
-    def formatted_string(self,node,store,frame):
-        states=[(store.copy(),Value.constant(""))];errors=[]
-        for part in node.values:
-            following=[]
-            for current,prefix in states:
-                expression=part.value if isinstance(part,ast.FormattedValue) else part
-                for value in self.expr(expression,current,frame):
-                    if value.kind!="normal":errors.append(value);continue
-                    if isinstance(part,ast.FormattedValue):
-                        formats=self.expr(part.format_spec,value.store,frame) if part.format_spec is not None else [Flow(value.store,value=Value.constant(""))]
-                    else:formats=[Flow(value.store,value=Value.constant(""))]
-                    for spec in formats:
-                        if spec.kind!="normal":errors.append(spec);continue
-                        if value.value.refs or value.value.top or value.value.top_sorts-{"int","str","float","bool","none","bytes","complex","ellipsis","NotImplementedType"}:
-                            for opaque in self.unknown(spec.store,node,"unmodeled_format_protocol"):
-                                if opaque.kind=="normal":following.append((opaque.store,Value(strings=self.ops.string.top())))
-                                else:errors.append(opaque)
+                    if flow.kind != "normal":
+                        next_flows.append(flow)
+                        continue
+                    for tested in self.truth_flows(flow.value, flow.store, frame, node):
+                        if tested.kind != "normal":
+                            next_flows.append(tested)
                             continue
-                        prefixes=prefix.exact_constants();constants=value.value.exact_constants();specs=spec.value.exact_constants()
+                        proceed = isinstance(node.op, ast.And)
+                        if (not proceed) in tested.value.bools:
+                            next_flows.append(Flow(tested.store.copy(), value=flow.value))
+                        if proceed in tested.value.bools:
+                            next_flows.extend(self.expr(operand, tested.store.copy(), frame))
+                flows = next_flows
+            return flows
+        if isinstance(node, ast.IfExp):
+            result = []
+            for flow in self.expr(node.test, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                    continue
+                for tested in self.truth_flows(flow.value, flow.store, frame, node):
+                    if tested.kind != "normal":
+                        result.append(tested)
+                        continue
+                    for truth, body in ((True, node.body), (False, node.orelse)):
+                        if truth in tested.value.bools:
+                            refined = self.refine_test(node.test, tested.store.copy(), frame, truth)
+                            if refined is not None:
+                                result.extend(self.expr(body, refined, frame))
+            return result
+        if isinstance(node, ast.JoinedStr):
+            return self.formatted_string(node, store, frame)
+        if isinstance(node, ast.YieldFrom):
+            return self.continuations.delegate_start(node, store, frame)
+        if isinstance(node, ast.Yield):
+            return [
+                replace(
+                    flow,
+                    kind="suspend",
+                    continuation=Continuation(
+                        (),
+                        ContinuationId(f"{self.d.current}:{self.d.point(node)}:yield"),
+                        self.d.point(node),
+                    ),
+                )
+                if flow.kind == "normal"
+                else flow
+                for flow in self.expr(node.value, store, frame)
+            ]
+        if isinstance(node, ast.Await):
+            result = []
+            for flow in self.expr(node.value, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                else:
+                    result.extend(self.resume(flow.value, flow.store, frame, node, "await"))
+            return result
+        if isinstance(node, ast.GeneratorExp):
+            return self.continuations.generator_expression(node, store, frame)
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp)):
+            return self.comprehension(node, store, frame)
+        return self.unknown(store, node, "unsupported_expression:" + type(node).__name__)
+
+    def formatted_string(self, node, store, frame):
+        states = [(store.copy(), Value.constant(""))]
+        errors = []
+        for part in node.values:
+            following = []
+            for current, prefix in states:
+                expression = part.value if isinstance(part, ast.FormattedValue) else part
+                for value in self.expr(expression, current, frame):
+                    if value.kind != "normal":
+                        errors.append(value)
+                        continue
+                    if isinstance(part, ast.FormattedValue):
+                        formats = (
+                            self.expr(part.format_spec, value.store, frame)
+                            if part.format_spec is not None
+                            else [Flow(value.store, value=Value.constant(""))]
+                        )
+                    else:
+                        formats = [Flow(value.store, value=Value.constant(""))]
+                    for spec in formats:
+                        if spec.kind != "normal":
+                            errors.append(spec)
+                            continue
+                        if (
+                            value.value.refs
+                            or value.value.top
+                            or value.value.top_sorts
+                            - {
+                                "int",
+                                "str",
+                                "float",
+                                "bool",
+                                "none",
+                                "bytes",
+                                "complex",
+                                "ellipsis",
+                                "NotImplementedType",
+                            }
+                        ):
+                            for opaque in self.unknown(
+                                spec.store, node, "unmodeled_format_protocol"
+                            ):
+                                if opaque.kind == "normal":
+                                    following.append(
+                                        (opaque.store, Value(strings=self.ops.string.top()))
+                                    )
+                                else:
+                                    errors.append(opaque)
+                            continue
+                        prefixes = prefix.exact_constants()
+                        constants = value.value.exact_constants()
+                        specs = spec.value.exact_constants()
                         if prefixes is None or constants is None or specs is None:
-                            self.d.open("abstract_scalar_format",spec.store,node);following.append((spec.store,Value(strings=self.ops.string.top())))
+                            self.d.open("abstract_scalar_format", spec.store, node)
+                            following.append((spec.store, Value(strings=self.ops.string.top())))
                             # Known builtin scalar formatting is effect-free, but an
                             # abstract format/operand can reject the requested spec.
-                            if isinstance(part,ast.FormattedValue):errors.append(self.error(spec.store.copy(),"ValueError"))
+                            if isinstance(part, ast.FormattedValue):
+                                errors.append(self.error(spec.store.copy(), "ValueError"))
                             continue
-                        count=len(prefixes)*len(constants)*len(specs)
-                        if count>int(self.d.abstract.get("max_scalar_pairs",256)):
-                            self.d.open("scalar_format_product_budget",spec.store,node);following.append((spec.store,Value(strings=self.ops.string.top())));continue
-                        self.d.charge(count,"scalar_format_work")
-                        for before,constant,format_spec in product(prefixes,constants,specs):
-                            if type(format_spec) is not str:errors.append(self.error(spec.store.copy(),"TypeError"));continue
+                        count = len(prefixes) * len(constants) * len(specs)
+                        if count > int(self.d.abstract.get("max_scalar_pairs", 256)):
+                            self.d.open("scalar_format_product_budget", spec.store, node)
+                            following.append((spec.store, Value(strings=self.ops.string.top())))
+                            continue
+                        self.d.charge(count, "scalar_format_work")
+                        for before, constant, format_spec in product(prefixes, constants, specs):
+                            if type(format_spec) is not str:
+                                errors.append(self.error(spec.store.copy(), "TypeError"))
+                                continue
                             import re
-                            widths=re.findall(r"[0-9]+",format_spec)
-                            if len(format_spec)>4096 or any(len(width)>5 or int(width)>100000 for width in widths) or len(before)>100000 or type(constant) is str and len(constant)>100000:
-                                self.d.open("scalar_format_size_budget",spec.store,node);following.append((spec.store.copy(),Value(strings=self.ops.string.top())));continue
-                            try:
-                                if isinstance(part,ast.FormattedValue):
-                                    conversion={115:str,114:repr,97:ascii}.get(part.conversion)
-                                    if conversion is not None:constant=conversion(constant)
-                                    text=format(constant,format_spec)
-                                else:text=constant
-                                if len(before)+len(text)>100000:
-                                    self.d.open("scalar_format_size_budget",spec.store,node);answer=Value(strings=self.ops.string.top())
-                                else:answer=Value.constant(before+text)
-                                following.append((spec.store.copy(),answer))
-                            except (TypeError,ValueError,OverflowError) as error:errors.append(self.error(spec.store.copy(),type(error).__name__))
-            states=following
-        return errors+[Flow(current,value=value) for current,value in states]
 
-    def compare_expr(self,node,store,frame):
-        result=[]
-        def step(position,left,current):
-            for right in self.expr(node.comparators[position],current,frame):
-                if right.kind!="normal":result.append(right);continue
-                op=node.ops[position]
-                if isinstance(op,(ast.In,ast.NotIn)):
-                    tested=self.dictionaries.contains(right.value,left,right.store,frame,node)
-                    if isinstance(op,ast.NotIn):tested=[replace(out,value=Value(bools=frozenset(not x for x in out.value.bools))) if out.kind=="normal" else out for out in tested]
-                    if len(node.ops)==1 and len(right.value.refs)==1 and not(right.value.top or right.value.top_sorts):
-                        owner=next(iter(right.value.refs));obj=right.store.heap.get(owner);keys=left.exact_constants()
-                        if obj and obj.kind=="dict" and obj.singleton and not obj.havoc and obj.default.is_bottom() and keys is not None and len(keys)==1 and type(keys[0]) is str:
+                            widths = re.findall(r"[0-9]+", format_spec)
+                            if (
+                                len(format_spec) > 4096
+                                or any(len(width) > 5 or int(width) > 100000 for width in widths)
+                                or len(before) > 100000
+                                or type(constant) is str
+                                and len(constant) > 100000
+                            ):
+                                self.d.open("scalar_format_size_budget", spec.store, node)
+                                following.append(
+                                    (spec.store.copy(), Value(strings=self.ops.string.top()))
+                                )
+                                continue
+                            try:
+                                if isinstance(part, ast.FormattedValue):
+                                    conversion = {115: str, 114: repr, 97: ascii}.get(
+                                        part.conversion
+                                    )
+                                    if conversion is not None:
+                                        constant = conversion(constant)
+                                    text = format(constant, format_spec)
+                                else:
+                                    text = constant
+                                if len(before) + len(text) > 100000:
+                                    self.d.open("scalar_format_size_budget", spec.store, node)
+                                    answer = Value(strings=self.ops.string.top())
+                                else:
+                                    answer = Value.constant(before + text)
+                                following.append((spec.store.copy(), answer))
+                            except (TypeError, ValueError, OverflowError) as error:
+                                errors.append(self.error(spec.store.copy(), type(error).__name__))
+            states = following
+        return errors + [Flow(current, value=value) for current, value in states]
+
+    def compare_expr(self, node, store, frame):
+        result = []
+
+        def step(position, left, current):
+            for right in self.expr(node.comparators[position], current, frame):
+                if right.kind != "normal":
+                    result.append(right)
+                    continue
+                op = node.ops[position]
+                if isinstance(op, (ast.In, ast.NotIn)):
+                    tested = self.dictionaries.contains(right.value, left, right.store, frame, node)
+                    if isinstance(op, ast.NotIn):
+                        tested = [
+                            replace(
+                                out, value=Value(bools=frozenset(not x for x in out.value.bools))
+                            )
+                            if out.kind == "normal"
+                            else out
+                            for out in tested
+                        ]
+                    if (
+                        len(node.ops) == 1
+                        and len(right.value.refs) == 1
+                        and not (right.value.top or right.value.top_sorts)
+                    ):
+                        owner = next(iter(right.value.refs))
+                        obj = right.store.heap.get(owner)
+                        keys = left.exact_constants()
+                        if (
+                            obj
+                            and obj.kind == "dict"
+                            and obj.singleton
+                            and not obj.havoc
+                            and obj.default.is_bottom()
+                            and keys is not None
+                            and len(keys) == 1
+                            and type(keys[0]) is str
+                        ):
                             for out in tested:
-                                if out.kind=="normal" and hasattr(out.store,"guards"):out.store.guards["point:"+self.d.point(node)]=(owner,keys[0],not isinstance(op,ast.NotIn))
-                elif isinstance(op,(ast.Is,ast.IsNot)) and left.refs and right.value.refs and not(left.top or left.top_sorts or right.value.top or right.value.top_sorts):
-                    overlap=left.refs&right.value.refs
-                    equal=bool(overlap);different=bool(left.refs-right.value.refs or right.value.refs-left.refs) or any(not right.store.heap.get(r,HeapObject("object",singleton=False)).singleton for r in overlap if not r.startswith("builtin:"))
-                    truths=({True} if equal else set())|({False} if different or not equal else set())
-                    if isinstance(op,ast.IsNot):truths={not value for value in truths}
-                    tested=[Flow(right.store,value=Value(bools=frozenset(truths)))]
-                elif (left.refs or right.value.refs) and not isinstance(op,(ast.Is,ast.IsNot)):
-                    tested=[replace(out,value=Value(bools=frozenset((False,True)))) if out.kind=="normal" else out for out in self.unknown(right.store,node,"unmodeled_comparison_protocol")]
+                                if out.kind == "normal" and hasattr(out.store, "guards"):
+                                    out.store.guards["point:" + self.d.point(node)] = MembershipGuard(
+                                        owner,
+                                        keys[0],
+                                        not isinstance(op, ast.NotIn),
+                                    )
+                elif (
+                    isinstance(op, (ast.Is, ast.IsNot))
+                    and left.refs
+                    and right.value.refs
+                    and not (left.top or left.top_sorts or right.value.top or right.value.top_sorts)
+                ):
+                    overlap = left.refs & right.value.refs
+                    equal = bool(overlap)
+                    different = bool(
+                        left.refs - right.value.refs or right.value.refs - left.refs
+                    ) or any(
+                        not right.store.heap.get(r, HeapObject("object", singleton=False)).singleton
+                        for r in overlap
+                        if not r.startswith("builtin:")
+                    )
+                    truths = ({True} if equal else set()) | (
+                        {False} if different or not equal else set()
+                    )
+                    if isinstance(op, ast.IsNot):
+                        truths = {not value for value in truths}
+                    tested = [Flow(right.store, value=Value(bools=frozenset(truths)))]
+                elif (left.refs or right.value.refs) and not isinstance(op, (ast.Is, ast.IsNot)):
+                    tested = [
+                        replace(out, value=Value(bools=frozenset((False, True))))
+                        if out.kind == "normal"
+                        else out
+                        for out in self.unknown(right.store, node, "unmodeled_comparison_protocol")
+                    ]
                 else:
-                    value,errors=self.ops.scalar_binary(op,left,right.value);tested=[]
-                    if not value.is_bottom():tested.append(Flow(right.store.copy(),value=value))
+                    value, errors = self.ops.scalar_binary(op, left, right.value)
+                    tested = []
+                    if not value.is_bottom():
+                        tested.append(Flow(right.store.copy(), value=value))
                     for error in errors:
-                        if error.startswith(("unknown_","resource_")):tested.extend(self.unknown(right.store,node,error))
-                        else:tested.append(self.error(right.store.copy(),error))
+                        if error.startswith(("unknown_", "resource_")):
+                            tested.extend(self.unknown(right.store, node, error))
+                        else:
+                            tested.append(self.error(right.store.copy(), error))
                 for out in tested:
-                    if out.kind!="normal":result.append(out);continue
-                    for truth in self.truth_flows(out.value,out.store,frame,node):
-                        if truth.kind!="normal":result.append(truth);continue
-                        if False in truth.value.bools:result.append(Flow(truth.store.copy(),value=Value.constant(False)))
+                    if out.kind != "normal":
+                        result.append(out)
+                        continue
+                    for truth in self.truth_flows(out.value, out.store, frame, node):
+                        if truth.kind != "normal":
+                            result.append(truth)
+                            continue
+                        if False in truth.value.bools:
+                            result.append(Flow(truth.store.copy(), value=Value.constant(False)))
                         if True in truth.value.bools:
-                            if position+1==len(node.ops):result.append(Flow(truth.store.copy(),value=Value.constant(True)))
-                            else:step(position+1,right.value,truth.store.copy())
-        for left in self.expr(node.left,store,frame):
-            if left.kind!="normal":result.append(left)
-            else:step(0,left.value,left.store)
+                            if position + 1 == len(node.ops):
+                                result.append(Flow(truth.store.copy(), value=Value.constant(True)))
+                            else:
+                                step(position + 1, right.value, truth.store.copy())
+
+        for left in self.expr(node.left, store, frame):
+            if left.kind != "normal":
+                result.append(left)
+            else:
+                step(0, left.value, left.store)
         return self.d.compact(result)
 
-    def truth(self,value,store):
-        truths=set(self.ops.truth(replace(value,refs=frozenset())))
+    def truth(self, value, store):
+        truths = set(self.ops.truth(replace(value, refs=frozenset())))
         for ref in value.refs:
-            obj=store.heap.get(ref)
-            if obj and obj.kind in ("list","tuple","dict","set","range") and "length" in obj.metadata and obj.default.is_bottom() and not obj.havoc:
+            obj = store.heap.get(ref)
+            if (
+                obj
+                and obj.kind in ("list", "tuple", "dict", "set", "range")
+                and "length" in obj.metadata
+                and obj.default.is_bottom()
+                and not obj.havoc
+            ):
                 truths.add(bool(obj.metadata["length"]))
-            else:truths.add(True)
+            else:
+                truths.add(True)
         return frozenset(truths)
 
-    def truth_flows(self,value,store,frame,node):
+    def truth_flows(self, value, store, frame, node):
         """Execute Python truth protocols with their normal/exceptional effects."""
-        result=[]
-        known_sorts={"int","str","float","bool","none","bytes","complex","ellipsis","NotImplementedType"}
-        simple=replace(value,refs=frozenset(),top=False,top_sorts=value.top_sorts&known_sorts)
-        truths=self.ops.truth(simple)
-        if truths:result.append(Flow(store.copy(),value=Value(bools=truths)))
-        if value.top or value.top_sorts-known_sorts:
-            for flow in self.unknown(store,node,"unknown_truth_protocol"):
-                result.append(Flow(flow.store,value=Value(bools=frozenset((False,True)))) if flow.kind=="normal" else flow)
+        result = []
+        known_sorts = {
+            "int",
+            "str",
+            "float",
+            "bool",
+            "none",
+            "bytes",
+            "complex",
+            "ellipsis",
+            "NotImplementedType",
+        }
+        simple = replace(
+            value, refs=frozenset(), top=False, top_sorts=value.top_sorts & known_sorts
+        )
+        truths = self.ops.truth(simple)
+        if truths:
+            result.append(Flow(store.copy(), value=Value(bools=truths)))
+        if value.top or value.top_sorts - known_sorts:
+            for flow in self.unknown(store, node, "unknown_truth_protocol"):
+                result.append(
+                    Flow(flow.store, value=Value(bools=frozenset((False, True))))
+                    if flow.kind == "normal"
+                    else flow
+                )
         for ref in value.refs:
-            obj=store.heap.get(ref)
-            if obj and obj.kind=="dict_view":
-                for flow in self.dictionary_views.length(obj,store.copy(),frame,node):
-                    result.append(replace(flow,value=Value(bools=self.ops.truth(flow.value))) if flow.kind=="normal" else flow)
+            obj = store.heap.get(ref)
+            if obj and obj.kind == "dict_view":
+                for flow in self.dictionary_views.length(obj, store.copy(), frame, node):
+                    result.append(
+                        replace(flow, value=Value(bools=self.ops.truth(flow.value)))
+                        if flow.kind == "normal"
+                        else flow
+                    )
                 continue
-            if obj and obj.kind=="instance":
-                hook=self.ops.join_all(self.lookup_class(cls,"__bool__",store) for cls in obj.class_ids);length=False
-                if hook.is_bottom():hook=self.ops.join_all(self.lookup_class(cls,"__len__",store) for cls in obj.class_ids);length=True
+            if obj and obj.kind == "instance":
+                hook = self.ops.join_all(
+                    self.lookup_class(cls, "__bool__", store) for cls in obj.class_ids
+                )
+                length = False
+                if hook.is_bottom():
+                    hook = self.ops.join_all(
+                        self.lookup_class(cls, "__len__", store) for cls in obj.class_ids
+                    )
+                    length = True
                 if not hook.is_bottom():
-                    current=store.copy();bound=self.bound(hook,Value.ref(ref),current,frame,node)
-                    for returned in self.invoke(bound,[],(),current,frame,node):
-                        if returned.kind!="normal":result.append(returned);continue
-                        answer=returned.value
+                    current = store.copy()
+                    bound = self.bound(hook, Value.ref(ref), current, frame, node)
+                    for returned in self.invoke(bound, [], (), current, frame, node):
+                        if returned.kind != "normal":
+                            result.append(returned)
+                            continue
+                        answer = returned.value
                         if not length:
-                            boolean=answer.bools | (frozenset((False,True)) if answer.top or "bool" in answer.top_sorts else frozenset())
-                            if boolean:result.append(Flow(returned.store.copy(),value=Value(bools=boolean)))
-                            remainder=replace(answer,bools=frozenset(),top=False,top_sorts=answer.top_sorts-{"bool"})
-                            if answer.top or not remainder.is_bottom():result.append(self.error(returned.store.copy(),"TypeError"))
+                            boolean = answer.bools | (
+                                frozenset((False, True))
+                                if answer.top or "bool" in answer.top_sorts
+                                else frozenset()
+                            )
+                            if boolean:
+                                result.append(
+                                    Flow(returned.store.copy(), value=Value(bools=boolean))
+                                )
+                            remainder = replace(
+                                answer,
+                                bools=frozenset(),
+                                top=False,
+                                top_sorts=answer.top_sorts - {"bool"},
+                            )
+                            if answer.top or not remainder.is_bottom():
+                                result.append(self.error(returned.store.copy(), "TypeError"))
                         else:
-                            integers=answer.ints
-                            if answer.bools:integers=self.ops.integer.join(integers,self.ops.join_all(Value.constant(int(x)) for x in answer.bools).ints)
-                            if answer.top or "int" in answer.top_sorts:integers=self.ops.integer.top()
+                            integers = answer.ints
+                            if answer.bools:
+                                integers = self.ops.integer.join(
+                                    integers,
+                                    self.ops.join_all(
+                                        Value.constant(int(x)) for x in answer.bools
+                                    ).ints,
+                                )
+                            if answer.top or "int" in answer.top_sorts:
+                                integers = self.ops.integer.top()
                             if not integers.is_bottom:
-                                if integers.lo is None or integers.lo<0:result.append(self.error(returned.store.copy(),"ValueError"))
-                                allowed=integers.refine_ge(0)
+                                if integers.lo is None or integers.lo < 0:
+                                    result.append(self.error(returned.store.copy(), "ValueError"))
+                                allowed = integers.refine_ge(0)
                                 if not allowed.is_bottom:
-                                    boolean=self.ops.truth(Value(ints=allowed))
-                                    if boolean:result.append(Flow(returned.store.copy(),value=Value(bools=boolean)))
-                            remainder=replace(answer,ints=self.ops.integer.bottom(),bools=frozenset(),top=False,top_sorts=answer.top_sorts-{"int","bool"})
-                            if answer.top or not remainder.is_bottom():result.append(self.error(returned.store.copy(),"TypeError"))
+                                    boolean = self.ops.truth(Value(ints=allowed))
+                                    if boolean:
+                                        result.append(
+                                            Flow(returned.store.copy(), value=Value(bools=boolean))
+                                        )
+                            remainder = replace(
+                                answer,
+                                ints=self.ops.integer.bottom(),
+                                bools=frozenset(),
+                                top=False,
+                                top_sorts=answer.top_sorts - {"int", "bool"},
+                            )
+                            if answer.top or not remainder.is_bottom():
+                                result.append(self.error(returned.store.copy(), "TypeError"))
                     continue
-            if obj and obj.kind in {"list","tuple","dict","set","range"}:
-                length=obj.metadata.get("length")
-                booleans=frozenset((bool(length),)) if type(length) is int and not obj.havoc and obj.default.is_bottom() else frozenset((False,True))
-                result.append(Flow(store.copy(),value=Value(bools=booleans)))
+            if obj and obj.kind in {"list", "tuple", "dict", "set", "range"}:
+                length = obj.metadata.lookup("length")
+                booleans = (
+                    frozenset((bool(length),))
+                    if type(length) is int and not obj.havoc and obj.default.is_bottom()
+                    else frozenset((False, True))
+                )
+                result.append(Flow(store.copy(), value=Value(bools=booleans)))
             elif obj is None and not ref.startswith("builtin:"):
-                for flow in self.unknown(store,node,"unknown_truth_receiver"):
-                    result.append(Flow(flow.store,value=Value(bools=frozenset((False,True)))) if flow.kind=="normal" else flow)
-            else:result.append(Flow(store.copy(),value=Value.constant(True)))
+                for flow in self.unknown(store, node, "unknown_truth_receiver"):
+                    result.append(
+                        Flow(flow.store, value=Value(bools=frozenset((False, True))))
+                        if flow.kind == "normal"
+                        else flow
+                    )
+            else:
+                result.append(Flow(store.copy(), value=Value.constant(True)))
         return self.d.compact(result)
 
-    def refine_test(self,node,store,frame,truth):
-        if not self.d.abstract.get("refine_booleans",True):return store
-        guard=store.guards.get(frame.cell(node.id) if isinstance(node,ast.Name) else "point:"+self.d.point(node)) if hasattr(store,"guards") else None
+    def refine_test(self, node, store, frame, truth):
+        if not self.d.abstract.get("refine_booleans", True):
+            return store
+        guard = (
+            store.guards.get(
+                frame.cell(node.id) if isinstance(node, ast.Name) else "point:" + self.d.point(node)
+            )
+            if hasattr(store, "guards")
+            else None
+        )
         if guard is not None:
-            owner,key,polarity=guard;obj=store.heap.get(owner)
-            if obj and obj.singleton and obj.kind=="dict" and not obj.havoc and obj.default.is_bottom():
-                present=truth==polarity
+            owner, key, polarity = guard
+            obj = store.heap.get(owner)
+            if (
+                obj
+                and obj.singleton
+                and obj.kind == "dict"
+                and not obj.havoc
+                and obj.default.is_bottom()
+            ):
+                present = truth == polarity
                 if present:
-                    if key not in obj.fields:return None
+                    if key not in obj.fields:
+                        return None
                     obj.maybe_missing.discard(key)
                 else:
-                    if key in obj.fields and key not in obj.maybe_missing:return None
-                    obj.fields.pop(key,None);obj.maybe_missing.add(key)
-        if isinstance(node,ast.Compare) and len(node.ops)==1 and isinstance(node.left,ast.Name) and len(node.comparators)==1 and isinstance(node.comparators[0],ast.Constant):
-            cell=frame.cell(node.left.id);old=store.cells.get(cell,Value(unbound=True));new=self.ops.refine(old,node.ops[0],node.comparators[0].value,truth)
-            if new.is_bottom():return None
-            store.cells[cell]=new
-        elif isinstance(node,ast.Name):
-            cell=frame.cell(node.id);old=store.cells.get(cell,Value(unbound=True));constants=old.exact_constants()
+                    if key in obj.fields and key not in obj.maybe_missing:
+                        return None
+                    obj.fields.pop(key, None)
+                    obj.maybe_missing.add(key)
+        if (
+            isinstance(node, ast.Compare)
+            and len(node.ops) == 1
+            and isinstance(node.left, ast.Name)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.Constant)
+        ):
+            cell = frame.cell(node.left.id)
+            old = store.cells.get(cell, Value(unbound=True))
+            new = self.ops.refine(old, node.ops[0], node.comparators[0].value, truth)
+            if new.is_bottom():
+                return None
+            store.cells[cell] = new
+        elif isinstance(node, ast.Name):
+            cell = frame.cell(node.id)
+            old = store.cells.get(cell, Value(unbound=True))
+            constants = old.exact_constants()
             if constants is not None:
-                new=self.ops.join_all(Value.constant(x) for x in constants if bool(x)==truth)
-                if new.is_bottom():return None
-                store.cells[cell]=new
-        elif isinstance(node,ast.UnaryOp) and isinstance(node.op,ast.Not):return self.refine_test(node.operand,store,frame,not truth)
+                new = self.ops.join_all(Value.constant(x) for x in constants if bool(x) == truth)
+                if new.is_bottom():
+                    return None
+                store.cells[cell] = new
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return self.refine_test(node.operand, store, frame, not truth)
         return store
 
-    def assign(self,target,value,store,frame,node):
-        if isinstance(target,ast.Name):
-            self.write_name(target.id,value,store,frame,node);return [self.normal(store)]
-        if isinstance(target,(ast.Tuple,ast.List)):
-            sequences=[]
+    def assign(self, target, value, store, frame, node):
+        if isinstance(target, ast.Name):
+            self.write_name(target.id, value, store, frame, node)
+            return [self.normal(store)]
+        if isinstance(target, (ast.Tuple, ast.List)):
+            sequences = []
             for ref in value.refs:
-                obj=store.heap.get(ref)
-                if obj and obj.kind in ("list","tuple","range") and "length" in obj.metadata:sequences.append([obj.fields.get(i,obj.default) for i in range(obj.metadata["length"])])
+                obj = store.heap.get(ref)
+                if obj and obj.kind in ("list", "tuple", "range") and "length" in obj.metadata:
+                    sequences.append(
+                        [obj.fields.get(i, obj.default) for i in range(obj.metadata["length"])]
+                    )
             if not sequences:
-                self.d.open("unknown_unpack",store,node)
-                sequence=[Value.unknown() for _ in target.elts]
-                sequences=[sequence]
-            result=[]
+                self.d.open("unknown_unpack", store, node)
+                sequence = [Value.unknown() for _ in target.elts]
+                sequences = [sequence]
+            result = []
             for sequence in sequences:
-                star=next((i for i,x in enumerate(target.elts) if isinstance(x,ast.Starred)),None)
-                if star is None and len(sequence)!=len(target.elts):result.append(self.error(store.copy(),"ValueError"));continue
-                if star is not None and len(sequence)<len(target.elts)-1:result.append(self.error(store.copy(),"ValueError"));continue
-                s=store.copy();pairs=[]
-                if star is None:pairs=list(zip(target.elts,sequence))
+                star = next(
+                    (i for i, x in enumerate(target.elts) if isinstance(x, ast.Starred)), None
+                )
+                if star is None and len(sequence) != len(target.elts):
+                    result.append(self.error(store.copy(), "ValueError"))
+                    continue
+                if star is not None and len(sequence) < len(target.elts) - 1:
+                    result.append(self.error(store.copy(), "ValueError"))
+                    continue
+                s = store.copy()
+                pairs = []
+                if star is None:
+                    pairs = list(zip(target.elts, sequence))
                 else:
-                    tail=len(target.elts)-star-1;middle=sequence[star:len(sequence)-tail if tail else None]
-                    ref=self.alloc(target,s,frame,"list",{i:v for i,v in enumerate(middle)},{"length":len(middle)})
-                    pairs=list(zip(target.elts[:star],sequence[:star]))+[(target.elts[star].value,ref)]+list(zip(target.elts[star+1:],sequence[len(sequence)-tail:] if tail else []))
-                flows=[self.normal(s)]
-                for item,v in pairs:
-                    flows=[out for flow in flows for out in (self.assign(item,v,flow.store,frame,node) if flow.kind=="normal" else [flow])]
+                    tail = len(target.elts) - star - 1
+                    middle = sequence[star : len(sequence) - tail if tail else None]
+                    ref = self.alloc(
+                        target,
+                        s,
+                        frame,
+                        "list",
+                        {i: v for i, v in enumerate(middle)},
+                        {"length": len(middle)},
+                    )
+                    pairs = (
+                        list(zip(target.elts[:star], sequence[:star]))
+                        + [(target.elts[star].value, ref)]
+                        + list(
+                            zip(
+                                target.elts[star + 1 :],
+                                sequence[len(sequence) - tail :] if tail else [],
+                            )
+                        )
+                    )
+                flows = [self.normal(s)]
+                for item, v in pairs:
+                    flows = [
+                        out
+                        for flow in flows
+                        for out in (
+                            self.assign(item, v, flow.store, frame, node)
+                            if flow.kind == "normal"
+                            else [flow]
+                        )
+                    ]
                 result.extend(flows)
             return result
-        if isinstance(target,ast.Attribute):
-            result=[]
-            for flow in self.expr(target.value,store,frame):
-                if flow.kind!="normal":result.append(flow)
-                else:result.extend(self.setattr(flow.value,target.attr,value,flow.store,frame,node))
+        if isinstance(target, ast.Attribute):
+            result = []
+            for flow in self.expr(target.value, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                else:
+                    result.extend(
+                        self.setattr(flow.value, target.attr, value, flow.store, frame, node)
+                    )
             return result
-        if isinstance(target,ast.Subscript):
-            states,errors=self.eval_nodes((target.value,target.slice),store,frame);result=list(errors)
-            for s,(base,key) in states:result.extend(self.setitem(base,key,value,s,frame,node))
+        if isinstance(target, ast.Subscript):
+            states, errors = self.eval_nodes((target.value, target.slice), store, frame)
+            result = list(errors)
+            for s, (base, key) in states:
+                result.extend(self.setitem(base, key, value, s, frame, node))
             return result
-        return self.unknown(store,node,"unsupported_assignment:"+type(target).__name__)
+        return self.unknown(store, node, "unsupported_assignment:" + type(target).__name__)
 
-    def statement(self,node,store,frame):
+    def statement(self, node: ast.stmt, store: Store, frame: Frame) -> list[Flow]:
         self.d.tick(node)
-        if isinstance(node,ast.Expr):
-            return [self.continuations.wrap(f,"expr_resume") if f.kind=="suspend" else replace(f,value=Value.constant(None)) if f.kind=="normal" else f for f in self.expr(node.value,store,frame)]
-        if isinstance(node,ast.AnnAssign):return self.annotation_statement(node,store,frame)
-        if isinstance(node,ast.Assign):
-            targets=node.targets
-            result=[]
-            for flow in self.expr(node.value,store,frame):
-                if flow.kind!="normal":
-                    if flow.kind=="suspend":flow=self.continuations.wrap(flow,"assign_resume",tuple(targets))
-                    result.append(flow);continue
-                pending=[flow]
+        if isinstance(node, ast.Expr):
+            return [
+                self.continuations.wrap(f, ExprResume(f.continuation))
+                if f.kind == "suspend"
+                else replace(f, value=Value.constant(None))
+                if f.kind == "normal"
+                else f
+                for f in self.expr(node.value, store, frame)
+            ]
+        if isinstance(node, ast.AnnAssign):
+            return self.annotation_statement(node, store, frame)
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+            result = []
+            for flow in self.expr(node.value, store, frame):
+                if flow.kind != "normal":
+                    if flow.kind == "suspend":
+                        flow = self.continuations.wrap(
+                            flow, AssignResume(tuple(targets), flow.continuation)
+                        )
+                    result.append(flow)
+                    continue
+                pending = [flow]
                 for target in targets:
-                    saved_guard=flow.store.guards.get(frame.cell(node.value.id) if isinstance(node.value,ast.Name) else "point:"+self.d.point(node.value)) if hasattr(flow.store,"guards") else None
-                    pending=[out for f in pending for out in (self.assign(target,flow.value,f.store,frame,node) if f.kind=="normal" else [f])]
-                    if isinstance(target,ast.Name) and saved_guard is not None:
+                    saved_guard = (
+                        flow.store.guards.get(
+                            frame.cell(node.value.id)
+                            if isinstance(node.value, ast.Name)
+                            else "point:" + self.d.point(node.value)
+                        )
+                        if hasattr(flow.store, "guards")
+                        else None
+                    )
+                    pending = [
+                        out
+                        for f in pending
+                        for out in (
+                            self.assign(target, flow.value, f.store, frame, node)
+                            if f.kind == "normal"
+                            else [f]
+                        )
+                    ]
+                    if isinstance(target, ast.Name) and saved_guard is not None:
                         for out in pending:
-                            if out.kind=="normal":out.store.guards[frame.cell(target.id)]=saved_guard
+                            if out.kind == "normal":
+                                out.store.guards[frame.cell(target.id)] = saved_guard
                     if self.d.oracle is not None:
-                        if isinstance(target,ast.Name) and isinstance(node.value,ast.Name) and hasattr(self.d.oracle,"register_copy"):
-                            self.d.oracle.register_copy(frame.cell(node.value.id),frame.cell(target.id))
-                        elif isinstance(target,ast.Name) and isinstance(node.value,ast.Subscript) and isinstance(node.value.value,ast.Name) and isinstance(node.value.slice,ast.Constant) and hasattr(self.d.oracle,"register_load"):
-                            self.d.oracle.register_load(frame.cell(node.value.value.id),node.value.slice.value,frame.cell(target.id))
+                        if (
+                            isinstance(target, ast.Name)
+                            and isinstance(node.value, ast.Name)
+                            and hasattr(self.d.oracle, "register_copy")
+                        ):
+                            self.d.oracle.register_copy(
+                                frame.cell(node.value.id), frame.cell(target.id)
+                            )
+                        elif (
+                            isinstance(target, ast.Name)
+                            and isinstance(node.value, ast.Subscript)
+                            and isinstance(node.value.value, ast.Name)
+                            and isinstance(node.value.slice, ast.Constant)
+                            and hasattr(self.d.oracle, "register_load")
+                        ):
+                            self.d.oracle.register_load(
+                                frame.cell(node.value.value.id),
+                                node.value.slice.value,
+                                frame.cell(target.id),
+                            )
                 result.extend(pending)
             return result
-        if isinstance(node,ast.AugAssign):return self.augmented_assignment(node,store,frame)
-        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef)) and getattr(node,"type_params",()):
-            result=self.unknown(store,node,"pep695_type_parameters")
+        if isinstance(node, ast.AugAssign):
+            return self.augmented_assignment(node, store, frame)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and getattr(
+            node, "type_params", ()
+        ):
+            result = self.unknown(store, node, "pep695_type_parameters")
             for out in result:
-                if out.kind=="normal":self.write_name(node.name,Value.unknown(),out.store,frame,node)
+                if out.kind == "normal":
+                    self.write_name(node.name, Value.unknown(), out.store, frame, node)
             return result
-        if hasattr(ast,"TypeAlias") and isinstance(node,ast.TypeAlias):
-            result=self.unknown(store,node,"pep695_type_alias")
+        if hasattr(ast, "TypeAlias") and isinstance(node, ast.TypeAlias):
+            result = self.unknown(store, node, "pep695_type_alias")
             for out in result:
-                if out.kind=="normal" and isinstance(node.name,ast.Name):self.write_name(node.name.id,Value.unknown(),out.store,frame,node)
+                if out.kind == "normal" and isinstance(node.name, ast.Name):
+                    self.write_name(node.name.id, Value.unknown(), out.store, frame, node)
             return result
-        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)):
-            result=[]
-            for flow in self.define_function(node,store,frame,node.name):
-                if flow.kind=="normal":self.write_name(node.name,flow.value,flow.store,frame,node)
-                result.append(self.normal(flow.store) if flow.kind=="normal" else flow)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            result = []
+            for flow in self.define_function(node, store, frame, node.name):
+                if flow.kind == "normal":
+                    self.write_name(node.name, flow.value, flow.store, frame, node)
+                result.append(self.normal(flow.store) if flow.kind == "normal" else flow)
             return result
-        if isinstance(node,ast.ClassDef):return self.define_class(node,store,frame)
-        if isinstance(node,ast.Return):
-            return [self.continuations.wrap(f,"return_resume") if f.kind=="suspend" else replace(f,kind="return") if f.kind=="normal" else f for f in self.expr(node.value,store,frame)]
-        if isinstance(node,ast.Raise):
+        if isinstance(node, ast.ClassDef):
+            return self.define_class(node, store, frame)
+        if isinstance(node, ast.Return):
+            return [
+                self.continuations.wrap(f, ReturnResume(f.continuation))
+                if f.kind == "suspend"
+                else replace(f, kind="return")
+                if f.kind == "normal"
+                else f
+                for f in self.expr(node.value, store, frame)
+            ]
+        if isinstance(node, ast.Raise):
             if node.cause is not None:
-                return [Flow(flow.store,"raise",Value.unknown(),"AnyException") if flow.kind=="normal" else flow for flow in self.unknown(store,node,"exception_cause_protocol")]
+                return [
+                    Flow(flow.store, "raise", Value.unknown(), "AnyException")
+                    if flow.kind == "normal"
+                    else flow
+                    for flow in self.unknown(store, node, "exception_cause_protocol")
+                ]
             if node.exc is None:
-                value=store.cells.get("$active_exception",Value.bottom());type_value=store.cells.get("$active_exception_type",Value.bottom());kinds=type_value.exact_constants()
-                if value.is_bottom():return [self.error(store.copy(),"RuntimeError")]
+                value = store.cells.get("$active_exception", Value.bottom())
+                type_value = store.cells.get("$active_exception_type", Value.bottom())
+                kinds = type_value.exact_constants()
+                if value.is_bottom():
+                    return [self.error(store.copy(), "RuntimeError")]
                 if kinds is None or value.unbound or type_value.unbound:
-                    self.d.open("abstract_active_exception",store,node)
-                    return [Flow(store.copy(),"raise",value.without_unbound(),"AnyException"),self.error(store.copy(),"RuntimeError")]
-                if not kinds:return [self.error(store.copy(),"RuntimeError")]
-                return [Flow(store.copy(),"raise",value,kind) for kind in kinds]
-            result=[]
-            for flow in self.expr(node.exc,store,frame):
-                if flow.kind!="normal":result.append(flow)
-                else:result.extend(self.raise_value(flow.value,flow.store,frame,node))
+                    self.d.open("abstract_active_exception", store, node)
+                    return [
+                        Flow(store.copy(), "raise", value.without_unbound(), "AnyException"),
+                        self.error(store.copy(), "RuntimeError"),
+                    ]
+                if not kinds:
+                    return [self.error(store.copy(), "RuntimeError")]
+                return [Flow(store.copy(), "raise", value, kind) for kind in kinds]
+            result = []
+            for flow in self.expr(node.exc, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                else:
+                    result.extend(self.raise_value(flow.value, flow.store, frame, node))
             return result
-        if isinstance(node,ast.If):
-            result=[]
-            for flow in self.expr(node.test,store,frame):
-                if flow.kind!="normal":result.append(flow);continue
-                for tested in self.truth_flows(flow.value,flow.store,frame,node):
-                    if tested.kind!="normal":result.append(tested);continue
-                    for truth,body in ((True,node.body),(False,node.orelse)):
+        if isinstance(node, ast.If):
+            result = []
+            for flow in self.expr(node.test, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                    continue
+                for tested in self.truth_flows(flow.value, flow.store, frame, node):
+                    if tested.kind != "normal":
+                        result.append(tested)
+                        continue
+                    for truth, body in ((True, node.body), (False, node.orelse)):
                         if truth in tested.value.bools:
-                            current=self.refine_test(node.test,tested.store.copy(),frame,truth)
-                            if current is not None:result.extend(self.block(body,[self.normal(current)],frame))
+                            current = self.refine_test(node.test, tested.store.copy(), frame, truth)
+                            if current is not None:
+                                result.extend(self.block(body, [self.normal(current)], frame))
             return result
-        if isinstance(node,ast.While):return self.while_loop(node,store,frame)
-        if isinstance(node,(ast.For,ast.AsyncFor)):return self.for_loop(node,store,frame)
-        if isinstance(node,ast.Break):return [Flow(store.copy(),"break")]
-        if isinstance(node,ast.Continue):return [Flow(store.copy(),"continue")]
-        if isinstance(node,ast.Try):return self.try_statement(node,store,frame)
-        if isinstance(node,(ast.With,ast.AsyncWith)):return self.with_statement(node,store,frame)
-        if isinstance(node,ast.Assert):
-            result=[]
-            for flow in self.expr(node.test,store,frame):
-                if flow.kind!="normal":result.append(flow);continue
-                for tested in self.truth_flows(flow.value,flow.store,frame,node):
-                    if tested.kind!="normal":result.append(tested);continue
+        if isinstance(node, ast.While):
+            return self.while_loop(node, store, frame)
+        if isinstance(node, (ast.For, ast.AsyncFor)):
+            return self.for_loop(node, store, frame)
+        if isinstance(node, ast.Break):
+            return [Flow(store.copy(), "break")]
+        if isinstance(node, ast.Continue):
+            return [Flow(store.copy(), "continue")]
+        if isinstance(node, ast.Try):
+            return self.try_statement(node, store, frame)
+        if isinstance(node, (ast.With, ast.AsyncWith)):
+            return self.with_statement(node, store, frame)
+        if isinstance(node, ast.Assert):
+            result = []
+            for flow in self.expr(node.test, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
+                    continue
+                for tested in self.truth_flows(flow.value, flow.store, frame, node):
+                    if tested.kind != "normal":
+                        result.append(tested)
+                        continue
                     if True in tested.value.bools:
-                        current=self.refine_test(node.test,tested.store.copy(),frame,True)
-                        if current is not None:result.append(self.normal(current))
+                        current = self.refine_test(node.test, tested.store.copy(), frame, True)
+                        if current is not None:
+                            result.append(self.normal(current))
                     if False in tested.value.bools:
-                        messages=self.expr(node.msg,tested.store.copy(),frame) if node.msg is not None else [self.normal(tested.store.copy())]
-                        for message in messages:result.append(self.error(message.store,"AssertionError") if message.kind=="normal" else message)
+                        messages = (
+                            self.expr(node.msg, tested.store.copy(), frame)
+                            if node.msg is not None
+                            else [self.normal(tested.store.copy())]
+                        )
+                        for message in messages:
+                            result.append(
+                                self.error(message.store, "AssertionError")
+                                if message.kind == "normal"
+                                else message
+                            )
             return result
-        if isinstance(node,(ast.Import,ast.ImportFrom)):return self.import_statement(node,store,frame)
-        if isinstance(node,ast.Delete):
-            result=[self.normal(store.copy())]
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            return self.import_statement(node, store, frame)
+        if isinstance(node, ast.Delete):
+            result = [self.normal(store.copy())]
             for target in node.targets:
-                next_result=[]
+                next_result = []
                 for flow in result:
-                    if flow.kind!="normal":next_result.append(flow);continue
-                    if isinstance(target,ast.Name):self.write_name(target.id,Value(unbound=True),flow.store,frame,node);next_result.append(flow)
-                    elif isinstance(target,ast.Attribute):
-                        for base in self.expr(target.value,flow.store,frame):
-                            if base.kind!="normal":next_result.append(base)
-                            else:next_result.extend(self.delattr(base.value,target.attr,base.store,frame,node))
-                    else:next_result.extend(self.unknown(flow.store,node,"unsupported_delete"))
-                result=next_result
+                    if flow.kind != "normal":
+                        next_result.append(flow)
+                        continue
+                    if isinstance(target, ast.Name):
+                        self.write_name(target.id, Value(unbound=True), flow.store, frame, node)
+                        next_result.append(flow)
+                    elif isinstance(target, ast.Attribute):
+                        for base in self.expr(target.value, flow.store, frame):
+                            if base.kind != "normal":
+                                next_result.append(base)
+                            else:
+                                next_result.extend(
+                                    self.delattr(base.value, target.attr, base.store, frame, node)
+                                )
+                    else:
+                        next_result.extend(self.unknown(flow.store, node, "unsupported_delete"))
+                result = next_result
             return result
-        if isinstance(node,(ast.Pass,ast.Global,ast.Nonlocal)):return [self.normal(store.copy())]
-        return self.unknown(store,node,"unsupported_statement:"+type(node).__name__)
+        if isinstance(node, (ast.Pass, ast.Global, ast.Nonlocal)):
+            return [self.normal(store.copy())]
+        return self.unknown(store, node, "unsupported_statement:" + type(node).__name__)
 
-    def augmented_assignment(self,node,store,frame):
-        locations=[];result=[];target=node.target
-        if isinstance(target,ast.Name):
-            for out in self.read_name(target.id,store,frame,node):
-                if out.kind=="normal":locations.append((out.store,out.value,("name",target)))
-                else:result.append(out)
-        elif isinstance(target,ast.Attribute):
-            for base in self.expr(target.value,store,frame):
-                if base.kind!="normal":result.append(base);continue
-                for out in self.getattr(base.value,target.attr,base.store,frame,node):
-                    if out.kind=="normal":locations.append((out.store,out.value,("attribute",base.value,target.attr)))
-                    else:result.append(out)
-        elif isinstance(target,ast.Subscript):
-            evaluated,errors=self.eval_nodes((target.value,target.slice),store,frame);result.extend(errors)
-            for current,(base,key) in evaluated:
-                for out in self.getitem(base,key,current,frame,node):
-                    if out.kind=="normal":locations.append((out.store,out.value,("item",base,key)))
-                    else:result.append(out)
-        else:return self.unknown(store,node,"unmodeled_augmented_target")
-        def write(current,value,location):
-            if location[0]=="name":return self.assign(location[1],value,current,frame,node)
-            if location[0]=="attribute":return self.setattr(location[1],location[2],value,current,frame,node)
-            return self.setitem(location[1],location[2],value,current,frame,node)
-        for current,old,location in locations:
-            for right in self.expr(node.value,current,frame):
-                if right.kind!="normal":result.append(right);continue
-                value,errors=self.ops.scalar_binary(node.op,old,right.value)
-                if not value.is_bottom():result.extend(write(right.store.copy(),value,location))
+    def augmented_assignment(self, node, store, frame):
+        locations = []
+        result = []
+        target = node.target
+        if isinstance(target, ast.Name):
+            for out in self.read_name(target.id, store, frame, node):
+                if out.kind == "normal":
+                    locations.append((out.store, out.value, ("name", target)))
+                else:
+                    result.append(out)
+        elif isinstance(target, ast.Attribute):
+            for base in self.expr(target.value, store, frame):
+                if base.kind != "normal":
+                    result.append(base)
+                    continue
+                for out in self.getattr(base.value, target.attr, base.store, frame, node):
+                    if out.kind == "normal":
+                        locations.append(
+                            (out.store, out.value, ("attribute", base.value, target.attr))
+                        )
+                    else:
+                        result.append(out)
+        elif isinstance(target, ast.Subscript):
+            evaluated, errors = self.eval_nodes((target.value, target.slice), store, frame)
+            result.extend(errors)
+            for current, (base, key) in evaluated:
+                for out in self.getitem(base, key, current, frame, node):
+                    if out.kind == "normal":
+                        locations.append((out.store, out.value, ("item", base, key)))
+                    else:
+                        result.append(out)
+        else:
+            return self.unknown(store, node, "unmodeled_augmented_target")
+
+        def write(current, value, location):
+            if location[0] == "name":
+                return self.assign(location[1], value, current, frame, node)
+            if location[0] == "attribute":
+                return self.setattr(location[1], location[2], value, current, frame, node)
+            return self.setitem(location[1], location[2], value, current, frame, node)
+
+        for current, old, location in locations:
+            for right in self.expr(node.value, current, frame):
+                if right.kind != "normal":
+                    result.append(right)
+                    continue
+                value, errors = self.ops.scalar_binary(node.op, old, right.value)
+                if not value.is_bottom():
+                    result.extend(write(right.store.copy(), value, location))
                 for error in errors:
-                    if error.startswith(("unknown_","resource_")):
-                        for opaque in self.unknown(right.store,node,error):
-                            if opaque.kind=="normal":result.extend(write(opaque.store,Value.unknown(),location))
-                            else:result.append(opaque)
-                    else:result.append(self.error(right.store.copy(),error))
+                    if error.startswith(("unknown_", "resource_")):
+                        for opaque in self.unknown(right.store, node, error):
+                            if opaque.kind == "normal":
+                                result.extend(write(opaque.store, Value.unknown(), location))
+                            else:
+                                result.append(opaque)
+                    else:
+                        result.append(self.error(right.store.copy(), error))
         return result
 
-    def annotation_statement(self,node,store,frame):
-        result=[]
+    def annotation_statement(self, node, store, frame):
+        result = []
         if node.value is not None:
-            initial=[]
-            for evaluated in self.expr(node.value,store,frame):
-                if evaluated.kind=="suspend":initial.append(self.continuations.wrap(evaluated,"assign_resume",(node.target,)))
-                elif evaluated.kind!="normal":initial.append(evaluated)
-                else:initial.extend(self.assign(node.target,evaluated.value,evaluated.store,frame,node))
-        elif isinstance(node.target,ast.Name):initial=[self.normal(store.copy())]
-        elif isinstance(node.target,(ast.Attribute,ast.Subscript)):initial=self.expr(node.target.value,store,frame)
-        else:initial=self.unknown(store,node,"unmodeled_annotation_target")
+            initial = []
+            for evaluated in self.expr(node.value, store, frame):
+                if evaluated.kind == "suspend":
+                    initial.append(
+                        self.continuations.wrap(
+                            evaluated, AssignResume((node.target,), evaluated.continuation)
+                        )
+                    )
+                elif evaluated.kind != "normal":
+                    initial.append(evaluated)
+                else:
+                    initial.extend(
+                        self.assign(node.target, evaluated.value, evaluated.store, frame, node)
+                    )
+        elif isinstance(node.target, ast.Name):
+            initial = [self.normal(store.copy())]
+        elif isinstance(node.target, (ast.Attribute, ast.Subscript)):
+            initial = self.expr(node.target.value, store, frame)
+        else:
+            initial = self.unknown(store, node, "unmodeled_annotation_target")
         for current in initial:
-            if current.kind!="normal":result.append(current);continue
-            if not(frame.is_module or frame.is_class):result.append(self.normal(current.store));continue
+            if current.kind != "normal":
+                result.append(current)
+                continue
+            if not (frame.is_module or frame.is_class):
+                result.append(self.normal(current.store))
+                continue
             if frame.module in self.d.future_annotations:
-                annotations=[Flow(current.store,value=Value.constant(getattr(node.annotation,"_source_annotation_text",ast.unparse(node.annotation))))] if isinstance(node.target,ast.Name) and node.simple else [self.normal(current.store)]
-            else:annotations=self.expr(node.annotation,current.store,frame)
+                annotations = (
+                    [
+                        Flow(
+                            current.store,
+                            value=Value.constant(
+                                (
+                                    source_annotation_text(node.annotation)
+                                    or ast.unparse(node.annotation)
+                                )
+                            ),
+                        )
+                    ]
+                    if isinstance(node.target, ast.Name) and node.simple
+                    else [self.normal(current.store)]
+                )
+            else:
+                annotations = self.expr(node.annotation, current.store, frame)
             for annotation in annotations:
-                if annotation.kind!="normal":result.append(annotation);continue
-                if isinstance(node.target,ast.Name) and node.simple:
-                    for namespace in self.read_name("__annotations__",annotation.store,frame,node):
-                        if namespace.kind!="normal":result.append(namespace)
-                        else:result.extend(self.setitem(namespace.value,Value.constant(node.target.id),annotation.value,namespace.store,frame,node))
-                else:result.append(self.normal(annotation.store))
+                if annotation.kind != "normal":
+                    result.append(annotation)
+                    continue
+                if isinstance(node.target, ast.Name) and node.simple:
+                    for namespace in self.read_name(
+                        "__annotations__", annotation.store, frame, node
+                    ):
+                        if namespace.kind != "normal":
+                            result.append(namespace)
+                        else:
+                            result.extend(
+                                self.setitem(
+                                    namespace.value,
+                                    Value.constant(node.target.id),
+                                    annotation.value,
+                                    namespace.store,
+                                    frame,
+                                    node,
+                                )
+                            )
+                else:
+                    result.append(self.normal(annotation.store))
         return result
 
-    def define_function(self,node,store,frame,name):
-        decorators=getattr(node,"decorator_list",())
-        decstates,errors=self.eval_nodes(decorators,store,frame)
-        result=list(errors)
-        for ds,decvalues in decstates:
-            annotations=[(arg.arg,arg.annotation) for arg in (*node.args.posonlyargs,*node.args.args,*node.args.kwonlyargs) if arg.annotation is not None]
-            if node.args.vararg and node.args.vararg.annotation is not None:annotations.append((node.args.vararg.arg,node.args.vararg.annotation))
-            if node.args.kwarg and node.args.kwarg.annotation is not None:annotations.append((node.args.kwarg.arg,node.args.kwarg.annotation))
-            if getattr(node,"returns",None) is not None:annotations.append(("return",node.returns))
-            defaults_count=len(node.args.defaults)+sum(x is not None for x in node.args.kw_defaults)
-            values=[*node.args.defaults,*[x for x in node.args.kw_defaults if x is not None]]
-            if frame.module not in self.d.future_annotations:values.extend(annotation for _,annotation in annotations)
-            states,ex=self.eval_nodes(values,ds,frame);result.extend(ex)
-            for s,defaults in states:
-                count=len(node.args.defaults);kw_defaults=[];index=count
-                for arg,default in zip(node.args.kwonlyargs,node.args.kw_defaults):
-                    if default is not None:kw_defaults.append((arg.arg,defaults[index]));index+=1
-                locals_,globals_,nonlocals_,has_yield=classify_bindings(node)
-                identifier=f"function:{self.d.point(node)}@{'|'.join(frame.context)}"
-                closure=dict(frame.closure)
+    def define_function(self, node, store, frame, name):
+        decorators = getattr(node, "decorator_list", ())
+        decstates, errors = self.eval_nodes(decorators, store, frame)
+        result = list(errors)
+        for ds, decvalues in decstates:
+            annotations = [
+                (arg.arg, arg.annotation)
+                for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)
+                if arg.annotation is not None
+            ]
+            if node.args.vararg and node.args.vararg.annotation is not None:
+                annotations.append((node.args.vararg.arg, node.args.vararg.annotation))
+            if node.args.kwarg and node.args.kwarg.annotation is not None:
+                annotations.append((node.args.kwarg.arg, node.args.kwarg.annotation))
+            if getattr(node, "returns", None) is not None:
+                annotations.append(("return", node.returns))
+            defaults_count = len(node.args.defaults) + sum(
+                x is not None for x in node.args.kw_defaults
+            )
+            values = [*node.args.defaults, *[x for x in node.args.kw_defaults if x is not None]]
+            if frame.module not in self.d.future_annotations:
+                values.extend(annotation for _, annotation in annotations)
+            states, ex = self.eval_nodes(values, ds, frame)
+            result.extend(ex)
+            for s, defaults in states:
+                count = len(node.args.defaults)
+                kw_defaults = []
+                index = count
+                for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+                    if default is not None:
+                        kw_defaults.append((arg.arg, defaults[index]))
+                        index += 1
+                locals_, globals_, nonlocals_, has_yield = classify_bindings(node)
+                identifier = f"function:{self.d.point(node)}@{'|'.join(frame.context)}"
+                closure = dict(frame.closure)
                 if not frame.is_module and not frame.is_class:
-                    closure.update((n,frame.cell(n)) for n in frame.locals)
+                    closure.update((n, frame.cell(n)) for n in frame.locals)
                 if frame.is_class:
-                    classcell=f"classcell:{frame.identity}";s.cells[classcell]=Value.ref(frame.identity);closure["__class__"]=classcell
-                display_name=getattr(node,"_source_declared_name",name)
-                qualname=(frame.module+"."+display_name) if frame.is_module else frame.qualname+"."+display_name
-                info=FunctionInfo(identifier,node,frame.module,qualname,tuple(sorted(closure.items())),tuple(defaults[:count]),tuple(kw_defaults),locals_,globals_,nonlocals_,has_yield,isinstance(node,ast.AsyncFunctionDef))
-                self.d.functions[identifier]=info
-                function_fields={positional_default_slot(i):value for i,value in enumerate(info.defaults)}
-                function_fields.update((keyword_default_slot(key),value) for key,value in info.kw_defaults)
-                annotation_fields={key:Value.constant(getattr(annotation,"_source_annotation_text",ast.unparse(annotation))) for key,annotation in annotations} if frame.module in self.d.future_annotations else {key:value for (key,_),value in zip(annotations,defaults[defaults_count:])}
-                function_fields[function_annotations_slot()]=self.alloc(node,s,frame,"dict",annotation_fields,{"length":len(annotation_fields)})
-                python_qualname=display_name if frame.is_module else frame.qualname.removeprefix(frame.module+".")+("." if frame.is_class else ".<locals>.")+display_name
-                created=HeapObject("function",function_fields,metadata={"qualname":qualname,"python_qualname":python_qualname,"name":display_name,"module":frame.module,"default_count":len(info.defaults),"closure":info.closure})
+                    classcell = f"classcell:{frame.identity}"
+                    s.cells[classcell] = Value.ref(frame.identity)
+                    closure["__class__"] = classcell
+                display_name = getattr(node, "_source_declared_name", name)
+                qualname = (
+                    (frame.module + "." + display_name)
+                    if frame.is_module
+                    else frame.qualname + "." + display_name
+                )
+                info = FunctionInfo(
+                    identifier,
+                    node,
+                    frame.module,
+                    qualname,
+                    tuple(sorted(closure.items())),
+                    tuple(defaults[:count]),
+                    tuple(kw_defaults),
+                    locals_,
+                    globals_,
+                    nonlocals_,
+                    has_yield,
+                    isinstance(node, ast.AsyncFunctionDef),
+                )
+                self.d.functions[identifier] = info
+                function_fields = {
+                    positional_default_slot(i): value for i, value in enumerate(info.defaults)
+                }
+                function_fields.update(
+                    (keyword_default_slot(key), value) for key, value in info.kw_defaults
+                )
+                annotation_fields = (
+                    {
+                        key: Value.constant(
+                            (source_annotation_text(annotation) or ast.unparse(annotation))
+                        )
+                        for key, annotation in annotations
+                    }
+                    if frame.module in self.d.future_annotations
+                    else {
+                        key: value
+                        for (key, _), value in zip(annotations, defaults[defaults_count:])
+                    }
+                )
+                function_fields[function_annotations_slot()] = self.alloc(
+                    node, s, frame, "dict", annotation_fields, {"length": len(annotation_fields)}
+                )
+                python_qualname = (
+                    display_name
+                    if frame.is_module
+                    else frame.qualname.removeprefix(frame.module + ".")
+                    + ("." if frame.is_class else ".<locals>.")
+                    + display_name
+                )
+                created = HeapObject(
+                    "function",
+                    function_fields,
+                    metadata={
+                        "qualname": qualname,
+                        "python_qualname": python_qualname,
+                        "name": display_name,
+                        "module": frame.module,
+                        "default_count": len(info.defaults),
+                        "closure": info.closure,
+                    },
+                )
                 if identifier in s.heap:
-                    created=s.heap[identifier].join(created,self.ops);created.singleton=False
-                s.heap[identifier]=created
-                flows=[Flow(s,value=Value.ref(identifier))]
+                    created = s.heap[identifier].join(created, self.ops)
+                    created.singleton = False
+                s.heap[identifier] = created
+                flows = [Flow(s, value=Value.ref(identifier))]
                 for decorator in reversed(decvalues):
-                    flows=[out for flow in flows for out in (self.invoke(decorator,[flow.value],(),flow.store,frame,node) if flow.kind=="normal" else [flow])]
+                    flows = [
+                        out
+                        for flow in flows
+                        for out in (
+                            self.invoke(decorator, [flow.value], (), flow.store, frame, node)
+                            if flow.kind == "normal"
+                            else [flow]
+                        )
+                    ]
                 result.extend(flows)
         return result
 
-    def exception_class_tags(self,identifier,store,seen=None):
-        seen=set() if seen is None else seen
-        if identifier in seen:return set()
+    def exception_class_tags(self, identifier, store, seen=None):
+        seen = set() if seen is None else seen
+        if identifier in seen:
+            return set()
         seen.add(identifier)
         if identifier.startswith("builtin:"):
-            return {"builtin:"+canonical_builtin_exception_name(name) for name in builtin_exception_ancestors(identifier.split(":",1)[1])}
-        obj=store.heap.get(identifier)
-        if obj is None or obj.kind!="class":return set()
+            return {
+                "builtin:" + canonical_builtin_exception_name(name)
+                for name in builtin_exception_ancestors(identifier.split(":", 1)[1])
+            }
+        obj = store.heap.get(identifier)
+        if obj is None or obj.kind != "class":
+            return set()
         if obj.havoc:
-            self.d.open("havoc_exception_class",store);return set()
-        tags={identifier}
-        for base in obj.metadata.get("bases",()):tags|=self.exception_class_tags(base,store,seen)
+            self.d.open("havoc_exception_class", store)
+            return set()
+        tags = {identifier}
+        for base in obj.metadata.lookup("bases", ()):
+            tags |= self.exception_class_tags(base, store, seen)
         return tags
 
-    def raised_tags(self,flow):
-        if flow.exception=="AnyException":return None
-        result=set()
+    def raised_tags(self, flow):
+        if flow.exception == "AnyException":
+            return None
+        result = set()
         for ref in flow.value.refs:
-            obj=flow.store.heap.get(ref)
+            obj = flow.store.heap.get(ref)
             if obj:
-                if obj.havoc or any(flow.store.heap.get(cls) and flow.store.heap[cls].havoc for cls in obj.class_ids):return None
-                for cls in obj.class_ids:result|=self.exception_class_tags(cls,flow.store)
-                for name in obj.metadata.get("exception_types",()):
-                    if name.startswith(("builtin:","class:")):result.add(name)
-                    else:result.update("builtin:"+canonical_builtin_exception_name(x) for x in builtin_exception_ancestors(name))
-        if not result:result.update("builtin:"+canonical_builtin_exception_name(x) for x in builtin_exception_ancestors(flow.exception))
+                if obj.havoc or any(
+                    flow.store.heap.get(cls) and flow.store.heap[cls].havoc for cls in obj.class_ids
+                ):
+                    return None
+                for cls in obj.class_ids:
+                    result |= self.exception_class_tags(cls, flow.store)
+                for name in obj.metadata.lookup("exception_types", ()):
+                    if name.startswith(("builtin:", "class:")):
+                        result.add(name)
+                    else:
+                        result.update(
+                            "builtin:" + canonical_builtin_exception_name(x)
+                            for x in builtin_exception_ancestors(name)
+                        )
+        if not result:
+            result.update(
+                "builtin:" + canonical_builtin_exception_name(x)
+                for x in builtin_exception_ancestors(flow.exception)
+            )
         return result
 
-    def handler_tags(self,value,store):
-        tags=set();uncertain=value.top or bool(value.top_sorts);invalid=bool(value.bools or value.none or value.floats or not value.ints.is_bottom or not value.strings.is_bottom())
+    def handler_tags(self, value, store):
+        tags = set()
+        uncertain = value.top or bool(value.top_sorts)
+        invalid = bool(
+            value.bools
+            or value.none
+            or value.floats
+            or not value.ints.is_bottom
+            or not value.strings.is_bottom()
+        )
         for ref in value.refs:
-            if ref.startswith("builtin:") and ref.split(":",1)[1] in EXCEPTION_NAMES:
-                tags.add("builtin:"+canonical_builtin_exception_name(ref.split(":",1)[1]));continue
-            obj=store.heap.get(ref)
+            if ref.startswith("builtin:") and ref.split(":", 1)[1] in EXCEPTION_NAMES:
+                tags.add("builtin:" + canonical_builtin_exception_name(ref.split(":", 1)[1]))
+                continue
+            obj = store.heap.get(ref)
             if obj and obj.havoc:
-                uncertain=True;continue
-            if obj and obj.kind=="class" and "builtin:BaseException" in self.exception_class_tags(ref,store):tags.add(ref)
-            elif obj and obj.kind=="tuple":
-                for item in obj.fields.values():
-                    nested,unknown,bad=self.handler_tags(item,store);tags|=nested;uncertain|=unknown;invalid|=bad
-                if not obj.default.is_bottom():uncertain=True
-            else:invalid=True
-        return tags,uncertain,invalid
-
-    def raise_value(self,value,store,frame,node,constructed=False):
-        result=[]
-        if value.top or value.top_sorts:
-            for flow in self.unknown(store,node,"unknown_raised_object"):
-                if flow.kind=="normal":result.append(Flow(flow.store,"raise",Value.unknown(),"AnyException"))
-                else:result.append(flow)
-        for ref in value.refs:
-            obj=store.heap.get(ref)
-            if obj and (obj.havoc or any(store.heap.get(cls) and store.heap[cls].havoc for cls in obj.class_ids)):
-                for opaque in self.unknown(store,node,"havoc_raised_class_relation"):
-                    result.append(replace(opaque,kind="raise",value=Value.unknown(),exception="AnyException"))
+                uncertain = True
                 continue
-            is_class=(ref.startswith("builtin:") and ref.split(":",1)[1] in EXCEPTION_NAMES) or obj and obj.kind=="class"
+            if (
+                obj
+                and obj.kind == "class"
+                and "builtin:BaseException" in self.exception_class_tags(ref, store)
+            ):
+                tags.add(ref)
+            elif obj and obj.kind == "tuple":
+                for item in obj.fields.values():
+                    nested, unknown, bad = self.handler_tags(item, store)
+                    tags |= nested
+                    uncertain |= unknown
+                    invalid |= bad
+                if not obj.default.is_bottom():
+                    uncertain = True
+            else:
+                invalid = True
+        return tags, uncertain, invalid
+
+    def raise_value(self, value, store, frame, node, constructed=False):
+        result = []
+        if value.top or value.top_sorts:
+            for flow in self.unknown(store, node, "unknown_raised_object"):
+                if flow.kind == "normal":
+                    result.append(Flow(flow.store, "raise", Value.unknown(), "AnyException"))
+                else:
+                    result.append(flow)
+        for ref in value.refs:
+            obj = store.heap.get(ref)
+            if obj and (
+                obj.havoc
+                or any(store.heap.get(cls) and store.heap[cls].havoc for cls in obj.class_ids)
+            ):
+                for opaque in self.unknown(store, node, "havoc_raised_class_relation"):
+                    result.append(
+                        replace(
+                            opaque, kind="raise", value=Value.unknown(), exception="AnyException"
+                        )
+                    )
+                continue
+            is_class = (
+                (ref.startswith("builtin:") and ref.split(":", 1)[1] in EXCEPTION_NAMES)
+                or obj
+                and obj.kind == "class"
+            )
             if is_class:
-                if constructed or "builtin:BaseException" not in self.exception_class_tags(ref,store):result.append(self.error(store.copy(),"TypeError"));continue
-                for made in self.invoke(Value.ref(ref),[],(),store.copy(),frame,node):
-                    if made.kind=="normal":result.extend(self.raise_value(made.value,made.store,frame,node,True))
-                    else:result.append(made)
+                if constructed or "builtin:BaseException" not in self.exception_class_tags(
+                    ref, store
+                ):
+                    result.append(self.error(store.copy(), "TypeError"))
+                    continue
+                for made in self.invoke(Value.ref(ref), [], (), store.copy(), frame, node):
+                    if made.kind == "normal":
+                        result.extend(self.raise_value(made.value, made.store, frame, node, True))
+                    else:
+                        result.append(made)
                 continue
             if obj:
-                tags=set().union(*(self.exception_class_tags(cls,store) for cls in obj.class_ids)) if obj.class_ids else set()
-                names=obj.metadata.get("exception_types",())
-                if obj.kind=="exception" or "builtin:BaseException" in tags:
-                    name=obj.metadata.get("exception_name")
-                    if name is None:name=next((store.heap[cls].metadata.get("name","BaseException") for cls in obj.class_ids if cls in store.heap),"BaseException")
-                    self.d.exceptions.add(name);result.append(Flow(store.copy(),"raise",Value.ref(ref),name));continue
-            result.append(self.error(store.copy(),"TypeError"))
-        scalars=replace(value,refs=frozenset(),top=False,top_sorts=frozenset())
-        if not scalars.is_bottom():result.append(self.error(store.copy(),"TypeError"))
+                tags = (
+                    set().union(*(self.exception_class_tags(cls, store) for cls in obj.class_ids))
+                    if obj.class_ids
+                    else set()
+                )
+                names = obj.metadata.lookup("exception_types", ())
+                if obj.kind == "exception" or "builtin:BaseException" in tags:
+                    name = obj.metadata.lookup("exception_name")
+                    if name is None:
+                        name = next(
+                            (
+                                store.heap[cls].metadata.lookup("name", "BaseException")
+                                for cls in obj.class_ids
+                                if cls in store.heap
+                            ),
+                            "BaseException",
+                        )
+                    self.d.exceptions.add(name)
+                    result.append(Flow(store.copy(), "raise", Value.ref(ref), name))
+                    continue
+            result.append(self.error(store.copy(), "TypeError"))
+        scalars = replace(value, refs=frozenset(), top=False, top_sorts=frozenset())
+        if not scalars.is_bottom():
+            result.append(self.error(store.copy(), "TypeError"))
         return result
 
-    def exception_context(self,store):
-        return tuple(store.cells.get(name,Value.bottom()) for name in ("$active_exception","$active_exception_type","$active_exception_owner"))
+    def exception_context(self, store: Store) -> ExceptionContext:
+        return ExceptionContext(
+            store.cells.get(CellId("$active_exception"), Value.bottom()),
+            store.cells.get(CellId("$active_exception_type"), Value.bottom()),
+            store.cells.get(CellId("$active_exception_owner"), Value.bottom()),
+        )
 
-    def install_exception_context(self,store,context):
-        names=("$active_exception","$active_exception_type","$active_exception_owner")
-        for index,name in enumerate(names):
-            value=context[index] if index<len(context) else Value.bottom()
-            if value.is_bottom():store.cells.pop(name,None)
-            else:store.cells[name]=value
+    def install_exception_context(self, store: Store, context: ExceptionContext) -> None:
+        bindings = (
+            (CellId("$active_exception"), context.value),
+            (CellId("$active_exception_type"), context.type_value),
+            (CellId("$active_exception_owner"), context.owner),
+        )
+        for name, value in bindings:
+            if value.is_bottom():
+                store.cells.pop(name, None)
+            else:
+                store.cells[name] = value
 
-    def _active_exception(self,store,raised,owner=None):
-        previous=(*self.exception_context(store),owner)
-        store.cells["$active_exception"]=raised.value
-        store.cells["$active_exception_type"]=Value.constant(raised.exception or "AnyException")
-        store.cells["$active_exception_owner"]=Value.constant(owner) if owner is not None else Value.bottom()
+    def _active_exception(
+        self, store: Store, raised: Flow, owner: FrameId | None = None
+    ) -> ExceptionRestoreRecord:
+        previous = ExceptionRestoreRecord(self.exception_context(store), owner)
+        store.cells[CellId("$active_exception")] = raised.value
+        store.cells[CellId("$active_exception_type")] = Value.constant(
+            raised.exception or "AnyException"
+        )
+        store.cells[CellId("$active_exception_owner")] = (
+            Value.constant(owner) if owner is not None else Value.bottom()
+        )
         return previous
 
-    def _restore_exception(self,store,previous):
-        context=previous[:3]
-        stack=self.continuations.exception_contexts
-        if len(previous)>3 and stack:
-            caller,frame_identity=stack[-1]
-            owner=previous[2].exact_constants()
+    def _restore_exception(self, store: Store, previous: ExceptionRestoreRecord) -> None:
+        context = previous.previous
+        stack = self.continuations.exception_contexts
+        if previous.restoring_frame is not None and stack:
+            resume_context = stack[-1]
+            owner = previous.previous.owner.exact_constants()
             # A previous context outside this generator is a dynamic caller
             # link, not a snapshot of the caller that happened to prime it.
-            if previous[3]==frame_identity and owner!=[frame_identity]:context=caller
-        self.install_exception_context(store,context)
+            if previous.restoring_frame == resume_context.generator_frame and owner != [
+                resume_context.generator_frame
+            ]:
+                context = resume_context.caller_exception
+        self.install_exception_context(store, context)
 
-    def try_statement(self,node,store,frame):return self.continuations.try_statement(node,store,frame)
+    def try_statement(self, node, store, frame):
+        return self.continuations.try_statement(node, store, frame)
 
-    def while_loop(self,node,store,frame):
-        initial=store.copy();invariant=initial.copy();delay=int(self.d.abstract.get("widen_delay",2));limit=int(self.d.abstract.get("max_stmt_visits",100))
+    def while_loop(self, node, store, frame):
+        initial = store.copy()
+        invariant = initial.copy()
+        delay = int(self.d.abstract.get("widen_delay", 2))
+        limit = int(self.d.abstract.get("max_stmt_visits", 100))
+
         def step(head):
-            back=[];exits=[];escapes=[]
-            for tested in self.expr(node.test,head.copy(),frame):
-                if tested.kind!="normal":escapes.append(tested);continue
-                for truth_flow in self.truth_flows(tested.value,tested.store,frame,node):
-                    if truth_flow.kind!="normal":escapes.append(truth_flow);continue
+            back = []
+            exits = []
+            escapes = []
+            for tested in self.expr(node.test, head.copy(), frame):
+                if tested.kind != "normal":
+                    escapes.append(tested)
+                    continue
+                for truth_flow in self.truth_flows(tested.value, tested.store, frame, node):
+                    if truth_flow.kind != "normal":
+                        escapes.append(truth_flow)
+                        continue
                     if False in truth_flow.value.bools:
-                        s=self.refine_test(node.test,truth_flow.store.copy(),frame,False)
-                        if s is not None:exits.extend(self.block(node.orelse,[self.normal(s)],frame))
-                    if True in truth_flow.value.bools:
-                        s=self.refine_test(node.test,truth_flow.store.copy(),frame,True)
+                        s = self.refine_test(node.test, truth_flow.store.copy(), frame, False)
                         if s is not None:
-                            for out in self.block(node.body,[self.normal(s)],frame):
-                                if out.kind in ("normal","continue"):back.append(out.store)
-                                elif out.kind=="break":exits.append(self.normal(out.store))
-                                elif out.kind=="suspend":escapes.append(self.continuations.wrap(out,"while_resume",node))
-                                else:escapes.append(out)
-            return back,exits,escapes
-        stable=False
-        for iteration in range(limit):
-            self.d.stats["loop_iterations"]+=1
-            back,exits,escapes=step(invariant)
-            candidate=initial.copy()
-            for s in back:candidate=candidate.join(s,self.ops)
-            if candidate.leq(invariant,self.ops):stable=True;break
-            invariant=invariant.join(candidate,self.ops,widen=iteration>=delay)
-        if not stable:
-            self.d.open("loop_budget",invariant,node)
-            return self.d.compact(exits+escapes+[self.normal(self.havoc_loop_names(node,invariant,frame))])
-        if self.d.abstract.get("enable_narrowing",True):
-            for _ in range(int(self.d.abstract.get("narrowing_iterations",2))):
-                back,_,_=step(invariant);candidate=self.loop_narrowing_candidate(initial,back)
-                if not candidate.leq(invariant,self.ops):break
-                checkback,_,_=step(candidate);check=initial.copy()
-                for s in checkback:check=check.join(s,self.ops)
-                if check.leq(candidate,self.ops):
-                    invariant=candidate;self.d.stats["narrowing_checks_passed"]+=1
-                else:self.d.stats["narrowing_checks_failed"]+=1;break
-        _,exits,escapes=step(invariant)
-        return self.d.compact(exits+escapes)
+                            exits.extend(self.block(node.orelse, [self.normal(s)], frame))
+                    if True in truth_flow.value.bools:
+                        s = self.refine_test(node.test, truth_flow.store.copy(), frame, True)
+                        if s is not None:
+                            for out in self.block(node.body, [self.normal(s)], frame):
+                                if out.kind in ("normal", "continue"):
+                                    back.append(out.store)
+                                elif out.kind == "break":
+                                    exits.append(self.normal(out.store))
+                                elif out.kind == "suspend":
+                                    escapes.append(
+                                        self.continuations.wrap(
+                                            out, WhileResume(node, out.continuation)
+                                        )
+                                    )
+                                else:
+                                    escapes.append(out)
+            return back, exits, escapes
 
-    def loop_narrowing_candidate(self,initial,back_states):
-        candidate=initial.copy()
-        for state in back_states:candidate=candidate.join(state,self.ops)
+        stable = False
+        for iteration in range(limit):
+            self.d.stats["loop_iterations"] += 1
+            back, exits, escapes = step(invariant)
+            candidate = initial.copy()
+            for s in back:
+                candidate = candidate.join(s, self.ops)
+            if candidate.leq(invariant, self.ops):
+                stable = True
+                break
+            invariant = invariant.join(candidate, self.ops, widen=iteration >= delay)
+        if not stable:
+            self.d.open("loop_budget", invariant, node)
+            return self.d.compact(
+                exits + escapes + [self.normal(self.havoc_loop_names(node, invariant, frame))]
+            )
+        if self.d.abstract.get("enable_narrowing", True):
+            for _ in range(int(self.d.abstract.get("narrowing_iterations", 2))):
+                back, _, _ = step(invariant)
+                candidate = self.loop_narrowing_candidate(initial, back)
+                if not candidate.leq(invariant, self.ops):
+                    break
+                checkback, _, _ = step(candidate)
+                check = initial.copy()
+                for s in checkback:
+                    check = check.join(s, self.ops)
+                if check.leq(candidate, self.ops):
+                    invariant = candidate
+                    self.d.stats["narrowing_checks_passed"] += 1
+                else:
+                    self.d.stats["narrowing_checks_failed"] += 1
+                    break
+        _, exits, escapes = step(invariant)
+        return self.d.compact(exits + escapes)
+
+    def loop_narrowing_candidate(self, initial, back_states):
+        candidate = initial.copy()
+        for state in back_states:
+            candidate = candidate.join(state, self.ops)
         return candidate
 
-    def havoc_loop_names(self,node,store,frame):
-        result=store.copy()
+    def havoc_loop_names(self, node, store, frame):
+        result = store.copy()
         for item in ast.walk(node):
-            if isinstance(item,ast.Name) and isinstance(item.ctx,ast.Store):result.write_cell(frame.cell(item.id),Value.unknown())
+            if isinstance(item, ast.Name) and isinstance(item.ctx, ast.Store):
+                result.write_cell(frame.cell(item.id), Value.unknown())
         return result
 
-    def iterable_values(self,value,store):
-        sequences=[];unknown=value.top or bool(value.top_sorts)
+    def iterable_values(self, value, store):
+        sequences = []
+        unknown = value.top or bool(value.top_sorts)
         for ref in value.refs:
-            obj=store.heap.get(ref)
-            if obj and obj.havoc:unknown=True;continue
-            if obj and obj.kind in ("list","tuple","set","range") and "length" in obj.metadata:
-                sequences.append([obj.fields.get(i,obj.default) for i in range(obj.metadata["length"])])
-            elif obj and obj.kind=="dict" and obj.default.is_bottom() and not obj.havoc:
-                if obj.metadata.get('summarized_keys'):unknown=True
-                else:sequences.append([Value.constant(k) for k in obj.fields])
-            else:unknown=True
-        strs=value.strings.get_consts()
+            obj = store.heap.get(ref)
+            if obj and obj.havoc:
+                unknown = True
+                continue
+            if obj and obj.kind in ("list", "tuple", "set", "range") and "length" in obj.metadata:
+                sequences.append(
+                    [obj.fields.get(i, obj.default) for i in range(obj.metadata["length"])]
+                )
+            elif obj and obj.kind == "dict" and obj.default.is_bottom() and not obj.havoc:
+                if obj.metadata.lookup("summarized_keys"):
+                    unknown = True
+                else:
+                    sequences.append([Value.constant(k) for k in obj.fields])
+            else:
+                unknown = True
+        strs = value.strings.get_consts()
         if strs is not None:
-            for s in strs:sequences.append([Value.constant(c) for c in s])
-        elif not value.strings.is_bottom():unknown=True
-        return sequences,unknown
+            for s in strs:
+                sequences.append([Value.constant(c) for c in s])
+        elif not value.strings.is_bottom():
+            unknown = True
+        return sequences, unknown
 
-    def for_loop(self,node,store,frame):return self.continuations.for_loop(node,store,frame)
+    def for_loop(self, node, store, frame):
+        return self.continuations.for_loop(node, store, frame)
 
-    def call(self,node,store,frame):
-        result=[]
-        for called in self.expr(node.func,store,frame):
-            if called.kind!="normal":result.append(called);continue
-            items=[("arg",arg.value if isinstance(arg,ast.Starred) else arg,isinstance(arg,ast.Starred)) for arg in node.args]
-            items += [("keyword",kw.value,kw.arg) for kw in node.keywords]
-            items.sort(key=lambda item:(getattr(item[1],"lineno",0),getattr(item[1],"col_offset",0)))
-            paths=[(called.store,[],[],False)]
-            for kind,expr,flag in items:
-                next_paths=[]
-                for s,args,keywords,uncertain in paths:
-                    for flow in self.expr(expr,s,frame):
-                        if flow.kind!="normal":result.append(flow);continue
-                        a=list(args);k=list(keywords);unknown=uncertain
-                        if kind=="arg":
+    def call(self, node, store, frame):
+        result = []
+        for called in self.expr(node.func, store, frame):
+            if called.kind != "normal":
+                result.append(called)
+                continue
+            items = [
+                (
+                    "arg",
+                    arg.value if isinstance(arg, ast.Starred) else arg,
+                    isinstance(arg, ast.Starred),
+                )
+                for arg in node.args
+            ]
+            items += [("keyword", kw.value, kw.arg) for kw in node.keywords]
+            items.sort(
+                key=lambda item: (getattr(item[1], "lineno", 0), getattr(item[1], "col_offset", 0))
+            )
+            paths = [(called.store, [], [], False)]
+            for kind, expr, flag in items:
+                next_paths = []
+                for s, args, keywords, uncertain in paths:
+                    for flow in self.expr(expr, s, frame):
+                        if flow.kind != "normal":
+                            result.append(flow)
+                            continue
+                        a = list(args)
+                        k = list(keywords)
+                        unknown = uncertain
+                        if kind == "arg":
                             if flag:
-                                sequences,broad=self.iterable_values(flow.value,flow.store)
-                                for sequence in sequences:next_paths.append((flow.store.copy(),a+sequence,list(k),unknown))
-                                if broad:self.d.open("unknown_star_arguments",flow.store,node);next_paths.append((flow.store,a,k,True))
+                                sequences, broad = self.iterable_values(flow.value, flow.store)
+                                for sequence in sequences:
+                                    next_paths.append(
+                                        (flow.store.copy(), a + sequence, list(k), unknown)
+                                    )
+                                if broad:
+                                    self.d.open("unknown_star_arguments", flow.store, node)
+                                    next_paths.append((flow.store, a, k, True))
                                 continue
                             a.append(flow.value)
                         elif flag is None:
-                            expanded=False
+                            expanded = False
                             for ref in flow.value.refs:
-                                obj=flow.store.heap.get(ref)
-                                if obj and obj.kind=="dict":
-                                    if any(type(key) is not str for key in obj.fields):result.append(self.error(flow.store.copy(),"TypeError"))
-                                    else:k.extend(obj.fields.items());expanded=True
-                                    if not obj.default.is_bottom() or obj.havoc:unknown=True
-                            if not expanded:unknown=True
-                            if unknown:self.d.open("unknown_keyword_arguments",flow.store,node)
-                        else:k.append((flag,flow.value))
-                        next_paths.append((flow.store,a,k,unknown))
-                paths=next_paths
-            for s,args,keywords,uncertain in paths:
-                if hasattr(self.ops,"normalize"):called=replace(called,value=self.ops.normalize(called.value))
+                                obj = flow.store.heap.get(ref)
+                                if obj and obj.kind == "dict":
+                                    if any(type(key) is not str for key in obj.fields):
+                                        result.append(self.error(flow.store.copy(), "TypeError"))
+                                    else:
+                                        k.extend(obj.fields.items())
+                                        expanded = True
+                                    if not obj.default.is_bottom() or obj.havoc:
+                                        unknown = True
+                            if not expanded:
+                                unknown = True
+                            if unknown:
+                                self.d.open("unknown_keyword_arguments", flow.store, node)
+                        else:
+                            k.append((flag, flow.value))
+                        next_paths.append((flow.store, a, k, unknown))
+                paths = next_paths
+            for s, args, keywords, uncertain in paths:
+                if hasattr(self.ops, "normalize"):
+                    called = replace(called, value=self.ops.normalize(called.value))
                 if uncertain:
-                    for opaque in self.unknown(s,node,"unknown_argument_shape"):
-                        if opaque.kind!="normal":result.append(opaque);continue
-                        result.append(self.error(opaque.store.copy(),"TypeError"))
+                    for opaque in self.unknown(s, node, "unknown_argument_shape"):
+                        if opaque.kind != "normal":
+                            result.append(opaque)
+                            continue
+                        result.append(self.error(opaque.store.copy(), "TypeError"))
                         for identifier in called.value.refs:
-                            info=self.d.functions.get(identifier)
+                            info = self.d.functions.get(identifier)
                             if info:
-                                expected=[x.arg for x in (*info.node.args.posonlyargs,*info.node.args.args)]
-                                filled=args+[Value.unknown() for _ in expected[len(args):]]
-                                kw=list(keywords)+[(x.arg,Value.unknown()) for x in info.node.args.kwonlyargs if x.arg not in dict(keywords)]
-                                result.extend(self.d.request_function(identifier,filled,kw,opaque.store.copy(),frame,node))
-                            else:result.extend(self.unknown(opaque.store,node,"unknown_argument_callee"))
-                else:result.extend(self.invoke(called.value,args,keywords,s,frame,node))
+                                expected = [
+                                    x.arg
+                                    for x in (*info.node.args.posonlyargs, *info.node.args.args)
+                                ]
+                                filled = args + [Value.unknown() for _ in expected[len(args) :]]
+                                kw = list(keywords) + [
+                                    (x.arg, Value.unknown())
+                                    for x in info.node.args.kwonlyargs
+                                    if x.arg not in dict(keywords)
+                                ]
+                                result.extend(
+                                    self.d.request_function(
+                                        identifier, filled, kw, opaque.store.copy(), frame, node
+                                    )
+                                )
+                            else:
+                                result.extend(
+                                    self.unknown(opaque.store, node, "unknown_argument_callee")
+                                )
+                else:
+                    result.extend(self.invoke(called.value, args, keywords, s, frame, node))
         return self.d.compact(result)
 
-    def invoke(self,callee,args,keywords,store,frame,node):
+    def invoke(self, callee, args, keywords, store, frame, node):
         self.sync(store)
-        if hasattr(self.ops,"normalize"):
-            callee=self.ops.normalize(callee);args=[self.ops.normalize(value) for value in args];keywords=tuple((name,self.ops.normalize(value)) for name,value in keywords)
-        result=[]
-        if callee.top or callee.top_sorts:result.extend(self.unknown(store,node,"unknown_call"))
+        if hasattr(self.ops, "normalize"):
+            callee = self.ops.normalize(callee)
+            args = [self.ops.normalize(value) for value in args]
+            keywords = tuple((name, self.ops.normalize(value)) for name, value in keywords)
+        result = []
+        if callee.top or callee.top_sorts:
+            result.extend(self.unknown(store, node, "unknown_call"))
         for identifier in sorted(callee.refs):
             if identifier in self.d.functions:
-                returned=self.d.request_function(identifier,args,keywords,store.copy(),frame,node)
-                tokens=frozenset(token for token in callee.relations if token.handler in {identifier,self.d.functions[identifier].qualname})
-                result.extend(replace(flow,value=replace(flow.value,relations=flow.value.relations|tokens)) for flow in returned)
+                returned = self.d.request_function(
+                    identifier, args, keywords, store.copy(), frame, node
+                )
+                tokens = frozenset(
+                    token
+                    for token in callee.relations
+                    if token.handler in {identifier, self.d.functions[identifier].qualname}
+                )
+                result.extend(
+                    replace(
+                        flow, value=replace(flow.value, relations=flow.value.relations | tokens)
+                    )
+                    for flow in returned
+                )
                 continue
             if identifier.startswith("builtin:"):
-                name=identifier.split(':',1)[1];self.d.calls.add((frame.qualname,"builtins."+name,self.d.point(node)))
-                result.extend(self.builtin(name,args,keywords,store.copy(),frame,node));continue
-            obj=store.heap.get(identifier)
-            if obj is None:result.extend(self.unknown(store,node,"unresolved_callable:"+identifier));continue
+                name = identifier.split(":", 1)[1]
+                self.d.calls.add((frame.qualname, "builtins." + name, self.d.point(node)))
+                result.extend(self.builtin(name, args, keywords, store.copy(), frame, node))
+                continue
+            obj = store.heap.get(identifier)
+            if obj is None:
+                result.extend(self.unknown(store, node, "unresolved_callable:" + identifier))
+                continue
             if obj.havoc:
-                result.extend(self.unknown(store,node,"havoc_callable_state:"+obj.kind));continue
-            if obj.kind=="bound_method":
-                target=obj.metadata["callable"];receiver=obj.metadata["receiver"]
-                result.extend(self.invoke(target,[receiver,*args],keywords,store.copy(),frame,node))
-            elif obj.kind=="builtin_method":result.extend(self.builtin_method(obj.metadata["name"],obj.metadata["receiver"],args,keywords,store.copy(),frame,node))
-            elif obj.kind=="class":result.extend(self.construct(identifier,args,keywords,store.copy(),frame,node))
-            elif obj.kind=="staticmethod":result.extend(self.invoke(obj.fields["callable"],args,keywords,store.copy(),frame,node))
-            elif obj.kind=="instance":
-                for call in self.continuations.special(Value.ref(identifier),"__call__",store.copy(),frame,node,"TypeError"):
-                    if call.kind=="normal":result.extend(self.invoke(call.value,args,keywords,call.store,frame,node))
-                    else:result.append(call)
-            else:result.append(self.error(store.copy(),"TypeError"))
-        if not callee.top and not callee.top_sorts and not callee.refs and not callee.is_bottom():result.append(self.error(store.copy(),"TypeError"))
+                result.extend(self.unknown(store, node, "havoc_callable_state:" + obj.kind))
+                continue
+            if obj.kind == "bound_method":
+                target = obj.metadata["callable"]
+                receiver = obj.metadata["receiver"]
+                result.extend(
+                    self.invoke(target, [receiver, *args], keywords, store.copy(), frame, node)
+                )
+            elif obj.kind == "builtin_method":
+                result.extend(
+                    self.builtin_method(
+                        obj.metadata["name"],
+                        obj.metadata["receiver"],
+                        args,
+                        keywords,
+                        store.copy(),
+                        frame,
+                        node,
+                    )
+                )
+            elif obj.kind == "class":
+                result.extend(self.construct(identifier, args, keywords, store.copy(), frame, node))
+            elif obj.kind == "staticmethod":
+                result.extend(
+                    self.invoke(obj.fields["callable"], args, keywords, store.copy(), frame, node)
+                )
+            elif obj.kind == "instance":
+                for call in self.continuations.special(
+                    Value.ref(identifier), "__call__", store.copy(), frame, node, "TypeError"
+                ):
+                    if call.kind == "normal":
+                        result.extend(
+                            self.invoke(call.value, args, keywords, call.store, frame, node)
+                        )
+                    else:
+                        result.append(call)
+            else:
+                result.append(self.error(store.copy(), "TypeError"))
+        if not callee.top and not callee.top_sorts and not callee.refs and not callee.is_bottom():
+            result.append(self.error(store.copy(), "TypeError"))
         return result
 
-    def lookup_class(self,clsid,name,store,seen=None):
-        return self.attributes.lookup_class(clsid,name,store,seen)
+    def lookup_class(self, clsid, name, store, seen=None):
+        return self.attributes.lookup_class(clsid, name, store, seen)
 
-    def bound(self,value,receiver,store,frame,node):
-        return self.attributes.bound(value,receiver,store,frame,node)
+    def bound(self, value, receiver, store, frame, node):
+        return self.attributes.bound(value, receiver, store, frame, node)
 
-    def getattr(self,base,name,store,frame,node):
-        return self.attributes.getattr(base,name,store,frame,node)
+    def getattr(self, base, name, store, frame, node):
+        return self.attributes.getattr(base, name, store, frame, node)
 
-    def setattr(self,base,name,value,store,frame,node):
-        return self.attributes.setattr(base,name,value,store,frame,node)
+    def setattr(self, base, name, value, store, frame, node):
+        return self.attributes.setattr(base, name, value, store, frame, node)
 
-    def delattr(self,base,name,store,frame,node):return self.attributes.delattr(base,name,store,frame,node)
+    def delattr(self, base, name, store, frame, node):
+        return self.attributes.delattr(base, name, store, frame, node)
 
-    def getitem(self,base,key,store,frame,node):
-        return self.dictionaries.getitem(base,key,store,frame,node)
+    def getitem(self, base, key, store, frame, node):
+        return self.dictionaries.getitem(base, key, store, frame, node)
 
-    def setitem(self,base,key,value,store,frame,node):
-        return self.dictionaries.setitem(base,key,value,store,frame,node)
+    def setitem(self, base, key, value, store, frame, node):
+        return self.dictionaries.setitem(base, key, value, store, frame, node)
 
-    def define_class(self,node,store,frame):
-        return self.attributes.define_class(node,store,frame)
+    def define_class(self, node, store, frame):
+        return self.attributes.define_class(node, store, frame)
 
-    def c3(self,bases,store):
-        return self.attributes.c3(bases,store)
+    def c3(self, bases, store):
+        return self.attributes.c3(bases, store)
 
-    def construct(self,clsid,args,keywords,store,frame,node):
-        return self.attributes.construct(clsid,args,keywords,store,frame,node)
+    def construct(self, clsid, args, keywords, store, frame, node):
+        return self.attributes.construct(clsid, args, keywords, store, frame, node)
 
-    def import_statement(self,node,store,frame):
-        if isinstance(node,ast.ImportFrom) and node.module=="__future__":
-            result=store.copy()
-            for alias in node.names:self.write_name(alias.asname or alias.name,Value.ref("builtin:__future__."+alias.name),result,frame,node)
+    def import_statement(self, node, store, frame):
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            result = store.copy()
+            for alias in node.names:
+                self.write_name(
+                    alias.asname or alias.name,
+                    Value.ref("builtin:__future__." + alias.name),
+                    result,
+                    frame,
+                    node,
+                )
             return [self.normal(result)]
-        result=[self.normal(store.copy())]
-        if isinstance(node,ast.Import):
+        result = [self.normal(store.copy())]
+        if isinstance(node, ast.Import):
             for alias in node.names:
-                next_result=[]
+                next_result = []
                 for flow in result:
-                    if flow.kind!="normal":next_result.append(flow);continue
-                    for imported in self.d.request_module(alias.name,flow.store,self.d.current,node):
-                        if imported.kind=="normal":
-                            target=alias.asname or alias.name.split('.')[0]
-                            if alias.asname is None and '.' in alias.name:
-                                parent=alias.name.split('.')[0];value=self.d.register_module(parent,imported.store)
-                            else:value=imported.value
-                            self.write_name(target,value,imported.store,frame,node);next_result.append(self.normal(imported.store))
-                        else:next_result.append(imported)
-                result=next_result
+                    if flow.kind != "normal":
+                        next_result.append(flow)
+                        continue
+                    for imported in self.d.request_module(
+                        alias.name, flow.store, self.d.current, node
+                    ):
+                        if imported.kind == "normal":
+                            target = alias.asname or alias.name.split(".")[0]
+                            if alias.asname is None and "." in alias.name:
+                                parent = alias.name.split(".")[0]
+                                value = self.d.register_module(parent, imported.store)
+                            else:
+                                value = imported.value
+                            self.write_name(target, value, imported.store, frame, node)
+                            next_result.append(self.normal(imported.store))
+                        else:
+                            next_result.append(imported)
+                result = next_result
             return result
-        package=frame.module if self.d.modules[frame.module].is_package else frame.module.rpartition('.')[0]
+        package = (
+            frame.module
+            if self.d.modules[frame.module].is_package
+            else frame.module.rpartition(".")[0]
+        )
         if node.level:
-            pieces=package.split('.') if package else []
-            if node.level>len(pieces)+1:return [self.error(store.copy(),"ImportError")]
-            prefix='.'.join(pieces[:len(pieces)-node.level+1]);module='.'.join(x for x in (prefix,node.module or '') if x)
-        else:module=node.module or ''
-        imported=self.d.request_module(module,store,self.d.current,node);result=[]
+            pieces = package.split(".") if package else []
+            if node.level > len(pieces) + 1:
+                return [self.error(store.copy(), "ImportError")]
+            prefix = ".".join(pieces[: len(pieces) - node.level + 1])
+            module = ".".join(x for x in (prefix, node.module or "") if x)
+        else:
+            module = node.module or ""
+        imported = self.d.request_module(module, store, self.d.current, node)
+        result = []
         for flow in imported:
-            if flow.kind!="normal":result.append(flow);continue
-            paths=[flow]
+            if flow.kind != "normal":
+                result.append(flow)
+                continue
+            paths = [flow]
             for alias in node.names:
-                next_paths=[]
+                next_paths = []
                 for p in paths:
-                    if p.kind!="normal":next_paths.append(p);continue
-                    if alias.name=='*':
-                        prefix=f"global:{module}:"
-                        for cell,value in list(p.store.cells.items()):
-                            if cell.startswith(prefix) and not cell[len(prefix):].startswith('_'):self.write_name(cell[len(prefix):],value,p.store,frame,node)
-                        next_paths.append(p);continue
-                    value=p.store.cells.get(f"global:{module}:{alias.name}",Value.bottom())
-                    submodule=module+'.'+alias.name
+                    if p.kind != "normal":
+                        next_paths.append(p)
+                        continue
+                    if alias.name == "*":
+                        prefix = f"global:{module}:"
+                        for cell, value in list(p.store.cells.items()):
+                            if cell.startswith(prefix) and not cell[len(prefix) :].startswith("_"):
+                                self.write_name(cell[len(prefix) :], value, p.store, frame, node)
+                        next_paths.append(p)
+                        continue
+                    value = p.store.cells.get(f"global:{module}:{alias.name}", Value.bottom())
+                    submodule = module + "." + alias.name
                     if value.is_bottom() and submodule in self.d.modules:
-                        candidates=self.d.request_module(submodule,p.store,self.d.current,node)
+                        candidates = self.d.request_module(submodule, p.store, self.d.current, node)
                         for sub in candidates:
-                            if sub.kind=="normal":self.write_name(alias.asname or alias.name,sub.value,sub.store,frame,node);next_paths.append(self.normal(sub.store))
-                            else:next_paths.append(sub)
+                            if sub.kind == "normal":
+                                self.write_name(
+                                    alias.asname or alias.name, sub.value, sub.store, frame, node
+                                )
+                                next_paths.append(self.normal(sub.store))
+                            else:
+                                next_paths.append(sub)
                     elif value.is_bottom() and module not in self.d.modules:
-                        self.d.open("external_import:"+module+'.'+alias.name,p.store,node);self.write_name(alias.asname or alias.name,Value.unknown(),p.store,frame,node);next_paths.append(self.normal(p.store))
-                    elif value.is_bottom():next_paths.append(self.error(p.store.copy(),"ImportError"))
-                    else:self.write_name(alias.asname or alias.name,value,p.store,frame,node);next_paths.append(self.normal(p.store))
-                paths=next_paths
+                        self.d.open("external_import:" + module + "." + alias.name, p.store, node)
+                        self.write_name(
+                            alias.asname or alias.name, Value.unknown(), p.store, frame, node
+                        )
+                        next_paths.append(self.normal(p.store))
+                    elif value.is_bottom():
+                        next_paths.append(self.error(p.store.copy(), "ImportError"))
+                    else:
+                        self.write_name(alias.asname or alias.name, value, p.store, frame, node)
+                        next_paths.append(self.normal(p.store))
+                paths = next_paths
             result.extend(paths)
         return result
 
-    def length_builtin(self,args,keywords,store,frame,node):
-        if len(args)!=1 or keywords:return [self.error(store,"TypeError")]
-        value=args[0];result=[]
-        scalar=replace(value,refs=frozenset(),top=False,top_sorts=frozenset())
-        constants=scalar.exact_constants()
+    def length_builtin(self, args, keywords, store, frame, node):
+        if len(args) != 1 or keywords:
+            return [self.error(store, "TypeError")]
+        value = args[0]
+        result = []
+        scalar = replace(value, refs=frozenset(), top=False, top_sorts=frozenset())
+        constants = scalar.exact_constants()
         if constants is not None:
             for constant in constants:
-                try:result.append(Flow(store.copy(),value=Value.constant(len(constant))))
-                except TypeError:result.append(self.error(store.copy(),"TypeError"))
+                try:
+                    result.append(Flow(store.copy(), value=Value.constant(len(constant))))
+                except TypeError:
+                    result.append(self.error(store.copy(), "TypeError"))
         elif not scalar.is_bottom():
-            if not scalar.strings.is_bottom():result.append(Flow(store.copy(),value=Value(ints=self.ops.integer.top())))
-            if not scalar.ints.is_bottom or scalar.floats or scalar.bools or scalar.none:result.append(self.error(store.copy(),"TypeError"))
+            if not scalar.strings.is_bottom():
+                result.append(Flow(store.copy(), value=Value(ints=self.ops.integer.top())))
+            if not scalar.ints.is_bottom or scalar.floats or scalar.bools or scalar.none:
+                result.append(self.error(store.copy(), "TypeError"))
         if value.top or value.top_sorts:
-            result.extend(replace(out,value=Value(ints=self.ops.integer.top())) if out.kind=="normal" else out for out in self.unknown(store,node,"unknown_length_protocol"))
+            result.extend(
+                replace(out, value=Value(ints=self.ops.integer.top()))
+                if out.kind == "normal"
+                else out
+                for out in self.unknown(store, node, "unknown_length_protocol")
+            )
         for ref in value.refs:
-            obj=store.heap.get(ref)
+            obj = store.heap.get(ref)
             if obj is None or obj.havoc:
-                result.extend(replace(out,value=Value(ints=self.ops.integer.top())) if out.kind=="normal" else out for out in self.unknown(store,node,"unknown_length_receiver"));continue
-            if obj.kind=="dict_view":
-                result.extend(self.dictionary_views.length(obj,store.copy(),frame,node));continue
-            if obj.kind in {"list","tuple","dict","set","range"}:
-                if obj.kind=='dict' and obj.metadata.get('summarized_keys'):
-                    self.d.open('summarized_dictionary_key_cardinality',store,node)
-                    result.append(Flow(store.copy(),value=Value(ints=self.ops.integer.top())));continue
-                if isinstance(obj.metadata.get("length_value"),Value):result.append(Flow(store.copy(),value=obj.metadata["length_value"]));continue
-                if obj.kind=="dict":
-                    if obj.default.is_bottom() and not obj.maybe_missing:answer=Value.constant(len(obj.fields))
-                    else:answer=Value(ints=self.ops.integer.top())
-                elif type(obj.metadata.get("length")) is int:answer=Value.constant(obj.metadata["length"])
-                else:answer=Value(ints=self.ops.integer.top())
-                result.append(Flow(store.copy(),value=answer));continue
-            if obj.kind=="namespace":
-                self.d.open("namespace_length_abstraction",store,node);result.append(Flow(store.copy(),value=Value(ints=self.ops.integer.top())));continue
-            if obj.kind!="instance":result.append(self.error(store.copy(),"TypeError"));continue
-            for method in self.continuations.special(Value.ref(ref),"__len__",store.copy(),frame,node,"TypeError"):
-                if method.kind!="normal":result.append(method);continue
-                for returned in self.invoke(method.value,[],(),method.store,frame,node):
-                    if returned.kind!="normal":result.append(returned);continue
-                    answer=returned.value;integers=answer.ints
-                    if answer.bools:integers=self.ops.integer.join(integers,self.ops.join_all(Value.constant(int(x)) for x in answer.bools).ints)
-                    if answer.top or "int" in answer.top_sorts:integers=self.ops.integer.top()
+                result.extend(
+                    replace(out, value=Value(ints=self.ops.integer.top()))
+                    if out.kind == "normal"
+                    else out
+                    for out in self.unknown(store, node, "unknown_length_receiver")
+                )
+                continue
+            if obj.kind == "dict_view":
+                result.extend(self.dictionary_views.length(obj, store.copy(), frame, node))
+                continue
+            if obj.kind in {"list", "tuple", "dict", "set", "range"}:
+                if obj.kind == "dict" and obj.metadata.lookup("summarized_keys"):
+                    self.d.open("summarized_dictionary_key_cardinality", store, node)
+                    result.append(Flow(store.copy(), value=Value(ints=self.ops.integer.top())))
+                    continue
+                if isinstance(obj.metadata.lookup("length_value"), Value):
+                    result.append(Flow(store.copy(), value=obj.metadata["length_value"]))
+                    continue
+                if obj.kind == "dict":
+                    if obj.default.is_bottom() and not obj.maybe_missing:
+                        answer = Value.constant(len(obj.fields))
+                    else:
+                        answer = Value(ints=self.ops.integer.top())
+                elif type(obj.metadata.lookup("length")) is int:
+                    answer = Value.constant(obj.metadata["length"])
+                else:
+                    answer = Value(ints=self.ops.integer.top())
+                result.append(Flow(store.copy(), value=answer))
+                continue
+            if obj.kind == "namespace":
+                self.d.open("namespace_length_abstraction", store, node)
+                result.append(Flow(store.copy(), value=Value(ints=self.ops.integer.top())))
+                continue
+            if obj.kind != "instance":
+                result.append(self.error(store.copy(), "TypeError"))
+                continue
+            for method in self.continuations.special(
+                Value.ref(ref), "__len__", store.copy(), frame, node, "TypeError"
+            ):
+                if method.kind != "normal":
+                    result.append(method)
+                    continue
+                for returned in self.invoke(method.value, [], (), method.store, frame, node):
+                    if returned.kind != "normal":
+                        result.append(returned)
+                        continue
+                    answer = returned.value
+                    integers = answer.ints
+                    if answer.bools:
+                        integers = self.ops.integer.join(
+                            integers,
+                            self.ops.join_all(Value.constant(int(x)) for x in answer.bools).ints,
+                        )
+                    if answer.top or "int" in answer.top_sorts:
+                        integers = self.ops.integer.top()
                     if not integers.is_bottom:
-                        if integers.lo is None or integers.lo<0:result.append(self.error(returned.store.copy(),"ValueError"))
-                        allowed=integers.refine_ge(0)
-                        if not allowed.is_bottom:result.append(Flow(returned.store.copy(),value=Value(ints=allowed)))
-                    remainder=replace(answer,ints=self.ops.integer.bottom(),bools=frozenset(),top=False,top_sorts=answer.top_sorts-{"int"})
+                        if integers.lo is None or integers.lo < 0:
+                            result.append(self.error(returned.store.copy(), "ValueError"))
+                        allowed = integers.refine_ge(0)
+                        if not allowed.is_bottom:
+                            result.append(Flow(returned.store.copy(), value=Value(ints=allowed)))
+                    remainder = replace(
+                        answer,
+                        ints=self.ops.integer.bottom(),
+                        bools=frozenset(),
+                        top=False,
+                        top_sorts=answer.top_sorts - {"int"},
+                    )
                     if answer.refs:
-                        result.extend(replace(out,value=Value(ints=self.ops.integer.top())) if out.kind=="normal" else out for out in self.unknown(returned.store,node,"unmodeled_length_index_protocol"))
-                    elif not remainder.is_bottom() or answer.top:result.append(self.error(returned.store.copy(),"TypeError"))
+                        result.extend(
+                            replace(out, value=Value(ints=self.ops.integer.top()))
+                            if out.kind == "normal"
+                            else out
+                            for out in self.unknown(
+                                returned.store, node, "unmodeled_length_index_protocol"
+                            )
+                        )
+                    elif not remainder.is_bottom() or answer.top:
+                        result.append(self.error(returned.store.copy(), "TypeError"))
         return self.d.compact(result)
 
-    def conversion_protocol(self,name,args,keywords,store,frame,node):
-        result=[];source=args[0]
-        def abstract_result(current,reason,havoc=True):
-            sort="str" if name in {"str","repr"} else "float" if name=="float" else "int"
-            return [replace(out,value=Value.unknown() if name=="abs" else Value(strings=self.ops.string.top()) if sort=="str" else Value(top_sorts=frozenset((sort,)))) if out.kind=="normal" else out for out in self.unknown(current,node,reason,havoc=havoc)]
-        if source.top or source.top_sorts:result.extend(abstract_result(store,"unknown_conversion_protocol:"+name))
+    def conversion_protocol(self, name, args, keywords, store, frame, node):
+        result = []
+        source = args[0]
+
+        def abstract_result(current, reason, havoc=True):
+            sort = "str" if name in {"str", "repr"} else "float" if name == "float" else "int"
+            return [
+                replace(
+                    out,
+                    value=Value.unknown()
+                    if name == "abs"
+                    else Value(strings=self.ops.string.top())
+                    if sort == "str"
+                    else Value(top_sorts=frozenset((sort,))),
+                )
+                if out.kind == "normal"
+                else out
+                for out in self.unknown(current, node, reason, havoc=havoc)
+            ]
+
+        if source.top or source.top_sorts:
+            result.extend(abstract_result(store, "unknown_conversion_protocol:" + name))
         for ref in source.refs:
-            obj=store.heap.get(ref)
-            if obj is None or obj.havoc or obj.kind!="instance" or len(args)!=1 or keywords:
-                result.extend(abstract_result(store,"unmodeled_conversion_protocol:"+name));continue
-            names={"str":("__str__","__repr__"),"repr":("__repr__",),"int":("__int__","__index__"),"float":("__float__","__index__"),"abs":("__abs__",)}[name]
-            selected=None;hook=Value.bottom()
-            for protocol in names:
-                hook=self.ops.join_all(self.lookup_class(cls,protocol,store) for cls in obj.class_ids)
-                if not hook.is_bottom():selected=protocol;break
-            if selected is None:
-                if name in {"str","repr"}:
-                    self.d.open("default_object_representation",store,node);result.append(Flow(store.copy(),value=Value(strings=self.ops.string.top())))
-                else:result.append(self.error(store.copy(),"TypeError"))
+            obj = store.heap.get(ref)
+            if obj is None or obj.havoc or obj.kind != "instance" or len(args) != 1 or keywords:
+                result.extend(abstract_result(store, "unmodeled_conversion_protocol:" + name))
                 continue
-            for method in self.attributes._descriptor_get(hook,Value.ref(ref),Value(refs=obj.class_ids),store.copy(),frame,node):
-                if method.kind!="normal":result.append(method);continue
-                for returned in self.invoke(method.value,[],(),method.store,frame,node):
-                    if returned.kind!="normal" or name=="abs":result.append(returned);continue
-                    answer=returned.value
-                    if name in {"str","repr"}:
-                        valid=Value(strings=answer.strings)
-                        if answer.top or "str" in answer.top_sorts:valid=self.ops.join(valid,Value(strings=self.ops.string.top()))
-                        bad=replace(answer,strings=self.ops.string.bottom(),top=False,top_sorts=answer.top_sorts-{"str"})
-                    elif name=="float" and selected=="__float__":
-                        valid=Value(floats=answer.floats,top_sorts=answer.top_sorts&{"float"})
-                        if answer.top:valid=self.ops.join(valid,Value(top_sorts=frozenset(("float",))))
-                        bad=replace(answer,floats=frozenset(),top=False,top_sorts=answer.top_sorts-{"float"})
+            names = {
+                "str": ("__str__", "__repr__"),
+                "repr": ("__repr__",),
+                "int": ("__int__", "__index__"),
+                "float": ("__float__", "__index__"),
+                "abs": ("__abs__",),
+            }[name]
+            selected = None
+            hook = Value.bottom()
+            for protocol in names:
+                hook = self.ops.join_all(
+                    self.lookup_class(cls, protocol, store) for cls in obj.class_ids
+                )
+                if not hook.is_bottom():
+                    selected = protocol
+                    break
+            if selected is None:
+                if name in {"str", "repr"}:
+                    self.d.open("default_object_representation", store, node)
+                    result.append(Flow(store.copy(), value=Value(strings=self.ops.string.top())))
+                else:
+                    result.append(self.error(store.copy(), "TypeError"))
+                continue
+            for method in self.attributes._descriptor_get(
+                hook, Value.ref(ref), Value(refs=obj.class_ids), store.copy(), frame, node
+            ):
+                if method.kind != "normal":
+                    result.append(method)
+                    continue
+                for returned in self.invoke(method.value, [], (), method.store, frame, node):
+                    if returned.kind != "normal" or name == "abs":
+                        result.append(returned)
+                        continue
+                    answer = returned.value
+                    if name in {"str", "repr"}:
+                        valid = Value(strings=answer.strings)
+                        if answer.top or "str" in answer.top_sorts:
+                            valid = self.ops.join(valid, Value(strings=self.ops.string.top()))
+                        bad = replace(
+                            answer,
+                            strings=self.ops.string.bottom(),
+                            top=False,
+                            top_sorts=answer.top_sorts - {"str"},
+                        )
+                    elif name == "float" and selected == "__float__":
+                        valid = Value(floats=answer.floats, top_sorts=answer.top_sorts & {"float"})
+                        if answer.top:
+                            valid = self.ops.join(valid, Value(top_sorts=frozenset(("float",))))
+                        bad = replace(
+                            answer,
+                            floats=frozenset(),
+                            top=False,
+                            top_sorts=answer.top_sorts - {"float"},
+                        )
                     else:
-                        integers=self.ops.integer.join(answer.ints,self.ops.join_all(Value.constant(int(x)) for x in answer.bools).ints)
-                        if answer.top or "int" in answer.top_sorts:integers=self.ops.integer.top()
-                        if name=="float":
-                            constants=integers.get_consts();valid=Value.bottom()
-                            if constants is None:valid=Value(top_sorts=frozenset(("float",)))
+                        integers = self.ops.integer.join(
+                            answer.ints,
+                            self.ops.join_all(Value.constant(int(x)) for x in answer.bools).ints,
+                        )
+                        if answer.top or "int" in answer.top_sorts:
+                            integers = self.ops.integer.top()
+                        if name == "float":
+                            constants = integers.get_consts()
+                            valid = Value.bottom()
+                            if constants is None:
+                                valid = Value(top_sorts=frozenset(("float",)))
                             else:
                                 for integer in constants:
-                                    try:valid=self.ops.join(valid,Value.constant(float(integer)))
-                                    except OverflowError:result.append(self.error(returned.store.copy(),"OverflowError"))
-                        else:valid=Value(ints=integers)
-                        bad=replace(answer,ints=self.ops.integer.bottom(),bools=frozenset(),top=False,top_sorts=answer.top_sorts-{"int"})
-                    if not valid.is_bottom():result.append(Flow(returned.store.copy(),value=valid))
-                    if answer.refs:result.extend(abstract_result(returned.store,"conversion_subclass_validation",havoc=False))
-                    if not bad.is_bottom() or answer.top:result.append(self.error(returned.store.copy(),"TypeError"))
+                                    try:
+                                        valid = self.ops.join(valid, Value.constant(float(integer)))
+                                    except OverflowError:
+                                        result.append(
+                                            self.error(returned.store.copy(), "OverflowError")
+                                        )
+                        else:
+                            valid = Value(ints=integers)
+                        bad = replace(
+                            answer,
+                            ints=self.ops.integer.bottom(),
+                            bools=frozenset(),
+                            top=False,
+                            top_sorts=answer.top_sorts - {"int"},
+                        )
+                    if not valid.is_bottom():
+                        result.append(Flow(returned.store.copy(), value=valid))
+                    if answer.refs:
+                        result.extend(
+                            abstract_result(
+                                returned.store, "conversion_subclass_validation", havoc=False
+                            )
+                        )
+                    if not bad.is_bottom() or answer.top:
+                        result.append(self.error(returned.store.copy(), "TypeError"))
         return self.d.compact(result)
 
-    def builtin(self,name,args,keywords,store,frame,node):
+    def builtin(self, name, args, keywords, store, frame, node):
         self.sync(store)
-        if name in {"globals","locals","vars"}:return self.namespaces.builtin(name,args,keywords,store,frame,node)
-        if name in {"eval","exec","__import__"}:return self.unknown(store,node,"dynamic_code:"+name)
+        if name in {"globals", "locals", "vars"}:
+            return self.namespaces.builtin(name, args, keywords, store, frame, node)
+        if name in {"eval", "exec", "__import__"}:
+            return self.unknown(store, node, "dynamic_code:" + name)
         if name in EXCEPTION_NAMES:
-            ancestors=builtin_exception_ancestors(name)
-            if ancestors & {"OSError","SyntaxError"} or name in {"UnicodeDecodeError","UnicodeEncodeError","UnicodeTranslateError","ExceptionGroup","BaseExceptionGroup"}:
-                return self.unknown(store,node,"complex_exception_constructor:"+name)
-            allowed={"AttributeError":{"name","obj"},"NameError":{"name"},"ImportError":{"name","path"},"ModuleNotFoundError":{"name","path"}}
-            if any(key not in allowed.get(name,set()) for key,_ in keywords):return [self.error(store,"TypeError")]
-            fields=dict(keywords);argtuple=self.alloc(node,store,frame,"tuple",{i:value for i,value in enumerate(args)},{"length":len(args)})
-            fields["args"]=argtuple
-            if name=="StopIteration":fields["value"]=args[0] if args else Value.constant(None)
-            return [Flow(store,value=self.alloc(node,store,frame,"exception",fields,{"exception_name":canonical_builtin_exception_name(name),"exception_types":tuple(builtin_exception_ancestors(name))}))]
-        if name=="print":
-            self.d.events.append(("call","print"));flows=[self.normal(store)]
-            if any(key not in {"sep","end","file","flush"} for key,_ in keywords):return [self.error(store,"TypeError")]
-            for key,value in keywords:
-                if key not in {"sep","end"}:continue
-                constants=value.exact_constants()
-                if constants is None:return [replace(out,value=Value.constant(None)) if out.kind=="normal" else out for out in self.unknown(store,node,"abstract_print_separator",havoc=False)]
+            ancestors = builtin_exception_ancestors(name)
+            if ancestors & {"OSError", "SyntaxError"} or name in {
+                "UnicodeDecodeError",
+                "UnicodeEncodeError",
+                "UnicodeTranslateError",
+                "ExceptionGroup",
+                "BaseExceptionGroup",
+            }:
+                return self.unknown(store, node, "complex_exception_constructor:" + name)
+            allowed = {
+                "AttributeError": {"name", "obj"},
+                "NameError": {"name"},
+                "ImportError": {"name", "path"},
+                "ModuleNotFoundError": {"name", "path"},
+            }
+            if any(key not in allowed.get(name, set()) for key, _ in keywords):
+                return [self.error(store, "TypeError")]
+            fields = dict(keywords)
+            argtuple = self.alloc(
+                node,
+                store,
+                frame,
+                "tuple",
+                {i: value for i, value in enumerate(args)},
+                {"length": len(args)},
+            )
+            fields["args"] = argtuple
+            if name == "StopIteration":
+                fields["value"] = args[0] if args else Value.constant(None)
+            return [
+                Flow(
+                    store,
+                    value=self.alloc(
+                        node,
+                        store,
+                        frame,
+                        "exception",
+                        fields,
+                        {
+                            "exception_name": canonical_builtin_exception_name(name),
+                            "exception_types": tuple(builtin_exception_ancestors(name)),
+                        },
+                    ),
+                )
+            ]
+        if name == "print":
+            self.d.events.append(("call", "print"))
+            flows = [self.normal(store)]
+            if any(key not in {"sep", "end", "file", "flush"} for key, _ in keywords):
+                return [self.error(store, "TypeError")]
+            for key, value in keywords:
+                if key not in {"sep", "end"}:
+                    continue
+                constants = value.exact_constants()
+                if constants is None:
+                    return [
+                        replace(out, value=Value.constant(None)) if out.kind == "normal" else out
+                        for out in self.unknown(
+                            store, node, "abstract_print_separator", havoc=False
+                        )
+                    ]
                 if any(item is not None and type(item) is not str for item in constants):
-                    if all(item is not None and type(item) is not str for item in constants):return [self.error(store,"TypeError")]
-                    flows.append(self.error(store.copy(),"TypeError"))
-            if any(key=="file" and value.exact_constants()!=[None] or key=="flush" and (value.top or value.refs) for key,value in keywords):return [replace(out,value=Value.constant(None)) if out.kind=="normal" else out for out in self.unknown(store,node,"print_stream_protocol")]
+                    if all(item is not None and type(item) is not str for item in constants):
+                        return [self.error(store, "TypeError")]
+                    flows.append(self.error(store.copy(), "TypeError"))
+            if any(
+                key == "file"
+                and value.exact_constants() != [None]
+                or key == "flush"
+                and (value.top or value.refs)
+                for key, value in keywords
+            ):
+                return [
+                    replace(out, value=Value.constant(None)) if out.kind == "normal" else out
+                    for out in self.unknown(store, node, "print_stream_protocol")
+                ]
             for argument in args:
-                if not (argument.top or argument.refs):continue
-                flows=[out for flow in flows for out in (self.conversion_protocol("str",[argument],(),flow.store,frame,node) if flow.kind=="normal" else [flow])]
-            return [self.normal(flow.store) if flow.kind=="normal" else flow for flow in flows]
-        if name in {"staticmethod","classmethod"}:
-            if len(args)!=1 or keywords:return [self.error(store,"TypeError")]
-            return [Flow(store,value=self.alloc(node,store,frame,name,{"callable":args[0]}))]
-        if name=="property":
-            names=("fget","fset","fdel","doc")
-            if len(args)>4 or any(key not in names or key in names[:len(args)] for key,_ in keywords):return [self.error(store,"TypeError")]
-            fields={key:value for key,value in zip(names,args)};fields.update(dict(keywords))
-            return [Flow(store,value=self.alloc(node,store,frame,"property",fields))]
-        if name=="object":return [self.error(store,"TypeError")] if args or keywords else [Flow(store,value=self.alloc(node,store,frame,"instance"))]
-        if name in {"list","tuple","set","dict"}:
-            if len(args)>1:return [self.error(store,"TypeError")]
-            if name!="dict" and keywords:return [self.error(store,"TypeError")]
-            if name=="dict":
-                fields=dict(keywords)
+                if not (argument.top or argument.refs):
+                    continue
+                flows = [
+                    out
+                    for flow in flows
+                    for out in (
+                        self.conversion_protocol("str", [argument], (), flow.store, frame, node)
+                        if flow.kind == "normal"
+                        else [flow]
+                    )
+                ]
+            return [self.normal(flow.store) if flow.kind == "normal" else flow for flow in flows]
+        if name in {"staticmethod", "classmethod"}:
+            if len(args) != 1 or keywords:
+                return [self.error(store, "TypeError")]
+            return [Flow(store, value=self.alloc(node, store, frame, name, {"callable": args[0]}))]
+        if name == "property":
+            names = ("fget", "fset", "fdel", "doc")
+            if len(args) > 4 or any(
+                key not in names or key in names[: len(args)] for key, _ in keywords
+            ):
+                return [self.error(store, "TypeError")]
+            fields = {key: value for key, value in zip(names, args)}
+            fields.update(dict(keywords))
+            return [Flow(store, value=self.alloc(node, store, frame, "property", fields))]
+        if name == "object":
+            return (
+                [self.error(store, "TypeError")]
+                if args or keywords
+                else [Flow(store, value=self.alloc(node, store, frame, "instance"))]
+            )
+        if name in {"list", "tuple", "set", "dict"}:
+            if len(args) > 1:
+                return [self.error(store, "TypeError")]
+            if name != "dict" and keywords:
+                return [self.error(store, "TypeError")]
+            if name == "dict":
+                fields = dict(keywords)
                 if args:
                     for ref in args[0].refs:
-                        obj=store.heap.get(ref)
-                        if obj and obj.kind=="dict":fields={**obj.fields,**fields}
-                        else:return self.unknown(store,node,"dict_constructor_input")
-                return [Flow(store,value=self.alloc(node,store,frame,name,fields,{"length":len(fields)}))]
-            if not args:return [Flow(store,value=self.alloc(node,store,frame,name,{}, {"length":0}))]
-            sequences,unknown=self.iterable_values(args[0],store);result=[]
+                        obj = store.heap.get(ref)
+                        if obj and obj.kind == "dict":
+                            fields = {**obj.fields, **fields}
+                        else:
+                            return self.unknown(store, node, "dict_constructor_input")
+                return [
+                    Flow(
+                        store,
+                        value=self.alloc(node, store, frame, name, fields, {"length": len(fields)}),
+                    )
+                ]
+            if not args:
+                return [Flow(store, value=self.alloc(node, store, frame, name, {}, {"length": 0}))]
+            sequences, unknown = self.iterable_values(args[0], store)
+            result = []
             for sequence in sequences:
-                state=store.copy();result.append(Flow(state,value=self.alloc(node,state,frame,name,{i:v for i,v in enumerate(sequence)},{"length":len(sequence)})))
-            if unknown:result.extend(self.continuations.collect(args[0],store,frame,node,name))
+                state = store.copy()
+                result.append(
+                    Flow(
+                        state,
+                        value=self.alloc(
+                            node,
+                            state,
+                            frame,
+                            name,
+                            {i: v for i, v in enumerate(sequence)},
+                            {"length": len(sequence)},
+                        ),
+                    )
+                )
+            if unknown:
+                result.extend(self.continuations.collect(args[0], store, frame, node, name))
             return result
-        if name=="range":
-            if keywords:return [self.error(store,"TypeError")]
-            constants=[x.exact_constants() for x in args];result=[]
-            if not args or len(args)>3:return [self.error(store,"TypeError")]
+        if name == "range":
+            if keywords:
+                return [self.error(store, "TypeError")]
+            constants = [x.exact_constants() for x in args]
+            result = []
+            if not args or len(args) > 3:
+                return [self.error(store, "TypeError")]
             if all(x is not None for x in constants):
                 for combo in product(*constants):
                     try:
-                        seq=range(*combo)
-                        if len(seq)>self.d.abstract.get("max_range_size",1000):return self.unknown(store,node,"range_enumeration_budget",havoc=False)
-                        s=store.copy();result.append(Flow(s,value=self.alloc(node,s,frame,"range",{i:Value.constant(x) for i,x in enumerate(seq)},{"length":len(seq)})))
-                    except (TypeError,ValueError,OverflowError) as exc:result.append(self.error(store.copy(),type(exc).__name__))
+                        seq = range(*combo)
+                        if len(seq) > self.d.abstract.get("max_range_size", 1000):
+                            return self.unknown(
+                                store, node, "range_enumeration_budget", havoc=False
+                            )
+                        s = store.copy()
+                        result.append(
+                            Flow(
+                                s,
+                                value=self.alloc(
+                                    node,
+                                    s,
+                                    frame,
+                                    "range",
+                                    {i: Value.constant(x) for i, x in enumerate(seq)},
+                                    {"length": len(seq)},
+                                ),
+                            )
+                        )
+                    except (TypeError, ValueError, OverflowError) as exc:
+                        result.append(self.error(store.copy(), type(exc).__name__))
                 return result
-            return self.unknown(store,node,"dynamic_range",havoc=any(value.top or value.refs for value in args))
-        if name=="len":return self.length_builtin(args,keywords,store,frame,node)
-        if name in {"str","int","bool","float","repr","abs"}:
+            return self.unknown(
+                store, node, "dynamic_range", havoc=any(value.top or value.refs for value in args)
+            )
+        if name == "len":
+            return self.length_builtin(args, keywords, store, frame, node)
+        if name in {"str", "int", "bool", "float", "repr", "abs"}:
             if not args:
-                if name in {"repr","abs"}:return [self.error(store,"TypeError")]
-                if keywords:return self.unknown(store,node,"keyword_only_scalar_conversion")
-                return [Flow(store,value=Value.constant({"str":"","int":0,"bool":False,"float":0.0}[name]))]
-            if name=="bool":return self.truth_flows(args[0],store,frame,node) if len(args)==1 and not keywords else [self.error(store,"TypeError")]
-            if args[0].refs or args[0].top or args[0].top_sorts-{"int","str","float","bool","none","bytes","complex","ellipsis","NotImplementedType"}:return self.conversion_protocol(name,args,keywords,store,frame,node)
-            if name=="int" and len(args)==1 and not keywords and not args[0].ints.is_bottom and replace(args[0],ints=self.ops.integer.bottom()).is_bottom():return [Flow(store,value=args[0])]
-            if name=="float" and len(args)==1 and not keywords and args[0].top_sorts==frozenset(("float",)) and replace(args[0],top_sorts=frozenset()).is_bottom():return [Flow(store,value=args[0])]
-            constants=args[0].exact_constants();function={"str":str,"int":int,"float":float,"repr":repr,"abs":abs}[name];values=[];result=[]
+                if name in {"repr", "abs"}:
+                    return [self.error(store, "TypeError")]
+                if keywords:
+                    return self.unknown(store, node, "keyword_only_scalar_conversion")
+                return [
+                    Flow(
+                        store,
+                        value=Value.constant(
+                            {"str": "", "int": 0, "bool": False, "float": 0.0}[name]
+                        ),
+                    )
+                ]
+            if name == "bool":
+                return (
+                    self.truth_flows(args[0], store, frame, node)
+                    if len(args) == 1 and not keywords
+                    else [self.error(store, "TypeError")]
+                )
+            if (
+                args[0].refs
+                or args[0].top
+                or args[0].top_sorts
+                - {
+                    "int",
+                    "str",
+                    "float",
+                    "bool",
+                    "none",
+                    "bytes",
+                    "complex",
+                    "ellipsis",
+                    "NotImplementedType",
+                }
+            ):
+                return self.conversion_protocol(name, args, keywords, store, frame, node)
+            if (
+                name == "int"
+                and len(args) == 1
+                and not keywords
+                and not args[0].ints.is_bottom
+                and replace(args[0], ints=self.ops.integer.bottom()).is_bottom()
+            ):
+                return [Flow(store, value=args[0])]
+            if (
+                name == "float"
+                and len(args) == 1
+                and not keywords
+                and args[0].top_sorts == frozenset(("float",))
+                and replace(args[0], top_sorts=frozenset()).is_bottom()
+            ):
+                return [Flow(store, value=args[0])]
+            constants = args[0].exact_constants()
+            function = {"str": str, "int": int, "float": float, "repr": repr, "abs": abs}[name]
+            values = []
+            result = []
             if constants is not None:
-                arguments=[value.exact_constants() for value in args]
-                keyword_values=[(key,value.exact_constants()) for key,value in keywords]
-                if any(value is None for value in arguments) or any(value is None for _,value in keyword_values):return self.unknown(store,node,"dynamic_conversion_arguments")
-                groups=arguments+[value for _,value in keyword_values]
-                size=1
-                for group in groups:size*=len(group)
-                if size>int(self.d.abstract.get("max_scalar_pairs",256)):return self.unknown(store,node,"conversion_enumeration_budget",havoc=False)
-                self.d.charge(size,"scalar_conversion_work")
+                arguments = [value.exact_constants() for value in args]
+                keyword_values = [(key, value.exact_constants()) for key, value in keywords]
+                if any(value is None for value in arguments) or any(
+                    value is None for _, value in keyword_values
+                ):
+                    return self.unknown(store, node, "dynamic_conversion_arguments")
+                groups = arguments + [value for _, value in keyword_values]
+                size = 1
+                for group in groups:
+                    size *= len(group)
+                if size > int(self.d.abstract.get("max_scalar_pairs", 256)):
+                    return self.unknown(store, node, "conversion_enumeration_budget", havoc=False)
+                self.d.charge(size, "scalar_conversion_work")
                 for combo in product(*groups):
-                    try:values.append(Value.constant(function(*combo[:len(arguments)],**{key:combo[len(arguments)+index] for index,(key,_) in enumerate(keyword_values)})))
-                    except (TypeError,ValueError,OverflowError) as exc:result.append(self.error(store.copy(),type(exc).__name__))
-                if values:result.append(Flow(store,value=self.ops.join_all(values)))
+                    try:
+                        values.append(
+                            Value.constant(
+                                function(
+                                    *combo[: len(arguments)],
+                                    **{
+                                        key: combo[len(arguments) + index]
+                                        for index, (key, _) in enumerate(keyword_values)
+                                    },
+                                )
+                            )
+                        )
+                    except (TypeError, ValueError, OverflowError) as exc:
+                        result.append(self.error(store.copy(), type(exc).__name__))
+                if values:
+                    result.append(Flow(store, value=self.ops.join_all(values)))
                 return result
-            if name in {"str","repr"} and len(args)==1 and not keywords:
-                if name=="str" and not args[0].strings.is_bottom() and not replace(args[0],strings=self.ops.string.bottom()).is_bottom():return self.unknown(store,node,"mixed_scalar_string_conversion",havoc=False)
-                return [Flow(store,value=Value(strings=args[0].strings if name=="str" and not args[0].strings.is_bottom() else self.ops.string.top()))]
-            if name=="abs":
-                valid=Value(ints=self.ops.integer.top()) if not args[0].ints.is_bottom else Value.bottom()
-                if args[0].floats or "float" in args[0].top_sorts:valid=self.ops.join(valid,Value(top_sorts=frozenset(("float",))))
-                result=[Flow(store.copy(),value=valid)] if not valid.is_bottom() else []
-                invalid=replace(args[0],ints=self.ops.integer.bottom(),floats=frozenset(),top_sorts=args[0].top_sorts-{"int","float"})
-                if not invalid.is_bottom():result.append(self.error(store.copy(),"TypeError"))
+            if name in {"str", "repr"} and len(args) == 1 and not keywords:
+                if (
+                    name == "str"
+                    and not args[0].strings.is_bottom()
+                    and not replace(args[0], strings=self.ops.string.bottom()).is_bottom()
+                ):
+                    return self.unknown(store, node, "mixed_scalar_string_conversion", havoc=False)
+                return [
+                    Flow(
+                        store,
+                        value=Value(
+                            strings=args[0].strings
+                            if name == "str" and not args[0].strings.is_bottom()
+                            else self.ops.string.top()
+                        ),
+                    )
+                ]
+            if name == "abs":
+                valid = (
+                    Value(ints=self.ops.integer.top())
+                    if not args[0].ints.is_bottom
+                    else Value.bottom()
+                )
+                if args[0].floats or "float" in args[0].top_sorts:
+                    valid = self.ops.join(valid, Value(top_sorts=frozenset(("float",))))
+                result = [Flow(store.copy(), value=valid)] if not valid.is_bottom() else []
+                invalid = replace(
+                    args[0],
+                    ints=self.ops.integer.bottom(),
+                    floats=frozenset(),
+                    top_sorts=args[0].top_sorts - {"int", "float"},
+                )
+                if not invalid.is_bottom():
+                    result.append(self.error(store.copy(), "TypeError"))
                 return result
-            sort="int" if name=="int" else "float"
-            return [replace(out,value=Value(top_sorts=frozenset((sort,)))) if out.kind=="normal" else out for out in self.unknown(store,node,"abstract_scalar_conversion:"+name,havoc=False)]
-        if name in {"getattr","hasattr","setattr","delattr"}:return self.attributes.reflective(name,args,keywords,store,frame,node)
-        if name in {"isinstance","issubclass"}:
-            if keywords or len(args)!=2:return [self.error(store,"TypeError")]
-            affected=[store.heap.get(ref) for value in args for ref in value.refs]
-            affected.extend(store.heap.get(cls) for obj in tuple(affected) if obj for cls in obj.class_ids)
+            sort = "int" if name == "int" else "float"
+            return [
+                replace(out, value=Value(top_sorts=frozenset((sort,))))
+                if out.kind == "normal"
+                else out
+                for out in self.unknown(
+                    store, node, "abstract_scalar_conversion:" + name, havoc=False
+                )
+            ]
+        if name in {"getattr", "hasattr", "setattr", "delattr"}:
+            return self.attributes.reflective(name, args, keywords, store, frame, node)
+        if name in {"isinstance", "issubclass"}:
+            if keywords or len(args) != 2:
+                return [self.error(store, "TypeError")]
+            affected = [store.heap.get(ref) for value in args for ref in value.refs]
+            affected.extend(
+                store.heap.get(cls) for obj in tuple(affected) if obj for cls in obj.class_ids
+            )
             if args[1].top or args[1].top_sorts or any(obj and obj.havoc for obj in affected):
-                return [replace(out,value=Value(bools=frozenset((False,True)))) if out.kind=="normal" else out for out in self.unknown(store,node,"havoc_class_relation_query")]
-            truths=set()
+                return [
+                    replace(out, value=Value(bools=frozenset((False, True))))
+                    if out.kind == "normal"
+                    else out
+                    for out in self.unknown(store, node, "havoc_class_relation_query")
+                ]
+            truths = set()
             for ref in args[0].refs:
-                obj=store.heap.get(ref);classes=obj.class_ids if obj and name=="isinstance" else frozenset((ref,))
-                for cls in args[1].refs:truths.add(cls in classes or any(cls in store.heap.get(c,HeapObject("class")).metadata.get("mro",()) for c in classes))
-            if args[0].top or not truths:truths.update((False,True))
-            return [Flow(store,value=Value(bools=frozenset(truths)))]
-        if name=="type":
-            if len(args)==1:
-                if args[0].top or any(store.heap.get(ref) and store.heap[ref].havoc for ref in args[0].refs):
-                    self.d.open("unknown_runtime_type",store,node);return [Flow(store,value=Value(top_sorts=frozenset(("type",))))]
-                refs=set()
+                obj = store.heap.get(ref)
+                classes = obj.class_ids if obj and name == "isinstance" else frozenset((ref,))
+                for cls in args[1].refs:
+                    truths.add(
+                        cls in classes
+                        or any(
+                            cls in store.heap.get(c, HeapObject("class")).metadata.lookup("mro", ())
+                            for c in classes
+                        )
+                    )
+            if args[0].top or not truths:
+                truths.update((False, True))
+            return [Flow(store, value=Value(bools=frozenset(truths)))]
+        if name == "type":
+            if len(args) == 1:
+                if args[0].top or any(
+                    store.heap.get(ref) and store.heap[ref].havoc for ref in args[0].refs
+                ):
+                    self.d.open("unknown_runtime_type", store, node)
+                    return [Flow(store, value=Value(top_sorts=frozenset(("type",))))]
+                refs = set()
                 for ref in args[0].refs:
-                    obj=store.heap.get(ref)
-                    if obj:refs|=set(obj.class_ids)
-                return [Flow(store,value=Value(refs=frozenset(refs)) if refs else Value.unknown())]
-            return self.unknown(store,node,"dynamic_class_construction")
-        if name=="iter":
-            if keywords:return [self.error(store,"TypeError")]
-            if len(args)!=1:return self.unknown(store,node,"callable_sentinel_iterator") if len(args)==2 else [self.error(store,"TypeError")]
-            return self.continuations.get_iterator(args[0],store,frame,node)
-        if name=="next":
-            if not 1<=len(args)<=2 or keywords:return [self.error(store,"TypeError")]
-            result=self.resume(args[0],store,frame,node,"next")
-            if len(args)>1:result=[Flow(f.store,value=args[1]) if f.exception=="StopIteration" else f for f in result]
+                    obj = store.heap.get(ref)
+                    if obj:
+                        refs |= set(obj.class_ids)
+                return [Flow(store, value=Value(refs=frozenset(refs)) if refs else Value.unknown())]
+            return self.unknown(store, node, "dynamic_class_construction")
+        if name == "iter":
+            if keywords:
+                return [self.error(store, "TypeError")]
+            if len(args) != 1:
+                return (
+                    self.unknown(store, node, "callable_sentinel_iterator")
+                    if len(args) == 2
+                    else [self.error(store, "TypeError")]
+                )
+            return self.continuations.get_iterator(args[0], store, frame, node)
+        if name == "next":
+            if not 1 <= len(args) <= 2 or keywords:
+                return [self.error(store, "TypeError")]
+            result = self.resume(args[0], store, frame, node, "next")
+            if len(args) > 1:
+                result = [
+                    Flow(f.store, value=args[1]) if f.exception == "StopIteration" else f
+                    for f in result
+                ]
             return result
-        if name in {"sum","all","any","min","max","sorted","reversed","enumerate","zip"}:
-            if keywords:return self.unknown(store,node,"aggregate_keyword_protocol:"+name)
-            return self.aggregate_builtin(name,args,store,frame,node)
-        if name=="super":
-            if len(args)<2:
-                classcell=dict(frame.closure).get("__class__");owner=store.cells.get(classcell,Value.bottom()) if classcell else Value.bottom()
-                function=next((info for info in self.d.functions.values() if info.qualname==frame.qualname),None)
-                positional=(*function.node.args.posonlyargs,*function.node.args.args) if function else ()
-                receiver=store.cells.get(frame.cell(positional[0].arg),Value.bottom()) if positional else Value.bottom()
-                if owner.is_bottom() or receiver.is_bottom():return [self.error(store,"RuntimeError")]
-                args=[owner,receiver]
-            return [Flow(store,value=self.alloc(node,store,frame,"super",metadata={"class":args[0],"receiver":args[1]}))]
-        return self.unknown(store,node,"unsupported_builtin:"+name)
+        if name in {"sum", "all", "any", "min", "max", "sorted", "reversed", "enumerate", "zip"}:
+            if keywords:
+                return self.unknown(store, node, "aggregate_keyword_protocol:" + name)
+            return self.aggregate_builtin(name, args, store, frame, node)
+        if name == "super":
+            if len(args) < 2:
+                classcell = dict(frame.closure).get("__class__")
+                owner = store.cells.get(classcell, Value.bottom()) if classcell else Value.bottom()
+                function = next(
+                    (info for info in self.d.functions.values() if info.qualname == frame.qualname),
+                    None,
+                )
+                positional = (
+                    (*function.node.args.posonlyargs, *function.node.args.args) if function else ()
+                )
+                receiver = (
+                    store.cells.get(frame.cell(positional[0].arg), Value.bottom())
+                    if positional
+                    else Value.bottom()
+                )
+                if owner.is_bottom() or receiver.is_bottom():
+                    return [self.error(store, "RuntimeError")]
+                args = [owner, receiver]
+            return [
+                Flow(
+                    store,
+                    value=self.alloc(
+                        node,
+                        store,
+                        frame,
+                        "super",
+                        metadata={"class": args[0], "receiver": args[1]},
+                    ),
+                )
+            ]
+        return self.unknown(store, node, "unsupported_builtin:" + name)
 
-    def builtin_method(self,name,receiver,args,keywords,store,frame,node):
+    def builtin_method(self, name, receiver, args, keywords, store, frame, node):
         self.sync(store)
-        views=frozenset(ref for ref in receiver.refs if store.heap.get(ref) and store.heap[ref].kind=="dict_view")
+        views = frozenset(
+            ref
+            for ref in receiver.refs
+            if store.heap.get(ref) and store.heap[ref].kind == "dict_view"
+        )
         if views:
-            result=[]
+            result = []
             for ref in views:
-                obj=store.heap[ref];current=store.copy()
-                if obj.havoc:result.extend(self.unknown(current,node,"havoc_dictionary_view"));continue
-                if name=="__iter__" and not args and not keywords:result.extend(self.dictionary_views.iterator(obj.metadata["owner"],obj.metadata["view_kind"],current,frame,node))
-                elif name=="__len__" and not args and not keywords:result.extend(self.dictionary_views.length(obj,current,frame,node))
-                elif name=="__contains__" and len(args)==1 and not keywords:result.extend(self.dictionary_views.contains(obj,args[0],current,frame,node))
-                else:result.append(self.error(current,"TypeError"))
-            remainder=replace(receiver,refs=receiver.refs-views)
-            if not remainder.is_bottom():result.extend(self.builtin_method(name,remainder,args,keywords,store.copy(),frame,node))
+                obj = store.heap[ref]
+                current = store.copy()
+                if obj.havoc:
+                    result.extend(self.unknown(current, node, "havoc_dictionary_view"))
+                    continue
+                if name == "__iter__" and not args and not keywords:
+                    result.extend(
+                        self.dictionary_views.iterator(
+                            obj.metadata["owner"], obj.metadata["view_kind"], current, frame, node
+                        )
+                    )
+                elif name == "__len__" and not args and not keywords:
+                    result.extend(self.dictionary_views.length(obj, current, frame, node))
+                elif name == "__contains__" and len(args) == 1 and not keywords:
+                    result.extend(
+                        self.dictionary_views.contains(obj, args[0], current, frame, node)
+                    )
+                else:
+                    result.append(self.error(current, "TypeError"))
+            remainder = replace(receiver, refs=receiver.refs - views)
+            if not remainder.is_bottom():
+                result.extend(
+                    self.builtin_method(name, remainder, args, keywords, store.copy(), frame, node)
+                )
             return result
-        if any(store.heap.get(ref) and store.heap[ref].kind=="namespace" for ref in receiver.refs):return self.namespaces.method(name,receiver,args,keywords,store,frame,node)
-        result=[]
-        if name in {"send","throw","close","__next__","__await__"}:
-            expected={"send":(1,1),"throw":(1,3),"close":(0,0),"__next__":(0,0),"__await__":(0,0)}[name]
-            if keywords or not expected[0]<=len(args)<=expected[1]:return [self.error(store,"TypeError")]
-            if name=="throw" and len(args)>1:
-                if len(args)==3 and args[2].exact_constants()!=[None]:return self.unknown(store,node,"generator_throw_traceback_protocol")
-                result=[]
+        if any(
+            store.heap.get(ref) and store.heap[ref].kind == "namespace" for ref in receiver.refs
+        ):
+            return self.namespaces.method(name, receiver, args, keywords, store, frame, node)
+        result = []
+        if name in {"send", "throw", "close", "__next__", "__await__"}:
+            expected = {
+                "send": (1, 1),
+                "throw": (1, 3),
+                "close": (0, 0),
+                "__next__": (0, 0),
+                "__await__": (0, 0),
+            }[name]
+            if keywords or not expected[0] <= len(args) <= expected[1]:
+                return [self.error(store, "TypeError")]
+            if name == "throw" and len(args) > 1:
+                if len(args) == 3 and args[2].exact_constants() != [None]:
+                    return self.unknown(store, node, "generator_throw_traceback_protocol")
+                result = []
                 for ref in args[0].refs:
-                    target=store.heap.get(ref)
-                    if ref.startswith("builtin:") and ref.split(":",1)[1] in EXCEPTION_NAMES or target and target.kind=="class":
-                        sequences=[]
-                        if args[1].exact_constants()==[None]:sequences=[()]
+                    target = store.heap.get(ref)
+                    if (
+                        ref.startswith("builtin:")
+                        and ref.split(":", 1)[1] in EXCEPTION_NAMES
+                        or target
+                        and target.kind == "class"
+                    ):
+                        sequences = []
+                        if args[1].exact_constants() == [None]:
+                            sequences = [()]
                         for value_ref in args[1].refs:
-                            packed=store.heap.get(value_ref)
-                            if packed and packed.kind=="tuple" and type(packed.metadata.get("length")) is int:sequences.append(tuple(packed.fields.get(index,packed.default) for index in range(packed.metadata["length"])))
-                        if not sequences:sequences=[(args[1],)]
+                            packed = store.heap.get(value_ref)
+                            if (
+                                packed
+                                and packed.kind == "tuple"
+                                and type(packed.metadata.lookup("length")) is int
+                            ):
+                                sequences.append(
+                                    tuple(
+                                        packed.fields.get(index, packed.default)
+                                        for index in range(packed.metadata["length"])
+                                    )
+                                )
+                        if not sequences:
+                            sequences = [(args[1],)]
                         for sequence in sequences:
-                            for made in self.invoke(Value.ref(ref),list(sequence),(),store.copy(),frame,node):
-                                if made.kind=="normal":result.extend(self.resume(receiver,made.store,frame,node,"throw",made.value))
-                                else:result.append(made)
-                    elif args[1].exact_constants()==[None]:result.extend(self.resume(receiver,store.copy(),frame,node,"throw",Value.ref(ref)))
-                    else:result.append(self.error(store.copy(),"TypeError"))
-                if args[0].top or args[0].top_sorts:result.extend(self.unknown(store,node,"unknown_throw_exception_class"))
-                return result or [self.error(store,"TypeError")]
-            return self.resume(receiver,store,frame,node,{"__next__":"next","__await__":"await"}.get(name,name),args[0] if args else Value.constant(None))
-        if name=="__iter__":return self.builtin("iter",[receiver],(),store,frame,node)
+                            for made in self.invoke(
+                                Value.ref(ref), list(sequence), (), store.copy(), frame, node
+                            ):
+                                if made.kind == "normal":
+                                    result.extend(
+                                        self.resume(
+                                            receiver, made.store, frame, node, "throw", made.value
+                                        )
+                                    )
+                                else:
+                                    result.append(made)
+                    elif args[1].exact_constants() == [None]:
+                        result.extend(
+                            self.resume(
+                                receiver, store.copy(), frame, node, "throw", Value.ref(ref)
+                            )
+                        )
+                    else:
+                        result.append(self.error(store.copy(), "TypeError"))
+                if args[0].top or args[0].top_sorts:
+                    result.extend(self.unknown(store, node, "unknown_throw_exception_class"))
+                return result or [self.error(store, "TypeError")]
+            return self.resume(
+                receiver,
+                store,
+                frame,
+                node,
+                {"__next__": "next", "__await__": "await"}.get(name, name),
+                args[0] if args else Value.constant(None),
+            )
+        if name == "__iter__":
+            return self.builtin("iter", [receiver], (), store, frame, node)
         for ref in receiver.refs:
-            obj=store.heap.get(ref)
-            if obj is None:continue
-            s=store.copy();target=s.heap[ref]
+            obj = store.heap.get(ref)
+            if obj is None:
+                continue
+            s = store.copy()
+            target = s.heap[ref]
             if obj.havoc:
-                result.extend(self.unknown(s,node,"havoc_builtin_state"));continue
-            if obj.kind=="property" and name in {"setter","getter","deleter"}:
-                if not args:result.append(self.error(s,"TypeError"));continue
-                fields=dict(target.fields);fields[{"setter":"fset","getter":"fget","deleter":"fdel"}[name]]=args[0]
-                result.append(Flow(s,value=self.alloc(node,s,frame,"property",fields)));continue
-            if obj.kind=="list" and name in {"append","extend","insert"}:
-                length=target.metadata.get("length")
-                if name=="append" and len(args)==1:
+                result.extend(self.unknown(s, node, "havoc_builtin_state"))
+                continue
+            if obj.kind == "property" and name in {"setter", "getter", "deleter"}:
+                if not args:
+                    result.append(self.error(s, "TypeError"))
+                    continue
+                fields = dict(target.fields)
+                fields[{"setter": "fset", "getter": "fget", "deleter": "fdel"}[name]] = args[0]
+                result.append(Flow(s, value=self.alloc(node, s, frame, "property", fields)))
+                continue
+            if obj.kind == "list" and name in {"append", "extend", "insert"}:
+                length = target.metadata.lookup("length")
+                if name == "append" and len(args) == 1:
                     if length is None:
-                        s.invalidate_guards(ref);target.default=self.ops.join(target.default,args[0]);s.writes.add(("heap_default",ref,None))
-                    else:s.write_slot(ref,length,args[0],self.ops);target.metadata["length"]=length+1
-                    result.append(self.normal(s));continue
-                if name=="extend" and args:
-                    sequences,unknown=self.iterable_values(args[0],s)
+                        s.invalidate_guards(ref)
+                        target.default = self.ops.join(target.default, args[0])
+                        s.writes.add(HeapDefaultWrite(ref))
+                    else:
+                        s.write_slot(ref, length, args[0], self.ops)
+                        target.metadata["length"] = length + 1
+                    result.append(self.normal(s))
+                    continue
+                if name == "extend" and args:
+                    sequences, unknown = self.iterable_values(args[0], s)
                     for sequence in sequences:
-                        copy=s.copy();t=copy.heap[ref];n=t.metadata.get("length")
+                        copy = s.copy()
+                        t = copy.heap[ref]
+                        n = t.metadata.lookup("length")
                         if n is not None:
-                            for index,value in enumerate(sequence):copy.write_slot(ref,n+index,value,self.ops)
-                            t.metadata["length"]=n+len(sequence)
+                            for index, value in enumerate(sequence):
+                                copy.write_slot(ref, n + index, value, self.ops)
+                            t.metadata["length"] = n + len(sequence)
                         else:
-                            copy.invalidate_guards(ref);t.default=self.ops.join(t.default,self.ops.join_all(sequence));copy.writes.add(("heap_default",ref,None))
+                            copy.invalidate_guards(ref)
+                            t.default = self.ops.join(t.default, self.ops.join_all(sequence))
+                            copy.writes.add(HeapDefaultWrite(ref))
                         result.append(self.normal(copy))
-                    if unknown:result.extend(self.unknown(s,node,"unknown_list_extend"))
+                    if unknown:
+                        result.extend(self.unknown(s, node, "unknown_list_extend"))
                     continue
-            if obj.kind=="dict":
-                if name=="get" and args:
-                    default=args[1] if len(args)>1 else Value.constant(None)
-                    for flow in self.getitem(receiver,args[0],s,frame,node):
-                        result.append(Flow(flow.store,value=default) if flow.exception=="KeyError" else flow)
+            if obj.kind == "dict":
+                if name == "get" and args:
+                    default = args[1] if len(args) > 1 else Value.constant(None)
+                    for flow in self.getitem(receiver, args[0], s, frame, node):
+                        result.append(
+                            Flow(flow.store, value=default)
+                            if flow.exception == "KeyError"
+                            else flow
+                        )
                     continue
-                if name=="setdefault" and args:
-                    default=args[1] if len(args)>1 else Value.constant(None)
-                    for flow in self.getitem(receiver,args[0],s,frame,node):
-                        if flow.exception=="KeyError":
-                            for stored in self.setitem(receiver,args[0],default,flow.store,frame,node):result.append(Flow(stored.store,stored.kind,default if stored.kind=="normal" else stored.value,stored.exception))
-                        else:result.append(flow)
+                if name == "setdefault" and args:
+                    default = args[1] if len(args) > 1 else Value.constant(None)
+                    for flow in self.getitem(receiver, args[0], s, frame, node):
+                        if flow.exception == "KeyError":
+                            for stored in self.setitem(
+                                receiver, args[0], default, flow.store, frame, node
+                            ):
+                                result.append(
+                                    Flow(
+                                        stored.store,
+                                        stored.kind,
+                                        default if stored.kind == "normal" else stored.value,
+                                        stored.exception,
+                                    )
+                                )
+                        else:
+                            result.append(flow)
                     continue
-                if name=="update":
-                    fields=dict(keywords)
+                if name == "update":
+                    fields = dict(keywords)
                     if args:
                         for other in args[0].refs:
-                            rhs=s.heap.get(other)
-                            if rhs and rhs.kind=="dict":fields.update(rhs.fields)
-                            else:self.d.open("unknown_dict_update",s,node);target.havoc=True
-                    for key,value in fields.items():s.write_slot(ref,key,value,self.ops)
-                    target.metadata["length"]=len(target.fields);result.append(self.normal(s));continue
-                if name in {"keys","values","items"}:
-                    if args or keywords:result.append(self.error(s,"TypeError"));continue
-                    result.append(Flow(s,value=self.dictionary_views.create(ref,name,s,frame,node)));continue
-            if name=="clear" and obj.kind in {"dict","list","set"}:
+                            rhs = s.heap.get(other)
+                            if rhs and rhs.kind == "dict":
+                                fields.update(rhs.fields)
+                            else:
+                                self.d.open("unknown_dict_update", s, node)
+                                target.havoc = True
+                    for key, value in fields.items():
+                        s.write_slot(ref, key, value, self.ops)
+                    target.metadata["length"] = len(target.fields)
+                    result.append(self.normal(s))
+                    continue
+                if name in {"keys", "values", "items"}:
+                    if args or keywords:
+                        result.append(self.error(s, "TypeError"))
+                        continue
+                    result.append(
+                        Flow(s, value=self.dictionary_views.create(ref, name, s, frame, node))
+                    )
+                    continue
+            if name == "clear" and obj.kind in {"dict", "list", "set"}:
                 s.invalidate_guards(ref)
-                for key in list(target.fields):target.fields.pop(key,None);target.maybe_missing.add(key);s.writes.add(("heap",ref,key))
-                target.default=Value.bottom();target.metadata["length"]=0;s.writes.add(("heap_default",ref,None));result.append(self.normal(s));continue
-            if name=="copy" and obj.kind in {"dict","list","set"}:
-                value=self.alloc(node,s,frame,obj.kind,dict(target.fields),dict(target.metadata));result.append(Flow(s,value=value));continue
-            if name=="pop" and obj.kind in {"dict","list"}:
-                keys=args[0].exact_constants() if args else [target.metadata.get("length",1)-1]
-                if keys is None:result.extend(self.unknown(s,node,"unknown_pop"));continue
-                for key in keys:
-                    value,missing=s.read_slot(ref,key,self.ops)
-                    if not value.is_bottom():
-                        copy=s.copy();copy.invalidate_guards(ref);copy.heap[ref].fields.pop(key,None);copy.heap[ref].maybe_missing.add(key);copy.writes.add(("heap",ref,key));result.append(Flow(copy,value=value))
-                    if missing:result.append(Flow(s.copy(),value=args[1]) if len(args)>1 else self.error(s.copy(),"KeyError" if obj.kind=="dict" else "IndexError"))
+                for key in list(target.fields):
+                    target.fields.pop(key, None)
+                    target.maybe_missing.add(key)
+                    s.writes.add(HeapDelete(ref, key))
+                target.default = Value.bottom()
+                target.metadata["length"] = 0
+                s.writes.add(HeapDefaultWrite(ref))
+                result.append(self.normal(s))
                 continue
-        if result:return result
-        constants=receiver.exact_constants();arg_constants=[arg.exact_constants() for arg in args]
+            if name == "copy" and obj.kind in {"dict", "list", "set"}:
+                value = self.alloc(
+                    node, s, frame, obj.kind, dict(target.fields), dict(target.metadata)
+                )
+                result.append(Flow(s, value=value))
+                continue
+            if name == "pop" and obj.kind in {"dict", "list"}:
+                keys = args[0].exact_constants() if args else [target.metadata.lookup("length", 1) - 1]
+                if keys is None:
+                    result.extend(self.unknown(s, node, "unknown_pop"))
+                    continue
+                for key in keys:
+                    value, missing = s.read_slot(ref, key, self.ops)
+                    if not value.is_bottom():
+                        copy = s.copy()
+                        copy.invalidate_guards(ref)
+                        copy.heap[ref].fields.pop(key, None)
+                        copy.heap[ref].maybe_missing.add(key)
+                        copy.writes.add(HeapDelete(ref, key))
+                        result.append(Flow(copy, value=value))
+                    if missing:
+                        result.append(
+                            Flow(s.copy(), value=args[1])
+                            if len(args) > 1
+                            else self.error(
+                                s.copy(), "KeyError" if obj.kind == "dict" else "IndexError"
+                            )
+                        )
+                continue
+        if result:
+            return result
+        constants = receiver.exact_constants()
+        arg_constants = [arg.exact_constants() for arg in args]
         if constants is not None and all(x is not None for x in arg_constants):
             for value in constants:
-                if type(value) is not str:continue
-                method=getattr(str,name,None)
-                if method is None:continue
+                if type(value) is not str:
+                    continue
+                method = getattr(str, name, None)
+                if method is None:
+                    continue
                 for combo in product(*arg_constants):
                     try:
-                        concrete=method(value,*combo,**{key:val.exact_constants()[0] for key,val in keywords})
+                        concrete = method(
+                            value,
+                            *combo,
+                            **{key: val.exact_constants()[0] for key, val in keywords},
+                        )
                         if type(concrete) is list:
-                            s=store.copy();out=self.alloc(node,s,frame,"list",{i:Value.constant(x) for i,x in enumerate(concrete)},{"length":len(concrete)});result.append(Flow(s,value=out))
-                        else:result.append(Flow(store.copy(),value=Value.constant(concrete)))
-                    except (TypeError,ValueError,IndexError) as exc:result.append(self.error(store.copy(),type(exc).__name__))
-        return result or self.unknown(store,node,"unsupported_builtin_method:"+name)
+                            s = store.copy()
+                            out = self.alloc(
+                                node,
+                                s,
+                                frame,
+                                "list",
+                                {i: Value.constant(x) for i, x in enumerate(concrete)},
+                                {"length": len(concrete)},
+                            )
+                            result.append(Flow(s, value=out))
+                        else:
+                            result.append(Flow(store.copy(), value=Value.constant(concrete)))
+                    except (TypeError, ValueError, IndexError) as exc:
+                        result.append(self.error(store.copy(), type(exc).__name__))
+        return result or self.unknown(store, node, "unsupported_builtin_method:" + name)
 
-    def resume(self,receiver,store,frame,node,operation,value=None):return self.continuations.resume(receiver,store,frame,node,operation,value)
+    def resume(self, receiver, store, frame, node, operation, value=None):
+        return self.continuations.resume(receiver, store, frame, node, operation, value)
 
-    def aggregate_builtin(self,name,args,store,frame,node):
-        if not args:return [self.error(store,"TypeError")]
-        sequences,unknown=self.iterable_values(args[0],store);result=[]
-        if name in {"min","max"} and len(args)>1:sequences=[args];unknown=False
+    def aggregate_builtin(self, name, args, store, frame, node):
+        if not args:
+            return [self.error(store, "TypeError")]
+        sequences, unknown = self.iterable_values(args[0], store)
+        result = []
+        if name in {"min", "max"} and len(args) > 1:
+            sequences = [args]
+            unknown = False
         for sequence in sequences:
-            if name=="enumerate":
-                start=0
-                if len(args)>1:
-                    constants=args[1].exact_constants();start=constants[0] if constants else 0
-                s=store.copy();values=[self.alloc(node,s,frame,"tuple",{0:Value.constant(i+start),1:v},{"length":2}) for i,v in enumerate(sequence)]
-                result.append(Flow(s,value=self.alloc(node,s,frame,"list",{i:v for i,v in enumerate(values)},{"length":len(values)})));continue
-            if name in {"sorted","reversed"}:
-                constants=[v.exact_constants() for v in sequence]
-                if all(x is not None and len(x)==1 for x in constants):
-                    scalars=[x[0] for x in constants]
-                    try:values=[Value.constant(x) for x in (sorted(scalars) if name=="sorted" else list(reversed(scalars)))]
-                    except TypeError:result.append(self.error(store.copy(),"TypeError"));continue
-                    s=store.copy();result.append(Flow(s,value=self.alloc(node,s,frame,"list",{i:v for i,v in enumerate(values)},{"length":len(values)})));continue
-            constants=[v.exact_constants() for v in sequence]
-            if all(x is not None and len(x)==1 for x in constants):
-                scalars=[x[0] for x in constants]
-                try:
-                    function={"sum":sum,"all":all,"any":any,"min":min,"max":max}.get(name)
-                    if function:
-                        if name=="sum" and len(args)>1:
-                            start=args[1].exact_constants()
-                            if start is None:
-                                result.extend(self.unknown(store,node,"aggregate_sum_start"));continue
-                            for initial in start:result.append(Flow(store.copy(),value=Value.constant(sum(scalars,initial))))
-                        else:result.append(Flow(store.copy(),value=Value.constant(function(scalars))))
+            if name == "enumerate":
+                start = 0
+                if len(args) > 1:
+                    constants = args[1].exact_constants()
+                    start = constants[0] if constants else 0
+                s = store.copy()
+                values = [
+                    self.alloc(
+                        node, s, frame, "tuple", {0: Value.constant(i + start), 1: v}, {"length": 2}
+                    )
+                    for i, v in enumerate(sequence)
+                ]
+                result.append(
+                    Flow(
+                        s,
+                        value=self.alloc(
+                            node,
+                            s,
+                            frame,
+                            "list",
+                            {i: v for i, v in enumerate(values)},
+                            {"length": len(values)},
+                        ),
+                    )
+                )
+                continue
+            if name in {"sorted", "reversed"}:
+                constants = [v.exact_constants() for v in sequence]
+                if all(x is not None and len(x) == 1 for x in constants):
+                    scalars = [x[0] for x in constants]
+                    try:
+                        values = [
+                            Value.constant(x)
+                            for x in (
+                                sorted(scalars) if name == "sorted" else list(reversed(scalars))
+                            )
+                        ]
+                    except TypeError:
+                        result.append(self.error(store.copy(), "TypeError"))
                         continue
-                except (TypeError,ValueError) as exc:result.append(self.error(store.copy(),type(exc).__name__));continue
-            result.extend(self.unknown(store,node,"aggregate_input:"+name))
-        if unknown:result.extend(self.unknown(store,node,"aggregate_iteration:"+name))
-        return result or self.unknown(store,node,"unsupported_aggregate:"+name)
+                    s = store.copy()
+                    result.append(
+                        Flow(
+                            s,
+                            value=self.alloc(
+                                node,
+                                s,
+                                frame,
+                                "list",
+                                {i: v for i, v in enumerate(values)},
+                                {"length": len(values)},
+                            ),
+                        )
+                    )
+                    continue
+            constants = [v.exact_constants() for v in sequence]
+            if all(x is not None and len(x) == 1 for x in constants):
+                scalars = [x[0] for x in constants]
+                try:
+                    function = {"sum": sum, "all": all, "any": any, "min": min, "max": max}.get(
+                        name
+                    )
+                    if function:
+                        if name == "sum" and len(args) > 1:
+                            start = args[1].exact_constants()
+                            if start is None:
+                                result.extend(self.unknown(store, node, "aggregate_sum_start"))
+                                continue
+                            for initial in start:
+                                result.append(
+                                    Flow(store.copy(), value=Value.constant(sum(scalars, initial)))
+                                )
+                        else:
+                            result.append(
+                                Flow(store.copy(), value=Value.constant(function(scalars)))
+                            )
+                        continue
+                except (TypeError, ValueError) as exc:
+                    result.append(self.error(store.copy(), type(exc).__name__))
+                    continue
+            result.extend(self.unknown(store, node, "aggregate_input:" + name))
+        if unknown:
+            result.extend(self.unknown(store, node, "aggregate_iteration:" + name))
+        return result or self.unknown(store, node, "unsupported_aggregate:" + name)
 
-    def with_statement(self,node,store,frame):return self.continuations.with_statement(node,store,frame)
+    def with_statement(self, node, store, frame):
+        return self.continuations.with_statement(node, store, frame)
 
-    def comprehension(self,node,store,frame):
-        paths=[self.normal(store.copy())]
+    def comprehension(self, node, store, frame):
+        paths = [self.normal(store.copy())]
         # Comprehension variables have a distinct lexical environment.
-        local=frozenset(n.id for generator in node.generators for n in ast.walk(generator.target) if isinstance(n,ast.Name))
-        identity=f"comprehension:{self.d.point(node)}@{'|'.join(frame.context)}";closure=dict(frame.closure)
-        closure.update((name,frame.cell(name)) for name in frame.locals)
-        compframe=Frame(frame.module,frame.qualname+".<comprehension>",frame.context,identity,local,tuple(closure.items()))
+        local = frozenset(
+            n.id
+            for generator in node.generators
+            for n in ast.walk(generator.target)
+            if isinstance(n, ast.Name)
+        )
+        identity = f"comprehension:{self.d.point(node)}@{'|'.join(frame.context)}"
+        closure = dict(frame.closure)
+        closure.update((name, frame.cell(name)) for name in frame.locals)
+        compframe = Frame(
+            frame.module,
+            frame.qualname + ".<comprehension>",
+            frame.context,
+            identity,
+            local,
+            tuple(closure.items()),
+        )
         for generator in node.generators:
-            expanded=[]
+            expanded = []
             for p in paths:
-                for iterable in self.expr(generator.iter,p.store,frame):
-                    if iterable.kind!="normal":expanded.append(iterable);continue
-                    sequences,unknown=self.iterable_values(iterable.value,iterable.store)
-                    if unknown:self.d.open("comprehension_iteration",iterable.store,node)
-                    values=[v for sequence in sequences for v in sequence]
-                    if unknown:values.append(Value.unknown())
+                for iterable in self.expr(generator.iter, p.store, frame):
+                    if iterable.kind != "normal":
+                        expanded.append(iterable)
+                        continue
+                    sequences, unknown = self.iterable_values(iterable.value, iterable.store)
+                    if unknown:
+                        self.d.open("comprehension_iteration", iterable.store, node)
+                    values = [v for sequence in sequences for v in sequence]
+                    if unknown:
+                        values.append(Value.unknown())
                     for value in values:
-                        for assigned in self.assign(generator.target,value,iterable.store.copy(),compframe,node):
-                            if assigned.kind!="normal":expanded.append(assigned);continue
-                            possible=[assigned]
+                        for assigned in self.assign(
+                            generator.target, value, iterable.store.copy(), compframe, node
+                        ):
+                            if assigned.kind != "normal":
+                                expanded.append(assigned)
+                                continue
+                            possible = [assigned]
                             for condition in generator.ifs:
-                                next_possible=[]
+                                next_possible = []
                                 for candidate in possible:
-                                    for tested in self.expr(condition,candidate.store,compframe):
-                                        if tested.kind!="normal":next_possible.append(tested)
+                                    for tested in self.expr(condition, candidate.store, compframe):
+                                        if tested.kind != "normal":
+                                            next_possible.append(tested)
                                         else:
-                                            for truth_flow in self.truth_flows(tested.value,tested.store,compframe,node):
-                                                if truth_flow.kind!="normal":next_possible.append(truth_flow)
-                                                elif True in truth_flow.value.bools:next_possible.append(self.normal(truth_flow.store))
-                                possible=next_possible
+                                            for truth_flow in self.truth_flows(
+                                                tested.value, tested.store, compframe, node
+                                            ):
+                                                if truth_flow.kind != "normal":
+                                                    next_possible.append(truth_flow)
+                                                elif True in truth_flow.value.bools:
+                                                    next_possible.append(
+                                                        self.normal(truth_flow.store)
+                                                    )
+                                possible = next_possible
                             expanded.extend(possible)
-            paths=expanded
-        errors=[];values=[];fields={};last=store.copy()
+            paths = expanded
+        errors = []
+        values = []
+        fields = {}
+        last = store.copy()
         for p in paths:
-            if p.kind!="normal":errors.append(p);continue
-            if isinstance(node,ast.DictComp):
-                states,ex=self.eval_nodes((node.key,node.value),p.store,compframe);errors.extend(ex)
-                for s,(key,value) in states:
-                    constants=key.exact_constants()
-                    if constants is None:self.d.open("comprehension_key",s,node)
+            if p.kind != "normal":
+                errors.append(p)
+                continue
+            if isinstance(node, ast.DictComp):
+                states, ex = self.eval_nodes((node.key, node.value), p.store, compframe)
+                errors.extend(ex)
+                for s, (key, value) in states:
+                    constants = key.exact_constants()
+                    if constants is None:
+                        self.d.open("comprehension_key", s, node)
                     else:
-                        for concrete in constants:fields[concrete]=self.ops.join(fields.get(concrete,Value.bottom()),value)
-                    last=last.join(s,self.ops)
+                        for concrete in constants:
+                            fields[concrete] = self.ops.join(
+                                fields.get(concrete, Value.bottom()), value
+                            )
+                    last = last.join(s, self.ops)
             else:
-                for out in self.expr(node.elt,p.store,compframe):
-                    if out.kind=="normal":values.append(out.value);last=last.join(out.store,self.ops)
-                    else:errors.append(out)
-        kind="dict" if isinstance(node,ast.DictComp) else "set" if isinstance(node,ast.SetComp) else "list"
-        if not isinstance(node,ast.DictComp):fields={i:v for i,v in enumerate(values)}
-        ref=self.alloc(node,last,frame,kind,fields,{"length":len(fields)})
-        return errors+[Flow(last,value=ref)]
+                for out in self.expr(node.elt, p.store, compframe):
+                    if out.kind == "normal":
+                        values.append(out.value)
+                        last = last.join(out.store, self.ops)
+                    else:
+                        errors.append(out)
+        kind = (
+            "dict"
+            if isinstance(node, ast.DictComp)
+            else "set"
+            if isinstance(node, ast.SetComp)
+            else "list"
+        )
+        if not isinstance(node, ast.DictComp):
+            fields = {i: v for i, v in enumerate(values)}
+        ref = self.alloc(node, last, frame, kind, fields, {"length": len(fields)})
+        return errors + [Flow(last, value=ref)]

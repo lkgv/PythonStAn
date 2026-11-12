@@ -3,6 +3,7 @@ import ast
 import pytest
 from pythonstan.analysis.domains.values import Value,ValueOperations
 from pythonstan.analysis.domains.reabstract import ReferenceKey
+from pythonstan.analysis.state.metadata import Metadata
 from pythonstan.analysis.engines.abstract.state import Store,HeapObject,Flow,Frame,Unit
 from pythonstan.analysis.engines.abstract.state_transform import remap_store,PayloadTransformer
 from pythonstan.analysis.composition.state_adapter import FullStateAdapter,BoundaryObject
@@ -51,10 +52,10 @@ def test_root_store_aliases_and_shared_mutable_payloads_survive_adapter_roundtri
     restored=FullStateAdapter().decode(FullStateAdapter().encode(flow));root=restored.store
     assert root.heap['suspended'].metadata['entry'] is root
     assert root.heap['suspended'].metadata['pending'].store is root
-    assert restored.continuation[0][1] is root and restored.cleanups[0][1] is root
+    assert restored.continuation.commands[0].payload[0] is root and restored.cleanups.commands[0].payload[0] is root
     assert restored.resume_target['store'] is root
     current=root.heap['suspended'].metadata['shared']
-    assert restored.continuation[0][2] is current and restored.cleanups[0][2] is current
+    assert restored.continuation.commands[0].payload[1] is current and restored.cleanups.commands[0].payload[1] is current
     assert restored.resume_target['shared'] is current
     for name in ('cells','heap','initialized','writes','guards'):
         assert restored.resume_target[name] is getattr(root,name)
@@ -73,7 +74,7 @@ def test_real_native_region_write_is_visible_through_embedded_root_alias():
     rows=NativeRegionEngine().execute(d.trees['subject'].body[0],original,frame,d)
     normal=next(flow for flow in rows if flow.kind=='normal')
     assert normal.store.heap['suspended'].metadata['entry'] is normal.store
-    assert normal.continuation[0][1] is normal.store
+    assert normal.continuation.commands[0].payload[0] is normal.store
     assert normal.store.heap['suspended'].metadata['entry'].heap['box'].fields['value'].exact_constants()==['after']
     assert state.heap['box'].fields['value'].exact_constants()==['before']
 
@@ -97,7 +98,7 @@ def test_replaced_flat_maps_are_authoritative_and_new_boundary_objects_convert_o
     boundary.cells={**boundary.cells,'kernel':Value.ref('new')}
     boundary.heap={**boundary.heap,'new':BoundaryObject('dict',{'value':Value.constant('after')},Value.bottom(),set(),True,frozenset(),{},False)}
     restored=adapter.decode(boundary);root=restored.store
-    assert root.heap['suspended'].metadata['entry'] is root and restored.continuation[0][1] is root
+    assert root.heap['suspended'].metadata['entry'] is root and restored.continuation.commands[0].payload[0] is root
     assert isinstance(root.heap['new'],HeapObject)
     assert root.heap['suspended'].metadata['entry'].cells['kernel'].refs==frozenset({'new'})
     assert root.heap['suspended'].metadata['entry'].heap['new'].fields['value'].exact_constants()==['after']
@@ -144,7 +145,7 @@ def test_alias_first_cells_rekey_and_join_in_the_same_memo_dictionary():
 
 
 def test_alias_first_metadata_uses_its_trusted_role_and_preserves_literal_strings():
-    metadata={'owner':'A','mro':('A','B'),'closure':(('x','A'),),'label':'A'}
+    metadata=Metadata.from_component_graph('namespace',{'owner':'A','mro':('A','B'),'closure':(('x','A'),),'label':'A'})
     mapped=PayloadTransformer({'A':'S','B':'S'},ValueOperations()).visit({'alias_first':metadata,'object_second':HeapObject('namespace',metadata=metadata)})
     assert mapped['alias_first'] is mapped['object_second'].metadata
     assert mapped['alias_first']=={'owner':'S','mro':('S','S'),'closure':(('x','S'),),'label':'A'}

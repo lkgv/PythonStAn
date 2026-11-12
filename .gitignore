@@ -14,3 +14,9 @@ __pypackages__/
 .env.production.local
 *.bak
 *.pyc
+
+# Raw phase-two logs, receipts and local experiment inputs.
+artifacts/
+dist/
+.mypy_cache/
+.import_linter_cache/

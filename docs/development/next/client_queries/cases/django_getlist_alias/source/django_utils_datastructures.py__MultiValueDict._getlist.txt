@@ -1,0 +1,17 @@
+    def _getlist(self, key, default=None, force_list=False):
+        """
+        Return a list of values for the key.
+
+        Used internally to manipulate values list. If force_list is True,
+        return a new copy of values.
+        """
+        try:
+            values = super().__getitem__(key)
+        except KeyError:
+            if default is None:
+                return []
+            return default
+        else:
+            if force_list:
+                values = list(values) if values is not None else None
+            return values

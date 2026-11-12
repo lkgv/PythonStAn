@@ -1,0 +1,82 @@
+{
+  "scenarios": [
+    "valid_context_return",
+    "valid_context_raise",
+    "invalid_context",
+    "no_arguments"
+  ],
+  "times_called": 0,
+  "callbacks": {
+    "normal": "append body event then return input integer+1",
+    "raising": "append body event then raise ValueError"
+  },
+  "payload_integer": 2,
+  "receiver_kind": "exact invoke.tasks.Task",
+  "context_kind": "exact invoke.context.Context; no subclasses",
+  "keyword_arguments": {},
+  "prepared_graph_template": {
+    "task": {
+      "id": "task",
+      "source_class": "invoke.tasks.Task",
+      "fields": {
+        "times_called": 0,
+        "body": "callback identity selected by scenario"
+      }
+    },
+    "context": {
+      "id": "ctx",
+      "source_class": "invoke.context.Context",
+      "fields": {},
+      "constructor": "not run"
+    },
+    "events": {
+      "id": "events",
+      "builtin_kind": "list",
+      "elements": []
+    },
+    "invalid": {
+      "builtin_kind": "int",
+      "value": 0
+    }
+  },
+  "exact_calls": [
+    {
+      "scenario": "valid_context_return",
+      "body": "benchmark.next.client_callbacks.normal_body",
+      "positional": [
+        "ref:ctx",
+        2,
+        "ref:events"
+      ],
+      "keyword": {}
+    },
+    {
+      "scenario": "valid_context_raise",
+      "body": "benchmark.next.client_callbacks.raising_body",
+      "positional": [
+        "ref:ctx",
+        2,
+        "ref:events"
+      ],
+      "keyword": {}
+    },
+    {
+      "scenario": "invalid_context",
+      "body": "benchmark.next.client_callbacks.normal_body",
+      "positional": [
+        0,
+        2,
+        "ref:events"
+      ],
+      "keyword": {}
+    },
+    {
+      "scenario": "no_arguments",
+      "body": "benchmark.next.client_callbacks.normal_body",
+      "positional": [],
+      "keyword": {}
+    }
+  ],
+  "scenario_reset": "Fresh task/context/events graph for each of four scenarios; times_called=0 and events=[] before every call.",
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

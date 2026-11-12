@@ -1,0 +1,56 @@
+{
+  "project": "fastapi",
+  "case_id": "fastapi_recursive_merge",
+  "mappings": [
+    {
+      "original_path": "fastapi/utils.py",
+      "qualname": "deep_dict_update",
+      "start_line": 103,
+      "end_line": 118,
+      "original_file_sha256": "0d7d15ae73307d5b19c51cfc222b50e36736fbef9f0f398566479131947650ca",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/fastapi_recursive_merge/source/fastapi_utils.py__deep_dict_update.txt",
+      "exact_fragment_sha256": "615949d755de58e708a3c590b8b76908571ae067a44488e3ea16dbeb7ad567ad",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "micro": {
+    "status": "registered_semantic_entry_contract",
+    "purpose": "Independent finite input/output relation in inputs/gold; not an analyzer implementation and not evidence of full-project performance."
+  },
+  "slice": {
+    "status": "exact_fragments_frozen_not_yet_executable",
+    "retains": "All target bodies; declared builtin/class/callback models. No source transfer replaced with a constant.",
+    "omitted": "Unreachable imports and package initialization under direct prepared-state entry; not arbitrary application startup."
+  },
+  "full_project": {
+    "path": "artifacts/next/preregistration/projects/fastapi/fastapi-0.162.0",
+    "inventory_path": "docs/development/next/client_queries/projects/fastapi/inventory.json",
+    "inventory_digest": "ce7c958b8545f07b55dfb423c4b7ee4bcc145b1fb06f3a4c2462c2dd2a6af045",
+    "unreduced_runtime_inventory": true,
+    "same_entry_input_model_query_as_slice": true,
+    "required_for_scale_gate": false,
+    "execution_status": "not_run_pending_entry_support_and_REL01",
+    "input_selection": {
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "fastapi"
+      ],
+      "distribution_exclusions": [
+        "LICENSE",
+        "PKG-INFO",
+        "README.md",
+        "docs",
+        "docs_src",
+        "pyproject.toml",
+        "scripts",
+        "tests"
+      ],
+      "default_component_exclusions": false,
+      "must_equal_inventory_python_files": true
+    }
+  },
+  "license": "Original pinned public distribution; archive license retained with source cache."
+}

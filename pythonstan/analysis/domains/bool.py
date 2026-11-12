@@ -7,7 +7,7 @@ From ai_spec.md §3.2.1:
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, List, Optional
+from typing import override
 
 from pythonstan.analysis.domains.base import Domain, Fact
 
@@ -18,17 +18,20 @@ __all__ = ["BoolDomain", "BoolLattice", "BoolVal"]
 # BoolVal - Four-valued boolean
 # =============================================================================
 
+
 class BoolVal(Enum):
     """Four-valued boolean lattice."""
+
     BOTTOM = "bottom"  # Unreachable / contradiction
-    FALSE = "false"    # Definitely False
-    TRUE = "true"      # Definitely True
-    TOP = "top"        # Unknown (may be True or False)
+    FALSE = "false"  # Definitely False
+    TRUE = "true"  # Definitely True
+    TOP = "top"  # Unknown (may be True or False)
 
 
 # =============================================================================
 # BoolLattice - Boolean lattice element
 # =============================================================================
+
 
 @dataclass(frozen=True)
 class BoolLattice:
@@ -42,30 +45,31 @@ class BoolLattice:
            \ /
             ⊥ (bottom/unreachable)
     """
+
     val: BoolVal = BoolVal.BOTTOM
 
     @classmethod
-    def bottom(cls) -> 'BoolLattice':
+    def bottom(cls) -> "BoolLattice":
         """Bottom (unreachable)."""
         return cls(BoolVal.BOTTOM)
 
     @classmethod
-    def true_(cls) -> 'BoolLattice':
+    def true_(cls) -> "BoolLattice":
         """Definitely True."""
         return cls(BoolVal.TRUE)
 
     @classmethod
-    def false_(cls) -> 'BoolLattice':
+    def false_(cls) -> "BoolLattice":
         """Definitely False."""
         return cls(BoolVal.FALSE)
 
     @classmethod
-    def top(cls) -> 'BoolLattice':
+    def top(cls) -> "BoolLattice":
         """Unknown (may be True or False)."""
         return cls(BoolVal.TOP)
 
     @classmethod
-    def from_bool(cls, b: bool) -> 'BoolLattice':
+    def from_bool(cls, b: bool) -> "BoolLattice":
         """Create from Python bool."""
         return cls(BoolVal.TRUE if b else BoolVal.FALSE)
 
@@ -93,7 +97,7 @@ class BoolLattice:
         """Check if may be False."""
         return self.val in (BoolVal.FALSE, BoolVal.TOP)
 
-    def negate(self) -> 'BoolLattice':
+    def negate(self) -> "BoolLattice":
         """Logical negation."""
         if self.val == BoolVal.TRUE:
             return BoolLattice.false_()
@@ -101,6 +105,7 @@ class BoolLattice:
             return BoolLattice.true_()
         return self  # bottom or top stay the same
 
+    @override
     def __str__(self) -> str:
         if self.val == BoolVal.BOTTOM:
             return "⊥_bool"
@@ -115,19 +120,24 @@ class BoolLattice:
 # BoolDomain
 # =============================================================================
 
+
 class BoolDomain(Domain[BoolLattice]):
     """Boolean domain for branch refinement and descriptor predicates."""
 
     @property
+    @override
     def name(self) -> str:
         return "bool"
 
+    @override
     def bottom(self) -> BoolLattice:
         return BoolLattice.bottom()
 
+    @override
     def top(self) -> BoolLattice:
         return BoolLattice.top()
 
+    @override
     def join(self, a: BoolLattice, b: BoolLattice) -> BoolLattice:
         """Join two boolean values."""
         if a.is_bottom():
@@ -138,6 +148,7 @@ class BoolDomain(Domain[BoolLattice]):
             return a
         return BoolLattice.top()
 
+    @override
     def meet(self, a: BoolLattice, b: BoolLattice) -> BoolLattice:
         """Meet two boolean values."""
         if a.is_top():
@@ -148,6 +159,7 @@ class BoolDomain(Domain[BoolLattice]):
             return a
         return BoolLattice.bottom()  # Contradiction
 
+    @override
     def leq(self, a: BoolLattice, b: BoolLattice) -> bool:
         """Check a ⊑ b."""
         if a.is_bottom():
@@ -156,13 +168,15 @@ class BoolDomain(Domain[BoolLattice]):
             return True
         return a.val == b.val
 
-    def abstract_const(self, value: Any) -> Optional[BoolLattice]:
+    @override
+    def abstract_const(self, value: object) -> BoolLattice | None:
         """Abstract a constant boolean."""
         if isinstance(value, bool):
             return BoolLattice.from_bool(value)
         return None
 
-    def produce_facts(self, var: str, elem: BoolLattice) -> List[Fact]:
+    @override
+    def produce_facts(self, var: str, elem: BoolLattice) -> list[Fact]:
         """Produce facts about boolean values."""
         facts = []
         if elem.is_true():
@@ -173,6 +187,7 @@ class BoolDomain(Domain[BoolLattice]):
             facts.append(Fact("is_bool", var, None))
         return facts
 
+    @override
     def consume_fact(self, elem: BoolLattice, fact: Fact) -> BoolLattice:
         """Consume a fact to refine boolean abstraction.
 
@@ -201,8 +216,7 @@ class BoolDomain(Domain[BoolLattice]):
             # Singleton int: 0 is falsy, non-zero is truthy
             if fact.data == 0:
                 return self.meet(elem, BoolLattice.false_())
-            else:
-                return self.meet(elem, BoolLattice.true_())
+            return self.meet(elem, BoolLattice.true_())
         return elem
 
     # -------------------------------------------------------------------------
@@ -232,4 +246,3 @@ class BoolDomain(Domain[BoolLattice]):
     def not_(self, a: BoolLattice) -> BoolLattice:
         """Logical NOT."""
         return a.negate()
-

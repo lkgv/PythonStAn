@@ -37,11 +37,16 @@ def thaw_snapshot(value: object) -> object:
     raise TypeError(f"not snapshot data: {type(value).__name__}")
 
 
-def value_snapshot(*, constants: Sequence[object] = (), objects: Sequence[str] = (),
-                   types: Sequence[str] = (), top: bool = False,
-                   relations: Sequence[object] = (),
-                   items: Sequence[object] | None = None,
-                   slots: Mapping[str, object] | None = None) -> Mapping[str, object]:
+def value_snapshot(
+    *,
+    constants: Sequence[object] = (),
+    objects: Sequence[str] = (),
+    types: Sequence[str] = (),
+    top: bool = False,
+    relations: Sequence[object] = (),
+    items: Sequence[object] | None = None,
+    slots: Mapping[str, object] | None = None,
+) -> Mapping[str, object]:
     """Canonical full-value wire; bool/int remain distinct in tagged members."""
     tagged = []
     for value in constants:
@@ -59,8 +64,11 @@ def value_snapshot(*, constants: Sequence[object] = (), objects: Sequence[str] =
             raise TypeError("constant must be a JSON scalar")
         tagged.append({"type": kind, "value": value})
     result = {
-        "constants": list(constants), "tagged_constants": tagged,
-        "objects": list(objects), "types": list(types), "top": top,
+        "constants": list(constants),
+        "tagged_constants": tagged,
+        "objects": list(objects),
+        "types": list(types),
+        "top": top,
         "bottom": not top and not constants and not objects and not types,
         "relations": list(relations),
     }
@@ -69,5 +77,3 @@ def value_snapshot(*, constants: Sequence[object] = (), objects: Sequence[str] =
     if slots is not None:
         result["slots"] = dict(slots)
     return freeze_snapshot(result)
-
-

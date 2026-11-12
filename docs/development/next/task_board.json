@@ -1,0 +1,3530 @@
+{
+  "schema_version": 2,
+  "plan_version": "PythonStAn-next-v2",
+  "date": "2026-11-11",
+  "timezone": "Asia/Shanghai",
+  "audited_baseline": "b19d98e0cdca8fd23d49ec82a526f814309edf75",
+  "source_tree": "23135d4c1070af6c20fd88308008197fb1c333bc",
+  "task_count": 43,
+  "phase_counts": {
+    "W0": 4,
+    "W1": 2,
+    "W2": 10,
+    "W3": 8,
+    "W4": 6,
+    "W5": 4,
+    "W6": 3,
+    "W7": 3,
+    "W8": 2,
+    "W9": 1
+  },
+  "instruction": "All tasks are proposed, not implemented. dependencies are task edges; contributes_to_gates is reporting only and never an implicit prerequisite. Phase labels are scheduling hints, not barriers. Source-file leases and independent review required.",
+  "effort_classes": {
+    "S": "一个窄接口/修复切片",
+    "M": "若干紧密相关实现与独立验收",
+    "L": "跨运行边界，必须拆小提交并保留父卡验收；不是时间保证"
+  },
+  "task_states": [
+    "planned_not_implemented",
+    "not_run",
+    "not_run_by_stop_rule",
+    "stopped_by_budget",
+    "pending_dependencies",
+    "ready",
+    "running",
+    "implementation_done",
+    "review",
+    "verified",
+    "failed",
+    "blocked_external",
+    "blocked_internal",
+    "superseded"
+  ],
+  "topological_order": [
+    "N4-BOOT-01",
+    "N4-BOOT-02",
+    "N4-QUAL-01",
+    "N4-API-01",
+    "N4-EVAL-01",
+    "N4-TYPE-01",
+    "N4-CTRL-01",
+    "N4-DOM-01",
+    "N4-LLM-04",
+    "N4-SEM-01",
+    "N4-SEM-02",
+    "N4-STATE-01",
+    "N4-STATE-02",
+    "N4-BUDGET-01",
+    "N4-PTA-01",
+    "N4-PTA-02",
+    "N4-PTA-03",
+    "N4-RESULT-01",
+    "N4-SEM-03",
+    "N4-AI-01",
+    "N4-EVAL-02",
+    "N4-QUERY-01",
+    "N4-SEM-04",
+    "N4-SEM-05",
+    "N4-AI-02",
+    "N4-ARCH-01",
+    "N4-HYB-01",
+    "N4-LLM-01",
+    "N4-LLM-03",
+    "N4-OBS-01",
+    "N4-AI-03",
+    "N4-CTRL-02",
+    "N4-LLM-02",
+    "N4-PERF-01",
+    "N4-TYPE-02",
+    "N4-AUDIT-01",
+    "N4-REL-01",
+    "N4-EVAL-03",
+    "N4-LIVE-01",
+    "N4-DOC-01",
+    "N4-LIVE-02",
+    "N4-LIVE-03",
+    "N4-REL-02"
+  ],
+  "tasks": [
+    {
+      "id": "N4-BOOT-01",
+      "title": "冻结源码、审计账本与公开制品基线",
+      "phase": "W0",
+      "owner_role": "集成/发布",
+      "reviewer_roles": [
+        "独立审计"
+      ],
+      "dependencies": [],
+      "contributes_to_gates": [
+        "G0"
+      ],
+      "prior_22_cards": [
+        "AUD-01"
+      ],
+      "original_46_cards": [
+        "BOOT-01",
+        "MIG-01",
+        "RELEASE-01"
+      ],
+      "audit_findings": [
+        "PUBLICATION"
+      ],
+      "read_first": [
+        "pyproject.toml",
+        "docs/refactor",
+        "pythonstan/config/control_metadata.json",
+        "prior_audit"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "docs/refactor",
+        "pythonstan/config/control_metadata.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [
+        "prior_audit"
+      ],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "记录实际git HEAD/tree/dirty diff与环境；保留用户改动，重定位全部审计见证。",
+        "建立46卡、22卡、finding到本轮任务的追溯，区分已修、仍在、已变、证据不足。",
+        "复现控制元数据失败及source/wheel正负集合差异，冻结canonical manifest；修正同步错误时单独记录delta。",
+        "建立stage命令和raw evidence目录，旧结果只作为baseline，禁止直接复用绿色状态。"
+      ],
+      "acceptance": [
+        "基线身份可重建；1001阶段范围与实际结果准确记录。",
+        "17退休原型及兼容别名清单逐文件定位，明确保留/迁移/不安装理由。",
+        "每项既有缺陷有状态及复现/不可复现原因，不以报告摘要替代当前源码核验。"
+      ],
+      "not_completion": "不能hard-reset较新源码、删除用户未提交内容，或把上游760d8574的wheel验收当公开HEAD验收。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-BOOT-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "S",
+      "status": "verified",
+      "implementation_record": {
+        "owner": "root",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [
+          "artifacts/next/evidence/N4-BOOT-01"
+        ],
+        "remaining_obligations": [],
+        "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+        "review_records": [
+          "docs/development/next/reviews/BOOT-01.md"
+        ],
+        "scope": "W0 baseline/registration/tooling only; no production semantic repair or final core/scale qualification."
+      }
+    },
+    {
+      "id": "N4-BOOT-02",
+      "title": "冻结语义必修、开放边界和独立回归判据",
+      "phase": "W0",
+      "owner_role": "独立语义测试",
+      "reviewer_roles": [
+        "Python语义",
+        "域/状态"
+      ],
+      "dependencies": [
+        "N4-BOOT-01"
+      ],
+      "contributes_to_gates": [
+        "G0",
+        "G2"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "SPEC-01",
+        "TEST-01"
+      ],
+      "audit_findings": [
+        "AS-01",
+        "AS-02",
+        "AS-03",
+        "AS-04",
+        "AS-05",
+        "AS-06",
+        "AS-07",
+        "AS-08",
+        "R3-DOM-01",
+        "R3-DOM-02",
+        "R3-DOM-03",
+        "R3-DOM-04",
+        "R3-DOM-05",
+        "NCOMP-01",
+        "NCOMP-02",
+        "NCOMP-03",
+        "LV-01",
+        "LV-02",
+        "LV-03"
+      ],
+      "read_first": [
+        "tests/refactor",
+        "tests/certified",
+        "prior_audit",
+        "docs/specs/semantic-profile.md"
+      ],
+      "write_scope": [
+        "tests/refactor",
+        "tests/certified",
+        "docs/specs/semantic-profile.md",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [
+        "prior_audit"
+      ],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "把A01-A18、第二轮失败族和原正向控制登记为有稳定ID的mandatory/open/component fixture。",
+        "独立expected保留normal/raise/heap/effect/prefix/identity/query状态，不复用被测transfer生成答案。",
+        "用小型独立CPython进程与有限gamma oracle建立设计反例，固定Python3.12 profile与预算。",
+        "给已知bug制定允许的语义delta；结构重构比较排除纯运行ID/时钟，保留身份关系与保证状态。"
+      ],
+      "acceptance": [
+        "审计见证与额外变体都有明确预期和端到端/组件证据级别。",
+        "PTA=0、partial oracle不剪枝、closure/finally/defaults/fresh等已有正例纳入。",
+        "对任一mandatory fixture改为unsupported、全Top或不运行会使验收失败。"
+      ],
+      "not_completion": "不能以样本未观察到的行为作为排除依据；不能用旧错误结果作gold。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-BOOT-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "verified",
+      "implementation_record": {
+        "owner": "semantic_baseline + domain_native_baseline",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [
+          "artifacts/next/evidence/N4-BOOT-02"
+        ],
+        "remaining_obligations": [],
+        "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+        "review_records": [
+          "docs/development/next/reviews/BOOT-02-semantic.md",
+          "docs/development/next/reviews/BOOT-02-domain-native.md"
+        ],
+        "scope": "W0 baseline/registration/tooling only; no production semantic repair or final core/scale qualification."
+      }
+    },
+    {
+      "id": "N4-QUAL-01",
+      "title": "落地严格工具链、精确债务与门禁负例",
+      "phase": "W0",
+      "owner_role": "类型/工具",
+      "reviewer_roles": [
+        "架构",
+        "独立测试"
+      ],
+      "dependencies": [
+        "N4-BOOT-01"
+      ],
+      "contributes_to_gates": [
+        "G0",
+        "G6"
+      ],
+      "prior_22_cards": [
+        "TYPE-01"
+      ],
+      "original_46_cards": [
+        "ARCH-01",
+        "RELEASE-01"
+      ],
+      "audit_findings": [
+        "MAINTAINABILITY"
+      ],
+      "read_first": [
+        "pyproject.toml",
+        "poetry.lock",
+        "scripts/quality",
+        ".github/workflows",
+        "CODE_STANDARD.txt"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "poetry.lock",
+        "scripts/quality",
+        ".github/workflows",
+        "CODE_STANDARD.txt",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "合并Ruff format/lint、mypy strict和Import Linter配置；保留Poetry，锁定实际兼容版本。",
+        "全生产树运行工具，保存具体诊断债务和typed-frontier；新代码零新增，已迁移模块零诊断。",
+        "实现统一质量编排脚本，不改变工具语义；明确诊断退出码和债务比较。",
+        "设置ObjectId/CellId、raw request、Flow穷尽、Any、反向import、retired-wheel等最小负例。",
+        "格式化机械提交和语义提交分开；不使用不安全autofix。"
+      ],
+      "acceptance": [
+        "实际加载全部配置，未知规则/配置与未匹配的应生效合同使门失败。",
+        "正例通过、故意错误真实被拒绝，不能只检查配置文本存在。",
+        "无全包ignore_errors/follow_imports=skip/ignore_missing_imports，CI不能自动reset baseline。",
+        "债务按逻辑module ID、qualname、error code、稳定锚点/消息指纹跟踪，不靠改行或搬目录抹掉。"
+      ],
+      "not_completion": "不能声称全树mypy clean而实际只对少数文件检查；不能把所有值改object/cast以绕过。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-QUAL-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "verified",
+      "implementation_record": {
+        "owner": "quality_tools",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [
+          "artifacts/next/evidence/N4-QUAL-01"
+        ],
+        "remaining_obligations": [],
+        "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+        "review_records": [
+          "docs/development/next/quality_review.json",
+          "docs/development/next/reviews/QUAL-01.md"
+        ],
+        "scope": "W0 baseline/registration/tooling only; no production semantic repair or final core/scale qualification."
+      }
+    },
+    {
+      "id": "N4-TYPE-01",
+      "title": "将运行中的ID、Flow、Effect和metadata类型化",
+      "phase": "W1",
+      "owner_role": "运行合同/类型",
+      "reviewer_roles": [
+        "Python语义",
+        "状态",
+        "验证"
+      ],
+      "dependencies": [
+        "N4-QUAL-01",
+        "N4-BOOT-02"
+      ],
+      "contributes_to_gates": [
+        "G1",
+        "G2"
+      ],
+      "prior_22_cards": [
+        "TYPE-01"
+      ],
+      "original_46_cards": [
+        "SESSION-01",
+        "DOM-05",
+        "AI-01",
+        "QUERY-01",
+        "ARCH-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/contracts",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/contracts",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "冻结实际消费的名义ID、StateHandle、BindingRef与NormalExpr/NormalStmt/Return/Raise/Break/Continue/Suspend变体。",
+        "将EffectWrite、typed heap metadata、Continuation与SummaryDependency接入Store.apply/Transfer/driver。",
+        "分析义务独立于Python异常和状态效果；语义fact与debug event使用不同类型。",
+        "逐条垂直路径替换已有Flow和tuple协议，删除或改造闲置Outcome/ProcedureSummary，保留薄迁移适配。"
+      ],
+      "acceptance": [
+        "至少一条真实调用→效果→异常/返回→查询链完全使用新类型。",
+        "所有新改定义完整类型；新增Flow变体能触发旧handler穷尽检查失败。",
+        "核心Value/State/Flow/Policy没有Any泄漏，metadata不是dict[str,Any]的重命名。",
+        "所有旧语义正例保持；state canonical迁到analysis/state时依赖不反转。"
+      ],
+      "not_completion": "不能仅加Protocol/TypedDict文件再re-export，而实际求解器继续使用旧dict/tuple。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-TYPE-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "running",
+      "implementation_record": {
+        "owner": "domain_native_baseline; domains semantic_baseline; metadata semantic_baseline",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "至少一条真实调用→效果→异常/返回→查询链完全使用新类型。",
+          "所有新改定义完整类型；新增Flow变体能触发旧handler穷尽检查失败。",
+          "核心Value/State/Flow/Policy没有Any泄漏，metadata不是dict[str,Any]的重命名。",
+          "所有旧语义正例保持；state canonical迁到analysis/state时依赖不反转。"
+        ],
+        "scope": "Actual IDs and write footprints consumed; Flow/metadata/continuations and strict state remain incomplete.",
+        "review_records": [
+          "docs/development/next/reviews/W1-domain-config-input.md",
+          "docs/development/next/reviews/W1-effect-slice.md"
+        ]
+      }
+    },
+    {
+      "id": "N4-STATE-01",
+      "title": "跨重入点刷新epoch句柄与活跃continuation",
+      "phase": "W2",
+      "owner_role": "状态/continuation",
+      "reviewer_roles": [
+        "域/图",
+        "Python协议"
+      ],
+      "dependencies": [
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-08"
+      ],
+      "original_46_cards": [
+        "DOM-05",
+        "AI-05",
+        "SEM-06",
+        "CTRL-03"
+      ],
+      "audit_findings": [
+        "R3-DOM-04"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/continuations.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/composition/reabstract.py",
+        "pythonstan/analysis/state"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/continuations.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/composition/reabstract.py",
+        "pythonstan/analysis/state",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "登记可能publish epoch的expr/block/invoke/resume/adapter操作边界。",
+        "以StateHandle/ObjectHandle解析当前canonical identity，禁止跨边界缓存裸HeapObject。",
+        "重映射active generator、closure、iterator、exception owner和caller continuation；汇总后重验kind/cardinality。",
+        "失精度时走完整保守残余，不catch KeyError后返回空结果。"
+      ],
+      "acceptance": [
+        "两个generator+cap1/trace1的公开例正常包含1，cap2控制保持精度。",
+        "next/send/throw/close/yield-from/finally及protocol内汇总的独立变体覆盖。",
+        "epoch增长使依赖的must/singleton/guard/certificate失效，未更新句柄debug守卫能发现。"
+      ],
+      "not_completion": "不能只在函数入口normalize一次，或通过增大cap避开。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-STATE-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "两个generator+cap1/trace1的公开例正常包含1，cap2控制保持精度。",
+          "next/send/throw/close/yield-from/finally及protocol内汇总的独立变体覆盖。",
+          "epoch增长使依赖的must/singleton/guard/certificate失效，未更新句柄debug守卫能发现。"
+        ]
+      }
+    },
+    {
+      "id": "N4-STATE-02",
+      "title": "统一有环图clone/join/quotient与原子发布",
+      "phase": "W2",
+      "owner_role": "状态图/域",
+      "reviewer_roles": [
+        "continuation",
+        "验证"
+      ],
+      "dependencies": [
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-09"
+      ],
+      "original_46_cards": [
+        "DOM-05",
+        "CTRL-03"
+      ],
+      "audit_findings": [
+        "R3-DOM-05"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/state_transform.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/domains",
+        "pythonstan/analysis/state"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/state_transform.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/domains",
+        "pythonstan/analysis/state",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "以typed metadata schema枚举semantic edges，区分引用ID与literal键。",
+        "预登记完整shell/memo，填图后用共享JoinContext处理owner collision，不重开deepcopy memo。",
+        "定义同根join、跨图may/must alias、metadata/havoc/cardinality和heap长度的覆盖规则。",
+        "join/leq纯读，显式normalize；预算和所有验证通过后原子发布roots/aliases/epoch/失效。"
+      ],
+      "acceptance": [
+        "cycle+collision、cycle-only、collision-only和metadata→root别名均正确。",
+        "join(s,s)及后续写入可观察行为一致，normalize幂等且输入不被比较修改。",
+        "每准备阶段注入失败都不部分发布；发布成功后的所有根/事实/continuation使用新身份。"
+      ],
+      "not_completion": "不能强行让不同输入状态的may别名变must，也不能仅跳过cycle字段使测试不崩。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-STATE-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "cycle+collision、cycle-only、collision-only和metadata→root别名均正确。",
+          "join(s,s)及后续写入可观察行为一致，normalize幂等且输入不被比较修改。",
+          "每准备阶段注入失败都不部分发布；发布成功后的所有根/事实/continuation使用新身份。"
+        ]
+      }
+    },
+    {
+      "id": "N4-DOM-01",
+      "title": "补齐Value各sort的标量与truth覆盖",
+      "phase": "W2",
+      "owner_role": "抽象域",
+      "reviewer_roles": [
+        "Python语义",
+        "独立oracle"
+      ],
+      "dependencies": [
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-03"
+      ],
+      "original_46_cards": [
+        "DOM-01",
+        "SEM-01",
+        "SEM-04"
+      ],
+      "audit_findings": [
+        "AS-04",
+        "R3-DOM-01",
+        "R3-DOM-02"
+      ],
+      "read_first": [
+        "pythonstan/analysis/domains/values.py",
+        "pythonstan/analysis/domains",
+        "pythonstan/models"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/domains/values.py",
+        "pythonstan/analysis/domains",
+        "pythonstan/models",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "冻结Value concretization与唯一facet分解接口，区分unknown/unbound/bottom。",
+        "按kind-pair产生normal/exception，再join；枚举cap只决定精度，不删除其他sort。",
+        "truth覆盖float/零值/None及未知引用协议；unary strTop产生TypeError。",
+        "为Store cells/heap/default/metadata明确join/widen政策，避免只widen cells。"
+      ],
+      "acceptance": [
+        "int|str相加cap1仍覆盖3、ab及TypeError；cap8正例保持精确。",
+        "0.0与非枚举分量混合保留False，默认cap触发变体也覆盖。",
+        "有限gamma与join/widen/coarsen law、正常/异常/effect单调覆盖通过。"
+      ],
+      "not_completion": "不能返回一个错误sort的Top并宣称保守；不能全部Top通过有用精度验收。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-DOM-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "int|str相加cap1仍覆盖3、ab及TypeError；cap8正例保持精确。",
+          "0.0与非枚举分量混合保留False，默认cap触发变体也覆盖。",
+          "有限gamma与join/widen/coarsen law、正常/异常/effect单调覆盖通过。"
+        ]
+      }
+    },
+    {
+      "id": "N4-SEM-01",
+      "title": "显式调用求值计划与BoolOp短路",
+      "phase": "W2",
+      "owner_role": "顺序语义",
+      "reviewer_roles": [
+        "Python规范",
+        "Native"
+      ],
+      "dependencies": [
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-01"
+      ],
+      "original_46_cards": [
+        "SEM-02",
+        "SEM-04"
+      ],
+      "audit_findings": [
+        "AS-01",
+        "AS-08"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "tests/regression/audit3"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "tests/regression/audit3",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "把callable、实参表达式、star展开、keyword mapping merge、binder和invoke编成有序plan。",
+        "每may-raise步骤保存当前prefix state，区分duplicate key和非str key错误时机。",
+        "保留Python3.12独立oracle中的延迟star展开差异，不能按lineno混排。",
+        "BoolOp把已短路alternatives与继续求值集合分开，最后operand不多求一次truth。"
+      ],
+      "acceptance": [
+        "原sk及文本位置对照正确，star/keyword/**异常前缀与独立CPython一致或有明确覆盖近似。",
+        "AS08日志b、三操作数and/or、__bool__/__len__异常和副作用不重复。",
+        "AI-primary和hybrid都通过，binder默认/posonly/kwonly/receiver旧回归不退化。"
+      ],
+      "not_completion": "不能用所有star副作用一律提前的新规则替代原错误。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-SEM-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "原sk及文本位置对照正确，star/keyword/**异常前缀与独立CPython一致或有明确覆盖近似。",
+          "AS08日志b、三操作数and/or、__bool__/__len__异常和副作用不重复。",
+          "AI-primary和hybrid都通过，binder默认/posonly/kwonly/receiver旧回归不退化。"
+        ]
+      }
+    },
+    {
+      "id": "N4-SEM-02",
+      "title": "按BindingRef与绑定状态实现del",
+      "phase": "W2",
+      "owner_role": "名称/作用域",
+      "reviewer_roles": [
+        "Python语义",
+        "状态"
+      ],
+      "dependencies": [
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-02"
+      ],
+      "original_46_cards": [
+        "SEM-03",
+        "SEM-04"
+      ],
+      "audit_findings": [
+        "AS-02"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/analysis/state"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/analysis/state",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "名称解析产生具名scope/ownership/cell，不以字符串前缀猜异常类型。",
+        "按必bound/maybe-bound/unbound产生成功删除或NameError/UnboundLocalError。",
+        "多target左到右执行，保留前面成功删除和后面失败的state。"
+      ],
+      "acceptance": [
+        "module/local/global/nonlocal/conditional/repeated-del/finally与原bound-delete控制通过。",
+        "删除成功才写unbound；异常路径没有伪造正常后继或丢前缀。"
+      ],
+      "not_completion": "不能先无条件写unbound再返回normal。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-SEM-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "module/local/global/nonlocal/conditional/repeated-del/finally与原bound-delete控制通过。",
+          "删除成功才写unbound；异常路径没有伪造正常后继或丢前缀。"
+        ]
+      }
+    },
+    {
+      "id": "N4-SEM-03",
+      "title": "迭代、容器构造及star/kwargs协议全分量执行",
+      "phase": "W2",
+      "owner_role": "Python协议",
+      "reviewer_roles": [
+        "域",
+        "顺序语义"
+      ],
+      "dependencies": [
+        "N4-DOM-01",
+        "N4-SEM-01"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-03"
+      ],
+      "original_46_cards": [
+        "SEM-01",
+        "SEM-02",
+        "SEM-04",
+        "SEM-06",
+        "AI-05"
+      ],
+      "audit_findings": [
+        "AS-05"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/engines/abstract/continuations.py",
+        "pythonstan/analysis/semantics"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/engines/abstract/continuations.py",
+        "pythonstan/analysis/semantics",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "统一get_iterator/advance/collect/construct_mapping/expand_args服务，所有Value facets走总分派。",
+        "验证__iter__返回iterator；非法scalar产生真实TypeError出口。",
+        "dict iterable-of-pairs、keys/getitem、hash/equality及异常前缀按模型执行，exact builtin快路径需证据。",
+        "Unknown协议保留callback/heap/global/raise残余并标Open，不能只留日志。"
+      ],
+      "acceptance": [
+        "dict/list/next/*42及__iter__返回42的caught出口覆盖。",
+        "正常list/dict/generator/kwargs/defaults保持实用精度。",
+        "cap降低、部分对象与scalar混合时所有normal/raise/effects仍覆盖。"
+      ],
+      "not_completion": "空refs不等于空容器、None、不可达或无异常。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-SEM-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "dict/list/next/*42及__iter__返回42的caught出口覆盖。",
+          "正常list/dict/generator/kwargs/defaults保持实用精度。",
+          "cap降低、部分对象与scalar混合时所有normal/raise/effects仍覆盖。"
+        ]
+      }
+    },
+    {
+      "id": "N4-SEM-04",
+      "title": "顺序comprehension及typed容器builder",
+      "phase": "W3",
+      "owner_role": "控制流/容器",
+      "reviewer_roles": [
+        "作用域",
+        "协议"
+      ],
+      "dependencies": [
+        "N4-SEM-03",
+        "N4-SEM-02"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-04"
+      ],
+      "original_46_cards": [
+        "SEM-01",
+        "SEM-03",
+        "SEM-04",
+        "AI-01",
+        "AI-05"
+      ],
+      "audit_findings": [
+        "AS-03"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/frontend"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/frontend",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "最左iterable在outer frame求值，后续iterable/filter/element使用comprehension scope。",
+        "嵌套循环顺序传递最新Store；False filter继续当前状态，异常保留已执行迭代前缀。",
+        "使用内部typed builder actions保留source map，不合成虚假用户调用边。",
+        "分开list length、set去重、dict key/value与覆盖语义。"
+      ],
+      "acceptance": [
+        "日志ab、内层[i]与filter可能长度0/1全部覆盖。",
+        "空迭代、class/closure scope、多个filter、第二轮异常、dict key/value顺序通过。",
+        "不能从抽象分支/fields数量推具体容器长度。"
+      ],
+      "not_completion": "不能各元素从同一旧Store起步再join充当顺序执行。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-SEM-04",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "日志ab、内层[i]与filter可能长度0/1全部覆盖。",
+          "空迭代、class/closure scope、多个filter、第二轮异常、dict key/value顺序通过。",
+          "不能从抽象分支/fields数量推具体容器长度。"
+        ]
+      }
+    },
+    {
+      "id": "N4-SEM-05",
+      "title": "ClassInfo、builtin类型与isinstance短路",
+      "phase": "W3",
+      "owner_role": "类型/属性协议",
+      "reviewer_roles": [
+        "Python规范",
+        "域"
+      ],
+      "dependencies": [
+        "N4-DOM-01",
+        "N4-SEM-03"
+      ],
+      "contributes_to_gates": [
+        "G2"
+      ],
+      "prior_22_cards": [
+        "FIX-05"
+      ],
+      "original_46_cards": [
+        "SEM-05",
+        "SEM-04",
+        "AI-03"
+      ],
+      "audit_findings": [
+        "AS-06"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/models"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/semantics",
+        "pythonstan/models",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "建立BuiltinType/SourceClass/Tuple/支持Union/Unknown/Invalid的ClassInfo。",
+        "builtin kind、源class/MRO、bool-int继承与tuple逐项短路。",
+        "按scope能力处理元类__instancecheck__等协议，未知分支保留effects。"
+      ],
+      "acceptance": [
+        "isinstance([],list)、sourceclass tuple为True。",
+        "isinstance(1,(int,42))与非匹配输入异常时机正确，嵌套/空tuple覆盖。",
+        "不支持类型表达式有明确能力/残余，不能假装False。"
+      ],
+      "not_completion": "不能只增加list特判或先验证整棵classinfo tuple。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-SEM-05",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "isinstance([],list)、sourceclass tuple为True。",
+          "isinstance(1,(int,42))与非匹配输入异常时机正确，嵌套/空tuple覆盖。",
+          "不支持类型表达式有明确能力/残余，不能假装False。"
+        ]
+      }
+    },
+    {
+      "id": "N4-PTA-01",
+      "title": "Native区域有序checkpoint与异常前缀",
+      "phase": "W2",
+      "owner_role": "Native区域",
+      "reviewer_roles": [
+        "Python顺序语义",
+        "组合"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-SEM-01"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "prior_22_cards": [
+        "FIX-06"
+      ],
+      "original_46_cards": [
+        "CTRL-03",
+        "SEM-04"
+      ],
+      "audit_findings": [
+        "NCOMP-01"
+      ],
+      "read_first": [
+        "pythonstan/analysis/composition/region_engine.py",
+        "pythonstan/analysis/composition/state_adapter.py",
+        "pythonstan/analysis/composition/oracle.py"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/composition/region_engine.py",
+        "pythonstan/analysis/composition/state_adapter.py",
+        "pythonstan/analysis/composition/oracle.py",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "建立MaterializeUnpack/OrderedTargetWrite计划，分层解包与may-raise checkpoint携带当前边界状态。",
+        "版本化局部cell/heap节点，写后读不能仍取固定entry seed；保留真实约束编译/求解。",
+        "每次子操作成功才更新working boundary；异常发布已发生的prefix effects。",
+        "未修时可planner明确拒绝，最终恢复原支持片段。"
+      ],
+      "acceptance": [
+        "cell/heap第一目标写1、第二/第三目标失败仍包含1，finally观察一致。",
+        "嵌套解包、materialization错误与目标写错误的不同前缀均符合独立oracle。",
+        "成功解包/单失败读取控制不退化，adapter roundtrip之外有transfer覆盖证据。"
+      ],
+      "not_completion": "不能把所有异常从原flow重建，或用调用AI执行冒充Native区域。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-PTA-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "cell/heap第一目标写1、第二/第三目标失败仍包含1，finally观察一致。",
+          "嵌套解包、materialization错误与目标写错误的不同前缀均符合独立oracle。",
+          "成功解包/单失败读取控制不退化，adapter roundtrip之外有transfer覆盖证据。"
+        ]
+      }
+    },
+    {
+      "id": "N4-PTA-02",
+      "title": "Native重复allocation的完整HeapJoin",
+      "phase": "W2",
+      "owner_role": "堆/Native",
+      "reviewer_roles": [
+        "域/状态",
+        "组合"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-STATE-02"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G4"
+      ],
+      "prior_22_cards": [
+        "FIX-07"
+      ],
+      "original_46_cards": [
+        "CTRL-03",
+        "DOM-05",
+        "PTA-02"
+      ],
+      "audit_findings": [
+        "NCOMP-02"
+      ],
+      "read_first": [
+        "pythonstan/analysis/composition/region_engine.py",
+        "pythonstan/analysis/composition/state_adapter.py",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/domains"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/composition/region_engine.py",
+        "pythonstan/analysis/composition/state_adapter.py",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/domains",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "复用canonical arena身份，对旧新对象做覆盖HeapJoin，不替换fields目录。",
+        "MayKey并、MustKey交、default/missing/havoc/length/cardinality与typed metadata分别合并。",
+        "长度作为独立抽象分量，失去singleton后只能weak update；recency未证明先禁用。",
+        "已有旧alias、跨loop/region写回和literal key规范化保持覆盖。"
+      ],
+      "acceptance": [
+        "varying-key dict旧alias可读present；fixed-key/list/tuple正控保持。",
+        "两次各长度1的不同key字典合并后不能误成长度2。",
+        "default/missing/summary/havoc以及cap触发身份变换的变体通过。"
+      ],
+      "not_completion": "不能只union fields或保留一个metadata代表；不能从单抽象地址推出单例。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-PTA-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "varying-key dict旧alias可读present；fixed-key/list/tuple正控保持。",
+          "两次各长度1的不同key字典合并后不能误成长度2。",
+          "default/missing/summary/havoc以及cap触发身份变换的变体通过。"
+        ]
+      }
+    },
+    {
+      "id": "N4-PTA-03",
+      "title": "完整Native守卫及选择性context/heap策略",
+      "phase": "W3",
+      "owner_role": "Andersen",
+      "reviewer_roles": [
+        "组合",
+        "独立PTA测试"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-CTRL-01"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "prior_22_cards": [
+        "CFG-02"
+      ],
+      "original_46_cards": [
+        "PTA-01",
+        "PTA-02",
+        "PTA-03",
+        "PTA-04"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/pointer/kcfa",
+        "pythonstan/analysis/engines/andersen",
+        "pythonstan/config",
+        "tests/refactor/engines"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/pointer/kcfa",
+        "pythonstan/analysis/engines/andersen",
+        "pythonstan/config",
+        "tests/refactor/engines",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "保留19种有限context、有序参数来源和独立heap selector，清楚标方法/分配作用域。",
+        "新增/打通有限选择性方法策略表，至少有两种有效选择及成本/精度对照；禁止嵌套完整ctx/Store。",
+        "复核late edge/constraint/callee/field/builtin replay、四队列公平性和future-field/cell/global havoc。",
+        "保持flow-insensitive包含约束单调，不从AI迁入无证明kill/strong update。"
+      ],
+      "acceptance": [
+        "19策略结构/原递归见证与固定预算检查通过，参数位置不丢。",
+        "选择性policy实际被消费，heap独立配置和不支持组合明确拒绝。",
+        "late replay与未知return未用时的持续effect正例和有目的mutant均被守卫。"
+      ],
+      "not_completion": "不能把19枚举存在当19种策略全部实证，不能退役已有错误策略逃避修复。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-PTA-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "19策略结构/原递归见证与固定预算检查通过，参数位置不丢。",
+          "选择性policy实际被消费，heap独立配置和不支持组合明确拒绝。",
+          "late replay与未知return未用时的持续effect正例和有目的mutant均被守卫。"
+        ]
+      }
+    },
+    {
+      "id": "N4-RESULT-01",
+      "title": "完整抽象值wire协议与裁剪语义",
+      "phase": "W2",
+      "owner_role": "结果/域",
+      "reviewer_roles": [
+        "独立wire oracle",
+        "查询"
+      ],
+      "dependencies": [
+        "N4-DOM-01"
+      ],
+      "contributes_to_gates": [
+        "G2",
+        "G5"
+      ],
+      "prior_22_cards": [
+        "FIX-10"
+      ],
+      "original_46_cards": [
+        "DOM-02",
+        "RESULT-01",
+        "QUERY-01"
+      ],
+      "audit_findings": [
+        "R3-DOM-03"
+      ],
+      "read_first": [
+        "pythonstan/analysis/domains/values.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/analysis/composition/state_adapter.py"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/domains/values.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/analysis/composition/state_adapter.py",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "各域导出versioned完整union表示，string pattern与residual constants并存。",
+        "定义wire gamma、schema版本兼容和lossless/covering roundtrip。",
+        "保留interval/typedTop/unbound/refs/relations/presence/fresh/alias所需含义。",
+        "输出限额只产生明确truncated/未导出范围，不静默删值或改状态。"
+      ],
+      "acceptance": [
+        "a*∪{z}可从wire恢复z，cap10精确控制保持。",
+        "独立decoder有限覆盖检查和API/JSON/text投影一致。",
+        "export纯读、不会产生分析事实或消除obligation。"
+      ],
+      "not_completion": "不能只修StringDomain.widen而遗漏Value.export消费者。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-RESULT-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "a*∪{z}可从wire恢复z，cap10精确控制保持。",
+          "独立decoder有限覆盖检查和API/JSON/text投影一致。",
+          "export纯读、不会产生分析事实或消除obligation。"
+        ]
+      }
+    },
+    {
+      "id": "N4-QUERY-01",
+      "title": "统一ProcedureObservationStore与QueryLedger",
+      "phase": "W3",
+      "owner_role": "查询/事实",
+      "reviewer_roles": [
+        "AI",
+        "验证"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-RESULT-01",
+        "N4-API-01"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "prior_22_cards": [
+        "FIX-11"
+      ],
+      "original_46_cards": [
+        "QUERY-01",
+        "RESULT-01",
+        "OBS-01"
+      ],
+      "audit_findings": [
+        "LV-02"
+      ],
+      "read_first": [
+        "pythonstan/analysis/observations",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/analysis/contracts"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/observations",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/analysis/contracts",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "contracts只放FactSink/DTO，analysis/observations保存真实procedure observations，和debug events区分。",
+        "普通Unit、Native adapter与L2使用同一事实发布入口；查询不假定Unit必存在。",
+        "QueryLedger记录requested/covered/unavailable scope、producer/dependencies/materialization和状态。",
+        "facts ledger参与graph remap/epoch/summary revision失效，避免过时身份或重复must事件。"
+      ],
+      "acceptance": [
+        "function_exit单点与bulk returns/outcomes有一致范围和答案。",
+        "未物化、不可达、只有raise、空集合、预算partial和truncated各自可区分。",
+        "关闭debug observation不删除语义事实；不请求昂贵视图时仍保留求解正确性所需facts。"
+      ],
+      "not_completion": "不能伪造Unit来填空结果，或令bulk{}标全answered/closed。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-QUERY-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "function_exit单点与bulk returns/outcomes有一致范围和答案。",
+          "未物化、不可达、只有raise、空集合、预算partial和truncated各自可区分。",
+          "关闭debug observation不删除语义事实；不请求昂贵视图时仍保留求解正确性所需facts。"
+        ]
+      }
+    },
+    {
+      "id": "N4-API-01",
+      "title": "统一ResolvedRequest和三输入入口",
+      "phase": "W1",
+      "owner_role": "API/配置",
+      "reviewer_roles": [
+        "类型",
+        "查询"
+      ],
+      "dependencies": [
+        "N4-QUAL-01",
+        "N4-BOOT-02"
+      ],
+      "contributes_to_gates": [
+        "G1"
+      ],
+      "prior_22_cards": [
+        "API-02"
+      ],
+      "original_46_cards": [
+        "API-01",
+        "INPUT-01",
+        "SESSION-01",
+        "CLI-01",
+        "CFG-01"
+      ],
+      "audit_findings": [
+        "OUTPUT-MAPPING"
+      ],
+      "read_first": [
+        "pythonstan/api.py",
+        "pythonstan/session.py",
+        "pythonstan/inputs",
+        "pythonstan/config/resolve.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/cli.py"
+      ],
+      "write_scope": [
+        "pythonstan/api.py",
+        "pythonstan/session.py",
+        "pythonstan/inputs",
+        "pythonstan/config/resolve.py",
+        "pythonstan/results/schema.py",
+        "pythonstan/cli.py",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "外部Mapping/path/DTO只经resolve_request正规化一次，Session内部只收ResolvedRequest。",
+        "保持默认配置发现/相对路径/preset/override优先级，别名冲突与unknown fields统一错误。",
+        "把解析/配置对象构造与SourceProgram准备/solver执行分开并计时。",
+        "ValueQuery/PropertyQuery相同严格校验；结果在session关闭/第二次运行后保持独立。"
+      ],
+      "acceptance": [
+        "output Mapping与OutputSpec同义；未知字段ConfigurationError而非KeyError。",
+        "Source/File/Project×默认/配置文件/Mapping/对象×API/CLI代表矩阵通过。",
+        "Source不猜文件路径、不意外继承cwd配置；项目初始化scope与显式entries准确。"
+      ],
+      "not_completion": "不能只给analyze加注解而保留Session中原始dict分支。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-API-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "verified",
+      "implementation_record": {
+        "owner": "client_preregistration; config quality_tools; inputs input_typing",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [
+          "artifacts/next/evidence/N4-API-01/final-validation-v4/receipt.json"
+        ],
+        "remaining_obligations": [],
+        "scope": "Actual ResolvedRequest/API/CLI/source snapshot contract independently accepted on stable source.186 API tests;36 checked files own strict0;1782 imported errors+1note retained.",
+        "review_records": [
+          "docs/development/next/reviews/API-01-integration.md",
+          "docs/development/next/API-01-acceptance.json"
+        ],
+        "source_commit": "7a2f0f5cac6d801973e9fd6c31f521ebd46b3455",
+        "source_snapshot_digest": "71c9119b7a480fd417ca599171a9b14eceabeb5ca6895ad8eb3e2de3ab8e0bfd"
+      }
+    },
+    {
+      "id": "N4-CTRL-01",
+      "title": "一次编译RegionPolicy并核验作用域",
+      "phase": "W2",
+      "owner_role": "配置/组合",
+      "reviewer_roles": [
+        "类型",
+        "AI",
+        "Native"
+      ],
+      "dependencies": [
+        "N4-API-01",
+        "N4-TYPE-01"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "prior_22_cards": [
+        "CFG-02"
+      ],
+      "original_46_cards": [
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CFG-01"
+      ],
+      "audit_findings": [
+        "NCOMP-03"
+      ],
+      "read_first": [
+        "pythonstan/config",
+        "pythonstan/analysis/composition/plan.py",
+        "pythonstan/analysis/composition/region_scheduler.py",
+        "pythonstan/analysis/policies"
+      ],
+      "write_scope": [
+        "pythonstan/config",
+        "pythonstan/analysis/composition/plan.py",
+        "pythonstan/analysis/composition/region_scheduler.py",
+        "pythonstan/analysis/policies",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "registry增加scope/capability/consumer/version/effect/evidence，单源生成schema/help/docs/metadata。",
+        "aliases/nested options归一后保存immutable EffectiveRegionPolicy，不丢resolve结果。",
+        "用显式RegionExecutionContext注入domain/context/trace/loop/ledger/arena，不临时改driver全局属性。",
+        "selector绑定source digest/stable ID；SCC兼容性与region预算继承运行前验证。"
+      ],
+      "acceptance": [
+        "relations/context_depth/nested max_traces三个probe生效或精确启动拒绝。",
+        "API/CLI/explain-plan和worker消费同一policy digest。",
+        "每接受选项有consumer与行为/不变性见证；区域限额不能重置全局quota。"
+      ],
+      "not_completion": "不能只扩schema字段，不能把全部global选项直接当region支持。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-CTRL-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "relations/context_depth/nested max_traces三个probe生效或精确启动拒绝。",
+          "API/CLI/explain-plan和worker消费同一policy digest。",
+          "每接受选项有consumer与行为/不变性见证；区域限额不能重置全局quota。"
+        ]
+      }
+    },
+    {
+      "id": "N4-CTRL-02",
+      "title": "交付有限AI域/关系/路径/循环控制菜单",
+      "phase": "W4",
+      "owner_role": "AI策略/域",
+      "reviewer_roles": [
+        "组合",
+        "性能"
+      ],
+      "dependencies": [
+        "N4-CTRL-01",
+        "N4-DOM-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-AI-02",
+        "N4-PTA-01",
+        "N4-PTA-02"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "prior_22_cards": [
+        "CFG-02"
+      ],
+      "original_46_cards": [
+        "DOM-03",
+        "DOM-04",
+        "CTRL-01",
+        "CTRL-02",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/policies",
+        "pythonstan/analysis/domains",
+        "pythonstan/analysis/composition",
+        "pythonstan/config"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/policies",
+        "pythonstan/analysis/domains",
+        "pythonstan/analysis/composition",
+        "pythonstan/config",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "盘点并补齐有限domain bundle、容量vs枚举预算、key/value关系vstrace分区、loop delay/threshold/narrowing菜单。",
+        "至少每策略族有实际可比较替代项；既有支持选项保持语义，未实现明确拒绝。",
+        "实现同engine跨domain和受支持AI→Native→AI的完整policy/identity转换。",
+        "function/SCC/loop/block作用域矩阵与异构SCC拒绝/提升规则一致，精化从producer重跑。"
+      ],
+      "acceptance": [
+        "每族有预注册precision/cost witness及低容量覆盖验证，非仅cap数量统计。",
+        "domain/policy版本进入state/summary/cache；退出粗化region不会凭空恢复关联。",
+        "强更新仅基于可信singleton/cardinality，异常路径与effects也跨边界。"
+      ],
+      "not_completion": "任意数值关系域、任意算法互换和全策略笛卡尔积未实现时不能宣称全部可插拔。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-CTRL-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "每族有预注册precision/cost witness及低容量覆盖验证，非仅cap数量统计。",
+          "domain/policy版本进入state/summary/cache；退出粗化region不会凭空恢复关联。",
+          "强更新仅基于可信singleton/cardinality，异常路径与effects也跨边界。"
+        ]
+      }
+    },
+    {
+      "id": "N4-HYB-01",
+      "title": "完善增量may oracle合同、消费与可归因协作",
+      "phase": "W4",
+      "owner_role": "增量约束/组合",
+      "reviewer_roles": [
+        "Andersen",
+        "AI",
+        "验证"
+      ],
+      "dependencies": [
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-CTRL-01",
+        "N4-QUERY-01"
+      ],
+      "contributes_to_gates": [
+        "G4"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "HYB-01",
+        "PTA-03",
+        "CTRL-03",
+        "CTRL-04",
+        "CTRL-05"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/composition/oracle.py",
+        "pythonstan/analysis/composition/hybrid.py",
+        "pythonstan/analysis/composition/native_snapshot.py",
+        "pythonstan/analysis/engines/abstract/driver.py"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/composition/oracle.py",
+        "pythonstan/analysis/composition/hybrid.py",
+        "pythonstan/analysis/composition/native_snapshot.py",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "候选/producer注册绑定source/model/profile/policy/state/coverage和依赖通知，保留permits_exclusion=False默认。",
+        "实现一个明确有限的on-demand callable-constraint profile，真实生成实参→形参、return→call-result与late-callee replay；当前小kernel与完整PointerSolver继续分清，所有候选仍Partial。",
+        "实现/验证一个有限共享候选能改善目标query或避免重复工作的协作场景，不人为关闭baseline。",
+        "测量重复publication、有效消费、wakeups、kernel/boundary成本，按证据选择delta/batching优化。"
+      ],
+      "acceptance": [
+        "空/partial/错误或过时provider不剪掉AI自己发现的行为，unknown residual仍存在。",
+        "有限callable profile真实从source生成实参→形参和return→call-result约束；late facts/edge/callee通知、replay、budget pending和cache失效完整，有端到端消费见证。",
+        "D无Native，E无整仓隐形prepass；oracle单独成本与整体收益可追溯。"
+      ],
+      "not_completion": "不能将observe_call记录改名为完整Native求解，也不能intersection两个未证明同范围的may结果。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-HYB-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "空/partial/错误或过时provider不剪掉AI自己发现的行为，unknown residual仍存在。",
+          "有限callable profile真实从source生成实参→形参和return→call-result约束；late facts/edge/callee通知、replay、budget pending和cache失效完整，有端到端消费见证。",
+          "D无Native，E无整仓隐形prepass；oracle单独成本与整体收益可追溯。"
+        ]
+      }
+    },
+    {
+      "id": "N4-AI-01",
+      "title": "定位递归增长并隔离私有调用帧",
+      "phase": "W3",
+      "owner_role": "AI求解/调用摘要",
+      "reviewer_roles": [
+        "语义",
+        "状态"
+      ],
+      "dependencies": [
+        "N4-SEM-03",
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ],
+      "contributes_to_gates": [
+        "G3"
+      ],
+      "prior_22_cards": [
+        "PERF-01"
+      ],
+      "original_46_cards": [
+        "AI-01",
+        "AI-02",
+        "AI-03",
+        "AI-04"
+      ],
+      "audit_findings": [
+        "AS-07"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/semantics"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/state.py",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/semantics",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "在sum/heap递归小例记录entry增长、callee revisions、caller恢复、private/shared cells与widen原因。",
+        "检验whole caller Store反馈等假设，依据证据修复而非预设根因。",
+        "CallInput投影bound args和保守可达共享状态；CallerPrivateFrame保存在continuation，escaping closure cells保留。",
+        "出口按完整effects/completion/fresh应用并恢复私有locals，未知effects扩大footprint。"
+      ],
+      "acceptance": [
+        "定位记录能解释原54/34 unit evaluation级别现象的增长来源，不伪造新bug事实。",
+        "递归/closure/global/nonlocal/generator/defaults隔离与完整共享写回正确。",
+        "投影不能因当前read-set小而不健全裁剪未来动态依赖。"
+      ],
+      "not_completion": "不能删除所有local cells、只提高预算、或把整个Store/hash塞进CallKey。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-AI-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "定位记录能解释原54/34 unit evaluation级别现象的增长来源，不伪造新bug事实。",
+          "递归/closure/global/nonlocal/generator/defaults隔离与完整共享写回正确。",
+          "投影不能因当前read-set小而不健全裁剪未来动态依赖。"
+        ]
+      }
+    },
+    {
+      "id": "N4-AI-02",
+      "title": "SCC、迭代器循环和受检narrowing",
+      "phase": "W4",
+      "owner_role": "不动点算法",
+      "reviewer_roles": [
+        "域",
+        "独立语义"
+      ],
+      "dependencies": [
+        "N4-AI-01",
+        "N4-DOM-01",
+        "N4-SEM-04",
+        "N4-SEM-05"
+      ],
+      "contributes_to_gates": [
+        "G3"
+      ],
+      "prior_22_cards": [
+        "PERF-01"
+      ],
+      "original_46_cards": [
+        "AI-02",
+        "AI-04",
+        "AI-05",
+        "DOM-04"
+      ],
+      "audit_findings": [
+        "AS-07"
+      ],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/policies",
+        "pythonstan/analysis/state"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/policies",
+        "pythonstan/analysis/state",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "建立SCC/WTO或等价终止合同的entry/summary ascending调度，新增调用边可重新合并组件。",
+        "loop header和iterator状态形成方程，有限展开转抽象迭代时覆盖剩余effects。",
+        "明确widen delay/threshold和完整StoreLattice规则，narrowing重验后不动点才发布。",
+        "若需有界ArgumentPartition，采用固定有限token/overflow，区分semantic迭代与solver重算work。"
+      ],
+      "acceptance": [
+        "冻结资源和default preset下sum=10、heap递归=5稳定收敛且有用，旧互递归/while正控通过。",
+        "不同公平调度保留具体行为和后不动点，允许widen精度差异。",
+        "narrowing公开summary真实精化且完整出口/前缀仍覆盖；校验耗尽保留旧近似。"
+      ],
+      "not_completion": "不能把max_stmt_visits耗尽标固定点，不能通过无限细context保证小例精确。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-AI-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "冻结资源和default preset下sum=10、heap递归=5稳定收敛且有用，旧互递归/while正控通过。",
+          "不同公平调度保留具体行为和后不动点，允许widen精度差异。",
+          "narrowing公开summary真实精化且完整出口/前缀仍覆盖；校验耗尽保留旧近似。"
+        ]
+      }
+    },
+    {
+      "id": "N4-AI-03",
+      "title": "交付一个真实程序点增量路径",
+      "phase": "W5",
+      "owner_role": "增量AI/性能",
+      "reviewer_roles": [
+        "不动点",
+        "状态"
+      ],
+      "dependencies": [
+        "N4-AI-02",
+        "N4-CTRL-01",
+        "N4-QUERY-01"
+      ],
+      "contributes_to_gates": [
+        "G3",
+        "G7"
+      ],
+      "prior_22_cards": [
+        "PERF-02"
+      ],
+      "original_46_cards": [
+        "AI-01",
+        "AI-02",
+        "AI-04",
+        "CTRL-05"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/engines/abstract",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/observations"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/observations",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "选择可封闭的call-return continuation或直线block输入方程，定义ProgramPointKey/read-set/effect-summary。",
+        "callee summary增长只唤醒依赖点及后继，独立前缀不重复执行。",
+        "cache绑定source/IR/model/policy/epoch和完整input覆盖，包含normal/raise/effects。",
+        "保留whole-function参考模式；unsupported结构显式走已覆盖fallback。"
+      ],
+      "acceptance": [
+        "有执行trace和计数证明真实少重算，不是空缓存字段。",
+        "新增callee/shared heap/closure/guard/epoch变化使缓存正确失效。",
+        "同scope同质量clean rerun/incremental相容且一个热点成本改善有完整证据；可与PERF-01共用公平测量的改善，注明具体成本量纲和全部其他成本。"
+      ],
+      "not_completion": "不能把永久全函数重跑称程序点增量，也不要求一次重写全部异常/挂起CFG。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-AI-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "有执行trace和计数证明真实少重算，不是空缓存字段。",
+          "新增callee/shared heap/closure/guard/epoch变化使缓存正确失效。",
+          "同scope同质量clean rerun/incremental相容且一个热点成本改善有完整证据；可与PERF-01共用公平测量的改善，注明具体成本量纲和全部其他成本。"
+        ]
+      }
+    },
+    {
+      "id": "N4-ARCH-01",
+      "title": "按语义义务拆服务并迁移唯一canonical实现",
+      "phase": "W4",
+      "owner_role": "架构/集成",
+      "reviewer_roles": [
+        "语义",
+        "Native",
+        "类型"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-PTA-03",
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "prior_22_cards": [
+        "ARCH-02",
+        "AUD-01"
+      ],
+      "original_46_cards": [
+        "ARCH-01",
+        "MIG-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis",
+        "pythonstan/compat",
+        "pythonstan_inspector",
+        "scripts/quality"
+      ],
+      "write_scope": [
+        "pythonstan/analysis",
+        "pythonstan/compat",
+        "pythonstan_inspector",
+        "scripts/quality",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "落实contracts/domains/state/semantics/engines/andersen/engines/abstract/composition/verification/observations职责和依赖。",
+        "移除AttributeOperations无界代理及巨型方法共享可变闭包，窄端口注入真正需要的能力。",
+        "完整Native在行为与typed boundary稳定后搬迁，public enum仍native，旧路径仅单向薄委托。",
+        "按逻辑module ID一对一迁移纯搬迁旧债；语义变更不享受搬迁豁免，frontier只扩大。",
+        "Import Linter与AST/registry补充守卫覆盖实际生产清单，包括TYPE_CHECKING与字面量动态import。"
+      ],
+      "acceptance": [
+        "只有一个canonical算法实现，core不反向依赖compat/provider/inspector。",
+        "有意反向依赖、旧core重新引入、退休路径装包被门拒绝。",
+        "迁移表逐module/symbol包含owner、兼容期限、语义delta和测试，不按行数造微模块。"
+      ],
+      "not_completion": "不能复制Solver成新Manager/Protocol，不能仅换目录而保留隐式耦合。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-ARCH-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "只有一个canonical算法实现，core不反向依赖compat/provider/inspector。",
+          "有意反向依赖、旧core重新引入、退休路径装包被门拒绝。",
+          "迁移表逐module/symbol包含owner、兼容期限、语义delta和测试，不按行数造微模块。"
+        ]
+      }
+    },
+    {
+      "id": "N4-TYPE-02",
+      "title": "收敛严格frontier并拆清Native剩余类型债",
+      "phase": "W6",
+      "owner_role": "类型/集成",
+      "reviewer_roles": [
+        "各语义owner",
+        "独立审计"
+      ],
+      "dependencies": [
+        "N4-ARCH-01",
+        "N4-API-01",
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-BUDGET-01",
+        "N4-OBS-01",
+        "N4-AI-03",
+        "N4-PERF-01"
+      ],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "prior_22_cards": [
+        "TYPE-01"
+      ],
+      "original_46_cards": [
+        "ARCH-01",
+        "RELEASE-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan",
+        "pythonstan_inspector",
+        "scripts/quality",
+        "docs/development/next/quality_debt.json"
+      ],
+      "write_scope": [
+        "pythonstan",
+        "pythonstan_inspector",
+        "scripts/quality",
+        "docs/development/next/quality_debt.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "API/session/inputs/config/results/contracts/domains/state/semantics/abstract/composition/observations/verification/llm自有层全部零诊断。",
+        "完整类属性与共享容器显式类型，关键域/state禁Any表达式；SDK不可信返回只在适配边界验证。",
+        "Native新增/修改模块与全部公开adapter严格；剩余旧债逐模块形成有owner/依赖/验收命令的归零子卡。",
+        "校验strict配置/抑制/债务基线未被削弱；升级工具独立提交。"
+      ],
+      "acceptance": [
+        "strict frontier零错误且无闲置类型或object/cast逃逸，所有类型负例仍有效。",
+        "全树diagnostics公开，剩余Native/Inspector债不是静音；不能宣称全仓严格已完成。",
+        "纯搬迁债务转移有AST/符号映射，数量和具体条目不增加。"
+      ],
+      "not_completion": "不能用stub遮住implementation、移到exclude、扩大ignore或自动更新baseline过门。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-TYPE-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "strict frontier零错误且无闲置类型或object/cast逃逸，所有类型负例仍有效。",
+          "全树diagnostics公开，剩余Native/Inspector债不是静音；不能宣称全仓严格已完成。",
+          "纯搬迁债务转移有AST/符号映射，数量和具体条目不增加。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LLM-01",
+      "title": "可信观察计划和完整原子摘要应用",
+      "phase": "W4",
+      "owner_role": "验证/摘要",
+      "reviewer_roles": [
+        "Python语义",
+        "查询",
+        "状态"
+      ],
+      "dependencies": [
+        "N4-QUERY-01",
+        "N4-RESULT-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-SEM-01",
+        "N4-PTA-01"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "prior_22_cards": [
+        "FIX-11"
+      ],
+      "original_46_cards": [
+        "LLM-02",
+        "LLM-03",
+        "QUERY-01"
+      ],
+      "audit_findings": [
+        "LV-01",
+        "LV-02"
+      ],
+      "read_first": [
+        "pythonstan/analysis/verification/guarded_dispatch",
+        "pythonstan/analysis/composition/guarded_dispatch.py",
+        "pythonstan/analysis/observations",
+        "pythonstan/llm/candidates.py"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/verification/guarded_dispatch",
+        "pythonstan/analysis/composition/guarded_dispatch.py",
+        "pythonstan/analysis/observations",
+        "pythonstan/llm/candidates.py",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "可信source checker导出有限SummaryObservationPlan，包含guard/调用occurrence/读写/分配/前缀/出口。",
+        "区分候选Pre下正确、当前局部输入适用、callsite全输入覆盖；局部应用可受检，整体closure另需证据。",
+        "PreparedSummaryApplication在prepare内完成state/outcome/fact/proof，统一预算和epoch验证后一次发布。",
+        "fresh使用有限SemanticAllocationKey，ApplicationId仅receipt/idempotency；循环重复分配失singleton并保留旧alias。"
+      ],
+      "acceptance": [
+        "多callsite×handler事实全部保留，单点function_exit和bulk查询不退化。",
+        "多次box、异常前缀、missing key补集与frame正确，正确return-relation证书继续可用。",
+        "同方程重放不会无穷新地址，epoch不能作为无限allocation维度。",
+        "中途预算/identity变化不会半发布proof；准备失败不会撤销已发生work/token费用；剩余预算不足fallback时诚实partial。"
+      ],
+      "not_completion": "不能仅ast.walk收集所有Call当执行计划，不能用return证书保证所有facts。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LLM-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "多callsite×handler事实全部保留，单点function_exit和bulk查询不退化。",
+          "多次box、异常前缀、missing key补集与frame正确，正确return-relation证书继续可用。",
+          "同方程重放不会无穷新地址，epoch不能作为无限allocation维度。",
+          "中途预算/identity变化不会半发布proof；准备失败不会撤销已发生work/token费用；剩余预算不足fallback时诚实partial。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LLM-02",
+      "title": "证书scope、依赖失效与安全验证缓存",
+      "phase": "W5",
+      "owner_role": "验证器",
+      "reviewer_roles": [
+        "状态/域",
+        "独立TCB审计"
+      ],
+      "dependencies": [
+        "N4-LLM-01",
+        "N4-CTRL-01"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "prior_22_cards": [
+        "FIX-11"
+      ],
+      "original_46_cards": [
+        "VERIFY-01",
+        "LLM-02",
+        "LLM-03",
+        "CTRL-05"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/verification",
+        "pythonstan/analysis/composition/guarded_dispatch.py",
+        "pythonstan/llm",
+        "pythonstan/analysis/observations"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/verification",
+        "pythonstan/analysis/composition/guarded_dispatch.py",
+        "pythonstan/llm",
+        "pythonstan/analysis/observations",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "Candidate/CheckedSummary/LocalApplicationEvidence/CallsiteCoverageEvidence/PropertyProof分开类型。",
+        "静态source plan可按immutable identity缓存，动态frame/guard/heap/policy/epoch适用性每次重验。",
+        "任何entry/summary增长触发受影响输入replay；partial worklist不能授予整体输入覆盖。",
+        "持久候选每次重parse/recheck，磁盘verified字段不构成可信证书。"
+      ],
+      "acceptance": [
+        "恶意handler/fresh/frame/stale/partial-input/guard补集/checker预算负例全部拒绝或Unknown。",
+        "source/IR/model/policy/query/dependency/epoch变化失效，缓存正例仅省可证明重复检查。",
+        "状态粗化撤销失效的must-distinct/singleton及依赖property，不提高solver_status。"
+      ],
+      "not_completion": "不能删除runtime验证换速度，不能将一次局部调用成功当全callsite Verified。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LLM-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "恶意handler/fresh/frame/stale/partial-input/guard补集/checker预算负例全部拒绝或Unknown。",
+          "source/IR/model/policy/query/dependency/epoch变化失效，缓存正例仅省可证明重复检查。",
+          "状态粗化撤销失效的must-distinct/singleton及依赖property，不提高solver_status。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LLM-03",
+      "title": "L1按目标查询质量与完整成本择优",
+      "phase": "W4",
+      "owner_role": "策略控制/LLM",
+      "reviewer_roles": [
+        "域",
+        "评估"
+      ],
+      "dependencies": [
+        "N4-API-01",
+        "N4-CTRL-01",
+        "N4-QUERY-01",
+        "N4-BUDGET-01"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "prior_22_cards": [
+        "LLM-04"
+      ],
+      "original_46_cards": [
+        "LLM-01",
+        "CTRL-05"
+      ],
+      "audit_findings": [
+        "LV-03"
+      ],
+      "read_first": [
+        "pythonstan/llm/strategy.py",
+        "pythonstan/analysis/policies",
+        "pythonstan/results",
+        "pythonstan/analysis/contracts"
+      ],
+      "write_scope": [
+        "pythonstan/llm/strategy.py",
+        "pythonstan/analysis/policies",
+        "pythonstan/results",
+        "pythonstan/analysis/contracts",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "提案合法性、语义支持、query收益和采用决策分别记录。",
+        "QueryQualityComparator对已支持域使用真正包含/关联比较，其他明确incomparable。",
+        "baseline支配candidate时保留baseline；不可比较按预注册objective/Pareto规则，默认保留。",
+        "先干净重跑；对增量重分析有完整依赖证据后再启用，所有尝试计总账。"
+      ],
+      "acceptance": [
+        "保留4→2正收益；2→4且work56→62不替代baseline。",
+        "失败/重复/非法策略/无收益/预算耗尽不污染baseline与既有proof。",
+        "质量比较不是简单数边/数Top，live与offline提案共用边界。"
+      ],
+      "not_completion": "不能只因converged就accepted，不能临时改目标或削弱baseline制造收益。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LLM-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "保留4→2正收益；2→4且work56→62不替代baseline。",
+          "失败/重复/非法策略/无收益/预算耗尽不污染baseline与既有proof。",
+          "质量比较不是简单数边/数Top，live与offline提案共用边界。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LLM-04",
+      "title": "可选OpenAI Responses provider与离线transport测试",
+      "phase": "W3",
+      "owner_role": "Provider工程",
+      "reviewer_roles": [
+        "验证",
+        "凭据保护"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-API-01"
+      ],
+      "contributes_to_gates": [
+        "G5"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "LLM-01",
+        "LLM-03"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/llm",
+        "pyproject.toml",
+        "poetry.lock",
+        "pythonstan/config",
+        "tests/refactor/llm"
+      ],
+      "write_scope": [
+        "pythonstan/llm",
+        "pyproject.toml",
+        "poetry.lock",
+        "pythonstan/config",
+        "tests/refactor/llm",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "实现optional extra和typed transport，disabled/offline/replay/openai_live标签准确，默认无网络。",
+        "live客户端仅运行时读OPENAI_API_KEY，官方endpoint、gpt-6-luna、Responses、store=False；不恢复历史key。",
+        "strict结构化输出加本地尺寸/深度/schema/重复键/身份校验，provider无driver/Store或工具执行权限。",
+        "SDK重试0，脱敏typed error；完整mock覆盖refusal/incomplete/timeout/缺usage/错误model和secret canary。"
+      ],
+      "acceptance": [
+        "llm=False不import SDK、不联网、不查key；缺SDK/凭据准确blocked而非silent offline成功。",
+        "API key不进入config/repr/日志/fixture/receipt/提交，CLI无key明文参数。",
+        "网络响应通过parser后仍是不可信候选；不能构造CheckedSummary/Verified。"
+      ],
+      "not_completion": "本任务只实现和离线验证；未过AUDIT-01/REL-01不得提前付费调用。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LLM-04",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "llm=False不import SDK、不联网、不查key；缺SDK/凭据准确blocked而非silent offline成功。",
+          "API key不进入config/repr/日志/fixture/receipt/提交，CLI无key明文参数。",
+          "网络响应通过parser后仍是不可信候选；不能构造CheckedSummary/Verified。"
+        ]
+      }
+    },
+    {
+      "id": "N4-BUDGET-01",
+      "title": "统一work、时间、内存与API费用账本",
+      "phase": "W3",
+      "owner_role": "资源/实验工程",
+      "reviewer_roles": [
+        "性能",
+        "LLM",
+        "求解"
+      ],
+      "dependencies": [
+        "N4-TYPE-01",
+        "N4-API-01",
+        "N4-LLM-04"
+      ],
+      "contributes_to_gates": [
+        "G4",
+        "G5",
+        "G7"
+      ],
+      "prior_22_cards": [
+        "PERF-02",
+        "EVAL-04"
+      ],
+      "original_46_cards": [
+        "SESSION-01",
+        "EVAL-01",
+        "LLM-03"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/analysis/contracts/budgets.py",
+        "pythonstan/session.py",
+        "pythonstan/llm",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/compat"
+      ],
+      "write_scope": [
+        "pythonstan/analysis/contracts/budgets.py",
+        "pythonstan/session.py",
+        "pythonstan/llm",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/compat",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "所有阶段共享全局deadline/work/memory ledger，细分setup/core/oracle/bridge/checker/rerun/export。",
+        "定义attempted/consumed/reserved/settled/aborted/unknown，父子阶段不重复计费也不漏unpaid work。",
+        "API请求前原子预留input/output/token/money，执行时冻结官方rate card；cached/reasoning是子集不重复相加。",
+        "超时缺usage保留reservation并停止本live run后续收费；SDK/manual重试初版0；绝对deadline独立于transport分段timeout。"
+      ],
+      "acceptance": [
+        "多region/多候选不能刷新全局预算；失败/拒绝/耗尽attempt都有账。",
+        "fake超时/并发预约/异常/缺usage不会超已声明cap或记为零。",
+        "阶段exclusive时间可与总时间对账，profile累计时间不当相加，成本未知显式标记。"
+      ],
+      "not_completion": "不能把baseline预跑、source snapshot、最终export、被拒候选或网络等待设为免费。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-BUDGET-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "多region/多候选不能刷新全局预算；失败/拒绝/耗尽attempt都有账。",
+          "fake超时/并发预约/异常/缺usage不会超已声明cap或记为零。",
+          "阶段exclusive时间可与总时间对账，profile累计时间不当相加，成本未知显式标记。"
+        ]
+      }
+    },
+    {
+      "id": "N4-AUDIT-01",
+      "title": "独立审计有限TCB与live准入",
+      "phase": "W6",
+      "owner_role": "独立审计",
+      "reviewer_roles": [
+        "非作者语义/域/验证专家"
+      ],
+      "dependencies": [
+        "N4-BOOT-02",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-DOM-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-BUDGET-01",
+        "N4-TYPE-02"
+      ],
+      "contributes_to_gates": [
+        "G5",
+        "G8"
+      ],
+      "prior_22_cards": [
+        "REL-02"
+      ],
+      "original_46_cards": [
+        "VERIFY-01",
+        "LLM-02",
+        "LLM-03",
+        "TEST-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "docs/specs",
+        "tests/refactor",
+        "tests/regression/audit3",
+        "pythonstan/analysis/verification",
+        "pythonstan/analysis/state",
+        "pythonstan/results"
+      ],
+      "write_scope": [
+        "docs/specs",
+        "tests/refactor",
+        "tests/regression/audit3",
+        "pythonstan/analysis/verification",
+        "pythonstan/analysis/state",
+        "pythonstan/results",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "列出source/refinement checker、Value/Store/arena/serializer/bridge/ledger等真实TCB，不把共享实现说独立。",
+        "非作者读取diff/契约/raw evidence，补held-out变体与有限gamma/CPython witness。",
+        "有目的mutants删除callsite、合并fresh、跳过补集、partial冒充完整、漏epoch、导出丢residual、半发布proof等必须被杀死。",
+        "冻结source allowlist、live case/query/cost计划及准入receipt；自动门通过后按已有授权执行。"
+      ],
+      "acceptance": [
+        "没有未解释closed漏行为或状态崩溃；mandatory fixtures通过且原profile未缩小。",
+        "局部证据与整体coverage分开，坏oracle无法提升任何保证。",
+        "transport/secret/预算负控有效，reviewer不是该关键实现唯一作者。"
+      ],
+      "not_completion": "不能用测试数、schema通过或同一个solver重跑当soundness证明。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-AUDIT-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "没有未解释closed漏行为或状态崩溃；mandatory fixtures通过且原profile未缩小。",
+          "局部证据与整体coverage分开，坏oracle无法提升任何保证。",
+          "transport/secret/预算负控有效，reviewer不是该关键实现唯一作者。"
+        ]
+      }
+    },
+    {
+      "id": "N4-EVAL-01",
+      "title": "预注册真实客户查询、输入合同与独立gold",
+      "phase": "W0",
+      "owner_role": "客户查询/独立评估",
+      "reviewer_roles": [
+        "Python项目专家",
+        "语义"
+      ],
+      "dependencies": [
+        "N4-BOOT-01",
+        "N4-BOOT-02"
+      ],
+      "contributes_to_gates": [
+        "G0",
+        "G7"
+      ],
+      "prior_22_cards": [
+        "EVAL-03"
+      ],
+      "original_46_cards": [
+        "TEST-01",
+        "EVAL-02"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "benchmark",
+        "docs/development/next/query_manifest.json",
+        "prior_audit"
+      ],
+      "write_scope": [
+        "benchmark",
+        "docs/development/next/query_manifest.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [
+        "prior_audit"
+      ],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "保留原14真实+4控制compat cohort；另建预声明真实客户query轨道，不混分母。",
+        "在算法调参前冻结至少3项目各2条非literal mandatory query，包含Invoke和一个框架项目。",
+        "每条记录source/entry/input/model/scope/dependency/gold来源/资源档位/有用性规则。",
+        "动态见证仅为may覆盖下界，精度upper/exact gold必须有独立来源；无法对齐A-E scope标not_comparable。"
+      ],
+      "acceptance": [
+        "六条新mandatory问题由独立owner冻结，不能事后改成literal/删失败case或换入口。",
+        "manifest冻结D无PTA的query-scope closed-useful与E覆盖/默认实用性最终验收谓词；本卡只验收预注册完整性，实际达标由EVAL-03负责。",
+        "整项目Open与query局部closed明确分开，局部闭合有完整输入/依赖证据。"
+      ],
+      "not_completion": "不能用目录文件数、源码中出现常量或单条动态trace当全应用覆盖。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-EVAL-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "verified",
+      "implementation_record": {
+        "owner": "client_preregistration",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [
+          "artifacts/next/evidence/N4-EVAL-01"
+        ],
+        "remaining_obligations": [],
+        "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+        "review_records": [
+          "docs/development/next/reviews/EVAL-01.md"
+        ],
+        "scope": "W0 baseline/registration/tooling only; no production semantic repair or final core/scale qualification."
+      }
+    },
+    {
+      "id": "N4-PERF-01",
+      "title": "优化已观测frontend、图与摘要/导出热点",
+      "phase": "W5",
+      "owner_role": "性能/状态所有权",
+      "reviewer_roles": [
+        "语义",
+        "评估"
+      ],
+      "dependencies": [
+        "N4-STATE-02",
+        "N4-RESULT-01",
+        "N4-AI-03",
+        "N4-LLM-02",
+        "N4-BUDGET-01"
+      ],
+      "contributes_to_gates": [
+        "G7"
+      ],
+      "prior_22_cards": [
+        "PERF-02"
+      ],
+      "original_46_cards": [
+        "EVAL-02",
+        "AI-02",
+        "DOM-05",
+        "QUERY-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/frontend",
+        "pythonstan/inputs",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/composition",
+        "pythonstan/results"
+      ],
+      "write_scope": [
+        "pythonstan/frontend",
+        "pythonstan/inputs",
+        "pythonstan/analysis/state",
+        "pythonstan/analysis/composition",
+        "pythonstan/results",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "测量独占phase time、AST passes、clone/remap节点、boundary bytes和export字节。",
+        "以immutable SourceProgram消除重复索引/lowering，考虑受版本约束的结构共享和query投影。",
+        "L2静态source plan按immutable identity缓存，动态guard/heap/frame仍验证。",
+        "Native region逐语句full-boundary成本纳入；只对真实热点引入批处理/局部footprint或持久kernel。"
+      ],
+      "acceptance": [
+        "至少一个已测热点在同输入/同query质量下真实成本降低，记录所有阶段成本；可与AI-03共用同一公平证据，明确改善量纲，无收益记录不自动关闭优化目标。",
+        "stale/alias/epoch/unknown effects失效负例不退化。",
+        "诊断profile与正式不插桩wall样本分开；clone减少不是自动soundness证据。"
+      ],
+      "not_completion": "不能删验证、少导出所需query、改变根集合或提高预算后宣称同等加速。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-PERF-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "至少一个已测热点在同输入/同query质量下真实成本降低，记录所有阶段成本；可与AI-03共用同一公平证据，明确改善量纲，无收益记录不自动关闭优化目标。",
+          "stale/alias/epoch/unknown effects失效负例不退化。",
+          "诊断profile与正式不插桩wall样本分开；clone减少不是自动soundness证据。"
+        ]
+      }
+    },
+    {
+      "id": "N4-EVAL-02",
+      "title": "同版本实验runner、固定样本与完整统计",
+      "phase": "W3",
+      "owner_role": "实验方法/工程",
+      "reviewer_roles": [
+        "独立统计",
+        "集成"
+      ],
+      "dependencies": [
+        "N4-EVAL-01",
+        "N4-BUDGET-01"
+      ],
+      "contributes_to_gates": [
+        "G7"
+      ],
+      "prior_22_cards": [
+        "EVAL-04"
+      ],
+      "original_46_cards": [
+        "EVAL-01",
+        "EVAL-02"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "benchmark",
+        "scripts/experiments",
+        "docs/development/next/experiment_plan.json"
+      ],
+      "write_scope": [
+        "benchmark",
+        "scripts/experiments",
+        "docs/development/next/experiment_plan.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "固定source/wheel/lock、输入/入口/query/profile/预算、worker与cache状态，A-E真实执行模式哨兵。",
+        "使用随机或平衡交叉顺序；代表性配置固定10独立进程，高噪声预先选定20，不事后无限追加。",
+        "超时/预算/无答案/unsupported/错误closed/局部有用Open分别保留，延迟作为删失不记成功均值。",
+        "固定预算closed-useful与等质量成本分开；source代码repeats和统计trial_id分开。"
+      ],
+      "acceptance": [
+        "原始行与汇总可独立重算，分母无丢行，exit0不自动算有效。",
+        "pairwise scope不可比准确标not_comparable，不把Native synthetic额外根当公平等价。",
+        "所有attempt、export-inclusiveCPU/RSS/总wall/算法work齐全或明确unknown，不能用0填缺失。"
+      ],
+      "not_completion": "不能只挑成功样本、把source repeats当独立重复，或把profile cum time相加。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-EVAL-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "原始行与汇总可独立重算，分母无丢行，exit0不自动算有效。",
+          "pairwise scope不可比准确标not_comparable，不把Native synthetic额外根当公平等价。",
+          "所有attempt、export-inclusiveCPU/RSS/总wall/算法work齐全或明确unknown，不能用0填缺失。"
+        ]
+      }
+    },
+    {
+      "id": "N4-OBS-01",
+      "title": "Inspector与调试观察保持只读且不改变语义",
+      "phase": "W5",
+      "owner_role": "观测/Inspector",
+      "reviewer_roles": [
+        "状态",
+        "查询"
+      ],
+      "dependencies": [
+        "N4-QUERY-01",
+        "N4-CTRL-01",
+        "N4-STATE-01"
+      ],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "OBS-01",
+        "RESULT-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan_inspector",
+        "pythonstan/analysis/contracts/observation.py",
+        "pythonstan/analysis/observations",
+        "pythonstan/results"
+      ],
+      "write_scope": [
+        "pythonstan_inspector",
+        "pythonstan/analysis/contracts/observation.py",
+        "pythonstan/analysis/observations",
+        "pythonstan/results",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "Inspector通过稳定snapshot/query/event port读取；语义facts与debug事件分层。",
+        "source/policy/epoch/provenance能定位错误producer与缺失物化，不反向修改solver。",
+        "有界日志/事件容量会截断观测但不得删除分析事实，记录观察本身成本。"
+      ],
+      "acceptance": [
+        "observer on/off在足够相同语义work预算下结果相容；墙钟成本差异单列。",
+        "旧结果跨session保持不变；未附着Native observer准确partial/unsupported。",
+        "能重现一条缺事实/epoch/区域policy的定位链。"
+      ],
+      "not_completion": "不能以Inspector日志有unknown代替core真正传播保守effects。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-OBS-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "observer on/off在足够相同语义work预算下结果相容；墙钟成本差异单列。",
+          "旧结果跨session保持不变；未附着Native observer准确partial/unsupported。",
+          "能重现一条缺事实/epoch/区域policy的定位链。"
+        ]
+      }
+    },
+    {
+      "id": "N4-REL-01",
+      "title": "构建并验证唯一发布候选wheel与类型分发",
+      "phase": "W6",
+      "owner_role": "发布/集成",
+      "reviewer_roles": [
+        "架构",
+        "外部consumer"
+      ],
+      "dependencies": [
+        "N4-TYPE-02",
+        "N4-ARCH-01",
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-AI-03",
+        "N4-PERF-01",
+        "N4-OBS-01"
+      ],
+      "contributes_to_gates": [
+        "G6"
+      ],
+      "prior_22_cards": [
+        "AUD-01"
+      ],
+      "original_46_cards": [
+        "MIG-01",
+        "RELEASE-01",
+        "API-01",
+        "CLI-01"
+      ],
+      "audit_findings": [
+        "PUBLICATION"
+      ],
+      "read_first": [
+        "pyproject.toml",
+        "pythonstan",
+        "pythonstan_inspector",
+        "scripts/quality",
+        "docs/development/next/release_manifest.json"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "pythonstan",
+        "pythonstan_inspector",
+        "scripts/quality",
+        "docs/development/next/release_manifest.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "生成当前源码正集合/禁止集合/兼容映射，控制文档与metadata从registry统一生成。",
+        "构建wheel/sdist，逐成员path/hash与允许集合核对，17退休原路径不得安装。",
+        "加入并验证py.typed与公开re-export，存在.pyi时针对性stubtest。",
+        "在checkout外清洁环境安装wheel验证API/CLI/consumer typing与多session；冻结候选供正式实验。"
+      ],
+      "acceptance": [
+        "源码、wheel、安装receipt与实验使用同一identity，无额外原型、无缺配置资源。",
+        "API三输入/默认配置/输出查询例子在安装环境真实运行。",
+        "负例重加退休成员/去py.typed/错误alias/metadata漂移会使guard失败。"
+      ],
+      "not_completion": "不能只比文件数量或检查exclude配置；不能借PYTHONPATH源码遮盖wheel缺失。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-REL-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "源码、wheel、安装receipt与实验使用同一identity，无额外原型、无缺配置资源。",
+          "API三输入/默认配置/输出查询例子在安装环境真实运行。",
+          "负例重加退休成员/去py.typed/错误alias/metadata漂移会使guard失败。"
+        ]
+      }
+    },
+    {
+      "id": "N4-EVAL-03",
+      "title": "执行离线A-E、客户query、消融和候选家族验收",
+      "phase": "W7",
+      "owner_role": "实验执行/评估",
+      "reviewer_roles": [
+        "非作者语义",
+        "统计"
+      ],
+      "dependencies": [
+        "N4-REL-01",
+        "N4-AUDIT-01",
+        "N4-EVAL-02",
+        "N4-PERF-01"
+      ],
+      "contributes_to_gates": [
+        "G7"
+      ],
+      "prior_22_cards": [
+        "EVAL-04",
+        "EVAL-03"
+      ],
+      "original_46_cards": [
+        "EVAL-01",
+        "EVAL-02",
+        "LLM-03"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "benchmark",
+        "scripts/experiments",
+        "docs/development/next/evidence"
+      ],
+      "write_scope": [
+        "benchmark",
+        "scripts/experiments",
+        "docs/development/next/evidence",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "冻结同一候选wheel跑原18×5 stress cohort，并运行mandatory客户query轨道。",
+        "对预声明代表子集做10/20独立进程，A-E/策略控制/clean-vs-incremental消融按scope比较。",
+        "重跑baseline/correct/malicious/coarse四臂family，尤其24×16实际query物化，保留失败与费用。",
+        "输出质量约束下wall/CPU/RSS/work分布与不确定性；原目标未达成继续修复后新identity全链重验。"
+      ],
+      "acceptance": [
+        "六条有限真实query在预声明D输入/资源下closed-useful；E不漏行为，作为默认时也保持mandatory查询closed-useful；每条保存micro/真实source切片/完整project输入映射；至少一条预注册mandatory query在未缩减source inventory、相同entry/input/query/model的完整project输入下达到query-scope closed-useful；其余slice/project矩阵完整保留，全项目Open另报。",
+        "原14项目所有失败保留，不强求全部任意Python closed但不能用全部无用结果通过可用性。",
+        "家族的point Verified、exported answers、整体solver状态分别统计；未物化384项不计成功。",
+        "达到统计停止计划，不测到显著才停。"
+      ],
+      "not_completion": "不能把离线proposer成本说包含真实网络/token，不能把收益从弱literal查询推到全应用。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-EVAL-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "六条有限真实query在预声明D输入/资源下closed-useful；E不漏行为，作为默认时也保持mandatory查询closed-useful；每条保存micro/真实source切片/完整project输入映射；至少一条预注册mandatory query在未缩减source inventory、相同entry/input/query/model的完整project输入下达到query-scope closed-useful；其余slice/project矩阵完整保留，全项目Open另报。",
+          "原14项目所有失败保留，不强求全部任意Python closed但不能用全部无用结果通过可用性。",
+          "家族的point Verified、exported answers、整体solver状态分别统计；未物化384项不计成功。",
+          "达到统计停止计划，不测到显著才停。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LIVE-01",
+      "title": "通过准入后真实两请求smoke",
+      "phase": "W7",
+      "owner_role": "LLM运行/评估",
+      "reviewer_roles": [
+        "Provider",
+        "独立审计"
+      ],
+      "dependencies": [
+        "N4-AUDIT-01",
+        "N4-REL-01",
+        "N4-EVAL-02"
+      ],
+      "contributes_to_gates": [
+        "G8"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "LLM-01",
+        "LLM-03"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "pythonstan/llm",
+        "scripts/experiments",
+        "docs/development/next/live_plan.json"
+      ],
+      "write_scope": [
+        "pythonstan/llm",
+        "scripts/experiments",
+        "docs/development/next/live_plan.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "核验已有授权、synthetic allowlist、当前官方模型/价目与环境凭据存在，不打印值。",
+        "实际gpt-6-luna Responses执行一条L1/一条L2，store=False、并发1、retries0。",
+        "执行请求前预留和真实usage结算，保存脱敏receipt及parser/checker/application结果。"
+      ],
+      "acceptance": [
+        "最多2 generation，input16000/output4096、USD0.25、120秒stage cap和全局cap取先到者。",
+        "所有请求包括refusal/failed/incomplete进入分母；不得以mock/replay冒充live。",
+        "缺key/model/access/rate核验条件标blocked_external；预算到限记stopped_by_budget；超时费用未决按receipt记停止原因，不一概伪装外部阻断。继续离线工作，不索取聊天明文key。"
+      ],
+      "not_completion": "成功HTTP不等于语义Verified；不能在准入前为证明接口能通而提前调用。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LIVE-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "S",
+      "status": "pending_dependencies",
+      "external_preconditions": [
+        "OPENAI_API_KEY supplied by runtime environment; value never inspected or persisted",
+        "OpenAI gpt-6-luna access and current official rate card verified",
+        "predeclared non-sensitive synthetic/public source allowlist"
+      ],
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "最多2 generation，input16000/output4096、USD0.25、120秒stage cap和全局cap取先到者。",
+          "所有请求包括refusal/failed/incomplete进入分母；不得以mock/replay冒充live。",
+          "缺key/model/access/rate核验条件标blocked_external；预算到限记stopped_by_budget；超时费用未决按receipt记停止原因，不一概伪装外部阻断。继续离线工作，不索取聊天明文key。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LIVE-02",
+      "title": "12个held-out受控case的paired live pilot",
+      "phase": "W8",
+      "owner_role": "LLM实验/统计",
+      "reviewer_roles": [
+        "验证",
+        "客户query"
+      ],
+      "dependencies": [
+        "N4-LIVE-01",
+        "N4-EVAL-03"
+      ],
+      "contributes_to_gates": [
+        "G8"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "LLM-01",
+        "LLM-03",
+        "EVAL-02"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "scripts/experiments",
+        "benchmark",
+        "docs/development/next/live_plan.json"
+      ],
+      "write_scope": [
+        "scripts/experiments",
+        "benchmark",
+        "docs/development/next/live_plan.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "运行预声明6个L1+6个L2 case，各2次独立generation；prompt开发case隔离。",
+        "分别比较baseline/固定heuristic/live-checked/same-candidate replay；恶意/过粗离线负控。",
+        "replay计时重复仅隔离运行成本，不计独立模型生成；失败和无收益如实报告。"
+      ],
+      "acceptance": [
+        "最多24 generation，stage input192000/output98304、USD2.25、1200秒，受全局余量限制。",
+        "记录proposal/check/accept/apply/quality/cost各比率与分母，不挑best-of。",
+        "两次样本只支持pilot描述，不能宣称模型可靠性或显著普遍优势。"
+      ],
+      "not_completion": "不能为LLM胜出弱化baseline、删guard、放宽checker或隐去网络等待。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LIVE-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "external_preconditions": [
+        "OPENAI_API_KEY supplied by runtime environment; value never inspected or persisted",
+        "OpenAI gpt-6-luna access and current official rate card verified",
+        "predeclared non-sensitive synthetic/public source allowlist"
+      ],
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "最多24 generation，stage input192000/output98304、USD2.25、1200秒，受全局余量限制。",
+          "记录proposal/check/accept/apply/quality/cost各比率与分母，不挑best-of。",
+          "两次样本只支持pilot描述，不能宣称模型可靠性或显著普遍优势。"
+        ]
+      }
+    },
+    {
+      "id": "N4-LIVE-03",
+      "title": "有依据后运行六个授权真实源码切片pilot",
+      "phase": "W8",
+      "owner_role": "项目/LLM评估",
+      "reviewer_roles": [
+        "独立语义",
+        "数据范围"
+      ],
+      "dependencies": [
+        "N4-LIVE-02"
+      ],
+      "contributes_to_gates": [
+        "G8"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "LLM-03",
+        "EVAL-02"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "scripts/experiments",
+        "benchmark",
+        "docs/development/next/live_plan.json"
+      ],
+      "write_scope": [
+        "scripts/experiments",
+        "benchmark",
+        "docs/development/next/live_plan.json",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "仅满足预注册LIVE3-ENTRY-v1谓词时运行：安全/协议/费用账本通过，至少1个live候选已通过并应用，且至少1个case目标query相对baseline严格改善或同质量确定性runtime work降低；判据在LIVE-2前冻结，不用于宣称统计优势。",
+        "绑定原项目source/entry/query与切片dependency闭包，发送前allowlist与秘密扫描。",
+        "finite profile不适用时保留unsupported+fallback，报告适用性不足。"
+      ],
+      "acceptance": [
+        "最多18 generation，stage input144000/output73728、USD2.50、1200秒；总44请求/352000in/176128out/USD5/2520秒上限。",
+        "切片结论不扩成整项目闭合；所有未运行case保留原因。",
+        "无净收益是有效负面结论，默认LLM仍关闭；不能宣称优化目标已完成。"
+      ],
+      "not_completion": "不能扩大source外发范围或悄悄换模型来填成功结果。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-LIVE-03",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "external_preconditions": [
+        "OPENAI_API_KEY supplied by runtime environment; value never inspected or persisted",
+        "OpenAI gpt-6-luna access and current official rate card verified",
+        "predeclared non-sensitive synthetic/public source allowlist"
+      ],
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "最多18 generation，stage input144000/output73728、USD2.50、1200秒；总44请求/352000in/176128out/USD5/2520秒上限。",
+          "切片结论不扩成整项目闭合；所有未运行case保留原因。",
+          "无净收益是有效负面结论，默认LLM仍关闭；不能宣称优化目标已完成。"
+        ]
+      }
+    },
+    {
+      "id": "N4-DOC-01",
+      "title": "更新用户入口、控制菜单和维护指南",
+      "phase": "W7",
+      "owner_role": "API/文档",
+      "reviewer_roles": [
+        "用户流程",
+        "各owner"
+      ],
+      "dependencies": [
+        "N4-REL-01",
+        "N4-EVAL-03"
+      ],
+      "contributes_to_gates": [
+        "G9"
+      ],
+      "prior_22_cards": [],
+      "original_46_cards": [
+        "API-01",
+        "CLI-01",
+        "CFG-01",
+        "ARCH-01",
+        "RELEASE-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "README.md",
+        "docs/specs",
+        "docs/development/next",
+        "examples"
+      ],
+      "write_scope": [
+        "README.md",
+        "docs/specs",
+        "docs/development/next",
+        "examples",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "提供安装后三行analyze示例和Source/File/Project三种CLI路径，解释默认入口与输出定制。",
+        "从registry生成真实控制菜单/explain-plan例子，写明supported/retired/unsupported scope。",
+        "发布CODE_STANDARD、类型债务操作、模块责任、旧→新符号迁移与守卫运行方式。",
+        "文档区分本轮实测结论、profile假设、未完成和未来目标。"
+      ],
+      "acceptance": [
+        "用户示例在已冻结wheel外部consumer实际跑过并和文档一致。",
+        "LLM env变量名与live准入有说明且无密钥/敏感payload。",
+        "说明准确区分solver/coverage/proof/query状态，不宣传任意Python sound。"
+      ],
+      "not_completion": "不能先写‘全部完成’模板再补没有运行的数字。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-DOC-01",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "M",
+      "status": "pending_dependencies",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "用户示例在已冻结wheel外部consumer实际跑过并和文档一致。",
+          "LLM env变量名与live准入有说明且无密钥/敏感payload。",
+          "说明准确区分solver/coverage/proof/query状态，不宣传任意Python sound。"
+        ]
+      }
+    },
+    {
+      "id": "N4-REL-02",
+      "title": "独立最终重验、原46卡重关与可审计交付",
+      "phase": "W9",
+      "owner_role": "总集成/独立验收",
+      "reviewer_roles": [
+        "非作者跨领域专家"
+      ],
+      "dependencies": [
+        "N4-BOOT-01",
+        "N4-BOOT-02",
+        "N4-QUAL-01",
+        "N4-TYPE-02",
+        "N4-CTRL-02",
+        "N4-PTA-03",
+        "N4-HYB-01",
+        "N4-AI-03",
+        "N4-OBS-01",
+        "N4-AUDIT-01",
+        "N4-REL-01",
+        "N4-EVAL-03",
+        "N4-DOC-01"
+      ],
+      "contributes_to_gates": [
+        "G9"
+      ],
+      "prior_22_cards": [
+        "REL-02"
+      ],
+      "original_46_cards": [
+        "RELEASE-01"
+      ],
+      "audit_findings": [],
+      "read_first": [
+        "docs/development/next",
+        "docs/refactor/task_board.json",
+        "pyproject.toml",
+        "scripts/quality"
+      ],
+      "write_scope": [
+        "docs/development/next",
+        "docs/refactor/task_board.json",
+        "pyproject.toml",
+        "scripts/quality",
+        "tests/regression/audit3",
+        "docs/development/next"
+      ],
+      "read_only_inputs": [],
+      "integration_rule": "write_scope中的共享文件必须取得当期owner lease；新模块按冻结ADR建立；测试与接口消费者随同迁移；禁止并发覆盖。",
+      "implementation_steps": [
+        "按原46卡每项acceptance引用当前commit/wheel/raw evidence，由非作者复核而非批量accepted。",
+        "复核源码/wheel/配置/任务板/实验identity一致，语义fix/结构变更/性能收益有独立理由。",
+        "逐项汇报核心能力、控制面、strict frontier、Native旧债、公开query范围与LLM offline/live状态。",
+        "若live因外部条件blocked或无净收益，分别交付核心requalified与live状态，不能伪称所有任务verified。",
+        "按现有授权推送经过门禁的允许内容；扫描待提交diff/archive/wheel，凭据与私有实验内容不进入git。"
+      ],
+      "acceptance": [
+        "P1原例/独立变体、核心类型/依赖/安装门全部通过，仍开放项真实保留。",
+        "A-E与真实query结果、性能分布和费用账本可独立复算。",
+        "提供确切复现命令、任务状态、报告、制品manifest和下一阶段未完成列表。",
+        "最终文件和git分支状态准确，未执行的动作不得报告已执行。"
+      ],
+      "not_completion": "不能用16/46或任务数量算算法完成率，不能以外部blocked取消本地必做工作。",
+      "expected_evidence": [
+        "实际HEAD/tree、变更diff/commit、配置/输入/工具identity",
+        "有意义的red/green或设计合同验证，含独立变体与正向对照",
+        "命令、exit code、原始输出、适用scope和未完成义务",
+        "作者之外的review记录与依据"
+      ],
+      "evidence_directory": "artifacts/next/evidence/N4-REL-02",
+      "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
+      "effort_class": "L",
+      "status": "pending_dependencies",
+      "conditional_dependencies": [
+        "N4-LIVE-01",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "conditional_dependency_rule": "Report these tasks as verified/failed/blocked/not_run separately. Core qualification can be delivered separately; blocked_external is limited to credentials/access/rate/data authorization. Budget stops and preregistered no-benefit stops use separate states. Internal semantic/type/checker failures and mandatory client-query failures are never exempt. Never label the whole plan fully verified.",
+      "implementation_record": {
+        "owner": "unassigned",
+        "reviewer": "requirements_audit",
+        "commit": null,
+        "evidence": [],
+        "remaining_obligations": [
+          "P1原例/独立变体、核心类型/依赖/安装门全部通过，仍开放项真实保留。",
+          "A-E与真实query结果、性能分布和费用账本可独立复算。",
+          "提供确切复现命令、任务状态、报告、制品manifest和下一阶段未完成列表。",
+          "最终文件和git分支状态准确，未执行的动作不得报告已执行。"
+        ]
+      }
+    }
+  ],
+  "implementation_baseline": {
+    "commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+    "tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+    "dirty_at_clone": false
+  },
+  "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
+  "current_phase": "W1",
+  "qualification": {
+    "core_qualified": false,
+    "scale_qualified": false,
+    "live_evaluated": {
+      "LIVE-1": "pending_internal_prerequisites",
+      "LIVE-2": "pending_internal_prerequisites",
+      "LIVE-3": "pending_internal_prerequisites"
+    },
+    "benefit_demonstrated": "not_evaluated"
+  },
+  "publication_status": {
+    "remote_branch": "dev-cocktail-analysis",
+    "remote_head_last_observed": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+    "local_commits": [
+      "8634254",
+      "37f9a93",
+      "4ce28a6",
+      "4f0f1ec"
+    ],
+    "sync_status": "not_synced",
+    "reason": "Large ledger upload interrupted; initial immutable tree request auto-review rejected destination/payload authorization. Subsequent exact request after verifying publicsource and repo permission was permitted but API422 confirmed blob absent. No ref update attempted."
+  },
+  "checkpoint_note": "Coherent API checkpoint includes reviewed partial runtime ID/effect/metadata/continuation support; TYPE01 full Flow/StateHandle and strict state remain running. Current original1001stage scope passes. No core/scale/release/live qualification inferred."
+}

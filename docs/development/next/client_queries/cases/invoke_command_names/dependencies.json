@@ -1,0 +1,31 @@
+{
+  "complete_for_declared_entry": true,
+  "symbols": [
+    "Collection.transform",
+    "builtins.len",
+    "builtins.enumerate",
+    "str.join",
+    "builtin list allocation",
+    "list.append"
+  ],
+  "source_fragments": [
+    {
+      "original_path": "invoke/collection.py",
+      "qualname": "Collection.transform",
+      "start_line": 456,
+      "end_line": 493,
+      "original_file_sha256": "d10bfd6e77ca7946e401a4cb20dc6bcc6f4c06b863c2b85ded1bfabfa5a074a2",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/invoke_command_names/source/invoke_collection.py__Collection.transform.txt",
+      "exact_fragment_sha256": "d09ec6b14167da8424a33edc8e39f1750a8a980fd6334a052bc80cbd69a00de8",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "external_models": [
+    "Python str length/index/join",
+    "Python enumerate",
+    "bool field auto_dash_names",
+    "prepared receiver exact source class; do not run Collection.__init__"
+  ],
+  "omitted_modules": "Remain in full project inventory; not producers for the sealed finite prepared-state input. This dependency claim must be independently revalidated before solver closure is accepted."
+}

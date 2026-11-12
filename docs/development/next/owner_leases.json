@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "base_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "owners": {
+    "root": [
+      ".gitignore",
+      "docs/development/next/baseline.json",
+      "docs/development/next/task_board.json",
+      "docs/development/next/finding_ledger.json",
+      "docs/development/next/traceability.json",
+      "docs/development/next/gate_manifest.json",
+      "docs/development/next/publication_baseline.json",
+      "scripts/next/"
+    ],
+    "quality_tools": [
+      "pyproject.toml",
+      "poetry.lock",
+      "scripts/quality/",
+      ".github/workflows/",
+      "docs/development/next/quality*"
+    ],
+    "semantic_baseline": [
+      "tests/regression/audit3/semantic*",
+      "tests/regression/audit3/test_semantic*",
+      "docs/development/next/semantic*",
+      "docs/specs/semantic-profile.md"
+    ],
+    "domain_native_baseline": [
+      "tests/regression/audit3/domain*",
+      "tests/regression/audit3/test_domain*",
+      "tests/regression/audit3/native*",
+      "tests/regression/audit3/test_native*",
+      "docs/development/next/domain_native*"
+    ],
+    "client_preregistration": [
+      "benchmark/next/",
+      "docs/development/next/query_manifest.json",
+      "docs/development/next/client_query*"
+    ]
+  },
+  "reviewer": "requirements_audit",
+  "production_semantics": "No production writes until original-source diagnostic capture complete and W0 reviewed."
+}

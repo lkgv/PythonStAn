@@ -1,0 +1,51 @@
+{
+  "scenarios": [
+    {
+      "id": "none_explicit",
+      "items": [
+        {
+          "placeholder": 0
+        },
+        null
+      ]
+    },
+    {
+      "id": "false_explicit",
+      "items": [
+        {
+          "placeholder": 0
+        },
+        false,
+        9
+      ]
+    },
+    {
+      "id": "all_placeholder",
+      "items": [
+        {
+          "placeholder": "first"
+        },
+        {
+          "placeholder": "second"
+        }
+      ]
+    },
+    {
+      "id": "first_empty_list",
+      "items": [
+        [],
+        {
+          "placeholder": 1
+        }
+      ]
+    }
+  ],
+  "placeholder_kind": "exact source DefaultPlaceholder; no subclasses",
+  "exact_call_rule": {
+    "callee": "fastapi.utils.get_value_or_default",
+    "positional": "Each scenarios.items array unpacked in order; placeholder objects are freshly prepared exact DefaultPlaceholder instances with value field equal to placeholder payload; primitive/list items retain their declared input identity.",
+    "keyword": {},
+    "scenario_reset": "Fresh placeholders/lists per row; no constructors run."
+  },
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

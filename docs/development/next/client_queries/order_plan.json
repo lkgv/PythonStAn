@@ -1,0 +1,77 @@
+{
+  "seed": 20261111,
+  "method": "fixed paired blocks; rotate primary mode order each repetition",
+  "blocks": [
+    {
+      "repetition": 0,
+      "modes": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "repetition": 1,
+      "modes": [
+        "E",
+        "D"
+      ]
+    },
+    {
+      "repetition": 2,
+      "modes": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "repetition": 3,
+      "modes": [
+        "E",
+        "D"
+      ]
+    },
+    {
+      "repetition": 4,
+      "modes": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "repetition": 5,
+      "modes": [
+        "E",
+        "D"
+      ]
+    },
+    {
+      "repetition": 6,
+      "modes": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "repetition": 7,
+      "modes": [
+        "E",
+        "D"
+      ]
+    },
+    {
+      "repetition": 8,
+      "modes": [
+        "D",
+        "E"
+      ]
+    },
+    {
+      "repetition": 9,
+      "modes": [
+        "E",
+        "D"
+      ]
+    }
+  ],
+  "A_B_C": "Scope review required before adding comparable rows; original90 compatibility rows remain independent."
+}

@@ -1,0 +1,34 @@
+{
+  "query_id": "django_last_value:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "super().__getitem__ is builtin dict lookup on the finite exact receiver. The three keys partition nonempty, empty and absent values. Last index returns Grace; empty index raises IndexError caught into a newly allocated []; absent lookup raises KeyError rethrown as source MultiValueDictKeyError.",
+  "expected": {
+    "rows": [
+      {
+        "key": "name",
+        "return": "Grace",
+        "exception": null
+      },
+      {
+        "key": "empty",
+        "return": [],
+        "exception": null,
+        "return_fresh": true,
+        "return_aliases_storage": false
+      },
+      {
+        "key": "missing",
+        "return": null,
+        "exception": "MultiValueDictKeyError",
+        "exception_argument": "missing"
+      }
+    ]
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

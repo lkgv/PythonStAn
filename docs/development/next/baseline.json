@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "initial_user_dirty": false,
+  "design_baseline": "b19d98e0cdca8fd23d49ec82a526f814309edf75",
+  "inputs": {
+    "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt": "10eb291b9563e83b9885aeec01e7b65fb52ce87464f0d6efcfafa7c764a715ee",
+    "PythonStAn_Code_Standard_v2_ZH.txt": "017daf5e8414a525327dff918ddc25d53f155faa75fa5a04faf6578e3bce057f",
+    "PythonStAn_Next_Development_Handoff_v2.zip": "245faf79f07eab1b2462dd337f071459347bca7376f2c78989ea495fa95908d9",
+    "PythonStAn_Next_Development_Tasks_v2.json": "ec8c5b6c369241b210e9e8596e3b6dba82183e4c436beb5cab046cffa910323c"
+  },
+  "handoff_manifest_entries_verified": 37,
+  "python": "3.12.14",
+  "semantic_target": "CPython 3.12",
+  "baseline_delta": {
+    "commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+    "changed_paths": [
+      "docs/refactor/old_to_new_options.json"
+    ],
+    "meaning": "control metadata mirror synchronization; no runtime semantics change"
+  },
+  "source_stage_test_result": {
+    "passed": 1001,
+    "failed": 0,
+    "exit_status": 0,
+    "wall_seconds": 41.249633702999745,
+    "command_file": "artifacts/next/evidence/N4-BOOT-01/pristine_stage.receipt.json",
+    "scope": "Pristine committed source and committed pyproject/lock in detached clean worktree"
+  },
+  "not_inherited": [
+    "previous wheel qualification",
+    "prior 46 task green labels",
+    "soundness of mandatory semantic fixtures",
+    "historical experiment results on different source identity"
+  ],
+  "stage_configuration_note": "Primary baseline uses pristine committed configuration. Earlier concurrent-tooling run retained separately in stage_tests.*; both report1001passed.",
+  "committed_configuration_sha256": {
+    "pyproject.toml": "eb3ef2d2d3869a822079bb9e393e8a3d76728094dc563150fd0e49dd17fd4221",
+    "poetry.lock": "d7c03dba338689dc37619c7259085e42564b59217ac6030ee708866256da8eb1"
+  },
+  "executed_stage_configuration_sha256": {
+    "pyproject.toml": "36469655bed978607b8682b6286137f3d0ddba35d197e3bf85a8aa450a38b01c",
+    "poetry.lock": "d7c03dba338689dc37619c7259085e42564b59217ac6030ee708866256da8eb1"
+  }
+}

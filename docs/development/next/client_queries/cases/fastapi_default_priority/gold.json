@@ -1,0 +1,42 @@
+{
+  "query_id": "fastapi_default_priority:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "The source tests isinstance against DefaultPlaceholder, not truthiness. Tuple iteration is ordered and returns at the first nonplaceholder. If all items are placeholders it returns first_item. Each of the four finite lists has a complete class-membership partition and preserves the returned object identity.",
+  "expected": {
+    "rows": [
+      {
+        "scenario": "none_explicit",
+        "return": null,
+        "return_input_index": 1,
+        "exception": null
+      },
+      {
+        "scenario": "false_explicit",
+        "return": false,
+        "return_input_index": 1,
+        "exception": null
+      },
+      {
+        "scenario": "all_placeholder",
+        "return_placeholder_value": "first",
+        "return_input_index": 0,
+        "must_alias_first": true,
+        "exception": null
+      },
+      {
+        "scenario": "first_empty_list",
+        "return": [],
+        "return_input_index": 0,
+        "must_alias_first": true,
+        "exception": null
+      }
+    ]
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

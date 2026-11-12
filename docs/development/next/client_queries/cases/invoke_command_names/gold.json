@@ -1,0 +1,144 @@
+{
+  "query_id": "invoke_command_names:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "For the16 finite name/policy pairs, each character is replaced iff internal, equal to the selected source character, and neither neighbor is dot. The independent position predicate enumerates all finite positions; source has no other calls except modeled builtins. Returns are exact and no exception is possible under the string/boolean input contract.",
+  "expected": {
+    "rows": [
+      {
+        "input": {
+          "name": "",
+          "auto_dash_names": false
+        },
+        "return": "",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "build_docs",
+          "auto_dash_names": false
+        },
+        "return": "build_docs",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "_private_name_",
+          "auto_dash_names": false
+        },
+        "return": "_private_name_",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "ns._private_name",
+          "auto_dash_names": false
+        },
+        "return": "ns._private_name",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "ns.task_name",
+          "auto_dash_names": false
+        },
+        "return": "ns.task_name",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "a_.b_c",
+          "auto_dash_names": false
+        },
+        "return": "a_.b_c",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "a-b",
+          "auto_dash_names": false
+        },
+        "return": "a_b",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "_",
+          "auto_dash_names": false
+        },
+        "return": "_",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "",
+          "auto_dash_names": true
+        },
+        "return": "",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "build_docs",
+          "auto_dash_names": true
+        },
+        "return": "build-docs",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "_private_name_",
+          "auto_dash_names": true
+        },
+        "return": "_private-name_",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "ns._private_name",
+          "auto_dash_names": true
+        },
+        "return": "ns._private-name",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "ns.task_name",
+          "auto_dash_names": true
+        },
+        "return": "ns.task-name",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "a_.b_c",
+          "auto_dash_names": true
+        },
+        "return": "a_.b-c",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "a-b",
+          "auto_dash_names": true
+        },
+        "return": "a-b",
+        "exceptions": []
+      },
+      {
+        "input": {
+          "name": "_",
+          "auto_dash_names": true
+        },
+        "return": "_",
+        "exceptions": []
+      }
+    ]
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

@@ -1,0 +1,12 @@
+{
+  "python": "CPython3.12",
+  "semantic_profile": "finite_closed_builtin_and_exact_source_class_v1",
+  "assumptions": [
+    "source DefaultPlaceholder class identity",
+    "ordered builtin tuple iteration",
+    "exact isinstance without metaclass callbacks"
+  ],
+  "unsupported_outside_scope": "Arbitrary subclasses/metaclasses, unknown callbacks, concurrent mutation, monkey patching and package import side effects are outside this finite entry. They must remain Open if introduced.",
+  "package_initialization": "Not an entry; prepared graph binds exact original definitions. A module-init runner is not comparable.",
+  "no_analyzer_generated_facts": true
+}

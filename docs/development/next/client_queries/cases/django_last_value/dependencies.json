@@ -1,0 +1,40 @@
+{
+  "complete_for_declared_entry": true,
+  "symbols": [
+    "MultiValueDict.__getitem__",
+    "MultiValueDictKeyError",
+    "dict.__getitem__",
+    "list.__getitem__"
+  ],
+  "source_fragments": [
+    {
+      "original_path": "django/utils/datastructures.py",
+      "qualname": "MultiValueDictKeyError",
+      "start_line": 45,
+      "end_line": 46,
+      "original_file_sha256": "cfe76fe0e3ed795f44c49366ebf770c9e89baf3038a89283306c5b133d3f9eb1",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/django_last_value/source/django_utils_datastructures.py__MultiValueDictKeyError.txt",
+      "exact_fragment_sha256": "2961a0ad0e88bac70d3e69138fd1a629aec389f9687373e8829f21ecb0c5c8ec",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    },
+    {
+      "original_path": "django/utils/datastructures.py",
+      "qualname": "MultiValueDict.__getitem__",
+      "start_line": 80,
+      "end_line": 92,
+      "original_file_sha256": "cfe76fe0e3ed795f44c49366ebf770c9e89baf3038a89283306c5b133d3f9eb1",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/django_last_value/source/django_utils_datastructures.py__MultiValueDict.__getitem__.txt",
+      "exact_fragment_sha256": "47a566ccf1bcbc48ee29bb14d4d6032d0f45d3657a39e5f95d37c61e5ccd6b3f",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "external_models": [
+    "exact builtin dict subclass storage",
+    "super resolved from original MultiValueDict MRO",
+    "builtin negative list index",
+    "source MultiValueDictKeyError"
+  ],
+  "omitted_modules": "Remain in full project inventory; not producers for the sealed finite prepared-state input. This dependency claim must be independently revalidated before solver closure is accepted."
+}

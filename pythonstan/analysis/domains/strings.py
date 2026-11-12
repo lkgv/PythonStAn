@@ -9,17 +9,14 @@ Enhanced string lattice with:
 This is critical for getattr/setattr key reasoning and metaprogramming.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import (
-    Any,
-    FrozenSet,
-    List,
-    Optional,
-    Set,
-    Tuple,
+    TypeGuard,
+    override,
 )
 
-from .base import Domain, Fact
+from .base import Domain, Fact, FactPayload
 
 __all__ = ["StringDomain", "StrLattice"]
 
@@ -27,6 +24,11 @@ __all__ = ["StringDomain", "StrLattice"]
 # =============================================================================
 # StrLattice - String lattice element (enhanced)
 # =============================================================================
+
+
+def _string_set(value: FactPayload) -> TypeGuard[frozenset[str]]:
+    return isinstance(value, frozenset) and all(isinstance(item, str) for item in value)
+
 
 @dataclass(frozen=True, eq=True)
 class StrLattice:
@@ -48,12 +50,12 @@ class StrLattice:
     Prefixes and suffixes are union disjuncts; each conjunction requires both ends.
     """
 
-    consts: FrozenSet[str]
-    prefixes: FrozenSet[str]
-    suffixes: FrozenSet[str]
+    consts: frozenset[str]
+    prefixes: frozenset[str]
+    suffixes: frozenset[str]
     has_unknown: bool
     # Conjunctions retain exact intersections of prefix and suffix languages.
-    conjunctions: FrozenSet[Tuple[str, str]] = frozenset()
+    conjunctions: frozenset[tuple[str, str]] = frozenset()
 
     # -------------------------------------------------------------------------
     # Factory methods
@@ -80,7 +82,7 @@ class StrLattice:
         )
 
     @classmethod
-    def from_consts(cls, strs: FrozenSet[str]) -> "StrLattice":
+    def from_consts(cls, strs: frozenset[str]) -> "StrLattice":
         """Set of constant strings."""
         if len(strs) == 0:
             return cls.bottom()
@@ -105,7 +107,7 @@ class StrLattice:
         )
 
     @classmethod
-    def from_prefixes(cls, prefixes: FrozenSet[str]) -> "StrLattice":
+    def from_prefixes(cls, prefixes: frozenset[str]) -> "StrLattice":
         """Set of prefix constraints."""
         # Empty prefix matches all strings
         if "" in prefixes:
@@ -133,7 +135,7 @@ class StrLattice:
         )
 
     @classmethod
-    def from_suffixes(cls, suffixes: FrozenSet[str]) -> "StrLattice":
+    def from_suffixes(cls, suffixes: frozenset[str]) -> "StrLattice":
         """Set of suffix constraints."""
         # Empty suffix matches all strings
         if "" in suffixes:
@@ -164,11 +166,11 @@ class StrLattice:
     @classmethod
     def _normalize(
         cls,
-        consts: FrozenSet[str],
-        prefixes: FrozenSet[str],
-        suffixes: FrozenSet[str],
+        consts: frozenset[str],
+        prefixes: frozenset[str],
+        suffixes: frozenset[str],
         has_unknown: bool,
-        conjunctions: FrozenSet[Tuple[str, str]] = frozenset(),
+        conjunctions: frozenset[tuple[str, str]] = frozenset(),
     ) -> "StrLattice":
         """Normalize the lattice element.
 
@@ -212,19 +214,23 @@ class StrLattice:
         normalized_suffixes = cls._compute_suffix_antichain(suffixes)
 
         conjunctions = frozenset(
-            (p, t) for p, t in conjunctions
+            (p, t)
+            for p, t in conjunctions
             if not any(p.startswith(q) for q in normalized_prefixes)
             and not any(t.endswith(u) for u in normalized_suffixes)
         )
         conjunctions = frozenset(
-            (p, t) for p, t in conjunctions
-            if not any((p, t) != (q, u) and p.startswith(q) and t.endswith(u)
-                       for q, u in conjunctions)
+            (p, t)
+            for p, t in conjunctions
+            if not any(
+                (p, t) != (q, u) and p.startswith(q) and t.endswith(u) for q, u in conjunctions
+            )
         )
 
         # Rule 5: Remove constants covered by any infinite component.
         normalized_consts = frozenset(
-            c for c in consts
+            c
+            for c in consts
             if not any(c.startswith(p) for p in normalized_prefixes)
             and not any(c.endswith(s) for s in normalized_suffixes)
             and not any(c.startswith(p) and c.endswith(t) for p, t in conjunctions)
@@ -254,7 +260,7 @@ class StrLattice:
         )
 
     @staticmethod
-    def _compute_prefix_antichain(prefixes: FrozenSet[str]) -> FrozenSet[str]:
+    def _compute_prefix_antichain(prefixes: frozenset[str]) -> frozenset[str]:
         """Compute anti-chain for prefixes.
 
         If p1 is a prefix of p2, keep only p1 (more general).
@@ -263,7 +269,7 @@ class StrLattice:
         if len(prefixes) <= 1:
             return prefixes
 
-        result: Set[str] = set()
+        result: set[str] = set()
         sorted_prefixes = sorted(prefixes, key=len)
 
         for p in sorted_prefixes:
@@ -274,7 +280,7 @@ class StrLattice:
         return frozenset(result)
 
     @staticmethod
-    def _compute_suffix_antichain(suffixes: FrozenSet[str]) -> FrozenSet[str]:
+    def _compute_suffix_antichain(suffixes: frozenset[str]) -> frozenset[str]:
         """Compute anti-chain for suffixes.
 
         If s1 is a suffix of s2, keep only s1 (more general).
@@ -283,7 +289,7 @@ class StrLattice:
         if len(suffixes) <= 1:
             return suffixes
 
-        result: Set[str] = set()
+        result: set[str] = set()
         sorted_suffixes = sorted(suffixes, key=len)
 
         for s in sorted_suffixes:
@@ -334,7 +340,7 @@ class StrLattice:
             and not self.has_unknown
         )
 
-    def get_consts(self) -> Optional[FrozenSet[str]]:
+    def get_consts(self) -> frozenset[str] | None:
         """Get constant strings if enumerable, else None."""
         if self.is_enumerable():
             return self.consts
@@ -361,9 +367,7 @@ class StrLattice:
             return True
         if any(s.endswith(suf) for suf in self.suffixes):
             return True
-        if any(s.startswith(p) and s.endswith(t) for p, t in self.conjunctions):
-            return True
-        return False
+        return any(s.startswith(p) and s.endswith(t) for p, t in self.conjunctions)
 
     def must_equal(self, s: str) -> bool:
         """Check if this must equal a specific string (singleton constant)."""
@@ -375,7 +379,7 @@ class StrLattice:
             and not self.has_unknown
         )
 
-    def filter_candidates(self, candidates: FrozenSet[str]) -> FrozenSet[str]:
+    def filter_candidates(self, candidates: frozenset[str]) -> frozenset[str]:
         """Filter candidate strings that may match this lattice element.
 
         Returns the subset of candidates that satisfy may_equal.
@@ -389,6 +393,7 @@ class StrLattice:
     # String representation
     # -------------------------------------------------------------------------
 
+    @override
     def __str__(self) -> str:
         if self.is_bottom():
             return "⊥_str"
@@ -421,6 +426,7 @@ class StrLattice:
 # StringDomain - Domain implementation
 # =============================================================================
 
+
 class StringDomain(Domain[StrLattice]):
     """String domain for reflective attribute names.
 
@@ -435,7 +441,7 @@ class StringDomain(Domain[StrLattice]):
         max_consts: int = 10,
         max_prefixes: int = 5,
         max_suffixes: int = 5,
-    ):
+    ) -> None:
         """Initialize with widening caps.
 
         Args:
@@ -443,20 +449,32 @@ class StringDomain(Domain[StrLattice]):
             max_prefixes: Maximum prefixes before widening to top
             max_suffixes: Maximum suffixes before widening to top
         """
-        self.max_consts = max_consts
-        self.max_prefixes = max_prefixes
-        self.max_suffixes = max_suffixes
+        self.max_consts: int = max_consts
+        self.max_prefixes: int = max_prefixes
+        self.max_suffixes: int = max_suffixes
+
+    @override
+    def public_settings(self) -> Mapping[str, int]:
+        return {
+            "max_consts": self.max_consts,
+            "max_prefixes": self.max_prefixes,
+            "max_suffixes": self.max_suffixes,
+        }
 
     @property
+    @override
     def name(self) -> str:
         return "string"
 
+    @override
     def bottom(self) -> StrLattice:
         return StrLattice.bottom()
 
+    @override
     def top(self) -> StrLattice:
         return StrLattice.top()
 
+    @override
     def join(self, a: StrLattice, b: StrLattice) -> StrLattice:
         """Join two string abstractions (⊔).
 
@@ -481,6 +499,7 @@ class StringDomain(Domain[StrLattice]):
             conjunctions=a.conjunctions | b.conjunctions,
         )
 
+    @override
     def meet(self, a: StrLattice, b: StrLattice) -> StrLattice:
         """Exact intersection of finite unions of prefix/suffix conjunctions.
 
@@ -495,7 +514,8 @@ class StringDomain(Domain[StrLattice]):
         if a.is_bottom() or b.is_bottom():
             return StrLattice.bottom()
         consts = frozenset(c for c in a.consts if b.may_equal(c)) | frozenset(
-            c for c in b.consts if a.may_equal(c))
+            c for c in b.consts if a.may_equal(c)
+        )
         patterns = set()
         for p, t in self._patterns(a):
             for q, u in self._patterns(b):
@@ -512,14 +532,17 @@ class StringDomain(Domain[StrLattice]):
                 else:
                     continue
                 patterns.add((prefix, suffix))
-        return StrLattice._normalize(consts, frozenset(), frozenset(), False,
-                                     frozenset(patterns))
+        return StrLattice._normalize(consts, frozenset(), frozenset(), False, frozenset(patterns))
 
     @staticmethod
-    def _patterns(value: StrLattice) -> FrozenSet[Tuple[str, str]]:
-        return (value.conjunctions | frozenset((p, "") for p in value.prefixes)
-                | frozenset(("", t) for t in value.suffixes))
+    def _patterns(value: StrLattice) -> frozenset[tuple[str, str]]:
+        return (
+            value.conjunctions
+            | frozenset((p, "") for p in value.prefixes)
+            | frozenset(("", t) for t in value.suffixes)
+        )
 
+    @override
     def leq(self, a: StrLattice, b: StrLattice) -> bool:
         """Check a ⊑ b (subset of concretizations)."""
         if a.is_bottom():
@@ -542,6 +565,7 @@ class StringDomain(Domain[StrLattice]):
                 return False
         return True
 
+    @override
     def widen(self, old: StrLattice, new: StrLattice) -> StrLattice:
         """Widening with LCP-based compression.
 
@@ -566,15 +590,21 @@ class StringDomain(Domain[StrLattice]):
             prefixes = prefixes | new_prefixes
             suffixes = suffixes | new_suffixes
             # LCP/LCS only cover groups; isolated strings must survive.
-            consts = frozenset(c for c in consts
-                               if not any(c.startswith(p) for p in prefixes)
-                               and not any(c.endswith(t) for t in suffixes))
+            consts = frozenset(
+                c
+                for c in consts
+                if not any(c.startswith(p) for p in prefixes)
+                and not any(c.endswith(t) for t in suffixes)
+            )
             if len(consts) > self.max_consts:
                 return StrLattice.top()
 
         # Step 2: Check prefix/suffix caps
-        if (len(prefixes) > self.max_prefixes or len(suffixes) > self.max_suffixes
-                or len(conjunctions) > self.max_prefixes * self.max_suffixes):
+        if (
+            len(prefixes) > self.max_prefixes
+            or len(suffixes) > self.max_suffixes
+            or len(conjunctions) > self.max_prefixes * self.max_suffixes
+        ):
             return StrLattice.top()
 
         return StrLattice._normalize(
@@ -585,19 +615,22 @@ class StringDomain(Domain[StrLattice]):
             conjunctions=conjunctions,
         )
 
+    @override
     def narrow(self, old: StrLattice, new: StrLattice) -> StrLattice:
         """Narrowing: refine with meet."""
         return self.meet(old, new)
 
-    def abstract_const(self, value: Any) -> Optional[StrLattice]:
+    @override
+    def abstract_const(self, value: object) -> StrLattice | None:
         """Abstract a Python constant."""
         if isinstance(value, str):
             return StrLattice.const(value)
         return None
 
-    def produce_facts(self, var: str, elem: StrLattice) -> List[Fact]:
+    @override
+    def produce_facts(self, var: str, elem: StrLattice) -> list[Fact]:
         """Produce facts about string values."""
-        facts: List[Fact] = []
+        facts: list[Fact] = []
         if elem.is_enumerable() and len(elem.consts) > 0:
             facts.append(Fact("is_const_str", var, elem.consts))
             if len(elem.consts) == 1:
@@ -610,19 +643,19 @@ class StringDomain(Domain[StrLattice]):
             facts.append(Fact("is_unknown_str", var, None))
         return facts
 
+    @override
     def consume_fact(self, elem: StrLattice, fact: Fact) -> StrLattice:
         """Consume a fact to refine string abstraction."""
-        if fact.kind == "is_const_str" and fact.data is not None:
+        if fact.kind == "is_const_str" and _string_set(fact.data):
             # Refine with known constants
             const_set = fact.data
             if elem.is_top():
                 return StrLattice.from_consts(const_set)
-            elif elem.is_enumerable():
+            if elem.is_enumerable():
                 return StrLattice.from_consts(elem.consts & const_set)
-            else:
-                # Filter by both constraints
-                filtered = elem.filter_candidates(const_set)
-                return StrLattice.from_consts(filtered)
+            # Filter by both constraints
+            filtered = elem.filter_candidates(const_set)
+            return StrLattice.from_consts(filtered)
         if fact.kind == "is_none":
             return StrLattice.bottom()
         return elem
@@ -633,8 +666,8 @@ class StringDomain(Domain[StrLattice]):
 
     def _compress_consts(
         self,
-        consts: FrozenSet[str],
-    ) -> Tuple[FrozenSet[str], FrozenSet[str]]:
+        consts: frozenset[str],
+    ) -> tuple[frozenset[str], frozenset[str]]:
         """Compress constants into prefixes and suffixes using LCP/LCS.
 
         Uses Trie-based grouping:
@@ -650,18 +683,18 @@ class StringDomain(Domain[StrLattice]):
         const_list = list(consts)
 
         # Compute common prefixes via LCP grouping
-        prefixes = self._compute_lcp_prefixes(const_list)
+        prefix_candidates = self._compute_lcp_prefixes(const_list)
 
         # Compute common suffixes via reversed-LCP
-        suffixes = self._compute_lcs_suffixes(const_list)
+        suffix_candidates = self._compute_lcs_suffixes(const_list)
 
         # Keep only meaningful prefixes/suffixes (length >= 1)
-        prefixes = frozenset(p for p in prefixes if len(p) >= 1)
-        suffixes = frozenset(s for s in suffixes if len(s) >= 1)
+        prefixes = frozenset(p for p in prefix_candidates if len(p) >= 1)
+        suffixes = frozenset(s for s in suffix_candidates if len(s) >= 1)
 
         return prefixes, suffixes
 
-    def _compute_lcp_prefixes(self, strings: List[str]) -> Set[str]:
+    def _compute_lcp_prefixes(self, strings: list[str]) -> set[str]:
         """Compute common prefixes using LCP-based grouping.
 
         Groups strings by their common prefixes using a simplified trie approach.
@@ -672,7 +705,7 @@ class StringDomain(Domain[StrLattice]):
 
         # Sort strings to group similar ones
         sorted_strings = sorted(strings)
-        prefixes: Set[str] = set()
+        prefixes: set[str] = set()
 
         # Compute LCP between adjacent pairs and collect meaningful prefixes
         for i in range(len(sorted_strings) - 1):
@@ -683,7 +716,7 @@ class StringDomain(Domain[StrLattice]):
         # Keep anti-chain of prefixes
         return set(StrLattice._compute_prefix_antichain(frozenset(prefixes)))
 
-    def _compute_lcs_suffixes(self, strings: List[str]) -> Set[str]:
+    def _compute_lcs_suffixes(self, strings: list[str]) -> set[str]:
         """Compute common suffixes using LCP on reversed strings."""
         if len(strings) <= 1:
             return set()
@@ -691,7 +724,7 @@ class StringDomain(Domain[StrLattice]):
         # Reverse strings and compute LCP
         reversed_strings = [s[::-1] for s in strings]
         sorted_reversed = sorted(reversed_strings)
-        suffixes: Set[str] = set()
+        suffixes: set[str] = set()
 
         for i in range(len(sorted_reversed) - 1):
             lcp = self._lcp(sorted_reversed[i], sorted_reversed[i + 1])

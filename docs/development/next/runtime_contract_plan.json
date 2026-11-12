@@ -1,0 +1,2987 @@
+{
+  "schema_version": 1,
+  "task_id": "N4-TYPE-01",
+  "status": "interface_design_ready_pending_W0_review",
+  "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "production_modified": false,
+  "root_decisions": {
+    "canonical_ObjectId": "Approved NewType(str) replacing idle descriptor; preserve encoding, document explicit descriptor API delta",
+    "start_slice": "Real typed cell/heap effects consumed Store.apply; parent task remains unverified until complete Flow/metadata/IDs path"
+  },
+  "interface_digest_algorithm": "sha256(canonical UTF8 JSON interfaces, sort_keys=True,separators=(comma,colon),ensure_ascii=False)",
+  "interface_digest": "da5f460694d55569798bccfd95cb796c968155570823cd74e3544a53b54c7b96",
+  "interfaces": {
+    "identity_module": "pythonstan/analysis/contracts/identity.py",
+    "identity_types": {
+      "ObjectId": "NewType(\"ObjectId\", str) -- replaces the existing unused descriptor, preserves display encoding",
+      "CellId": "NewType(\"CellId\", str)",
+      "ProgramPointId": "NewType(\"ProgramPointId\", str)",
+      "UnitId": "NewType(\"UnitId\", str)",
+      "FrameId": "NewType(\"FrameId\", str)",
+      "ContextId": "NewType(\"ContextId\", tuple[ProgramPointId, ...])",
+      "PolicyId": "NewType(\"PolicyId\", str)",
+      "IdentityEpoch": "NewType(\"IdentityEpoch\", int)",
+      "StateOwnerId": "NewType(\"StateOwnerId\", str)",
+      "StateRevision": "NewType(\"StateRevision\", int)",
+      "ContinuationId": "NewType(\"ContinuationId\", str) -- finite source/context occurrence identity, not epoch/unbounded resume count"
+    },
+    "field_keys": {
+      "canonical_module": "pythonstan/analysis/state/keys.py",
+      "LiteralKey": "None | bool | int | float | str | bytes | tuple[LiteralKey, ...]",
+      "PrivateSlot": "typed alias of existing _FunctionSlot-tagged tuple; preserve semantic distinction from target tuple/string",
+      "FieldKey": "LiteralKey | ReferenceKey | PrivateSlot",
+      "key_remap": "remap_field_key(key: FieldKey, mapping: IdentitySubstitution) -> FieldKey; rewrite ReferenceKey and typed private references, never guess from literal strings"
+    },
+    "write_effects": {
+      "canonical_module": "pythonstan/analysis/state/effects.py",
+      "CellWrite": "frozen dataclass(cell: CellId)",
+      "HeapWrite": "frozen dataclass(owner: ObjectId, key: FieldKey)",
+      "HeapDelete": "frozen dataclass(owner: ObjectId, key: FieldKey)",
+      "HeapDefaultWrite": "frozen dataclass(owner: ObjectId)",
+      "MetadataUpdate": "frozen dataclass(owner: ObjectId, aspect: MetadataAspect)",
+      "Havoc": "frozen dataclass(scope: HavocScope, objects: frozenset[ObjectId], cells: frozenset[CellId], modules: frozenset[str])",
+      "WriteEffect": "CellWrite | HeapWrite | HeapDelete | HeapDefaultWrite | MetadataUpdate | Havoc",
+      "MetadataAspect": "Enum(iterator_state, generator_state, locals_refresh, class_shape, function_state); explicit typed extension adapter only for old seeded component fixtures",
+      "interpretation": "WriteEffect is a final-state footprint, not a chronological event log. The associated completion Store supplies values/metadata. Several writes to one location collapse without changing current semantics. Prefix sequencing remains in each Completion state; ObservationEvent is separate.",
+      "Store.writes": "set[WriteEffect]",
+      "Store.write_cell": "write_cell(self, cell: CellId, value: Value, *, weak: bool = False, ops: ValueOperations | None = None) -> None",
+      "Store.write_slot": "write_slot(self, owner: ObjectId, key: FieldKey, value: Value, ops: ValueOperations, *, weak: bool = False) -> None",
+      "Store.delete_slot": "delete_slot(self, owner: ObjectId, key: FieldKey) -> None",
+      "Store.apply": "apply(self, outcome: Flow, ops: ValueOperations) -> Store; exhaustive match on all WriteEffect variants; read source completion state, preserve caller private cells and untouched heap",
+      "compatibility": "Tuple footprints accepted only by a temporary explicit compatibility codec used by old component fixtures/adapters, immediately converted. New production writers use records exclusively; remove codec after consumers/fixtures migrate, never retain mixed tuple/record internal sets.",
+      "delete_join_rule": "HeapWrite and HeapDelete both materialize the joined completion poststate: if source field remains present copy its may value plus maybe_missing; only remove if absent there. Never replay HeapDelete as unconditional kill after a branch join."
+    },
+    "flows": {
+      "canonical_module": "pythonstan/analysis/state/flow.py",
+      "StateHandle": "frozen dataclass(owner: StateOwnerId, epoch: IdentityEpoch, revision: StateRevision, root: Store); mutation through owning builder; publication snapshots detached",
+      "NormalExprFlow": "frozen dataclass(state: StateHandle, value: Value, kind: Literal[\"normal\"] = \"normal\", form: Literal[\"expression\"] = \"expression\")",
+      "NormalStmtFlow": "frozen dataclass(state: StateHandle, kind: Literal[\"normal\"] = \"normal\", form: Literal[\"statement\"] = \"statement\"); no Value/bottom/None payload",
+      "ReturnFlow": "frozen dataclass(state: StateHandle, value: Value, kind: Literal[\"return\"] = \"return\")",
+      "RaiseFlow": "frozen dataclass(state: StateHandle, exception: ExceptionValue, kind: Literal[\"raise\"] = \"raise\")",
+      "BreakFlow": "frozen dataclass(state: StateHandle, kind: Literal[\"break\"] = \"break\")",
+      "ContinueFlow": "frozen dataclass(state: StateHandle, kind: Literal[\"continue\"] = \"continue\")",
+      "SuspendFlow": "frozen dataclass(state: StateHandle, value: Value, continuation: Continuation, kind: Literal[\"suspend\"] = \"suspend\")",
+      "NormalFlow": "NormalExprFlow | NormalStmtFlow",
+      "Flow": "NormalFlow | ReturnFlow | RaiseFlow | BreakFlow | ContinueFlow | SuspendFlow",
+      "ExpressionFlow": "NormalExprFlow | ReturnFlow | RaiseFlow | BreakFlow | ContinueFlow | SuspendFlow; later narrow impossible expression exits only when proven by semantics",
+      "ExceptionValue": "frozen dataclass(value: Value, family: ExceptionFamily) -- target-language exceptions only",
+      "continuation_state_replace": "with_state(flow: Flow, state: StateHandle) -> Flow; exhaustive record match, assert_never fallback",
+      "resume_pending": "resume_pending(pending: Flow, cleanup: Flow) -> Flow; either normal variant restores pending state, abrupt cleanup replaces pending",
+      "wire": "export_completion maps both Normal variants to public normal with explicit value_present; Python fallthrough ReturnFlow(Value.constant(None)); never add a normal-statement .value property returning bottom",
+      "legacy_factory": "Temporary old Flow(...) constructor adapter only during atomic caller migration; canonical engines ultimately construct variants directly. No second runtime Outcome hierarchy."
+    },
+    "continuations": {
+      "canonical_module": "pythonstan/analysis/state/continuation.py",
+      "Continuation": "frozen dataclass(identity: ContinuationId, commands: tuple[ContinuationCommand, ...])",
+      "ContinuationCommand": "SourceStatement | AssignResume | ReturnResume | ExprResume | OpaqueResume | TryResume | FinallyResume | ForResume | WhileResume | WithResume | DelegateResume",
+      "SourceStatement": "frozen dataclass(statement: ast.stmt)",
+      "AssignResume": "targets: tuple[ast.expr, ...]; inner: Continuation",
+      "ReturnResume / ExprResume": "inner: Continuation",
+      "OpaqueResume": "obligation: AnalysisObligationCode",
+      "TryResume": "node: ast.Try | ast.TryStar; phase: TryPhase; handler_context: HandlerContext | None; inner: Continuation",
+      "FinallyResume": "node: ast.Try | ast.TryStar; pending: PendingCompletion; previous: ExceptionContext | None; inner: Continuation",
+      "ForResume": "node: ast.For | ast.AsyncFor; iterator: Value; inner: Continuation",
+      "WhileResume": "node: ast.While; inner: Continuation",
+      "WithResume": "node: ast.With | ast.AsyncWith; exits: tuple[Value, ...]; inner: Continuation",
+      "DelegateResume": "node: ast.YieldFrom; iterator: Value; inner: Continuation",
+      "PendingCompletion": "closed record union without Store; reattach current cleanup state explicitly, replacing (kind,value,exception) tuples",
+      "ExceptionContext": "frozen dataclass(value: Value, type_value: Value, owner: Value, restoring_frame: FrameId | None); replaces 3/4 tuple slicing",
+      "CallResumeContext": "frozen dataclass(caller_exception: ExceptionContext, generator_frame: FrameId)",
+      "ObjectHandle": "frozen dataclass(identity: ObjectId, observed_epoch: IdentityEpoch); refresh after child block/call/resume before obtaining heap object",
+      "ContinuationEngine.active": "list[ObjectHandle]",
+      "ContinuationEngine.exception_contexts": "list[CallResumeContext]",
+      "execute": "execute_command(command: ContinuationCommand, incoming: Flow, frame: Frame) -> list[Flow]; exhaustive match, no default-to-normal/unknown for new variants"
+    },
+    "heap_metadata": {
+      "canonical_module": "pythonstan/analysis/state/metadata.py",
+      "HeapMetadata": "EmptyMeta | ContainerMeta | FunctionMeta | GeneratorMeta | ClassMeta | IteratorMeta | ModuleMeta | NamespaceMeta | BoundMethodMeta | BuiltinMethodMeta | DictViewMeta | ExceptionMeta | SuperMeta | SummaryMeta",
+      "ContainerMeta": "length: int | None; length_value: Value | None; summarized_keys: frozenset[FieldKey]",
+      "FunctionMeta": "definition: ObjectId; closure: tuple[BindingRef, ...] -- actual defaults remain typed private fields",
+      "GeneratorMeta": "function: ObjectId; frame: Frame; entry: StateHandle; body: tuple[ast.stmt, ...]; stage: GeneratorStage; remaining: Continuation | None; resume_count: bounded int; owned_exception: ExceptionContext | None",
+      "ClassMeta": "name/module/qualname:str; bases:tuple[ObjectId,...]; mro:tuple[ObjectId,...]",
+      "IteratorMeta": "closed SequenceIteratorMeta(container:Value | None, sequence:tuple[Value,...] | None,index:int,sequence_protocol:bool) | DictionaryIteratorMeta(container:Value, keys:tuple[FieldKey,...],index:int,kind:DictViewKind,exhausted:bool)",
+      "ModuleMeta": "module:str",
+      "NamespaceMeta": "closed GlobalsNamespace(module) | ClassLocalsNamespace(frame:FrameId) | LocalsSnapshotNamespace | ObjectNamespace(owner:ObjectId,readonly:bool)",
+      "BoundMethodMeta": "callable:Value; receiver:Value",
+      "BuiltinMethodMeta": "name:str; receiver:Value",
+      "DictViewMeta": "owner:Value; view_kind:DictViewKind",
+      "ExceptionMeta": "name:ExceptionFamily; ancestors:tuple[ExceptionFamily,...]",
+      "SuperMeta": "class_value:Value; receiver:Value",
+      "SummaryMeta": "explicit conservative variant with retained typed may facts; no representative cursor reused as exact",
+      "legacy_component_graphs": "Existing seeded tests have capture/observed/pending/label extensions and arbitrary alias-first maps. Preserve their expectations through a typed attachment/boundary adapter with explicit address-vs-literal roles; do not silently drop metadata or label admissible graphs unsupported. This adapter has removal subtask and is outside normal producer paths.",
+      "join": "join_metadata(left: HeapMetadata, right: HeapMetadata, context: GraphJoinContext) -> MetadataJoin; shared transaction memo, explicit compatible join/havoc branch; no copying an unfinished cyclic root with a fresh memo"
+    },
+    "obligations_events_and_dependencies": {
+      "AnalysisObligation": "code + source point + producer scope + dependency state; solver budget/unsupported never becomes RaiseFlow automatically",
+      "SemanticEvent": "typed ReadObservation | WriteObservation | CallObservation | AllocationObservation | ExceptionObservation, actual may facts",
+      "ObservationEvent": "debug events use separate sink and cannot control convergence",
+      "SummaryDependency": "frozen dataclass(producer: UnitId, observed_revision: StateRevision, input_scope: InputScopeId, policy: PolicyId, epoch: IdentityEpoch); stored by requesting Unit and invalidated on growth/epoch changes"
+    },
+    "graph_transform": {
+      "normalize": "refresh_state(handle: StateHandle, plan: StateTransformPlan, budget: BudgetPort) -> StateHandle; explicit solver operation, not query/leq/hash/export",
+      "identity_substitution": "object_aliases: Mapping[ObjectId,ObjectId]; cell_aliases: Mapping[CellId,CellId]; frame/continuation owner remaps explicit. Legacy raw mapping adapter preserves old seeded tests until migrated.",
+      "copy": "clone_store(store: Store, context: GraphTransformContext) -> Store; typed per-node memo and explicit typed metadata/continuation traversal",
+      "prepare": "prepare_graph_transform(roots: HostRoots, substitution: IdentitySubstitution, operations: ValueOperations, budget: BudgetPort) -> PreparedGraphTransform",
+      "publish": "commit_graph_transform(prepared: PreparedGraphTransform, expected: StateVersion) -> CommittedGraphTransform; prevalidated assignments only, failures before publication preserve arena/roots",
+      "cycle_rule": "Discover all nodes/register typed shells first; fill edges second; collision joins deferred until shells initialized; shared context for clone/remap/join, preserve alias-first maps and root backreferences",
+      "pure_order": "Store.leq and Store.join read explicit same-epoch states or caller prepares current detached states; neither calls ensure_current or __dict__.update",
+      "legacy_alias_first_maps": "Original component fixtures explicitly require aliases to cells/fields/heap/metadata maps reached before their trusted role is known. Preserve same memo containers and role-upgrade semantics in the adapter; a typed node memo alone is insufficient if it clones shared maps separately."
+    }
+  },
+  "steps": [
+    {
+      "id": "TYPE-00",
+      "goal": "Separate mechanical formatting and source-inventory freeze from semantic edits",
+      "prerequisites": [
+        "N4-QUAL-01 reviewed",
+        "N4-BOOT-02 reviewed"
+      ],
+      "scope": [
+        "state.py",
+        "state_transform.py",
+        "continuations.py only with leases"
+      ],
+      "acceptance": [
+        "AST ignoring positions unchanged",
+        "existing mandatory denominator unchanged",
+        "no production behavior delta"
+      ],
+      "status": "pending_dependencies"
+    },
+    {
+      "id": "TYPE-01A",
+      "goal": "Canonical nominal identity and key interfaces with actual producers",
+      "prerequisites": [
+        "TYPE-00",
+        "root ObjectId decision already approved"
+      ],
+      "scope": [
+        "contracts/identity.py",
+        "contracts/private_slots.py",
+        "domains/reabstract.py",
+        "domains/values.py",
+        "Frame.cell",
+        "driver.point/module_key/allocate_identity"
+      ],
+      "acceptance": [
+        "ObjectId/CellId negative type fixture fails",
+        "real Value.refs/Frame.cell/Store keys consume canonical nominal IDs",
+        "display encoding and runtime equality remain compatible"
+      ],
+      "compatibility_delta": "Unused descriptor-style ObjectId(arena,allocation,context,kind) is retired; ObjectId now wraps opaque str. No known production or refactor-test constructor uses the old record."
+    },
+    {
+      "id": "TYPE-01B",
+      "goal": "First real typed effect path through global cell/heap write, callee apply, exception/return, and query",
+      "prerequisites": [
+        "TYPE-01A",
+        "real ValueOperations/arena/clone method annotations needed by changed state methods"
+      ],
+      "scope": [
+        "analysis/state/effects.py",
+        "state.py Store.write_cell/write_slot/apply/clear_effects/join",
+        "all write producers in inventory",
+        "state_transform effect traversal",
+        "state_adapter.py",
+        "region_engine.py",
+        "guarded_dispatch.py"
+      ],
+      "witnesses": [
+        "marker=0; def f(): global marker; marker=7; raise ValueError; try f except ValueError result=marker ->7",
+        "box=[0]; def f(): box[0]=7; raise ValueError; try f except ValueError result=box[0] ->7",
+        "normal-return control writes global marker4 and returns4; caller sees both"
+      ],
+      "acceptance": [
+        "Every production Store.writes member is a WriteEffect, no mixed tuples",
+        "Store.apply exhaustively consumes actual effects for both return and raise",
+        "None field key/default/metadata/delete channels remain distinct",
+        "all existing state/native/bridge tests retained; known G2 reds remain reported"
+      ],
+      "noncompletion": "This is an intermediate implementation slice, not N4-TYPE-01 verification or full typed state frontier."
+    },
+    {
+      "id": "TYPE-01C",
+      "goal": "Migrate actual Flow constructors/readers to discriminated completion union",
+      "prerequisites": [
+        "TYPE-01B",
+        "driver/transfer lease integration"
+      ],
+      "scope": [
+        "analysis/state/flow.py",
+        "state.py Flow removal/reexport",
+        "driver.py request_module/request_function/_solve/compact/snapshot",
+        "transfer.py",
+        "attributes.py",
+        "dictionaries.py",
+        "namespaces.py",
+        "dictionary_views.py",
+        "state_adapter.py",
+        "guarded_dispatch.py",
+        "compat/shared_ai.py",
+        "semantics/control.py"
+      ],
+      "acceptance": [
+        "NormalStmt has no Value payload; exact normal None remains NormalExpr",
+        "all control variants exhaustively matched",
+        "natural function tail is ReturnFlow(None), module normal remains statement",
+        "call->effect->raise/return->query path all new records",
+        "new variant breaks exhaustive-match guard"
+      ],
+      "migration_rule": "One runtime hierarchy; thin old constructor adapter only while migrating callers, removed before parent card review."
+    },
+    {
+      "id": "TYPE-01D",
+      "goal": "Replace continuation tuples and exception contexts with typed commands",
+      "prerequisites": [
+        "TYPE-01C"
+      ],
+      "scope": [
+        "analysis/state/continuation.py",
+        "continuations.py all ten tags",
+        "transfer.py suspension/try/exception helpers",
+        "state_adapter.py",
+        "state_transform.py",
+        "driver.py compact/signatures"
+      ],
+      "acceptance": [
+        "10 known marker variants enumerated and consumed",
+        "yield/send/throw/close/yield-from/await/finally controls preserved",
+        "pending exit and caller-owned exception context do not become snapshots of the wrong dynamic caller",
+        "epoch-safe ObjectHandle refreshed after child operations"
+      ],
+      "cross_task": "N4-STATE-01 provides actual stale-handle repair, not merely type wrappers."
+    },
+    {
+      "id": "TYPE-01E",
+      "goal": "Closed typed heap metadata and graph transactions, preserving cycles and alias tests",
+      "prerequisites": [
+        "TYPE-01D"
+      ],
+      "scope": [
+        "analysis/state/metadata.py",
+        "state.py HeapObject/Store",
+        "state_transform.py",
+        "all152+ metadata callsites listed by inventory",
+        "composition/state_adapter.py"
+      ],
+      "acceptance": [
+        "No dict[str,Any] or object/getattr/cast metadata escape",
+        "all address-valued fields explicit, literals stay literals",
+        "clone/remap/join share graph memo; R3-DOM05 root/collision and safe-abort preserved",
+        "prepare failure publishes nothing",
+        "query/leq/hash/export pure"
+      ],
+      "cross_task": "N4-STATE-02 owns final two-phase algorithm repair; moving modules does not prove it."
+    },
+    {
+      "id": "TYPE-01F",
+      "goal": "Connect typed dependencies, obligations and semantic observations; retire idle contracts",
+      "prerequisites": [
+        "TYPE-01E"
+      ],
+      "scope": [
+        "driver.py unit consumers/revision",
+        "analysis/observations",
+        "contracts/outcomes.py",
+        "public contracts exports",
+        "verification/composition consumers"
+      ],
+      "acceptance": [
+        "SummaryDependency has real entry/summary/epoch invalidation consumer",
+        "analysis obligations separate from target RaiseFlow",
+        "debug events separate from semantic facts",
+        "Outcome/ProcedureSummary unused generic runtime hierarchy removed or only compatibility alias to canonical records with documented deprecation; no parallel solver implementation"
+      ]
+    },
+    {
+      "id": "TYPE-01G",
+      "goal": "Independent complete parent-card review",
+      "prerequisites": [
+        "TYPE-01A",
+        "TYPE-01B",
+        "TYPE-01C",
+        "TYPE-01D",
+        "TYPE-01E",
+        "TYPE-01F"
+      ],
+      "acceptance": [
+        "all modified semantic units have zero new diagnostics without resetting debt",
+        "frontier expanded only after entire canonical modules strict-clean",
+        "required import contracts and negative type guards executed",
+        "old semantic positives plus frozen mandatory witnesses run, none downgraded",
+        "source/wheel/public exports and compatibility changes documented"
+      ],
+      "status": "not_ready"
+    }
+  ],
+  "write_leases": {
+    "this_role_future": [
+      "state.py",
+      "state_transform.py",
+      "continuations.py",
+      "analysis/state/* runtime records",
+      "effect writers only by coordinated lease"
+    ],
+    "root_required_coordination": [
+      "contracts/identity.py and exports",
+      "domains/values.py and reabstract.py",
+      "driver.py",
+      "transfer.py",
+      "composition/state_adapter.py/region_engine.py/guarded_dispatch.py",
+      "tests legacy tuple fixture migrations"
+    ],
+    "rule": "No production edits begin until explicit W0 dependency review signal. Other owners submit small patches for shared files; no concurrent rewrites."
+  },
+  "inventory_counts": {
+    "write_footprints": 23,
+    "flow_constructors": 171,
+    "flow_replacements": 6,
+    "continuation_attributes": 30,
+    "metadata_accesses": 186,
+    "write_readers": 5,
+    "manual_footprint_membership": 1
+  },
+  "flow_constructor_counts": {
+    "pythonstan/analysis/composition/guarded_dispatch.py": 2,
+    "pythonstan/analysis/composition/state_adapter.py": 1,
+    "pythonstan/analysis/engines/abstract/attributes.py": 37,
+    "pythonstan/analysis/engines/abstract/continuations.py": 19,
+    "pythonstan/analysis/engines/abstract/dictionaries.py": 9,
+    "pythonstan/analysis/engines/abstract/dictionary_views.py": 5,
+    "pythonstan/analysis/engines/abstract/driver.py": 9,
+    "pythonstan/analysis/engines/abstract/namespaces.py": 10,
+    "pythonstan/analysis/engines/abstract/state.py": 1,
+    "pythonstan/analysis/engines/abstract/transfer.py": 78
+  },
+  "observed_metadata_keys": {
+    "bases": 7,
+    "body": 1,
+    "callable": 4,
+    "class": 1,
+    "closure": 6,
+    "container": 3,
+    "dictionary_exhausted": 2,
+    "dictionary_iteration": 1,
+    "dictionary_keys": 1,
+    "entry": 1,
+    "exception_name": 2,
+    "exception_types": 3,
+    "frame": 2,
+    "function": 1,
+    "index": 4,
+    "length": 32,
+    "length_value": 7,
+    "module": 15,
+    "mro": 11,
+    "name": 4,
+    "namespace_kind": 9,
+    "owned_exception": 4,
+    "owner": 12,
+    "prefix": 3,
+    "qualname": 1,
+    "readonly": 3,
+    "receiver": 6,
+    "remaining": 1,
+    "resume_count": 3,
+    "sequence": 1,
+    "sequence_protocol": 1,
+    "stage": 3,
+    "summarized_keys": 13,
+    "view_kind": 3
+  },
+  "inventory": {
+    "write_footprints": [
+      {
+        "path": "pythonstan/analysis/composition/guarded_dispatch.py",
+        "line": 306,
+        "qualname": "GuardedDispatchProvider._try_apply",
+        "expression": "current.writes.add(('heap', allocation['object'], 'value'))"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 219,
+        "qualname": "NativeRegionEngine.execute",
+        "expression": "boundary.writes.add(('cell', cell, None))"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 226,
+        "qualname": "NativeRegionEngine.execute",
+        "expression": "boundary.writes.add(('heap', ref, key))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 751,
+        "qualname": "AttributeOperations.delattr",
+        "expression": "state.writes.add(('heap', ref, name))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 447,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "current.writes.add(('heap_meta', ref, 'iterator_state'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 466,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "current.writes.add(('heap_meta', ref, 'generator_state'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 489,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "flow.store.writes.add(('heap_meta', ref, 'generator_state'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 202,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "state.writes.add(('heap', ref, field))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 203,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "state.writes.add(('heap_default', ref, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 50,
+        "qualname": "DictionaryViews.next",
+        "expression": "current.writes.add(('heap_meta', iterator, 'iterator_state'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 61,
+        "qualname": "DictionaryViews.next",
+        "expression": "current.writes.add(('heap_meta', iterator, 'iterator_state'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 75,
+        "qualname": "NamespaceOperations.local_view",
+        "expression": "store.writes.add(marker)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 76,
+        "qualname": "NamespaceOperations.local_view",
+        "expression": "store.writes.add(('heap', identity, name))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 214,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "state.writes.add(('heap_default', identifier, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 96,
+        "qualname": "Store.write_cell",
+        "expression": "self.writes.add(('cell', cell, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 120,
+        "qualname": "Store.write_slot",
+        "expression": "self.writes.add(('heap', objid, key))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 126,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "result.writes.update(((kind, self.address(owner) if kind in {'heap', 'heap_default', 'heap_meta', 'cell'} else owner, self.key(key)) for kind, owner, key in value.writes))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 72,
+        "qualname": "Transfer.unknown",
+        "expression": "result.writes.add(('heap_default', objid, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1348,
+        "qualname": "Transfer.builtin_method",
+        "expression": "s.writes.add(('heap_default', ref, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1359,
+        "qualname": "Transfer.builtin_method",
+        "expression": "copy.writes.add(('heap_default', ref, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1390,
+        "qualname": "Transfer.builtin_method",
+        "expression": "s.writes.add(('heap', ref, key))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1391,
+        "qualname": "Transfer.builtin_method",
+        "expression": "s.writes.add(('heap_default', ref, None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1400,
+        "qualname": "Transfer.builtin_method",
+        "expression": "copy.writes.add(('heap', ref, key))"
+      }
+    ],
+    "flow_constructors": [
+      {
+        "path": "pythonstan/analysis/composition/guarded_dispatch.py",
+        "line": 293,
+        "qualname": "GuardedDispatchProvider._try_apply",
+        "expression": "Flow(current, 'raise', Value.constant('KeyError'), 'KeyError')"
+      },
+      {
+        "path": "pythonstan/analysis/composition/guarded_dispatch.py",
+        "line": 317,
+        "qualname": "GuardedDispatchProvider._try_apply",
+        "expression": "Flow(current, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 68,
+        "qualname": "FullStateAdapter.decode",
+        "expression": "Flow(state, copied.completion, copied.value, copied.exception, copied.continuation, copied.cleanups, copied.resume_target)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 69,
+        "qualname": "AttributeOperations.construct",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, 'instance', class_ids=(clsid,)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 88,
+        "qualname": "AttributeOperations.construct",
+        "expression": "Flow(initialized.store, value=made.value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 135,
+        "qualname": "AttributeOperations._descriptor_get",
+        "expression": "Flow(store.copy(), value=scalar)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 147,
+        "qualname": "AttributeOperations._descriptor_get",
+        "expression": "Flow(store.copy(), value=Value.ref(ref))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 152,
+        "qualname": "AttributeOperations._descriptor_get",
+        "expression": "Flow(state, value=self.bound(Value.ref(ref), receiver, state, frame, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 190,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=Value.constant(kind))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 193,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self._method(name, Value.ref(ref), state, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 204,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=obj.metadata['receiver'])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 205,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=obj.metadata['callable'])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 209,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=Value.constant(None) if value.is_bottom() else value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 212,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self._method(name, Value.ref(ref), state, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 218,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self._method(name, Value.ref(ref), state, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 226,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self.t.namespaces.object_view(state, ref))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 230,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=Value.constant(obj.metadata[metadata_key]))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 236,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=obj.fields[slot])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 247,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self.t.namespaces.global_view(module, state))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 252,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state.copy(), value=value.without_unbound())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 261,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self._method(name, Value.ref(ref), state, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 302,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self.t.namespaces.object_view(state, ref, readonly=True))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 306,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self.alloc(node, state, frame, 'tuple', {i: Value.ref(identifier) for i, identifier in enumerate(members)}, {'length': len(members)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 312,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 317,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state.copy(), value=scalar)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 322,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(copy, value=self.bound(Value.ref(descriptor_ref), Value.ref(ref), copy, frame, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 324,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state.copy(), value=descriptor.fields['callable'])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 328,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state.copy(), value=Value.ref(descriptor_ref))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 355,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(current.copy(), value=Value.ref(clsid))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 360,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(current.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 364,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(current, value=self.t.namespaces.object_view(current, ref))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 408,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(store.copy(), value=self.ops.join_all(values))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 415,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "Flow(state, value=self._method(name, string_part, state, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 643,
+        "qualname": "AttributeOperations.define_class",
+        "expression": "Flow(out.store, value=Value.ref(identifier))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 656,
+        "qualname": "AttributeOperations.define_class",
+        "expression": "Flow(called.store, called.kind, Value.ref(identifier) if called.kind == 'normal' else called.value, called.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 676,
+        "qualname": "AttributeOperations.define_class",
+        "expression": "Flow(called.store, value=Value.ref(identifier))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 802,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "Flow(out.store, value=Value.constant(True))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 804,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "Flow(out.store, value=Value.constant(False))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 808,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "Flow(out.store, value=args[2])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 818,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "Flow(out.store, value=Value(bools=frozenset((False, True))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 65,
+        "qualname": "ContinuationEngine.marker",
+        "expression": "Flow(incoming.store, pending[0], pending[1], pending[2])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 111,
+        "qualname": "ContinuationEngine.finish_try",
+        "expression": "Flow(raised.store.copy(), value=Value.bottom())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 173,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "Flow(store.copy(), value=Value.ref(ref))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 179,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "Flow(s, value=self.t.alloc(node, s, frame, 'iterator', metadata={'container': Value.ref(ref), 'index': 0}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 197,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "Flow(s, value=self.t.alloc(node, s, frame, 'iterator', metadata={'container': Value.ref(ref), 'index': 0, 'sequence_protocol': True}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 202,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "Flow(s, value=self.t.alloc(node, s, frame, 'iterator', metadata={'sequence': tuple((Value.constant(c) for c in text)), 'index': 0}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 245,
+        "qualname": "ContinuationEngine.collect",
+        "expression": "Flow(advanced.store, value=self.t.alloc(node, advanced.store, frame, kind, fields, {'length': len(fields)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 358,
+        "qualname": "ContinuationEngine.stop",
+        "expression": "Flow(exception.store, 'raise', exception.value, name)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 397,
+        "qualname": "ContinuationEngine.delegate_advance",
+        "expression": "Flow(flow.store, value=self.stop_value(flow))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 399,
+        "qualname": "ContinuationEngine.delegate_advance",
+        "expression": "Flow(flow.store.copy(), value=Value.unknown())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 400,
+        "qualname": "ContinuationEngine.delegate_advance",
+        "expression": "Flow(flow.store, 'suspend', flow.value, continuation=(('delegate_resume', node, iterator, ()),))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 447,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(current.copy(), value=self.ops.join_all(values))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 456,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(out.store.copy(), 'suspend', Value.unknown(), continuation=(('opaque_resume', reason),))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 479,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(out.store, 'raise', out.value, 'GeneratorExit')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 481,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(current, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 498,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(flow.store, value=flow.value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 505,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(flow.store, value=returned)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 510,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "Flow(out.store.copy(), 'suspend', Value.unknown(), continuation=(('opaque_resume', 'external_await_resume'),))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 538,
+        "qualname": "ContinuationEngine.generator_expression",
+        "expression": "Flow(current, value=self.t.alloc(node, current, frame, 'generator', metadata=metadata))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 107,
+        "qualname": "DictionaryOperations.build",
+        "expression": "Flow(state, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 143,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "Flow(state, value=replace(value, relations=value.relations | tokens.tokens))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 149,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "Flow(current.copy(), value=replace(value, relations=value.relations | tokens))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 157,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "Flow(current.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 166,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "Flow(current.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 176,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "Flow(store.copy(), value=self.ops.join_all(values))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 245,
+        "qualname": "DictionaryOperations.contains",
+        "expression": "Flow(state, value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 262,
+        "qualname": "DictionaryOperations.contains",
+        "expression": "Flow(store.copy(), value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 271,
+        "qualname": "DictionaryOperations.contains",
+        "expression": "Flow(store.copy(), value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 31,
+        "qualname": "DictionaryViews.iterator",
+        "expression": "Flow(current, value=self.t.alloc(node, current, frame, 'iterator', metadata=metadata))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 62,
+        "qualname": "DictionaryViews.next",
+        "expression": "Flow(current, value=answer)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 82,
+        "qualname": "DictionaryViews.contains",
+        "expression": "Flow(store.copy(), value=Value.constant(False))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 86,
+        "qualname": "DictionaryViews.contains",
+        "expression": "Flow(store.copy(), value=Value.constant(False))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 98,
+        "qualname": "DictionaryViews.contains",
+        "expression": "Flow(store.copy(), value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 211,
+        "qualname": "InterproceduralDriver.request_module",
+        "expression": "Flow(result, value=ref)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 219,
+        "qualname": "InterproceduralDriver.request_module",
+        "expression": "Flow(result.copy(), value=self.ops.join(ref, Value.unknown()) if result.havoc_imports else ref)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 223,
+        "qualname": "InterproceduralDriver.request_module",
+        "expression": "Flow(applied, value=ref)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 224,
+        "qualname": "InterproceduralDriver.request_module",
+        "expression": "Flow(applied, outcome.kind, outcome.value, outcome.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 257,
+        "qualname": "InterproceduralDriver.request_function",
+        "expression": "Flow(store.copy(), 'raise', Value.constant('TypeError'), 'TypeError')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 314,
+        "qualname": "InterproceduralDriver.request_function",
+        "expression": "Flow(result, value=Value.ref(objid))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 327,
+        "qualname": "InterproceduralDriver.request_function",
+        "expression": "Flow(applied, kind, outcome.value, outcome.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 462,
+        "qualname": "InterproceduralDriver._solve",
+        "expression": "Flow(entry)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 468,
+        "qualname": "InterproceduralDriver._solve",
+        "expression": "Flow(flow.store, 'return', Value.constant(None))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 175,
+        "qualname": "NamespaceOperations.key_alternatives",
+        "expression": "Flow(state, value=Value.unknown())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 192,
+        "qualname": "NamespaceOperations.getitem",
+        "expression": "Flow(state.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 197,
+        "qualname": "NamespaceOperations.getitem",
+        "expression": "Flow(state.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 237,
+        "qualname": "NamespaceOperations.contains",
+        "expression": "Flow(flow.store, value=Value.constant(True))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 238,
+        "qualname": "NamespaceOperations.contains",
+        "expression": "Flow(flow.store, value=Value.constant(False))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 245,
+        "qualname": "NamespaceOperations.builtin",
+        "expression": "Flow(store, value=self.global_view(frame.module, store) if name == 'globals' else self.local_view(frame, store))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 247,
+        "qualname": "NamespaceOperations.builtin",
+        "expression": "Flow(store, value=self.local_view(frame, store))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 261,
+        "qualname": "NamespaceOperations.method",
+        "expression": "Flow(out.store, value=default)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 273,
+        "qualname": "NamespaceOperations.method",
+        "expression": "Flow(state, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 278,
+        "qualname": "NamespaceOperations.method",
+        "expression": "Flow(saved.store, saved.kind, default if saved.kind == 'normal' else saved.value, saved.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 254,
+        "qualname": "Flow.with_value",
+        "expression": "Flow(self.store, self.kind, value, self.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 65,
+        "qualname": "Transfer.normal",
+        "expression": "Flow(store, value=Value.constant(None) if value is None else value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 67,
+        "qualname": "Transfer.error",
+        "expression": "Flow(store, 'raise', Value.constant(name), name)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 85,
+        "qualname": "Transfer.unknown",
+        "expression": "Flow(result, value=Value.unknown())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 85,
+        "qualname": "Transfer.unknown",
+        "expression": "Flow(result.copy(), 'raise', Value.unknown(), 'AnyException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 114,
+        "qualname": "Transfer.read_name",
+        "expression": "Flow(store.copy(), value=value.without_unbound())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 150,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(out.store.copy(), 'suspend', Value.unknown(), continuation=(('opaque_resume', 'nested_suspension_expression'),))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 153,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(store.copy(), value=Value.constant(node.value))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 174,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(current, value=self.alloc(node, current, frame, kind, {i: v for i, v in enumerate(values)}, {'length': len(values)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 189,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(s, value=self.alloc(node, s, frame, 'slice', {i: v for i, v in enumerate(vals)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 195,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(s.copy(), value=val)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 207,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(tested.store, value=Value(bools=frozenset((not x for x in tested.value.bools))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 220,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(flow.store, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 232,
+        "qualname": "Transfer.expr",
+        "expression": "Flow(tested.store.copy(), value=flow.value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 271,
+        "qualname": "Transfer.formatted_string",
+        "expression": "Flow(value.store, value=Value.constant(''))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 272,
+        "qualname": "Transfer.formatted_string",
+        "expression": "Flow(value.store, value=Value.constant(''))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 309,
+        "qualname": "Transfer.formatted_string",
+        "expression": "Flow(current, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 330,
+        "qualname": "Transfer.compare_expr.step",
+        "expression": "Flow(right.store, value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 335,
+        "qualname": "Transfer.compare_expr.step",
+        "expression": "Flow(right.store.copy(), value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 343,
+        "qualname": "Transfer.compare_expr.step",
+        "expression": "Flow(truth.store.copy(), value=Value.constant(False))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 345,
+        "qualname": "Transfer.compare_expr.step",
+        "expression": "Flow(truth.store.copy(), value=Value.constant(True))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 367,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(store.copy(), value=Value(bools=truths))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 370,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(flow.store, value=Value(bools=frozenset((False, True))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 387,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(returned.store.copy(), value=Value(bools=boolean))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 399,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(returned.store.copy(), value=Value(bools=boolean))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 406,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(store.copy(), value=Value(bools=booleans))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 409,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(flow.store, value=Value(bools=frozenset((False, True))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 410,
+        "qualname": "Transfer.truth_flows",
+        "expression": "Flow(store.copy(), value=Value.constant(True))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 527,
+        "qualname": "Transfer.statement",
+        "expression": "Flow(flow.store, 'raise', Value.unknown(), 'AnyException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 533,
+        "qualname": "Transfer.statement",
+        "expression": "Flow(store.copy(), 'raise', value.without_unbound(), 'AnyException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 535,
+        "qualname": "Transfer.statement",
+        "expression": "Flow(store.copy(), 'raise', value, kind)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 554,
+        "qualname": "Transfer.statement",
+        "expression": "Flow(store.copy(), 'break')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 555,
+        "qualname": "Transfer.statement",
+        "expression": "Flow(store.copy(), 'continue')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 640,
+        "qualname": "Transfer.annotation_statement",
+        "expression": "Flow(current.store, value=Value.constant(getattr(node.annotation, '_source_annotation_text', ast.unparse(node.annotation))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 688,
+        "qualname": "Transfer.define_function",
+        "expression": "Flow(s, value=Value.ref(identifier))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 742,
+        "qualname": "Transfer.raise_value",
+        "expression": "Flow(flow.store, 'raise', Value.unknown(), 'AnyException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 763,
+        "qualname": "Transfer.raise_value",
+        "expression": "Flow(store.copy(), 'raise', Value.ref(ref), name)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1047,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=Value.constant(len(constant)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1050,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=Value(ints=self.ops.integer.top()))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1063,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=Value(ints=self.ops.integer.top()))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1064,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=obj.metadata['length_value'])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1070,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=answer)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1072,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(store.copy(), value=Value(ints=self.ops.integer.top()))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1084,
+        "qualname": "Transfer.length_builtin",
+        "expression": "Flow(returned.store.copy(), value=Value(ints=allowed))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1108,
+        "qualname": "Transfer.conversion_protocol",
+        "expression": "Flow(store.copy(), value=Value(strings=self.ops.string.top()))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1136,
+        "qualname": "Transfer.conversion_protocol",
+        "expression": "Flow(returned.store.copy(), value=valid)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1154,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, 'exception', fields, {'exception_name': canonical_builtin_exception_name(name), 'exception_types': tuple(builtin_exception_ancestors(name))}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1172,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, name, {'callable': args[0]}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1177,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, 'property', fields))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1178,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, 'instance'))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1189,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, name, fields, {'length': len(fields)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1190,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, name, {}, {'length': 0}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1193,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(state, value=self.alloc(node, state, frame, name, {i: v for i, v in enumerate(sequence)}, {'length': len(sequence)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1205,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(s, value=self.alloc(node, s, frame, 'range', {i: Value.constant(x) for i, x in enumerate(seq)}, {'length': len(seq)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1214,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=Value.constant({'str': '', 'int': 0, 'bool': False, 'float': 0.0}[name]))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1217,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=args[0])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1218,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=args[0])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1232,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.ops.join_all(values))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1236,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=Value(strings=args[0].strings if name == 'str' and (not args[0].strings.is_bottom()) else self.ops.string.top()))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1240,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store.copy(), value=valid)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1258,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=Value(bools=frozenset(truths)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1262,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=Value(top_sorts=frozenset(('type',))))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1267,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=Value(refs=frozenset(refs)) if refs else Value.unknown())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1276,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(f.store, value=args[1])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1289,
+        "qualname": "Transfer.builtin",
+        "expression": "Flow(store, value=self.alloc(node, store, frame, 'super', metadata={'class': args[0], 'receiver': args[1]}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1343,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(s, value=self.alloc(node, s, frame, 'property', fields))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1367,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(flow.store, value=default)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1373,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(stored.store, stored.kind, default if stored.kind == 'normal' else stored.value, stored.exception)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1387,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(s, value=self.dictionary_views.create(ref, name, s, frame, node))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1393,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(s, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1400,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(copy, value=value)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1401,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(s.copy(), value=args[1])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1414,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(s, value=out)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1415,
+        "qualname": "Transfer.builtin_method",
+        "expression": "Flow(store.copy(), value=Value.constant(concrete))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1431,
+        "qualname": "Transfer.aggregate_builtin",
+        "expression": "Flow(s, value=self.alloc(node, s, frame, 'list', {i: v for i, v in enumerate(values)}, {'length': len(values)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1438,
+        "qualname": "Transfer.aggregate_builtin",
+        "expression": "Flow(s, value=self.alloc(node, s, frame, 'list', {i: v for i, v in enumerate(values)}, {'length': len(values)}))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1449,
+        "qualname": "Transfer.aggregate_builtin",
+        "expression": "Flow(store.copy(), value=Value.constant(sum(scalars, initial)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1450,
+        "qualname": "Transfer.aggregate_builtin",
+        "expression": "Flow(store.copy(), value=Value.constant(function(scalars)))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1509,
+        "qualname": "Transfer.comprehension",
+        "expression": "Flow(last, value=ref)"
+      }
+    ],
+    "flow_replacements": [
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 20,
+        "qualname": "ContinuationEngine.wrap",
+        "expression": "replace(flow, continuation=((tag, *payload, flow.continuation),), cleanups=(), resume_target=None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 33,
+        "qualname": "ContinuationEngine.block",
+        "expression": "replace(out, continuation=(*out.continuation, *body[position + 1:]))"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 54,
+        "qualname": "ContinuationEngine.marker",
+        "expression": "replace(flow, kind='return')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 250,
+        "qualname": "Transfer.expr",
+        "expression": "replace(flow, kind='suspend')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 524,
+        "qualname": "Transfer.statement",
+        "expression": "replace(f, kind='return')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 748,
+        "qualname": "Transfer.raise_value",
+        "expression": "replace(opaque, kind='raise', value=Value.unknown(), exception='AnyException')"
+      }
+    ],
+    "continuation_attributes": [
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 62,
+        "qualname": "FullStateAdapter.encode",
+        "expression": "copied.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 62,
+        "qualname": "FullStateAdapter.encode",
+        "expression": "copied.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 62,
+        "qualname": "FullStateAdapter.encode",
+        "expression": "copied.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 68,
+        "qualname": "FullStateAdapter.decode",
+        "expression": "copied.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 68,
+        "qualname": "FullStateAdapter.decode",
+        "expression": "copied.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 68,
+        "qualname": "FullStateAdapter.decode",
+        "expression": "copied.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 72,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "flow.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 72,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "decoded.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 72,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "flow.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 72,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "decoded.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 73,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "flow.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/composition/state_adapter.py",
+        "line": 73,
+        "qualname": "FullStateAdapter.check_roundtrip",
+        "expression": "decoded.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 20,
+        "qualname": "ContinuationEngine.wrap",
+        "expression": "flow.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 33,
+        "qualname": "ContinuationEngine.block",
+        "expression": "out.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 497,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "flow.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "other.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "other.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 375,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "other.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 383,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 383,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 383,
+        "qualname": "InterproceduralDriver.compact",
+        "expression": "flow.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "a.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "a.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "a.resume_target"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "b.continuation"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "b.cleanups"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 393,
+        "qualname": "InterproceduralDriver._outcomes_equal",
+        "expression": "b.resume_target"
+      }
+    ],
+    "metadata_accesses": [
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 78,
+        "qualname": "NativeRegionEngine.execute.direct",
+        "expression": "cls.metadata.get('mro', cls.metadata.get('bases', ()))"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 78,
+        "qualname": "NativeRegionEngine.execute.direct",
+        "expression": "cls.metadata.get('bases', ())"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 106,
+        "qualname": "NativeRegionEngine.execute.compile_expression",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 140,
+        "qualname": "NativeRegionEngine.execute.compile_expression",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 186,
+        "qualname": "NativeRegionEngine.execute.assign",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/composition/region_engine.py",
+        "line": 199,
+        "qualname": "NativeRegionEngine.execute.assign",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 80,
+        "qualname": "AttributeOperations.construct",
+        "expression": "made.store.heap[ref].metadata.update({'exception_name': cls.metadata.get('name', 'BaseException'), 'exception_types': tuple(tags)})"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 80,
+        "qualname": "AttributeOperations.construct",
+        "expression": "cls.metadata.get('name', 'BaseException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 105,
+        "qualname": "AttributeOperations.lookup_presence",
+        "expression": "cls.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 204,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['receiver']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 205,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['callable']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 206,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['callable']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 229,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata.get(metadata_key)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 230,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata[metadata_key]"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 242,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 270,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['class']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 271,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata['receiver']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 281,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "cls.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 305,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 305,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata.get('bases', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 311,
+        "qualname": "AttributeOperations._getattr_raw",
+        "expression": "obj.metadata.get({'__name__': 'name', '__qualname__': 'qualname', '__module__': 'module'}[name], frame.module)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 499,
+        "qualname": "AttributeOperations.setattr",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 518,
+        "qualname": "AttributeOperations.c3",
+        "expression": "obj.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 737,
+        "qualname": "AttributeOperations.delattr",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 773,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/attributes.py",
+        "line": 779,
+        "qualname": "AttributeOperations.reflective",
+        "expression": "cls.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 175,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 175,
+        "qualname": "ContinuationEngine.get_iterator",
+        "expression": "obj.metadata['view_kind']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 423,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('index', 0)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 425,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['sequence']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 428,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('container', Value.bottom())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 430,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('sequence_protocol')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 440,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "source.metadata.get('summarized_keys')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 447,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['index']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 457,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('stage', 'created')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 466,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['stage']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 468,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['frame']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 470,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('resume_count', 0)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 473,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('owned_exception')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 475,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['entry']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 482,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata.get('remaining', item.metadata['body'])"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 482,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "item.metadata['body']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 488,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata['resume_count']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 488,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata.get('resume_count', 0)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 494,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata['owned_exception']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 495,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata.pop('owned_exception', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 497,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata.update(stage='suspended', remaining=flow.continuation, cleanups=(), resume_target=None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 500,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata['stage']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/continuations.py",
+        "line": 500,
+        "qualname": "ContinuationEngine.resume",
+        "expression": "target.metadata.pop('owned_exception', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 164,
+        "qualname": "DictionaryOperations.getitem",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 203,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "target.metadata.pop('length', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 213,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "target.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 220,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+        "line": 221,
+        "qualname": "DictionaryOperations.setitem",
+        "expression": "target.metadata.pop('length', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 20,
+        "qualname": "DictionaryViews.length",
+        "expression": "view.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 26,
+        "qualname": "DictionaryViews.iterator",
+        "expression": "obj.metadata.get('summarized_keys')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 36,
+        "qualname": "DictionaryViews.next",
+        "expression": "item.metadata['index']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 36,
+        "qualname": "DictionaryViews.next",
+        "expression": "item.metadata['dictionary_iteration']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 37,
+        "qualname": "DictionaryViews.next",
+        "expression": "item.metadata.get('dictionary_exhausted')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 38,
+        "qualname": "DictionaryViews.next",
+        "expression": "item.metadata['container']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 40,
+        "qualname": "DictionaryViews.next",
+        "expression": "source.metadata.get('summarized_keys')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 44,
+        "qualname": "DictionaryViews.next",
+        "expression": "item.metadata['dictionary_keys']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 49,
+        "qualname": "DictionaryViews.next",
+        "expression": "current.heap[iterator].metadata['dictionary_exhausted']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 60,
+        "qualname": "DictionaryViews.next",
+        "expression": "current.heap[iterator].metadata['index']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 67,
+        "qualname": "DictionaryViews.contains",
+        "expression": "view.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 67,
+        "qualname": "DictionaryViews.contains",
+        "expression": "view.metadata['view_kind']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 79,
+        "qualname": "DictionaryViews.contains",
+        "expression": "pair.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+        "line": 81,
+        "qualname": "DictionaryViews.contains",
+        "expression": "pair.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 271,
+        "qualname": "InterproceduralDriver.request_function",
+        "expression": "function_object.metadata.get('closure', info.closure)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 340,
+        "qualname": "InterproceduralDriver.semantic_input_partition",
+        "expression": "function_object.metadata.get('closure', info.closure)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 359,
+        "qualname": "InterproceduralDriver.semantic_input_partition",
+        "expression": "obj.metadata[name]"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 364,
+        "qualname": "InterproceduralDriver.semantic_input_partition",
+        "expression": "obj.metadata.get('container')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 531,
+        "qualname": "InterproceduralDriver.snapshot",
+        "expression": "obj.metadata.get('function')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 547,
+        "qualname": "InterproceduralDriver.snapshot.export",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 21,
+        "qualname": "NamespaceOperations._havoc",
+        "expression": "obj.metadata.get('owner')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 22,
+        "qualname": "NamespaceOperations._havoc",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 22,
+        "qualname": "NamespaceOperations._havoc",
+        "expression": "obj.metadata.get('module')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 85,
+        "qualname": "NamespaceOperations.bindings",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 87,
+        "qualname": "NamespaceOperations.bindings",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 91,
+        "qualname": "NamespaceOperations.bindings",
+        "expression": "obj.metadata['prefix']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 95,
+        "qualname": "NamespaceOperations.bindings",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 101,
+        "qualname": "NamespaceOperations._read",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 105,
+        "qualname": "NamespaceOperations._read",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 106,
+        "qualname": "NamespaceOperations._read",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 109,
+        "qualname": "NamespaceOperations._read",
+        "expression": "obj.metadata['prefix']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 112,
+        "qualname": "NamespaceOperations._read",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 118,
+        "qualname": "NamespaceOperations._write",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 121,
+        "qualname": "NamespaceOperations._write",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 123,
+        "qualname": "NamespaceOperations._write",
+        "expression": "obj.metadata['prefix']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 124,
+        "qualname": "NamespaceOperations._write",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 191,
+        "qualname": "NamespaceOperations.getitem",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 191,
+        "qualname": "NamespaceOperations.getitem",
+        "expression": "obj.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 204,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "obj.metadata.get('readonly')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 215,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "target.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 216,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "target.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 221,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "target.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 224,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "target.metadata['module']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 227,
+        "qualname": "NamespaceOperations.setitem",
+        "expression": "target.metadata.get('owner', identifier)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 35,
+        "qualname": "HeapObject.join",
+        "expression": "self.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 35,
+        "qualname": "HeapObject.join",
+        "expression": "other.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 40,
+        "qualname": "HeapObject.join",
+        "expression": "result.metadata['summarized_keys']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 41,
+        "qualname": "HeapObject.join",
+        "expression": "result.metadata.pop('length', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 41,
+        "qualname": "HeapObject.join",
+        "expression": "result.metadata.pop('length_value', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 114,
+        "qualname": "Store.write_slot",
+        "expression": "obj.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 162,
+        "qualname": "Store.leq",
+        "expression": "obj.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 163,
+        "qualname": "Store.leq",
+        "expression": "rhs.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 143,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "result.metadata['summarized_keys']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 143,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "result.metadata.get('summarized_keys', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 144,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "result.metadata.pop('length', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 144,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "result.metadata.pop('length_value', None)"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 75,
+        "qualname": "Transfer.unknown",
+        "expression": "obj.metadata.get('closure', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 76,
+        "qualname": "Transfer.unknown",
+        "expression": "obj.metadata.get('frame')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 357,
+        "qualname": "Transfer.truth",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 404,
+        "qualname": "Transfer.truth_flows",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 446,
+        "qualname": "Transfer.assign",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 705,
+        "qualname": "Transfer.exception_class_tags",
+        "expression": "obj.metadata.get('bases', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 716,
+        "qualname": "Transfer.raised_tags",
+        "expression": "obj.metadata.get('exception_types', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 759,
+        "qualname": "Transfer.raise_value",
+        "expression": "obj.metadata.get('exception_types', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 761,
+        "qualname": "Transfer.raise_value",
+        "expression": "obj.metadata.get('exception_name')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 762,
+        "qualname": "Transfer.raise_value",
+        "expression": "store.heap[cls].metadata.get('name', 'BaseException')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 859,
+        "qualname": "Transfer.iterable_values",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 861,
+        "qualname": "Transfer.iterable_values",
+        "expression": "obj.metadata.get('summarized_keys')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 943,
+        "qualname": "Transfer.invoke",
+        "expression": "obj.metadata['callable']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 943,
+        "qualname": "Transfer.invoke",
+        "expression": "obj.metadata['receiver']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 945,
+        "qualname": "Transfer.invoke",
+        "expression": "obj.metadata['name']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 945,
+        "qualname": "Transfer.invoke",
+        "expression": "obj.metadata['receiver']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1061,
+        "qualname": "Transfer.length_builtin",
+        "expression": "obj.metadata.get('summarized_keys')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1064,
+        "qualname": "Transfer.length_builtin",
+        "expression": "obj.metadata.get('length_value')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1064,
+        "qualname": "Transfer.length_builtin",
+        "expression": "obj.metadata['length_value']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1068,
+        "qualname": "Transfer.length_builtin",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1068,
+        "qualname": "Transfer.length_builtin",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1256,
+        "qualname": "Transfer.builtin",
+        "expression": "store.heap.get(c, HeapObject('class')).metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1300,
+        "qualname": "Transfer.builtin_method",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1300,
+        "qualname": "Transfer.builtin_method",
+        "expression": "obj.metadata['view_kind']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1322,
+        "qualname": "Transfer.builtin_method",
+        "expression": "packed.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1322,
+        "qualname": "Transfer.builtin_method",
+        "expression": "packed.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1345,
+        "qualname": "Transfer.builtin_method",
+        "expression": "target.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1349,
+        "qualname": "Transfer.builtin_method",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1354,
+        "qualname": "Transfer.builtin_method",
+        "expression": "t.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1357,
+        "qualname": "Transfer.builtin_method",
+        "expression": "t.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1384,
+        "qualname": "Transfer.builtin_method",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1391,
+        "qualname": "Transfer.builtin_method",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/transfer.py",
+        "line": 1395,
+        "qualname": "Transfer.builtin_method",
+        "expression": "target.metadata.get('length', 1)"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 151,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata.update(exception_name=obj.builtin_type, exception_types=(obj.builtin_type,))"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 160,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata[category]"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 164,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['mro']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 168,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['bases']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 169,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['bases']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 174,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['bases']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 175,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['mro']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 175,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['mro']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 176,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata.update(module=obj.ir.get_source_snapshot().module if obj.ir.get_source_snapshot() else '', qualname=obj.ir.get_qualname(), name=obj.ir.get_qualname().split('.')[-1])"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 177,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['module']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 182,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata[name]"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 185,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 188,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata['readonly']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 189,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 190,
+        "qualname": "LegacyStateBridge.object",
+        "expression": "target.metadata.get('module')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 290,
+        "qualname": "LegacyStateBridge.import_state",
+        "expression": "target.metadata['length']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 291,
+        "qualname": "LegacyStateBridge.import_state",
+        "expression": "target.metadata['length_value']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 307,
+        "qualname": "LegacyStateBridge.import_state",
+        "expression": "obj.metadata.get('exception_types', ())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 359,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('callable', Value.bottom())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 359,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('receiver', Value.bottom())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 368,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('receiver', Value.bottom())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 369,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata['name']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 373,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('module')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 373,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('qualname')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 398,
+        "qualname": "LegacyStateBridge.old_object",
+        "expression": "obj.metadata.get('exception_name', 'BaseException')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 486,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('namespace_kind')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 486,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('owner')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 487,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('bases', ())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 487,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('mro', ())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 488,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('closure', ())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 504,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('length')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 504,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata['length']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 504,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('length_value')"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 504,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata['length_value']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 526,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get(name)"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 526,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata[name]"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 530,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get(category, ())"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 536,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get(name)"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 536,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata[name]"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 537,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata['readonly']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 538,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata['owner']"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 550,
+        "qualname": "LegacyStateBridge.old_state",
+        "expression": "obj.metadata.get('closure', info.closure)"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 754,
+        "qualname": "CodeBridge.register_function",
+        "expression": "self.store.heap[identifier].metadata['closure']"
+      }
+    ],
+    "write_readers": [
+      {
+        "path": "pythonstan/analysis/composition/native_intrinsics.py",
+        "line": 77,
+        "qualname": "LegacyIntrinsicProvider.apply",
+        "expression": "write in summary.writes",
+        "role": "observation/export or boundary; inspect writer provenance"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/driver.py",
+        "line": 562,
+        "qualname": "InterproceduralDriver.snapshot",
+        "expression": "x in self.writes",
+        "role": "graph remap if state_transform else semantic observation export"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state.py",
+        "line": 204,
+        "qualname": "Store.apply",
+        "expression": "(kind, objid, key) in callee.writes",
+        "role": "semantic footprint consumer"
+      },
+      {
+        "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+        "line": 126,
+        "qualname": "PayloadTransformer.visit",
+        "expression": "(kind, owner, key) in value.writes",
+        "role": "graph remap if state_transform else semantic observation export"
+      },
+      {
+        "path": "pythonstan/compat/shared_ai.py",
+        "line": 573,
+        "qualname": "LegacyStateBridge.summary",
+        "expression": "(tag, identifier, field) in flow.store.writes",
+        "role": "observation/export or boundary; inspect writer provenance"
+      }
+    ],
+    "manual_footprint_membership": [
+      {
+        "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+        "line": 70,
+        "qualname": "NamespaceOperations.local_view",
+        "expression": "marker=('heap_meta',identity,'locals_refresh'); marker not in store.writes",
+        "obligation": "Replace tuple construction and membership with matching MetadataUpdate record; preserve activation freshness logic."
+      }
+    ]
+  },
+  "source_file_sha256": {
+    "pythonstan/analysis/composition/__init__.py": "c67568f169dba4dbe3d2fc98870177d5691fa141188faba35965d0e76b72e014",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "0a72559d283bf3326c1e8507b4d2b0f58c47056bd8aefb7fb717b66de4aefb70",
+    "pythonstan/analysis/composition/hybrid.py": "794ee176967177afe2a3f6388fc1d3b80fb63a0fee39ecab22a3f24f2e033196",
+    "pythonstan/analysis/composition/native_intrinsics.py": "8faca2a4232749961faf72a086bbb974c4e56a318b6db839e9e99b820fc26762",
+    "pythonstan/analysis/composition/native_snapshot.py": "4b7b02a41762629f5eb175926ad85ee912d3beae0e89a7e7289fb347c1a0f4e4",
+    "pythonstan/analysis/composition/oracle.py": "fe2e2bbc8c9d1bf7bcfe4e89f525d43a9293e28ea5ded2c11018de6547a2af7b",
+    "pythonstan/analysis/composition/plan.py": "47278f516301d49e24a8ad6b171e080a392aff4e26b5ae49bf4b0fb0b604296a",
+    "pythonstan/analysis/composition/reabstract.py": "47286accd8aad46b823bb81a087aae5ca27fbdafe88ed3cfd02ad9e2810c89c4",
+    "pythonstan/analysis/composition/region_engine.py": "0af1a2e3d8368f2cf783c824a4a3903123a506e5d09950dc6a240be87686b402",
+    "pythonstan/analysis/composition/region_scheduler.py": "0a3e21035d451c8d2ceaae37283084ffddb6de0850ef8308221ac6bda3ea98d9",
+    "pythonstan/analysis/composition/state_adapter.py": "9b1e324e957963ba45f99f1f5d696e4a2a4e645cb8d0dac62e256bc5176b1a30",
+    "pythonstan/analysis/engines/abstract/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pythonstan/analysis/engines/abstract/attributes.py": "969c7d836e0190157407f537bcfa4fee33c2748cbeacf217e601505144ad6d66",
+    "pythonstan/analysis/engines/abstract/continuations.py": "6459e0f2b9c08fa5dfd7fbeeab30a29f58c44bf9687bc069bab12e68e9d0bc2d",
+    "pythonstan/analysis/engines/abstract/dictionaries.py": "68afeb2cf25f14b25ec8b8b03b2a0d0c461474e6c4185d9d4e905ef149fae6bf",
+    "pythonstan/analysis/engines/abstract/dictionary_views.py": "b8ad740a5eefc5105fb7fd2d006a7df6cd782f44cb6f94094715c25b9bbccb84",
+    "pythonstan/analysis/engines/abstract/driver.py": "23e87231fcc227cb83ac418043341aef08558f5aadbc1987e17d3afb37e50332",
+    "pythonstan/analysis/engines/abstract/namespaces.py": "b6abf82cc0547448961c2be480bfa8613fe789c24fe6b0a3695e0b6a499bf3c6",
+    "pythonstan/analysis/engines/abstract/state.py": "cbbfc4344aedc4b9a803110b0375a6614601f87a1100ac423870cc550696190f",
+    "pythonstan/analysis/engines/abstract/state_transform.py": "d19d3a8022775060f634d1d03086de1fbfbc2733efde7404ba821f30f2ad607e",
+    "pythonstan/analysis/engines/abstract/transfer.py": "5e6708e3dd22aa3ff584103fa5a5d73947bdaa818656683f6f96e1493ea58526",
+    "pythonstan/compat/shared_ai.py": "90387a57f1c9a52fca598ce40ce6beb9ed31c2555b1b18e2525909db8ae2a08f"
+  },
+  "quality_constraints": [
+    "Annotating Store.apply exposes real calls into currently untyped ValueOperations/arena/clone APIs. Annotate those actual APIs; no fake Protocol, casts, ignores, or debt-baseline reset to disguise it.",
+    "Intermediate checkpoints can remain red but cannot become verified. Complete touched-module frontier admission requires zero diagnostics; all semantic unit regressions remain visible.",
+    "Typed IDs are static constraints; epoch freshness/ownership/cycles require runtime and graph checks.",
+    "Existing old tests intentionally seed arbitrary metadata and alias-first maps. Migrate their construction through explicit typed compatibility input with equivalent invariants; do not delete/weaken their assertions.",
+    "Frozen W0 mandatory fixtures/manifest must not be edited to make repair green; production behavior changes only."
+  ],
+  "risks": [
+    "Replacing idle exported ObjectId descriptor is an API delta despite zero known constructors; record release note and external consumer check.",
+    "Effects are currently final-state footprints. Adding payload/history semantics accidentally would change strong/weak ordering; preserve snapshot interpretation.",
+    "Current arena treats cell/object string namespaces alike in some component tests; split typed substitutions while preserving explicit legacy test mapping semantics.",
+    "State/Flow and metadata/continuations are cyclic; naïve frozen dataclass/deepcopy wrappers reproduce R3-DOM05.",
+    "Normal expression vs statement distinction touches all Flow constructors and replace(kind=...) readers; do not retain implicit Value.bottom on no-value paths.",
+    "Unknown effects include future cells/fields/callbacks/exceptions and must remain persistent after typed migration."
+  ],
+  "completion_claim": "Design only. No implementation, full type correctness, semantic repair, gate pass, or parent-card completion is claimed."
+}

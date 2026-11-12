@@ -186,8 +186,8 @@ class LegacyStateBridge:
             if 'readonly' in capsule:
                 constants=self.value(capsule['readonly']).exact_constants()
                 if constants is not None and len(constants)==1:target.metadata['readonly']=bool(constants[0])
-            mode=target.metadata.get('namespace_kind')
-            if mode not in {'globals','class_locals','object','locals_snapshot'} or mode=='object' and 'owner' not in target.metadata or mode=='globals' and target.metadata.get('module') not in self.driver.modules or mode=='class_locals' and 'prefix' not in target.metadata:
+            mode=target.metadata.lookup('namespace_kind')
+            if mode not in {'globals','class_locals','object','locals_snapshot'} or mode=='object' and 'owner' not in target.metadata or mode=='globals' and target.metadata.lookup('module') not in self.driver.modules or mode=='class_locals' and 'prefix' not in target.metadata:
                 target.havoc=True;self.reasons.add('bridge_namespace_capsule_unavailable')
         if isinstance(obj,native.FunctionObject):
             if hasattr(self,"register_function"):self.register_function(obj,identifier)
@@ -304,7 +304,7 @@ class LegacyStateBridge:
             tags=set()
             for identifier in exception.refs:
                 obj=self.store.heap.get(identifier)
-                if obj:tags.update(obj.metadata.get('exception_types',()))
+                if obj:tags.update(obj.metadata.lookup('exception_types',()))
             names=exception.exact_constants()
             if names:tags.update(value for value in names if isinstance(value,str))
             if len(tags)==1:self.store.cells['$active_exception_type']=Value.constant(next(iter(tags)))
@@ -356,7 +356,7 @@ class LegacyStateBridge:
                 result=native.UnknownValue(self.context,native.AllocSite('shared-function:'+identifier,native.AllocKind.UNKNOWN))
             else:result=native.FunctionObject(self.fresh_context(identifier,prototype),native.AllocSite(prototype,native.AllocKind.FUNCTION),container,prototype)
         elif obj.kind=='bound_method':
-            target=obj.metadata.get('callable',Value.bottom());receiver=obj.metadata.get('receiver',Value.bottom())
+            target=obj.metadata.lookup('callable',Value.bottom());receiver=obj.metadata.lookup('receiver',Value.bottom())
             fn=self.old_object(next(iter(target.refs)),store) if len(target.refs)==1 else None
             recv=self.old_object(next(iter(receiver.refs)),store) if len(receiver.refs)==1 else None
             cls=recv.class_obj if isinstance(recv,native.InstanceObject) else recv if isinstance(recv,native.ClassObject) else None
@@ -365,12 +365,12 @@ class LegacyStateBridge:
                 self.reasons.add('bridge_outgoing_bound_method')
                 result=native.UnknownValue(self.context,native.AllocSite('shared-bound:'+identifier,native.AllocKind.UNKNOWN))
         elif obj.kind=='builtin_method':
-            receiver=obj.metadata.get('receiver',Value.bottom())
+            receiver=obj.metadata.lookup('receiver',Value.bottom())
             if len(receiver.refs)==1:result=native.BuiltinMethodObject(self.context,native.AllocSite('shared-builtin-method:'+identifier,native.AllocKind.BUILTIN),obj.metadata['name'],self.old_object(next(iter(receiver.refs)),store))
             else:
                 self.reasons.add('bridge_outgoing_builtin_method');result=native.UnknownValue(self.context,native.AllocSite('shared-method:'+identifier,native.AllocKind.UNKNOWN))
         elif obj.kind=='class':
-            module=obj.metadata.get('module');qualname=obj.metadata.get('qualname')
+            module=obj.metadata.lookup('module');qualname=obj.metadata.lookup('qualname')
             prototype=self.source_ir(module,qualname,None) if module and qualname else None
             if prototype is None and module:
                 # Runtime __qualname__ has <locals> components and omits the
@@ -395,7 +395,7 @@ class LegacyStateBridge:
             else:result=native.BuiltinInstanceObject(self.context,native.AllocSite('shared:'+identifier,native.AllocKind.INSTANCE),'instance')
         else:
             kind=obj.kind
-            result=native.BuiltinInstanceObject(self.context,native.AllocSite('shared:'+identifier,native.AllocKind.INSTANCE),obj.metadata.get('exception_name','BaseException') if kind=='exception' else kind)
+            result=native.BuiltinInstanceObject(self.context,native.AllocSite('shared:'+identifier,native.AllocKind.INSTANCE),obj.metadata.lookup('exception_name','BaseException') if kind=='exception' else kind)
             if kind not in {'instance','exception','namespace','staticmethod','classmethod','property'}:self.reasons.add('bridge_outgoing_metadata:'+kind)
         self.reverse[identifier]=result;self.objects[result]=identifier
         from pythonstan.compat.legacy_ai.heap import AIAddr
@@ -483,9 +483,9 @@ class LegacyStateBridge:
             pending.extend(obj.class_ids)
             for value in (*obj.fields.values(),obj.default):pending.extend(value.refs)
             pending.extend(edges(obj.metadata))
-            if obj.kind=='namespace' and obj.metadata.get('namespace_kind')=='object':pending.append(obj.metadata.get('owner'))
-            if obj.kind=='class':pending.extend((*obj.metadata.get('bases',()),*obj.metadata.get('mro',())))
-            for _,cell in obj.metadata.get('closure',()):
+            if obj.kind=='namespace' and obj.metadata.lookup('namespace_kind')=='object':pending.append(obj.metadata.lookup('owner'))
+            if obj.kind=='class':pending.extend((*obj.metadata.lookup('bases',()),*obj.metadata.lookup('mro',())))
+            for _,cell in obj.metadata.lookup('closure',()):
                 if cell in store.cells:pending.extend(store.cells[cell].refs)
         for identifier in reachable:self.old_object(identifier,store)
         for identifier in reachable:
@@ -501,7 +501,7 @@ class LegacyStateBridge:
             kind=next((member for member in ObjKind if member.value==obj.kind),ObjKind.FOREIGN)
             container=None
             if obj.kind in {'list','tuple','dict','set','range'}:
-                length=IntLattice.const(obj.metadata['length']) if type(obj.metadata.get('length')) is int else obj.metadata['length_value'].ints if isinstance(obj.metadata.get('length_value'),Value) else IntLattice.nonneg()
+                length=IntLattice.const(obj.metadata['length']) if type(obj.metadata.lookup('length')) is int else obj.metadata['length_value'].ints if isinstance(obj.metadata.lookup('length_value'),Value) else IntLattice.nonneg()
                 container=ContainerSlots(elem_bucket=self.old_value(obj.default,store),tracked_indices={field:self.old_value(value,store) for field,value in obj.fields.items() if isinstance(field,(int,str,float,bool)) or field is None},length=length,may_be_empty=length.may_contain(0))
             converted=AbsObj(address,kind,frozenset(self.old_object(cls,store) for cls in obj.class_ids),slots,container)
             if address in result.heap:
@@ -523,17 +523,17 @@ class LegacyStateBridge:
             result.shared_bindings[(f'$object:{hash(native)}','singleton')]=AbsVal.bool_true() if obj.singleton else AbsVal.bool_false()
             if obj.kind=='bound_method':
                 for name in ('callable','receiver'):
-                    if isinstance(obj.metadata.get(name),Value):result.shared_bindings[(f'$method:{hash(native)}',name)]=self.old_value(obj.metadata[name],store)
+                    if isinstance(obj.metadata.lookup(name),Value):result.shared_bindings[(f'$method:{hash(native)}',name)]=self.old_value(obj.metadata[name],store)
             if obj.kind=='class':
                 owner=f'$class:{hash(native)}';result.shared_bindings[(owner,'shape')]=AbsVal.bool_true()
                 for category in ('bases','mro'):
-                    for index,reference in enumerate(obj.metadata.get(category,())):
+                    for index,reference in enumerate(obj.metadata.lookup(category,())):
                         result.shared_bindings[(owner,f'{category}:{index}')]=self.old_value(Value.ref(reference),store)
             if obj.kind=='namespace':
                 from pythonstan.compat.legacy_ai.value_domain import AbsVal
                 owner=f'$namespace:{hash(native)}'
                 for name in ('namespace_kind','module','prefix'):
-                    if type(obj.metadata.get(name)) is str:result.shared_bindings[(owner,name)]=AbsVal.from_str(obj.metadata[name])
+                    if type(obj.metadata.lookup(name)) is str:result.shared_bindings[(owner,name)]=AbsVal.from_str(obj.metadata[name])
                 if 'readonly' in obj.metadata:result.shared_bindings[(owner,'readonly')]=AbsVal.bool_true() if obj.metadata['readonly'] else AbsVal.bool_false()
                 if 'owner' in obj.metadata:result.shared_bindings[(owner,'owner')]=self.old_value(Value.ref(obj.metadata['owner']),store)
             if obj.kind=='function':
@@ -547,7 +547,7 @@ class LegacyStateBridge:
                         result.shared_bindings[(f'$default:{info.qualname}@{activation}',name)]=self.old_value(obj.fields.get(self.keyword_slot(name),value),store)
                     annotation=obj.fields.get(function_annotations_slot())
                     if annotation is not None:result.shared_bindings[(f'$annotation:{info.qualname}@{activation}','__annotations__')]=self.old_value(annotation,store)
-                    for name,cell in obj.metadata.get('closure',info.closure):
+                    for name,cell in obj.metadata.lookup('closure',info.closure):
                         result.shared_bindings[(f'$closure-id:{info.qualname}@{activation}',name)]=__import__('pythonstan.compat.legacy_ai.value_domain',fromlist=['AbsVal']).AbsVal.from_str(cell)
                         if cell in store.cells:result.shared_bindings[(cell,'$cell')]=self.old_value(store.cells[cell],store)
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
@@ -570,7 +570,14 @@ class LegacyStateBridge:
         exit_state=None if joined is None else self.old_state(joined,frame,(ref for flow in normal for ref in flow.value.refs))
         writes=[]
         for flow in flows:
-            for tag,identifier,field in flow.store.writes:
+            from pythonstan.analysis.state.effects import HeapWrite, HeapDelete, HeapDefaultWrite
+            for effect in flow.store.writes:
+                if isinstance(effect, (HeapWrite, HeapDelete)):
+                    tag, identifier, field = 'heap', effect.owner, effect.key
+                elif isinstance(effect, HeapDefaultWrite):
+                    tag, identifier, field = 'heap_default', effect.owner, None
+                else:
+                    continue
                 if tag not in {'heap','heap_default'} or identifier not in flow.store.heap:continue
                 if tag=='heap' and is_private_slot(field):continue
                 obj=flow.store.heap[identifier];native=self.old_object(identifier,flow.store)

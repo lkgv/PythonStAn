@@ -1,0 +1,16 @@
+{
+  "kind": "prepared_state_entry",
+  "module": "django.utils.datastructures",
+  "qualname": "MultiValueDict.getlist",
+  "inputs": "docs/development/next/client_queries/cases/django_getlist_alias/inputs.json",
+  "models": "docs/development/next/client_queries/cases/django_getlist_alias/models.json",
+  "source_map": "docs/development/next/client_queries/cases/django_getlist_alias/source_map.json",
+  "require_original_definitions": true,
+  "no_dynamic_target_execution": "No import/exec of target is used by the analyzer or freeze process. Optional isolated CPython witness is separate evidence only.",
+  "executor_status": "pending_API_entry_implementation",
+  "continuation": {
+    "source": "exact builtin list.append(result,c) from sealed inputs",
+    "query_point": "finite_entry_continuation_exit",
+    "after": "Target getlist normal return, within same declared finite scenario."
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "python": "CPython3.12",
+  "semantic_profile": "finite_closed_builtin_and_exact_source_class_v1",
+  "assumptions": [
+    "exact Context class membership",
+    "Task body field binds one of two synthetic callbacks",
+    "prepared Task receiver with times_called=0; do not run Task.__init__",
+    "int addition",
+    "TypeError str.format for invalid exact object"
+  ],
+  "unsupported_outside_scope": "Arbitrary subclasses/metaclasses, unknown callbacks, concurrent mutation, monkey patching and package import side effects are outside this finite entry. They must remain Open if introduced.",
+  "package_initialization": "Not an entry; prepared graph binds exact original definitions. A module-init runner is not comparable.",
+  "no_analyzer_generated_facts": true,
+  "callback_source": {
+    "path": "benchmark/next/client_callbacks.py",
+    "sha256": "467d605dc5be69504c575774a506fd931d6dd7a6dec9d10d442cd40c6b4ade7c",
+    "normal_signature": [
+      "context:object",
+      "value:int",
+      "events:list[str]"
+    ],
+    "raising_signature": [
+      "context:object",
+      "value:int",
+      "events:list[str]"
+    ],
+    "callback_identity": "Distinct exact Python source functions; no decorators/closures/global mutation beyond events argument."
+  }
+}

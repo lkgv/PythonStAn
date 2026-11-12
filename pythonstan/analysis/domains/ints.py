@@ -16,17 +16,16 @@ Design notes:
 - Widening caps control const-set size; overflow triggers interval collapse
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
-    Any,
-    FrozenSet,
-    List,
-    Optional,
-    Set,
+    TypedDict,
+    TypeGuard,
+    override,
 )
 
-from .base import Domain, Fact
+from .base import Domain, Fact, FactPayload
 
 __all__ = ["IntDomain", "IntLattice", "Parity"]
 
@@ -48,10 +47,25 @@ class Parity(Enum):
            BOTTOM
     """
 
+    _value_: str
+
     BOTTOM = "bottom"
     EVEN = "even"
     ODD = "odd"
     TOP = "top"
+
+
+class _IntFields(TypedDict):
+    consts: frozenset[int]
+    lo: int | None
+    hi: int | None
+    parity: Parity
+    is_bottom: bool
+    is_top: bool
+
+
+def _integer_set(value: FactPayload) -> TypeGuard[frozenset[int]]:
+    return isinstance(value, frozenset) and all(isinstance(item, int) for item in value)
 
 
 def _parity_join(a: Parity, b: Parity) -> Parity:
@@ -106,11 +120,11 @@ class IntLattice:
     """
 
     # Finite set of exact constants (only populated in const-only form)
-    consts: FrozenSet[int]
+    consts: frozenset[int]
 
     # Interval bounds (None = unbounded)
-    lo: Optional[int]
-    hi: Optional[int]
+    lo: int | None
+    hi: int | None
 
     # Parity constraint
     parity: Parity
@@ -119,22 +133,41 @@ class IntLattice:
     is_bottom: bool
     is_top: bool
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # The public dataclass constructor obeys the same invariants as factory
         # methods; raw finite values cannot carry contradictory cached bounds.
+        values: _IntFields
         if self.is_bottom:
-            values = dict(consts=frozenset(), lo=None, hi=None,
-                          parity=Parity.BOTTOM, is_bottom=True, is_top=False)
+            values = {
+                "consts": frozenset(),
+                "lo": None,
+                "hi": None,
+                "parity": Parity.BOTTOM,
+                "is_bottom": True,
+                "is_top": False,
+            }
         elif self.is_top:
-            values = dict(consts=frozenset(), lo=None, hi=None,
-                          parity=Parity.TOP, is_bottom=False, is_top=True)
+            values = {
+                "consts": frozenset(),
+                "lo": None,
+                "hi": None,
+                "parity": Parity.TOP,
+                "is_bottom": False,
+                "is_top": True,
+            }
         elif self.consts:
             consts = frozenset(self.consts)
             parity = Parity.BOTTOM
             for value in consts:
                 parity = _parity_join(parity, _parity_of(value))
-            values = dict(consts=consts, lo=min(consts), hi=max(consts),
-                          parity=parity, is_bottom=False, is_top=False)
+            values = {
+                "consts": consts,
+                "lo": min(consts),
+                "hi": max(consts),
+                "parity": parity,
+                "is_bottom": False,
+                "is_top": False,
+            }
         else:
             lo, hi, parity = self.lo, self.hi, self.parity
             if parity in (Parity.EVEN, Parity.ODD):
@@ -145,14 +178,25 @@ class IntLattice:
                     hi -= (hi - wanted) % 2
             bottom = parity == Parity.BOTTOM or (lo is not None and hi is not None and lo > hi)
             if bottom:
-                values = dict(consts=frozenset(), lo=None, hi=None,
-                              parity=Parity.BOTTOM, is_bottom=True, is_top=False)
+                values = {
+                    "consts": frozenset(),
+                    "lo": None,
+                    "hi": None,
+                    "parity": Parity.BOTTOM,
+                    "is_bottom": True,
+                    "is_top": False,
+                }
             else:
-                values = dict(consts=frozenset(), lo=lo, hi=hi, parity=parity,
-                              is_bottom=False,
-                              is_top=lo is None and hi is None and parity == Parity.TOP)
-        for name, value in values.items():
-            object.__setattr__(self, name, value)
+                values = {
+                    "consts": frozenset(),
+                    "lo": lo,
+                    "hi": hi,
+                    "parity": parity,
+                    "is_bottom": False,
+                    "is_top": lo is None and hi is None and (parity == Parity.TOP),
+                }
+        for name, field_value in values.items():
+            object.__setattr__(self, name, field_value)
 
     # -------------------------------------------------------------------------
     # Factory methods
@@ -195,7 +239,7 @@ class IntLattice:
         )
 
     @classmethod
-    def from_consts(cls, ints: FrozenSet[int]) -> "IntLattice":
+    def from_consts(cls, ints: frozenset[int]) -> "IntLattice":
         """Set of constant integers."""
         if len(ints) == 0:
             return cls.bottom()
@@ -216,8 +260,8 @@ class IntLattice:
     @classmethod
     def from_interval(
         cls,
-        lo: Optional[int],
-        hi: Optional[int],
+        lo: int | None,
+        hi: int | None,
         parity: Parity = Parity.TOP,
     ) -> "IntLattice":
         """Create from interval [lo, hi] with optional parity.
@@ -302,9 +346,9 @@ class IntLattice:
     @classmethod
     def _normalize(
         cls,
-        consts: FrozenSet[int],
-        lo: Optional[int],
-        hi: Optional[int],
+        consts: frozenset[int],
+        lo: int | None,
+        hi: int | None,
         parity: Parity,
     ) -> "IntLattice":
         """Normalize an exact finite set OR an interval, never their union.
@@ -335,13 +379,13 @@ class IntLattice:
         """
         return self.is_const()
 
-    def get_singleton(self) -> Optional[int]:
+    def get_singleton(self) -> int | None:
         """Get singleton value if this is a single constant, else None."""
         if self.is_singleton():
             return next(iter(self.consts))
         return None
 
-    def get_consts(self) -> Optional[FrozenSet[int]]:
+    def get_consts(self) -> frozenset[int] | None:
         """Get constant integers if enumerable, else None."""
         if self.is_enumerable():
             return self.consts
@@ -418,10 +462,12 @@ class IntLattice:
             return True
         if self.consts:
             return n in self.consts
-        return ((self.lo is None or n >= self.lo)
-                and (self.hi is None or n <= self.hi)
-                and self.parity != Parity.BOTTOM
-                and (self.parity == Parity.TOP or n % 2 == (self.parity == Parity.ODD)))
+        return (
+            (self.lo is None or n >= self.lo)
+            and (self.hi is None or n <= self.hi)
+            and self.parity != Parity.BOTTOM
+            and (self.parity == Parity.TOP or n % 2 == (self.parity == Parity.ODD))
+        )
 
     # -------------------------------------------------------------------------
     # Comparison helpers for condition refinement
@@ -519,6 +565,7 @@ class IntLattice:
     # String representation
     # -------------------------------------------------------------------------
 
+    @override
     def __str__(self) -> str:
         if self.is_bottom:
             return "⊥_int"
@@ -538,7 +585,7 @@ class IntLattice:
             parts.append(f"[{lo_str}, {hi_str}]")
 
         if self.parity not in (Parity.TOP, Parity.BOTTOM):
-            parts.append(f"({self.parity.value})")
+            parts.append("(even)" if self.parity == Parity.EVEN else "(odd)")
 
         return " ".join(parts) if parts else "⊥_int"
 
@@ -560,24 +607,32 @@ class IntDomain(Domain[IntLattice]):
     - budget.value_partition_int_cap: max ints for branch partitioning
     """
 
-    def __init__(self, max_consts: int = 10):
+    def __init__(self, max_consts: int = 10) -> None:
         """Initialize with widening caps.
 
         Args:
             max_consts: Maximum constant integers before compression
         """
-        self.max_consts = max_consts
+        self.max_consts: int = max_consts
+
+    @override
+    def public_settings(self) -> Mapping[str, int]:
+        return {"max_consts": self.max_consts}
 
     @property
+    @override
     def name(self) -> str:
         return "int"
 
+    @override
     def bottom(self) -> IntLattice:
         return IntLattice.bottom()
 
+    @override
     def top(self) -> IntLattice:
         return IntLattice.top()
 
+    @override
     def join(self, a: IntLattice, b: IntLattice) -> IntLattice:
         """Union of exact finite sets, otherwise a parity-restricted hull."""
         if a.is_bottom:
@@ -592,6 +647,7 @@ class IntDomain(Domain[IntLattice]):
         hi = None if a.hi is None or b.hi is None else max(a.hi, b.hi)
         return IntLattice.from_interval(lo, hi, _parity_join(a.parity, b.parity))
 
+    @override
     def meet(self, a: IntLattice, b: IntLattice) -> IntLattice:
         """Exact intersection; finite sets are never replaced by their hull."""
         if a.is_bottom or b.is_bottom:
@@ -608,6 +664,7 @@ class IntDomain(Domain[IntLattice]):
         hi = b.hi if a.hi is None else a.hi if b.hi is None else min(a.hi, b.hi)
         return IntLattice.from_interval(lo, hi, _parity_meet(a.parity, b.parity))
 
+    @override
     def leq(self, a: IntLattice, b: IntLattice) -> bool:
         """Concretization inclusion for the disjoint finite/interval forms."""
         if a.is_bottom or b.is_top:
@@ -632,15 +689,23 @@ class IntDomain(Domain[IntLattice]):
             return False
         return b.parity == Parity.TOP or a.parity == b.parity
 
+    @override
     def widen(self, old: IntLattice, new: IntLattice) -> IntLattice:
         """Cover the union, dropping exact enumeration once bounds widen."""
         joined = self.join(old, new)
         if joined.is_bottom or joined.is_top:
             return joined
         if old.is_bottom:
-            return (joined if len(joined.consts) <= self.max_consts else
-                    IntLattice.from_interval(joined.lo, joined.hi, joined.parity))
-        if joined.is_enumerable() and len(joined.consts) <= self.max_consts and self.leq(joined, old):
+            return (
+                joined
+                if len(joined.consts) <= self.max_consts
+                else IntLattice.from_interval(joined.lo, joined.hi, joined.parity)
+            )
+        if (
+            joined.is_enumerable()
+            and len(joined.consts) <= self.max_consts
+            and self.leq(joined, old)
+        ):
             return joined
         lo, hi = joined.lo, joined.hi
         changed = False
@@ -654,11 +719,13 @@ class IntDomain(Domain[IntLattice]):
             return joined
         return IntLattice.from_interval(lo, hi, joined.parity)
 
+    @override
     def narrow(self, old: IntLattice, new: IntLattice) -> IntLattice:
         """Narrowing: refine with meet."""
         return self.meet(old, new)
 
-    def abstract_const(self, value: Any) -> Optional[IntLattice]:
+    @override
+    def abstract_const(self, value: object) -> IntLattice | None:
         """Abstract a Python constant.
 
         Important: bool is a subclass of int in Python, but we do NOT
@@ -671,7 +738,8 @@ class IntDomain(Domain[IntLattice]):
             return IntLattice.const(value)
         return None
 
-    def produce_facts(self, var: str, elem: IntLattice) -> List[Fact]:
+    @override
+    def produce_facts(self, var: str, elem: IntLattice) -> list[Fact]:
         """Produce facts about integer values.
 
         Fact kinds:
@@ -683,7 +751,7 @@ class IntDomain(Domain[IntLattice]):
         - "is_pos" / "is_nonneg" / "is_neg" / "is_nonpos": data=None
         - "is_even" / "is_odd": data=None
         """
-        facts: List[Fact] = []
+        facts: list[Fact] = []
 
         if elem.is_bottom or elem.is_top:
             return facts
@@ -730,6 +798,7 @@ class IntDomain(Domain[IntLattice]):
 
         return facts
 
+    @override
     def consume_fact(self, elem: IntLattice, fact: Fact) -> IntLattice:
         """Consume a fact to refine integer abstraction."""
         if elem.is_bottom:
@@ -738,7 +807,7 @@ class IntDomain(Domain[IntLattice]):
         if fact.kind == "is_singleton_int" and isinstance(fact.data, int):
             return self.meet(elem, IntLattice.const(fact.data))
 
-        if fact.kind == "is_const_int_set" and isinstance(fact.data, frozenset):
+        if fact.kind == "is_const_int_set" and _integer_set(fact.data):
             return self.meet(elem, IntLattice.from_consts(fact.data))
 
         if fact.kind == "in_int_range" and isinstance(fact.data, tuple):
@@ -766,8 +835,9 @@ class IntDomain(Domain[IntLattice]):
             if elem.is_enumerable():
                 new_consts = frozenset(c for c in elem.consts if c % 2 == 0)
                 return IntLattice.from_consts(new_consts)
-            return IntLattice.from_interval(elem.lo, elem.hi,
-                                            _parity_meet(elem.parity, Parity.EVEN))
+            return IntLattice.from_interval(
+                elem.lo, elem.hi, _parity_meet(elem.parity, Parity.EVEN)
+            )
 
         if fact.kind == "is_odd":
             if elem.is_top:
@@ -775,8 +845,7 @@ class IntDomain(Domain[IntLattice]):
             if elem.is_enumerable():
                 new_consts = frozenset(c for c in elem.consts if c % 2 == 1)
                 return IntLattice.from_consts(new_consts)
-            return IntLattice.from_interval(elem.lo, elem.hi,
-                                            _parity_meet(elem.parity, Parity.ODD))
+            return IntLattice.from_interval(elem.lo, elem.hi, _parity_meet(elem.parity, Parity.ODD))
 
         if fact.kind == "is_none":
             # Not an int if it's None

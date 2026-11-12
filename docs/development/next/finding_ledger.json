@@ -1,0 +1,598 @@
+{
+  "schema_version": 1,
+  "records": 34,
+  "counting_note": "Mixed defects, engineering risks, positive evidence and experiment limits. MAINT-02 and AS-05 share one cause. Status is baseline classification; fixes require new source evidence.",
+  "findings": [
+    {
+      "id": "AS-01",
+      "specialty": "ai_semantics",
+      "title": "合法 keyword-before-starred 调用按文本顺序求值，颠倒 Python 副作用",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-01"
+      ]
+    },
+    {
+      "id": "AS-02",
+      "specialty": "ai_semantics",
+      "title": "删除未绑定 module/local 名称没有 NameError/UnboundLocalError",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-02"
+      ]
+    },
+    {
+      "id": "AS-03",
+      "specialty": "ai_semantics",
+      "title": "Comprehension 把顺序执行当独立候选求值，漏状态、绑定及过滤分支",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-04"
+      ]
+    },
+    {
+      "id": "AS-04",
+      "specialty": "ai_semantics",
+      "title": "抽象字符串的一元运算忽略必抛 TypeError",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-DOM-01"
+      ]
+    },
+    {
+      "id": "AS-05",
+      "specialty": "ai_semantics",
+      "title": "多个迭代/构造协议将空 reference 投影误当空输入/不可达",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-03"
+      ]
+    },
+    {
+      "id": "AS-06",
+      "specialty": "ai_semantics",
+      "title": "isinstance 不识别 builtin runtime kinds/tuple classinfo，漏非法参数异常",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "closed_under_approximation",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-05"
+      ]
+    },
+    {
+      "id": "AS-07",
+      "specialty": "ai_semantics",
+      "title": "几行普通状态递归即触发默认 statement 预算，降 context 后整数 Top",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "explicit_open_or_precision_loss",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-AI-01",
+        "N4-AI-02"
+      ]
+    },
+    {
+      "id": "AS-08",
+      "specialty": "ai_semantics",
+      "title": "多 operand 布尔短路再次执行已短路对象的 __bool__，精度退化",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "ai_semantics/report.txt",
+      "historical_classification": "precision_loss",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-SEM-01"
+      ]
+    },
+    {
+      "id": "NCOMP-01",
+      "specialty": "native_composition",
+      "title": "Native region异常出口丢弃unpack已完成前缀副作用",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "native_composition/report.txt",
+      "historical_classification": "reproduced",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-PTA-01"
+      ]
+    },
+    {
+      "id": "NCOMP-02",
+      "specialty": "native_composition",
+      "title": "Native region重复分配字典覆盖旧shape，旧alias丢key",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "native_composition/report.txt",
+      "historical_classification": "reproduced",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-PTA-02"
+      ]
+    },
+    {
+      "id": "NCOMP-03",
+      "specialty": "native_composition",
+      "title": "区域控制relations别名、context_depth和nested solver选项被接受但忽略",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "native_composition/report.txt",
+      "historical_classification": "reproduced",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-CTRL-01"
+      ]
+    },
+    {
+      "id": "R3-DOM-01",
+      "specialty": "domains",
+      "title": "Scalar enumeration fallback drops entire normal sorts and exceptional alternatives",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "domains/report.txt",
+      "historical_classification": "reproduced_public_api_and_component",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-DOM-01"
+      ]
+    },
+    {
+      "id": "R3-DOM-02",
+      "specialty": "domains",
+      "title": "Non-enumerated truthiness ignores every finite float alternative",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "domains/report.txt",
+      "historical_classification": "reproduced_public_api_and_component",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-DOM-01"
+      ]
+    },
+    {
+      "id": "R3-DOM-03",
+      "specialty": "domains",
+      "title": "Value export erases residual finite strings beside prefix/suffix patterns",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "domains/report.txt",
+      "historical_classification": "reproduced_public_api_and_component",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-RESULT-01"
+      ]
+    },
+    {
+      "id": "R3-DOM-04",
+      "specialty": "domains",
+      "title": "A generator resume retains an old address across a live identity epoch and crashes",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "domains/report.txt",
+      "historical_classification": "reproduced_public_api",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-STATE-01"
+      ]
+    },
+    {
+      "id": "R3-DOM-05",
+      "specialty": "domains",
+      "title": "Owner collisions during cyclic graph remapping enter a fresh copy memo and fail on an unfinished Store",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current original probes reproduced by domain_native_baseline; original and independent red/positive controls retained.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/domain_native"
+      ],
+      "historical_report": "domains/report.txt",
+      "historical_classification": "reproduced_production_component_and_host_transaction",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-STATE-02"
+      ]
+    },
+    {
+      "id": "LV-01",
+      "specialty": "llm_verification",
+      "title": "L2 bridge drops the second valid handler call site while calls coverage stays closed",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "llm_verification/report.txt",
+      "historical_classification": "independently_reproduced",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-LLM-01"
+      ]
+    },
+    {
+      "id": "LV-02",
+      "specialty": "llm_verification",
+      "title": "L2 shortcut loses requested function-exit results and bulk procedure outcomes",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "llm_verification/report.txt",
+      "historical_classification": "independently_reproduced",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-QUERY-01",
+        "N4-LLM-01"
+      ]
+    },
+    {
+      "id": "LV-03",
+      "specialty": "llm_verification",
+      "title": "L1 adopts a strictly worse valid strategy without a target-query benefit criterion",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Independent CPython3.12 oracle and current analyzer/offline controller probes reproduced original cause and held-out variants; positive controls preserved.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json",
+        "artifacts/next/evidence/N4-BOOT-02/concrete.json"
+      ],
+      "historical_report": "llm_verification/report.txt",
+      "historical_classification": "independently_reproduced_non_soundness_gap",
+      "reacceptance_tasks": [
+        "N4-BOOT-02",
+        "N4-LLM-03"
+      ]
+    },
+    {
+      "id": "MAINT-01",
+      "specialty": "maintainability",
+      "title": "Public wheel contains all 17 retired prototype files absent from the validated upstream wheel",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current rebuilt wheel contains all17 archived originals; no py.typed marker.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-01/publication_baseline.json"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "confirmed_release_and_migration_mismatch",
+      "reacceptance_tasks": [
+        "N4-BOOT-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "MAINT-02",
+      "specialty": "maintainability",
+      "title": "dict scalar constructor returns normal empty dict and closed coverage instead of TypeError",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Same dictionary-constructor root cause as reproduced AS-05; shared evidence, not an additional bug.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-02/analyzer_red.json"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "confirmed_semantic_counterexample",
+      "reacceptance_tasks": [
+        "N4-SEM-03"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "MAINT-03",
+      "specialty": "maintainability",
+      "title": "Output Mapping normalization is accepted then bypassed; inconsistent configuration errors",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Current valid Mapping output raises AttributeError; unknown output raises KeyError; extra value-query key silently succeeds.",
+      "evidence": [
+        "artifacts/next/evidence/N4-BOOT-01/public_boundary.json"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "confirmed_public_boundary_defect",
+      "reacceptance_tasks": [
+        "N4-API-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "MAINT-04",
+      "specialty": "maintainability",
+      "title": "Untyped active state and metadata protocols bypass typed contracts",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Active Store/HeapObject metadata and Flow have Any/raw tuple boundaries; current full-tree quality scan retained.",
+      "evidence": [
+        "pythonstan/analysis/engines/abstract/state.py",
+        "artifacts/next/evidence/N4-BOOT-01/stage_tests.receipt.json"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "structural_semantic_risk",
+      "reacceptance_tasks": [
+        "N4-TYPE-01",
+        "N4-TYPE-02"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "MAINT-05",
+      "specialty": "maintainability",
+      "title": "Split semantic services still depend on an unrestricted Transfer/Driver object",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Active semantic services retain broad owner/driver access; narrow service migration not implemented.",
+      "evidence": [
+        "pythonstan/analysis/engines/abstract/attributes.py"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "maintainability_architecture_risk",
+      "reacceptance_tasks": [
+        "N4-ARCH-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "MAINT-06",
+      "specialty": "maintainability",
+      "title": "Architecture green does not cover retired wheel paths, typed execution contracts or all declared dependency semantics",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "still_present",
+      "reason": "Historical architecture stage passes while current wheel retains17 retired files and lacks py.typed; new tools are being implemented separately.",
+      "evidence": [
+        "pythonstan/analysis/engines/abstract/state.py",
+        "artifacts/next/evidence/N4-BOOT-01/stage_tests.receipt.json"
+      ],
+      "historical_report": "maintainability/report.txt",
+      "historical_classification": "assurance_gate_gap",
+      "reacceptance_tasks": [
+        "N4-QUAL-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-01",
+      "specialty": "performance",
+      "title": "真实14项目全部Open或timeout；valid_result不是完成",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "evidence_limit",
+      "reacceptance_tasks": [
+        "N4-EVAL-01",
+        "N4-EVAL-03"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-02",
+      "specialty": "performance",
+      "title": "90与36分母/原始质量重算吻合，失败被保留",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified",
+      "reacceptance_tasks": [
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-03",
+      "specialty": "performance",
+      "title": "family规模参数不是计时重复，不能宣称显著或通用速度提升",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "evidence_limit",
+      "reacceptance_tasks": [
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-04",
+      "specialty": "performance",
+      "title": "family最大场景attempted成本高于charged total，汇总须显示未付费尝试",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified_limit",
+      "reacceptance_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-05",
+      "specialty": "performance",
+      "title": "局部Verified不等于exported query或整项目Verified",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "evidence_limit",
+      "reacceptance_tasks": [
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-EVAL-03"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-06",
+      "specialty": "performance",
+      "title": "34超时皆exit0且stderr空，必须读取JSON process_status/traceback",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified",
+      "reacceptance_tasks": [
+        "N4-EVAL-02"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-07",
+      "specialty": "performance",
+      "title": "成本scope仍有已披露缺口：A–E最终导出CPU与共享setup",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified_limit",
+      "reacceptance_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02",
+        "N4-PERF-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-08",
+      "specialty": "performance",
+      "title": "真实失败横跨source准备、前端、solver、导出，不能一律归因solver",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified",
+      "reacceptance_tasks": [
+        "N4-PERF-01",
+        "N4-EVAL-02"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    },
+    {
+      "id": "EXP-09",
+      "specialty": "performance",
+      "title": "共同文件hash一致可支持运行路径，不能证明发布集合等价",
+      "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "current_status": "inconclusive",
+      "reason": "Historical experiment/evidence observation, not a freshly rerun current-candidate result. Formal same-candidate cohort/cost evaluation awaits REL-01 and EVAL-03; preserve historical denominator and classification.",
+      "evidence": [],
+      "historical_report": "performance/experiment_review.txt",
+      "historical_classification": "verified_limit",
+      "reacceptance_tasks": [
+        "N4-BOOT-01",
+        "N4-REL-01"
+      ],
+      "mapping_basis": "Explicit underlying finding aliases; root task audit_findings labels aggregate these records."
+    }
+  ]
+}

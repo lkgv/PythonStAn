@@ -1,0 +1,42 @@
+{
+  "names": [
+    "",
+    "build_docs",
+    "_private_name_",
+    "ns._private_name",
+    "ns.task_name",
+    "a_.b_c",
+    "a-b",
+    "_"
+  ],
+  "auto_dash_names": [
+    false,
+    true
+  ],
+  "receiver": {
+    "kind": "exact invoke.collection.Collection",
+    "fields": [
+      "auto_dash_names"
+    ]
+  },
+  "forbid_user_subclasses": true,
+  "prepared_graph": {
+    "receiver": {
+      "id": "collection",
+      "source_class": "invoke.collection.Collection",
+      "fields": {
+        "auto_dash_names": "one selected Boolean from declared finite set"
+      }
+    }
+  },
+  "exact_call_rule": {
+    "callee": "invoke.collection.Collection.transform",
+    "positional": [
+      "receiver",
+      "one name from declared finite set"
+    ],
+    "keyword": {},
+    "scenario_reset": "Fresh prepared graph per input pair"
+  },
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

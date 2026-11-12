@@ -1,4 +1,7 @@
 """Real engine boundaries, full-store state, incremental delivery and relations."""
+
+from pythonstan.analysis.contracts.identity import ObjectId, CellId
+from pythonstan.analysis.state.effects import CellWrite, HeapWrite, HeapDefaultWrite, MetadataUpdate, MetadataAspect
 from dataclasses import replace
 import pytest
 from pythonstan import Source,ValueQuery,analyze
@@ -59,8 +62,8 @@ def test_same_engine_domain_boundary_reabstracts_value_and_heap():
     assert not any(p["phase"]=="bounded_region_inclusion" for p in result["phase_trace"])
 
 
-def test_full_state_roundtrip_and_env_only_mutant_detection():
-    ops=ValueOperations();state=Store(cells={"cell":Value.ref("box")},heap={"box":HeapObject("dict",{"value":Value.constant("after")},metadata={"capture":Value.ref("box")})},initialized={"example":"initializing"},writes={("heap","box","value")},events=(("cleanup","seen"),),obligations=frozenset(("residual",)))
+def test_full_state_roundtrip_and_env_only_mutant_detection() -> None:
+    ops=ValueOperations();state=Store(cells={"cell":Value.ref("box")},heap={"box":HeapObject("dict",{"value":Value.constant("after")},metadata={"capture":Value.ref("box")})},initialized={"example":"initializing"},writes={HeapWrite(ObjectId("box"),"value")},events=(("cleanup","seen"),),obligations=frozenset(("residual",)))
     flow=Flow(state,"raise",Value.constant("ValueError"),"ValueError",continuation=("resume",),cleanups=(("finally",),))
     adapter=FullStateAdapter();boundary=adapter.encode(flow);copy=adapter.decode(boundary)
     assert adapter.check_roundtrip(flow,ops)

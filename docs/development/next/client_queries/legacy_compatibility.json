@@ -1,0 +1,64 @@
+{
+  "source_manifest": "benchmark/refactor/manifest.json",
+  "source_sha256": "14799d63b22cc01304cc5017af1ad6919f28c31e50e1cc2e2a1679921fd73623",
+  "case_ids": [
+    "tiny_identity",
+    "tiny_intrinsics",
+    "client_dispatch_fresh_identity",
+    "medium_static_package",
+    "django",
+    "djangorestframework",
+    "wagtail",
+    "fastapi",
+    "agno",
+    "langserve",
+    "ansible_core",
+    "prefect",
+    "invoke",
+    "ansible_runner",
+    "accelerate",
+    "transformers",
+    "lightning",
+    "torchtune"
+  ],
+  "real_case_ids": [
+    "django",
+    "djangorestframework",
+    "wagtail",
+    "fastapi",
+    "agno",
+    "langserve",
+    "ansible_core",
+    "prefect",
+    "invoke",
+    "ansible_runner",
+    "accelerate",
+    "transformers",
+    "lightning",
+    "torchtune"
+  ],
+  "control_case_ids": [
+    "tiny_identity",
+    "tiny_intrinsics",
+    "client_dispatch_fresh_identity",
+    "medium_static_package"
+  ],
+  "modes": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "expected_rows": 90,
+  "query_class": "diagnostic_literal_or_original_control",
+  "resource_protocol": {
+    "max_work": 10000,
+    "max_seconds": 8.0,
+    "max_memory_mb": 1536,
+    "outer_timeout_seconds": 15.0,
+    "parallel_workers": 2
+  },
+  "separate_from_client_denominator": true,
+  "must_preserve_failed_or_missing_rows": true
+}

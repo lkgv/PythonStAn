@@ -137,3 +137,40 @@ at equal precision. A baseline already exact in the same domain is not
 deliberately degraded and need not be beaten in precision. Correct, malicious,
 coarse-valid and no-candidate arms share source and budgets. Rejecting every
 candidate is a safety baseline, not LLM usefulness.
+
+## Second-stage W0 independent acceptance extension
+
+The immutable `tests/regression/audit3/semantic_manifest.json` extends the
+existing obligations with AS-01–AS-08 and LV-01–LV-03. It retains the original
+A01–A18 ledger references and the digests of the original gold and held-out
+fixtures. The companion domain/native registry is
+`docs/development/next/domain_native_manifest.json`; its component evidence is
+distinct from public API evidence.
+
+The new semantic denominator has 52 handcrafted source cases and six offline
+L1/L2 cases. CPython 3.12 subprocesses check independently stated concrete
+results and source call occurrences; the analyzer never supplies the expected
+answers. Only the handcrafted fixtures are executed by the concrete oracle.
+The generated concrete traces establish bounded witnesses, not arbitrary
+entry coverage or a universal soundness proof.
+
+`semantic_oracle.py --check concrete` checks the independent oracle.
+`semantic_oracle.py --check analyzer` is the actual mandatory semantic gate and
+currently fails at the frozen W0 source. Its nonzero status must be preserved.
+The separately green `test_semantic_baseline.py` validates oracle integrity and
+negative guard behavior; it does not mark the product semantic gate green.
+The analyzer gate rejects missing, unsupported, partial or truncated mandatory
+answers, typed or universal Top, budget exhaustion, and a changed frozen
+denominator. Context-zero recursion explicitly requires useful finite
+inclusion, while the default four-level sum and heap recursion retain their
+stated exact targets; this does not require equal precision across policies.
+
+Additional source-order witnesses pin the distinction between starred
+expression evaluation and iterable expansion, the exception prefix of
+duplicate `**` keys, and deferred non-string-key validation. These fine-order
+observations are CPython-3.12 bounded profile requirements. Comprehension
+false-filter effects, ordered tuple classinfo, repeated deletion, and
+single-evaluation truth protocols have separate variants and positive controls.
+Offline L2 cases preserve source call occurrences, function exits, heap fields,
+and explicit read facts. An already valid return-relation certificate does
+not discharge these different query obligations. No live LLM is used by W0.

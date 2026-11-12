@@ -1,4 +1,7 @@
 """Actual host/session quotients, finite positive values and rejected half-publishes."""
+
+from pythonstan.analysis.contracts.identity import ObjectId, CellId
+from pythonstan.analysis.state.effects import CellWrite, HeapWrite, HeapDefaultWrite, MetadataUpdate, MetadataAspect
 import ast
 import math
 import pytest
@@ -7,6 +10,7 @@ import sys
 from pythonstan.analysis.contracts import SourceModule,EntryScenario
 from pythonstan.analysis.domains.values import Value,ValueOperations,ValuePolicy
 from pythonstan.analysis.domains.reabstract import ReferenceKey
+from pythonstan.analysis.state.guards import MembershipGuard
 from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver,BudgetStop
 from pythonstan.analysis.engines.abstract.state import Store,HeapObject,Frame,Flow,Unit,FunctionInfo
 from pythonstan.analysis.engines.abstract.state_transform import remap_store,semantic_payload_equal
@@ -17,15 +21,15 @@ def driver(source='',**options):
     return InterproceduralDriver([SourceModule('subject','subject.py',source)],config)
 
 
-def host_state():
+def host_state() -> Store:
     state=Store(cells={'root':Value(refs=frozenset({'A','B'})),'captured':Value.ref('A')},heap={
         'A':HeapObject('instance',{'value':Value.constant('A'),'next':Value.ref('B'),ReferenceKey('A'):Value.ref('A'),'A':Value.constant('literal')}),
         'B':HeapObject('instance',{'value':Value.constant('B'),'next':Value.ref('A')}),
-    },guards={'condition':('A','value',True)})
+    },guards={'condition':MembershipGuard(ObjectId('A'),'value',True)})
     state.heap['suspended']=HeapObject('generator',metadata={'entry':state,'frame':Frame('subject','f',(),'f',closure=(('captured','captured'),)),
         'pending':Flow(state,'raise',Value.ref('A'),'ValueError',continuation=(('resume',Value.ref('B')),))})
     state.heap['namespace']=HeapObject('namespace',metadata={'owner':'A','module':'subject'})
-    state.writes={('heap','A',None),('heap_default','B',None),('heap_meta','suspended','cursor'),('cell','captured',None)}
+    state.writes={HeapWrite(ObjectId('A'),None),HeapDefaultWrite(ObjectId('B')),MetadataUpdate(ObjectId('suspended'),MetadataAspect.COMPONENT_ATTACHMENT),CellWrite(CellId('captured'))}
     return state
 
 
@@ -49,19 +53,19 @@ def test_scalar_identity_does_not_infer_host_interning(left,right,expected):
     assert result.bools==frozenset(expected)
 
 
-def test_none_key_default_and_metadata_are_distinct_effect_channels():
+def test_none_key_default_and_metadata_are_distinct_effect_channels() -> None:
     ops=ValueOperations();caller=Store(heap={'d':HeapObject('dict',{None:Value.constant('before'),'None':Value.constant('string')})})
     callee=caller.copy();callee.write_slot('d',None,Value.constant('after'),ops)
     applied=caller.apply(Flow(callee),ops)
     assert applied.heap['d'].fields[None].exact_constants()==['after']
     assert applied.heap['d'].fields['None'].exact_constants()==['string']
-    residual=caller.copy();residual.heap['d'].default=Value.constant('residual');residual.writes.add(('heap_default','d',None))
+    residual=caller.copy();residual.heap['d'].default=Value.constant('residual');residual.writes.add(HeapDefaultWrite(ObjectId('d')))
     applied=caller.apply(Flow(residual),ops)
     assert applied.heap['d'].fields[None].exact_constants()==['before']
     assert applied.heap['d'].default.exact_constants()==['residual']
 
 
-def test_recursive_remap_covers_defaults_keys_cyclic_stores_and_pending_frames():
+def test_recursive_remap_covers_defaults_keys_cyclic_stores_and_pending_frames() -> None:
     ops=ValueOperations();original=host_state();mapped=remap_store(original,{'A':'S','B':'S'},ops)
     summary=mapped.heap['S'];assert not summary.singleton and not summary.havoc
     assert set(summary.fields['value'].exact_constants())=={'A','B'}
@@ -69,9 +73,9 @@ def test_recursive_remap_covers_defaults_keys_cyclic_stores_and_pending_frames()
     assert ReferenceKey('S') in summary.fields and 'A' in summary.fields
     assert mapped.heap['suspended'].metadata['entry'] is mapped
     pending=mapped.heap['suspended'].metadata['pending']
-    assert pending.store is mapped and pending.value.refs==frozenset({'S'}) and pending.continuation[0][1].refs==frozenset({'S'})
+    assert pending.store is mapped and pending.value.refs==frozenset({'S'}) and pending.continuation.commands[0].payload[0].refs==frozenset({'S'})
     assert mapped.heap['namespace'].metadata['owner']=='S' and not mapped.guards
-    assert ('heap','S',None) in mapped.writes and ('heap_default','S',None) in mapped.writes
+    assert HeapWrite(ObjectId('S'),None) in mapped.writes and HeapDefaultWrite(ObjectId('S')) in mapped.writes
     assert original.heap['A'].fields['next'].refs==frozenset({'B'})
 
 
@@ -84,7 +88,7 @@ def test_actual_host_epoch_rewrites_units_defaults_and_future_old_aliases():
     returned=d.reabstract_addresses({'A':'S','B':'S'},(extra,))
     assert d.ops.arena.epoch==1 and d.units['U'].entry.cells['root'].refs==frozenset({'S'})
     assert d.functions['f'].defaults[0].refs==frozenset({'S'}) and d.functions['f'].kw_defaults[0][1].refs==frozenset({'S'})
-    assert returned[0].value.refs==frozenset({'S'}) and returned[0].continuation[0][1].refs==frozenset({'S'})
+    assert returned[0].value.refs==frozenset({'S'}) and returned[0].continuation.commands[0].payload[0].refs==frozenset({'S'})
     assert 'U' in d.queued and d.allocate_identity('A')=='S'
     assert d.ops.join(Value.ref('A'),Value.ref('B')).refs==frozenset({'S'})
     state.write_slot('A','value',Value.constant('late'),d.ops)

@@ -1,0 +1,47 @@
+{
+  "receiver_kind": "exact django.utils.datastructures.MultiValueDict",
+  "storage": {
+    "name": [
+      "Ada",
+      "Grace"
+    ],
+    "empty": []
+  },
+  "keys": [
+    "name",
+    "empty",
+    "missing"
+  ],
+  "forbid_user_subclasses": true,
+  "prepared_graph": {
+    "receiver": {
+      "id": "request_values",
+      "source_class": "django.utils.datastructures.MultiValueDict",
+      "builtin_dict_storage": {
+        "name": "ref:names",
+        "empty": "ref:empty"
+      }
+    },
+    "names": {
+      "builtin_kind": "list",
+      "elements": [
+        "Ada",
+        "Grace"
+      ]
+    },
+    "empty": {
+      "builtin_kind": "list",
+      "elements": []
+    }
+  },
+  "exact_call_rule": {
+    "callee": "MultiValueDict.__getitem__",
+    "positional": [
+      "ref:request_values",
+      "one key from declared finite set"
+    ],
+    "keyword": {},
+    "scenario_reset": "Fresh prepared graph for each key"
+  },
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

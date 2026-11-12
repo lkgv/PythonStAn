@@ -1,0 +1,63 @@
+{
+  "id": "real-client-v1-current-public-20261111",
+  "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "python_semantics": "CPython3.12",
+  "modes": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "primary_modes": [
+    "D",
+    "E"
+  ],
+  "arms": [
+    "baseline"
+  ],
+  "cache_regimes": [
+    "application_cold"
+  ],
+  "measurement_repetitions": 10,
+  "parallel_workers": 1,
+  "order_seed": 20261111,
+  "predeclared_noise_extension": null,
+  "normalization_excludes": [
+    "clock",
+    "process_id",
+    "run_id",
+    "alpha-renamed_object_ids_preserving_all_relations"
+  ],
+  "normalization_preserves": [
+    "input-output associations",
+    "calls",
+    "effects",
+    "exceptions",
+    "must_alias",
+    "must_distinct",
+    "cardinality",
+    "freshness",
+    "missing/default",
+    "solver/coverage/query/proof statuses"
+  ],
+  "D_guard": {
+    "forbid_full_native_constructor": true,
+    "forbid_incremental_oracle": true,
+    "required_pta_fact_count": 0
+  },
+  "E_guard": {
+    "forbid_full_native_prepass": true,
+    "partial_oracle_can_only_add_may": true
+  },
+  "final_acceptance": {
+    "D": "All six registered finite query scopes closed_useful, without PTA/native; no unsupported/Top/truncated answer can satisfy the exact predicates.",
+    "E": "All six preserve every registered behavior and meet the same utility predicate; default balanced cannot regress these questions.",
+    "full_project": "At least one registered query is closed_useful with entire pinned runtime Python inventory and unchanged entry/input/model/query contracts.",
+    "global_open": "Reported separately; does not establish or refute local closure without dependency evidence.",
+    "W0": "Only preregistration completeness is assessed now; analyzer satisfaction belongs to N4-EVAL-03."
+  },
+  "comparability": "A/B/C not_comparable until actual entry, synthetic extra roots, input model and query projection are proven equal; never rank unlike scopes.",
+  "cost": "External process start through final serialized result; wall/CPU/RSS/work and nullable unavailable counters; failed rows retained.",
+  "secret_policy": "No environment values or remote LLM invocation. Source external allowlist is false until separate review."
+}

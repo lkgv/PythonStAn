@@ -1,0 +1,47 @@
+{
+  "query_id": "fastapi_recursive_merge:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "There is one nested dict recursion on options, which overwrites mode and retains keep without replacing that dict. List/list branch uses + and assigns a new list. Scalar port falls through to assignment. Missing new key assigns the original update value. Exact acyclic builtin dictionaries/lists and fixed keys eliminate user protocols and unbounded recursion.",
+  "expected": {
+    "return": null,
+    "exception": null,
+    "main_after": {
+      "options": {
+        "keep": 1,
+        "mode": "new"
+      },
+      "tags": [
+        "base",
+        "extra"
+      ],
+      "port": null,
+      "new": [
+        "fresh"
+      ]
+    },
+    "relations": {
+      "main.options_aliases_saved_options": true,
+      "main.tags_aliases_saved_tags": false,
+      "main.tags_aliases_update_tags": false,
+      "main.new_aliases_update_new": true
+    },
+    "unchanged": {
+      "saved_tags": [
+        "base"
+      ],
+      "update_tags": [
+        "extra"
+      ],
+      "update_options": {
+        "mode": "new"
+      }
+    }
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

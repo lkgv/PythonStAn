@@ -1,56 +1,157 @@
-"""One source for public defaults, validation and option documentation."""
+"""One typed source for public defaults, validation and option documentation."""
+
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, replace
-from importlib.resources import files
-import copy
 import json
+from dataclasses import dataclass, replace
+from importlib.resources import files
+from typing import TypedDict
+
+from pythonstan.analysis.contracts.json_data import (
+    FrozenJsonValue,
+    JsonObject,
+    JsonScalar,
+    JsonValue,
+    freeze_json,
+    require_array,
+    require_object,
+    require_string,
+    thaw_json,
+    validate_json_object,
+)
 
 ENGINES = ("native", "native_then_ai", "ai_primary", "hybrid")
 CONTEXT_POLICIES = (
-    "0-cfa", "1-cfa", "2-cfa", "3-cfa", "1-obj", "2-obj", "3-obj",
-    "1-type", "2-type", "3-type", "1-rcv", "2-rcv", "3-rcv",
-    "1-param", "2-param", "3-param", "1c1o", "1c2o", "2c1o",
+    "0-cfa",
+    "1-cfa",
+    "2-cfa",
+    "3-cfa",
+    "1-obj",
+    "2-obj",
+    "3-obj",
+    "1-type",
+    "2-type",
+    "3-type",
+    "1-rcv",
+    "2-rcv",
+    "3-rcv",
+    "1-param",
+    "2-param",
+    "3-param",
+    "1c1o",
+    "1c2o",
+    "2c1o",
 )
+
+
+class CatalogRecord(TypedDict):
+    path: str
+    kind: str
+    default: JsonValue
+    consumer: str
+    engines: tuple[str, ...]
+    minimum: int | float | None
+    choices: tuple[JsonScalar, ...]
+    configurable: bool
+    note: str
 
 
 @dataclass(frozen=True)
 class OptionDescriptor:
     path: str
     kind: str
-    default: object
+    default: FrozenJsonValue
     consumer: str
     engines: tuple[str, ...] = ENGINES
     minimum: int | float | None = None
-    choices: tuple = ()
+    choices: tuple[JsonScalar, ...] = ()
     configurable: bool = True
     note: str = ""
 
-    def to_dict(self):
-        return asdict(self)
+    def to_dict(self) -> CatalogRecord:
+        """Emit a detached record while preserving the public tuple fields."""
+        return {
+            "path": self.path,
+            "kind": self.kind,
+            "default": thaw_json(self.default),
+            "consumer": self.consumer,
+            "engines": self.engines,
+            "minimum": self.minimum,
+            "choices": self.choices,
+            "configurable": self.configurable,
+            "note": self.note,
+        }
 
 
-def _descriptor(path, default, consumer, **kw):
-    kind = "boolean" if type(default) is bool else (
-        "integer" if type(default) is int else "number" if type(default) is float
-        else "string" if type(default) is str else "array" if isinstance(default, list)
-        else "object" if isinstance(default, dict) else "nullable")
-    return OptionDescriptor(path, kind, default, consumer, **kw)
+def _descriptor(
+    path: str,
+    default: JsonValue,
+    consumer: str,
+    *,
+    engines: tuple[str, ...] = ENGINES,
+    minimum: int | float | None = None,
+    choices: tuple[JsonScalar, ...] = (),
+    configurable: bool = True,
+    note: str = "",
+) -> OptionDescriptor:
+    if isinstance(default, bool):
+        kind = "boolean"
+    elif isinstance(default, int):
+        kind = "integer"
+    elif isinstance(default, float):
+        kind = "number"
+    elif isinstance(default, str):
+        kind = "string"
+    elif isinstance(default, list):
+        kind = "array"
+    elif isinstance(default, dict):
+        kind = "object"
+    else:
+        kind = "nullable"
+    return OptionDescriptor(
+        path, kind, freeze_json(default), consumer, engines, minimum, choices, configurable, note
+    )
 
 
-def _build():
-    legacy = json.loads(files(__package__).joinpath("legacy_defaults.json").read_text())
-    result = []
-    common = {
+def _resource(name: str) -> JsonObject:
+    raw: object = json.loads(files("pythonstan.config").joinpath(name).read_text(encoding="utf-8"))
+    return validate_json_object(raw)
+
+
+def _text_field(row: JsonObject, name: str, default: str = "") -> str:
+    return require_string(row.get(name, default))
+
+
+def _rows(metadata: JsonObject, name: str) -> tuple[JsonObject, ...]:
+    return tuple(require_object(value) for value in require_array(metadata[name]))
+
+
+def _engines(row: JsonObject) -> tuple[str, ...]:
+    if "applies_to_engines" not in row:
+        return ("native", "native_then_ai")
+    return tuple(require_string(value) for value in require_array(row["applies_to_engines"]))
+
+
+def _common_options() -> list[OptionDescriptor]:
+    common: dict[str, tuple[JsonValue, str]] = {
         "schema_version": (1, "config.resolve.resolve_config"),
         "preset": ("balanced", "config.resolve.resolve_config"),
         "engine": ("hybrid", "session.AnalysisSession.execute"),
-        "semantic_profile": ("python-core-v1", "analysis.engines.abstract.driver.InterproceduralDriver"),
+        "semantic_profile": (
+            "python-core-v1",
+            "analysis.engines.abstract.driver.InterproceduralDriver",
+        ),
         "inputs.project_root": (None, "inputs.snapshot.snapshot_target"),
         "inputs.source_roots": ([], "inputs.snapshot.snapshot_target"),
-        "inputs.exclusions": ([".git", ".venv", "__pycache__", "build", "dist"], "inputs.snapshot.snapshot_target"),
+        "inputs.exclusions": (
+            [".git", ".venv", "__pycache__", "build", "dist"],
+            "inputs.snapshot.snapshot_target",
+        ),
         "inputs.entries": ([], "inputs.snapshot.snapshot_target"),
-        "inputs.bindings": ({}, "analysis.engines.abstract.driver.InterproceduralDriver.request_module"),
+        "inputs.bindings": (
+            {},
+            "analysis.engines.abstract.driver.InterproceduralDriver.request_module",
+        ),
         "resources.max_work": (100000, "analysis.engines.abstract.driver.InterproceduralDriver"),
         "resources.max_seconds": (30.0, "session.AnalysisSession.execute"),
         "resources.max_memory_mb": (1024, "compat.legacy_runner.run_legacy"),
@@ -75,119 +176,301 @@ def _build():
         "observation.enabled": (False, "session.AnalysisSession.execute"),
         "observation.max_events": (10000, "analysis.contracts.observation"),
     }
-    for path, (default, consumer) in common.items():
-        extra = {}
-        if path == "engine": extra["choices"] = ENGINES
-        if path == "schema_version": extra["choices"] = (1,)
-        if path == "preset": extra["choices"] = ("balanced", "precise", "fast")
-        if path == "semantic_profile": extra["choices"] = ("python-core-v1", "python-protocol-v1")
-        if path == "output.format": extra["choices"] = ("json", "text")
-        if path == "llm.provider": extra["choices"] = ("offline", "recorded", "adversarial")
-        if path.startswith("resources.") or path in {"output.max_items", "llm.checker_budget", "llm.max_proposals", "observation.max_events"}:
-            extra["minimum"] = 0
-        result.append(_descriptor(path, default, consumer, **extra))
-    fixed_native = {"max_points_to_size", "enable_instrumentation", "build_class_hierarchy",
-                    "use_mro_resolution", "max_import_depth", "library_paths", "type"}
-    for group, values in legacy.items():
-        for name, default in values.items():
-            if group == "abstract" and name in {"pta_analysis_name", "plan_scopes", "entry_scope", "type"}:
-                configurable = False
-            else:
-                configurable = not (group == "andersen" and name in fixed_native)
-            if group == "andersen" and name in {"enable_ai_intrinsics", "enable_synthetic_method_contexts"}:
-                default = False
-            consumer = ("analysis.pointer.kcfa.config.Config" if group == "andersen"
-                        else "analysis.pointer.ai.config.Config")
-            extra = {"configurable": configurable}
-            if type(default) is int and name.startswith("max_"):
-                extra["minimum"] = 0 if group == "abstract" and name in {"max_iterations", "max_stmt_visits"} else 1
-            if group == "abstract" and name == "narrowing_iterations": extra["minimum"] = 0
-            if name == "context_policy":
-                extra["choices"] = CONTEXT_POLICIES + (("inherit",) if group == "abstract" else ())
-            result.append(_descriptor(group + "." + name, default, consumer, **extra))
-    result += [
-        _descriptor("andersen.heap_context_policy", None, "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context"),
-        _descriptor("andersen.heap_context_depth", None, "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context"),
-        _descriptor("abstract.context_depth", 2, "analysis.engines.abstract.driver.InterproceduralDriver", minimum=0),
-        _descriptor("abstract.relations", True, "config.resolve.resolve_config", note="Alias of enable_value_partition; conflicting explicit values reject."),
-        _descriptor("abstract.refine_booleans", True, "analysis.engines.abstract.transfer.Transfer.refine_test", note="State cofactoring; protocol truth evaluation always executes."),
-        _descriptor("abstract.attribute_name_limit", 256, "analysis.engines.abstract.attributes.AttributeOperations.reflective", minimum=0, note="Reflective name enumeration window with covering residuals."),
-        _descriptor("abstract.int_domain_max_consts", 10, "analysis.domains.values.ValueOperations.__init__", minimum=1),
-        _descriptor("abstract.max_scalar_pairs", 256, "analysis.domains.values.ValueOperations.scalar_binary", minimum=1),
-        _descriptor("abstract.max_range_size", 1000, "analysis.engines.abstract.transfer.Transfer.builtin", minimum=1),
+    choices_by_path: dict[str, tuple[JsonScalar, ...]] = {
+        "engine": ENGINES,
+        "schema_version": (1,),
+        "preset": ("balanced", "precise", "fast"),
+        "semantic_profile": ("python-core-v1", "python-protocol-v1"),
+        "output.format": ("json", "text"),
+        "llm.provider": ("offline", "recorded", "adversarial"),
+    }
+    bounded = {
+        "output.max_items",
+        "llm.checker_budget",
+        "llm.max_proposals",
+        "observation.max_events",
+    }
+    return [
+        _descriptor(
+            path,
+            default,
+            consumer,
+            choices=choices_by_path.get(path, ()),
+            minimum=0 if path.startswith("resources.") or path in bounded else None,
+        )
+        for path, (default, consumer) in common.items()
     ]
-    metadata = json.loads(files(__package__).joinpath("control_metadata.json").read_text())
-    native = {row["path"]: row for row in metadata["native_options"] + metadata["native_heap_options"]}
-    abstract = {row["new_path"]: row for row in metadata["ai_budget_options"]}
-    abstract.update({row["path"]: row for row in metadata["legacy_ai_driver_options"]})
-    enriched = []
+
+
+def _legacy_options() -> list[OptionDescriptor]:
+    legacy = _resource("legacy_defaults.json")
+    fixed_native = {
+        "max_points_to_size",
+        "enable_instrumentation",
+        "build_class_hierarchy",
+        "use_mro_resolution",
+        "max_import_depth",
+        "library_paths",
+        "type",
+    }
+    fixed_abstract = {"pta_analysis_name", "plan_scopes", "entry_scope", "type"}
+    result: list[OptionDescriptor] = []
+    for group, value in legacy.items():
+        for name, raw_default in require_object(value).items():
+            default = raw_default
+            configurable = not (
+                group == "abstract"
+                and name in fixed_abstract
+                or group == "andersen"
+                and name in fixed_native
+            )
+            if group == "andersen" and name in {
+                "enable_ai_intrinsics",
+                "enable_synthetic_method_contexts",
+            }:
+                default = False
+            consumer = (
+                "analysis.pointer.kcfa.config.Config"
+                if group == "andersen"
+                else "analysis.pointer.ai.config.Config"
+            )
+            minimum: int | None = None
+            if type(default) is int and name.startswith("max_"):
+                minimum = (
+                    0
+                    if group == "abstract" and name in {"max_iterations", "max_stmt_visits"}
+                    else 1
+                )
+            if group == "abstract" and name == "narrowing_iterations":
+                minimum = 0
+            choices: tuple[JsonScalar, ...] = ()
+            if name == "context_policy":
+                choices = CONTEXT_POLICIES + (("inherit",) if group == "abstract" else ())
+            result.append(
+                _descriptor(
+                    f"{group}.{name}",
+                    default,
+                    consumer,
+                    configurable=configurable,
+                    minimum=minimum,
+                    choices=choices,
+                )
+            )
+    return result
+
+
+def _additional_options() -> tuple[OptionDescriptor, ...]:
+    return (
+        _descriptor(
+            "andersen.heap_context_policy",
+            None,
+            "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
+        ),
+        _descriptor(
+            "andersen.heap_context_depth",
+            None,
+            "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
+        ),
+        _descriptor(
+            "abstract.context_depth",
+            2,
+            "analysis.engines.abstract.driver.InterproceduralDriver",
+            minimum=0,
+        ),
+        _descriptor(
+            "abstract.relations",
+            True,
+            "config.resolve.resolve_config",
+            note="Alias of enable_value_partition; conflicting explicit values reject.",
+        ),
+        _descriptor(
+            "abstract.refine_booleans",
+            True,
+            "analysis.engines.abstract.transfer.Transfer.refine_test",
+            note="State cofactoring; protocol truth evaluation always executes.",
+        ),
+        _descriptor(
+            "abstract.attribute_name_limit",
+            256,
+            "analysis.engines.abstract.attributes.AttributeOperations.reflective",
+            minimum=0,
+            note="Reflective name enumeration window with covering residuals.",
+        ),
+        _descriptor(
+            "abstract.int_domain_max_consts",
+            10,
+            "analysis.domains.values.ValueOperations.__init__",
+            minimum=1,
+        ),
+        _descriptor(
+            "abstract.max_scalar_pairs",
+            256,
+            "analysis.domains.values.ValueOperations.scalar_binary",
+            minimum=1,
+        ),
+        _descriptor(
+            "abstract.max_range_size",
+            1000,
+            "analysis.engines.abstract.transfer.Transfer.builtin",
+            minimum=1,
+        ),
+    )
+
+
+def _enrich_native(option: OptionDescriptor, row: JsonObject) -> OptionDescriptor:
+    engines = _engines(row)
+    if option.path == "andersen.max_iterations":
+        engines += ("hybrid",)
+    consumer = _text_field(row, "actual_consumer", _text_field(row, "consumer", option.consumer))
+    return replace(
+        option,
+        engines=engines,
+        consumer=consumer,
+        note=_text_field(row, "meaning"),
+        configurable=False
+        if row.get("public_recommendation") == "reject_nondefault_or_explicit_entry_contract"
+        else option.configurable,
+    )
+
+
+def _enrich_abstract(option: OptionDescriptor, row: JsonObject) -> OptionDescriptor:
+    active = require_string(row["new_ai_status"]) in {"supported", "supported_subset"}
+    consumer = row.get("new_ai_consumer")
+    if consumer is not None:
+        consumer = require_string(consumer)
+    return replace(
+        option,
+        engines=("native_then_ai", "ai_primary", "hybrid") if active else (),
+        consumer=consumer or option.consumer,
+        note=_text_field(row, "new_ai_meaning", _text_field(row, "meaning")),
+    )
+
+
+def _build() -> tuple[OptionDescriptor, ...]:
+    result = [*_common_options(), *_legacy_options(), *_additional_options()]
+    metadata = _resource("control_metadata.json")
+    native = {
+        require_string(row["path"]): row
+        for row in (*_rows(metadata, "native_options"), *_rows(metadata, "native_heap_options"))
+    }
+    abstract = {
+        require_string(row["new_path"]): row for row in _rows(metadata, "ai_budget_options")
+    }
+    abstract.update(
+        {require_string(row["path"]): row for row in _rows(metadata, "legacy_ai_driver_options")}
+    )
+    enriched: list[OptionDescriptor] = []
     for option in result:
-        row = native.get(option.path)
-        if row:
-            engines = tuple(row.get("applies_to_engines", ("native", "native_then_ai")))
-            if option.path == "andersen.max_iterations": engines += ("hybrid",)
-            option = replace(option, engines=engines,
-                             consumer=row.get("actual_consumer", row.get("consumer", option.consumer)),
-                             note=row.get("meaning", ""))
-            if row.get("public_recommendation")=="reject_nondefault_or_explicit_entry_contract":
-                option=replace(option,configurable=False)
-        row = abstract.get(option.path)
-        if row:
-            active = row["new_ai_status"] in {"supported", "supported_subset"}
-            option = replace(option, engines=("native_then_ai", "ai_primary", "hybrid") if active else (),
-                             consumer=row.get("new_ai_consumer") or option.consumer,
-                             note=row.get("new_ai_meaning", row.get("meaning", "")))
-        if option.path.startswith("abstract.") and option.path not in abstract:
+        if option.path in native:
+            option = _enrich_native(option, native[option.path])
+        if option.path in abstract:
+            option = _enrich_abstract(option, abstract[option.path])
+        elif option.path.startswith("abstract."):
             option = replace(option, engines=("native_then_ai", "ai_primary", "hybrid"))
         if option.path == "resources.max_memory_mb":
-            option = replace(option, consumer="analysis.engines.abstract.driver.InterproceduralDriver.charge / compat.native_worker.main",
-                             note="Native child address-space hard cap; new driver sampled resident-memory bound. Zero disables the bound.")
+            option = replace(
+                option,
+                consumer="analysis.engines.abstract.driver.InterproceduralDriver.charge / compat.native_worker.main",
+                note="Native child address-space hard cap; new driver sampled resident-memory bound. Zero disables the bound.",
+            )
         enriched.append(option)
     return tuple(enriched)
 
 
-OPTIONS = _build()
-CATALOG = {option.path: option for option in OPTIONS}
+OPTIONS: tuple[OptionDescriptor, ...] = _build()
+CATALOG: dict[str, OptionDescriptor] = {option.path: option for option in OPTIONS}
 
 
-def default_config():
-    result = {}
+def _child_object(parent: JsonObject, key: str) -> JsonObject:
+    value = parent.setdefault(key, {})
+    return require_object(value)
+
+
+def default_config() -> JsonObject:
+    result: JsonObject = {}
     for option in OPTIONS:
         node = result
         parts = option.path.split(".")
         for part in parts[:-1]:
-            node = node.setdefault(part, {})
-        node[parts[-1]] = copy.deepcopy(option.default)
+            node = _child_object(node, part)
+        node[parts[-1]] = thaw_json(option.default)
     return result
 
 
-def catalog():
+def catalog() -> list[CatalogRecord]:
     return [option.to_dict() for option in OPTIONS]
 
 
-def json_schema():
-    result = {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "additionalProperties": False, "properties": {}}
+def _schema_value(option: OptionDescriptor) -> JsonObject:
+    value: JsonObject = {
+        "default": thaw_json(option.default),
+        "description": option.note or option.consumer,
+        "x-supported-engines": list(option.engines),
+        "x-configurable": option.configurable,
+    }
+    if option.kind != "nullable":
+        value["type"] = option.kind
+    elif option.path in {
+        "inputs.project_root",
+        "andersen.project_path",
+        "andersen.debug_output_dir",
+    }:
+        value["type"] = ["null", "string"]
+    elif option.path == "andersen.heap_context_depth":
+        value.update({"type": ["null", "integer"], "minimum": 0, "maximum": 3})
+    elif option.path == "andersen.heap_context_policy":
+        value.update({"type": ["null", "string"], "enum": [None, *CONTEXT_POLICIES]})
+    elif option.path in {
+        "andersen.entry_points",
+        "andersen.library_paths",
+        "abstract.plan_scopes",
+    }:
+        value["type"] = ["null", "array"]
+    if option.choices:
+        value["enum"] = list(option.choices)
+    if option.minimum is not None:
+        value["minimum"] = option.minimum
+    if not option.configurable:
+        value["const"] = thaw_json(option.default)
+    return value
+
+
+def _unsupported_condition(option: OptionDescriptor, unsupported: list[str]) -> JsonObject:
+    condition: JsonObject = {
+        "properties": {"engine": {"enum": list(unsupported)}},
+        "required": ["engine"],
+    }
+    if CATALOG["engine"].default in unsupported:
+        condition = {"anyOf": [condition, {"not": {"required": ["engine"]}}]}
+    leaf: JsonObject = {"const": thaw_json(option.default)}
+    for part in reversed(option.path.split(".")):
+        leaf = {"properties": {part: leaf}}
+    return {"if": condition, "then": leaf}
+
+
+def json_schema() -> JsonObject:
+    result: JsonObject = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {},
+    }
     for option in OPTIONS:
         node = result
         parts = option.path.split(".")
         for part in parts[:-1]:
-            node = node.setdefault("properties", {}).setdefault(part, {"type": "object", "additionalProperties": False, "properties": {}})
-        value = {"default": copy.deepcopy(option.default), "description": option.note or option.consumer, "x-supported-engines":list(option.engines), "x-configurable":option.configurable}
-        if option.kind != "nullable": value["type"] = option.kind
-        elif option.path in {"inputs.project_root","andersen.project_path","andersen.debug_output_dir"}: value["type"]=["null","string"]
-        elif option.path == "andersen.heap_context_depth": value["type"]=["null","integer"];value["minimum"]=0;value["maximum"]=3
-        elif option.path == "andersen.heap_context_policy": value["type"]=["null","string"];value["enum"]=[None,*CONTEXT_POLICIES]
-        elif option.path in {"andersen.entry_points","andersen.library_paths","abstract.plan_scopes"}: value["type"]=["null","array"]
-        if option.choices: value["enum"] = list(option.choices)
-        if option.minimum is not None: value["minimum"] = option.minimum
-        if not option.configurable: value["const"] = copy.deepcopy(option.default)
-        node.setdefault("properties", {})[parts[-1]] = value
+            properties = _child_object(node, "properties")
+            node = require_object(
+                properties.setdefault(
+                    part, {"type": "object", "additionalProperties": False, "properties": {}}
+                )
+            )
+        _child_object(node, "properties")[parts[-1]] = _schema_value(option)
+    constraints: list[JsonValue] = []
     for option in OPTIONS:
-        unsupported=[engine for engine in ENGINES if engine not in option.engines]
-        if not unsupported:continue
-        condition={"properties":{"engine":{"enum":unsupported}},"required":["engine"]}
-        if CATALOG["engine"].default in unsupported:condition={"anyOf":[condition,{"not":{"required":["engine"]}}]}
-        leaf={"const":copy.deepcopy(option.default)}
-        for part in reversed(option.path.split('.')):leaf={"properties":{part:leaf}}
-        result.setdefault('allOf',[]).append({"if":condition,"then":leaf})
+        unsupported = [engine for engine in ENGINES if engine not in option.engines]
+        if unsupported:
+            constraints.append(_unsupported_condition(option, unsupported))
+    if constraints:
+        result["allOf"] = constraints
     return result

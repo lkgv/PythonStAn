@@ -3,6 +3,9 @@
 Expected values follow builtin Python semantics, not analyzer output. Adapter
 mutation checks distinguish actual source bugs from checker/ownership gaps.
 """
+
+from pythonstan.analysis.contracts.identity import ObjectId, CellId
+from pythonstan.analysis.state.effects import CellWrite, HeapWrite, HeapDefaultWrite, MetadataUpdate, MetadataAspect
 from dataclasses import replace
 import pytest
 
@@ -80,7 +83,7 @@ def test_native_intermediate_solve_uses_a_budget_or_shared_accountant(monkeypatc
     assert value['constants'] == ['after'] and calls
 
 
-def test_roundtrip_validator_rejects_effect_and_initialization_loss():
+def test_roundtrip_validator_rejects_effect_and_initialization_loss() -> None:
     class MissingEffects(FullStateAdapter):
         def decode(self, boundary):
             flow = super().decode(boundary)
@@ -90,7 +93,7 @@ def test_roundtrip_validator_rejects_effect_and_initialization_loss():
             return flow
     flow = Flow(Store(cells={'value': Value.constant('after')},
                       initialized={'example': 'initializing'},
-                      writes={('cell', 'value', None)},
+                      writes={CellWrite(CellId('value'))},
                       events=(('cleanup', 'performed'),)))
     assert not MissingEffects().check_roundtrip(flow, ValueOperations())
 

@@ -1,0 +1,216 @@
+{
+  "task_id": "N4-API-01",
+  "status": "verified_checkpoint",
+  "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_files_sha256": {
+    "pythonstan/api.py": "8af28cffe5156158b2d3e740390a9aef6b68ce8c3100279a3468ab033fed4446",
+    "pythonstan/session.py": "a1e5dfad84bba998db8544ede3e51c4ab39e6a868af2fac870e9dab485114839",
+    "pythonstan/inputs/targets.py": "4c51af60e60d0f631a45360166fdd2afc559d4db872c2fdb1ff9c19317eade4c",
+    "pythonstan/inputs/snapshot.py": "172bf7c7e63df36ab4e91ec88e83c409a571a0cde6406a199d783e32a8a497ad",
+    "pythonstan/config/resolve.py": "2c48811a893ef397d9d11d012b6f494139d4892ac4ed8df64743ce3200c33071",
+    "pythonstan/config/catalog.py": "642fd1b5e854b0e48f314d25d6cd010bbeb5b9d8b85c70f12a905cec158aef8f",
+    "pythonstan/results/schema.py": "62c16a5e03e25af008396d47dcd9246c08d93b3b975061e350776f74351cc0a8",
+    "pythonstan/cli.py": "3372638d0ca19fa9739e19393adff3f0ad51d127fadf862ec1ba58e536961adc",
+    "pythonstan/llm/strategy.py": "e8555f0cdb8c2beba9b52adfd558b5e436168191e8859df3c03fba0385568973"
+  },
+  "production_mutations": true,
+  "current_red_findings": [
+    {
+      "id": "API-output-mapping",
+      "input": "analyze(Source(x=1),config={engine:ai_primary},output={views:[values]})",
+      "observed": "AttributeError dict has no attribute regions",
+      "root": "session.py retains original raw output via output or OutputSpec(...) after resolve_config already validated its wire equivalent"
+    },
+    {
+      "id": "API-output-unknown",
+      "input": "output={unexpected:True}",
+      "observed": "KeyError output.unexpected",
+      "root": "resolve_config indexes CATALOG for output field without rejecting keys through public error boundary"
+    },
+    {
+      "id": "API-query-extras",
+      "input": "queries=[{kind:value,module:snippet,symbol:x,unexpected:True}]",
+      "observed": "accepted",
+      "root": "normalize_query value/return branch drops extra fields"
+    },
+    {
+      "id": "API-query-missing",
+      "input": "queries=[{kind:value,module:snippet}]",
+      "observed": "ConfigurationError with symbol message",
+      "root": "Missing field currently becomes KeyError then outer generic mapping; explicit required fields and uniform message needed"
+    },
+    {
+      "id": "API-repeated-normalization",
+      "observed": "config resolver normalizes for validation, Session reconstructs dict queries, AnalysisResult normalizes again, query_key normalizes already normalized values",
+      "root": "No canonical QuerySpec execution representation"
+    },
+    {
+      "id": "API-constructor-work",
+      "observed": "Session constructor performs configuration, source reads/inventory, AST preparation and region plan",
+      "root": "Boundary resolution/preparation/execution lifecycle not separated"
+    }
+  ],
+  "interface": {
+    "canonical_request_module": "pythonstan/request.py",
+    "public_input_types": {
+      "Target": "Source | File | Project",
+      "ConfigInput": "ResolvedConfig | Mapping[str, object] | str | PathLike[str] | None",
+      "OutputInput": "OutputSpec | Mapping[str, object] | None",
+      "QueryInput": "QuerySpec | str | Mapping[str, object]",
+      "QuerySpec": "ValueQuery | PropertyQuery | ViewQuery"
+    },
+    "request_fields": {
+      "target": "Target",
+      "config": "ResolvedConfig",
+      "queries": "tuple[QuerySpec, ...]",
+      "output": "OutputSpec",
+      "started_at": "float monotonic, captured before boundary resolution"
+    },
+    "signatures": [
+      "resolve_request(target: Target, *, config: ConfigInput = None, overrides: Mapping[str, object] | None = None, queries: Sequence[QueryInput] | None = None, output: OutputInput = None) -> ResolvedRequest",
+      "AnalysisSession.__init__(self, request: ResolvedRequest) -> None",
+      "AnalysisSession.prepare(self) -> PreparedRun",
+      "AnalysisSession.execute(self) -> AnalysisResult",
+      "AnalysisSession.from_snapshot(request: ResolvedRequest, snapshot: SourceSnapshot) -> AnalysisSession",
+      "AnalysisResult.__init__(self, data: PublishedSnapshot, queries: tuple[QuerySpec, ...], output: OutputSpec) -> None",
+      "parse_query(raw: QueryInput) -> QuerySpec",
+      "parse_output(raw: OutputInput, *, defaults: OutputSpec) -> OutputSpec",
+      "query_to_wire(query: QuerySpec) -> QueryWire",
+      "OutputSpec.to_wire(self) -> OutputWire"
+    ],
+    "invariants": [
+      "Resolver accepts raw external representations; actual Session receives only a ResolvedRequest.",
+      "Session construction performs no inventory/read/parse/lower/plan/solver or network work.",
+      "Configuration discovery may read only configuration files in resolver, preserving Source no-cwd behavior and Project search boundary.",
+      "Configuration, queries and output have one canonical immutable typed owner and no writable aliases.",
+      "from_snapshot receives a resolved rerun request, retains exact frozen source bytes and creates fresh AST/state.",
+      "Results store typed canonical queries/output; only external query/to_dict/serialize adapters may parse new external input.",
+      "No target execution, object+getattr/cast adapters, Any, ignored imports or unused Protocol shells."
+    ],
+    "dependencies": {
+      "request": "imports inputs/config/results leaf contracts; never stored in low analysis.contracts to avoid upward dependencies",
+      "configuration_error": "single leaf pythonstan/config/errors.py, reexported from old public path",
+      "queries": "canonical pythonstan/results/queries.py, old normalize_query is a one-way compatibility wire adapter",
+      "output": "canonical pythonstan/results/output.py, schema.py reexports same class",
+      "resolved_config": "pythonstan/config/model.py record sections with actual typed fields; generated/explicit typed option codecs retain all catalogue options",
+      "prepared_run": "session-owned runtime record with SourceSnapshot/SourceProgram/plan and separate timing spans",
+      "engine_boundaries": "actual driver/native adapter public signatures and publication JSON/DTO codec must be typed with their owning agents; no pyi/opaque proxy to conceal implementation."
+    },
+    "public_exports": [
+      "ResolvedRequest",
+      "resolve_request",
+      "existing Source/File/Project/AnalysisConfig/OutputSpec/ValueQuery/PropertyQuery/analyze exports"
+    ],
+    "output_precedence": "raw output None uses configured effective output; explicit OutputSpec uses its full defaults/fields; explicit Mapping overlays OutputSpec builtin defaults so it is equivalent to constructing OutputSpec with that Mapping. Do not accidentally inherit unspecified configured fields only in Mapping form.",
+    "compatibility": "AnalysisSession remains public but constructor now requires resolve_request(...) result. Expose/document resolver rather than retaining a raw constructor branch. normalize_query may remain a thin external dict compatibility endpoint and is not used by Session/result internal typed paths."
+  },
+  "interface_digest": "7cbf8684a9c94d2cb57d1e7acbdf8aad13e82ac71f5f5117da4400c59563ad1b",
+  "implementation_sequence": [
+    {
+      "id": "API-01a",
+      "scope": [
+        "new results/queries.py",
+        "new results/output.py",
+        "new config/errors.py",
+        "new request boundary tests"
+      ],
+      "action": "Create fully checked canonical query/output records and strict codecs with exact allowed/required keys. Preserve return alias to ValueQuery(function_exit), property spelling and view selectors. Direct constructors validate runtime invariants. No unused candidate contracts: consumers migrate in same slice.",
+      "acceptance": "Mapping/DTO equivalence; unknown/missing/wrongly typed query/output fields ConfigurationError; empty explicit queries preserved; immutable tuples; no SDK import."
+    },
+    {
+      "id": "API-01b",
+      "scope": [
+        "config/model.py",
+        "config/resolve.py",
+        "config/catalog.py",
+        "inputs/targets.py",
+        "request.py"
+      ],
+      "action": "Preserve existing config discovery/preset/override/alias/relative-path semantics and all current options while emitting one ResolvedConfig with typed sections. Raw config path/Mapping/query/output validation lives at this boundary. Nominal target union and immutable fields; no getattr target duck typing.",
+      "acceptance": "Config precedence and inactive-control guards unchanged; zero new semantic-unit diagnostics; canonical output/queries embedded once and exactly reflected in config provenance/digest."
+    },
+    {
+      "id": "API-01c",
+      "scope": [
+        "session.py",
+        "api.py",
+        "inputs/snapshot.py",
+        "source/preparation boundary collaborators"
+      ],
+      "action": "Public analyze resolves request first; Session accepts only request and has no expensive constructor work. Move source validation/preparation/priority scenario ordering/plan construction to explicit prepare called by execute. Preserve budget start before config/source preparation, remaining work/deadline/publication reserve.",
+      "acceptance": "Constructor I/O/parse/solver sentinels; Source/File/Project matrix; no target imports; query priority maintained; partial pre-solve timeout honest; raw Mapping cannot typecheck as Session request."
+    },
+    {
+      "id": "API-01d",
+      "scope": [
+        "llm/strategy.py",
+        "session.from_snapshot",
+        "request.py"
+      ],
+      "action": "Migrate the one production from_snapshot caller. Build an explicitly resolved rerun request with unchanged typed queries/output and remaining shared budget, preserve frozen source inventory and fresh AST. L1 policy adoption semantics are separate N4-L1 work.",
+      "acceptance": "Existing L1 snapshot mutation/budget/failed reserve tests pass; no raw target/config args enter Session; disabled LLM imports remain disabled."
+    },
+    {
+      "id": "API-01e",
+      "scope": [
+        "results/schema.py",
+        "results query/publication codecs"
+      ],
+      "action": "Actual AnalysisResult constructor stores canonical QuerySpec and OutputSpec; remove internal re-normalization. Keep thin public result.query and output Mapping adapters for new external requests. Typed exported JSON codec is a real checked result boundary, not object/getattr/cast escape.",
+      "acceptance": "r1 unchanged after r2/close; queries and serialization read-only; source guarantees/unknown/unavailable/truncation/proof axes preserved; zero new diagnostics in changed semantic units."
+    },
+    {
+      "id": "API-01f",
+      "scope": [
+        "cli.py",
+        "API/config matrix tests"
+      ],
+      "action": "CLI target/config/output adapters feed same resolver and retain stdout/stderr/error exit behavior. Config show-effective and plan use resolved boundary/preparation instead of separate raw branches.",
+      "acceptance": "Memory/File/Project inputs×default/Mapping/DTO/config-file representative matrix; no API printing/writing; CLI owns destinations; strict type/import/package negative checks and independent reviewer before verified."
+    }
+  ],
+  "lease_request": {
+    "owner": "client_preregistration / W1 API implementer",
+    "paths": [
+      "pythonstan/api.py",
+      "pythonstan/session.py",
+      "pythonstan/request.py",
+      "pythonstan/config",
+      "pythonstan/results",
+      "pythonstan/inputs",
+      "pythonstan/cli.py",
+      "pythonstan/llm/strategy.py"
+    ],
+    "status": "granted_by_root_after_W0; source_write_lease_released_after_independent_review",
+    "coordination": "TYPE01 owns runtime state/effects and driver; request/header typing on real engine/source public boundaries needs coordinated owner changes, never simultaneous edits."
+  },
+  "boundaries_not_silently_claimed_complete": [
+    "N4-API-01 does not by itself implement N4-QUERY ledger/local closure.",
+    "Six prepared-state client entries are separate explicit finite entry/heap/callback support; current API arbitrary top entry binding cannot be relabeled equivalent.",
+    "No new query kind published without consumer; unsupported remains honest pending feature, but mandatory client EVAL03 still must be implemented.",
+    "Whole config/results/session strict frontier requires real engine/source/publication boundary typing. Do not mark verified if it relies on untyped calls/Any or protocols that merely hide the implementation.",
+    "L1 query-quality comparator, L2 observation preservation and strategy adoption fixes retain their own tasks."
+  ],
+  "reviewer_requested": "requirements_audit and root",
+  "dependency_status": {
+    "N4-QUAL-01": "verified_W0_checkpoint",
+    "N4-BOOT-02": "verified_W0_checkpoint"
+  },
+  "evidence_dir": "artifacts/next/evidence/N4-API-01",
+  "implementation_evidence": {
+    "source_digest": "a9561b21e0d97a32776781b3d183f4194feadc5a1b0d04195542b2389898f874",
+    "production_digest": "71c9119b7a480fd417ca599171a9b14eceabeb5ca6895ad8eb3e2de3ab8e0bfd",
+    "receipt_path": "artifacts/next/evidence/N4-API-01/final-validation-v4/receipt.json",
+    "independent_review": "docs/development/next/reviews/API-01-integration.md",
+    "reviewer": "requirements_audit",
+    "checked_source_files": 36,
+    "scoped_mypy_diagnostics": 0,
+    "mypy_global_exit": 1,
+    "imported_error_lines": 1782,
+    "imported_note_records": 1,
+    "api_matrix": "186 passed; independent repeat accepted; production unchanged during final test-only correction",
+    "clock_control": "Actual monotonic step-clock control, explicit prepare plus1000 idle; measured phases stay separate from deadline elapsed.",
+    "scope": "API-01 checkpoint only; TYPE-01 and later core/semantic/query/scale/live gates remain separate."
+  },
+  "implementation_sequence_status": "completed_and_independently_reviewed"
+}

@@ -1,0 +1,16 @@
+{
+  "status": "preregistered_not_executed",
+  "D_E_required_same": [
+    "source inventory",
+    "entry",
+    "input bound",
+    "model",
+    "profile",
+    "query",
+    "budget",
+    "output projection"
+  ],
+  "A_B_C_status": "not_comparable_until_entry_scope_review",
+  "non_reduction_rule": "A full-project row must verify exact frozen inventory, not just target slice. Finite receiver/global binding is a declared entry contract, not execution of module initialization.",
+  "limits": "Direct prepared-state entries are required from API/entry implementation. Current lack of an executor is tracked as pending implementation and cannot be replaced silently by module initialization."
+}

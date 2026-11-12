@@ -1,0 +1,396 @@
+{
+  "schema_version": 1,
+  "plan_version": "PythonStAn-next-v2",
+  "baseline": "b19d98e0cdca8fd23d49ec82a526f814309edf75",
+  "purpose": "Explicit acceptance specification, not an implementation of a gate runner or a claim that these gates passed.",
+  "task_start_rule": "Use task_board.dependencies only. Phase labels and gate membership never create implicit prerequisite edges.",
+  "evidence_rule": "verified requires current identity, acceptance evidence and non-author review; implementation_done is insufficient",
+  "invalidated_evidence_rule": "production or semantic configuration changes invalidate affected formal results; rebuild candidate and rerun necessary checks",
+  "separate_final_conclusions": {
+    "core_qualified": "G0-G6 satisfied; report G7 separately",
+    "scale_qualified": "G7 satisfied on the same candidate identity",
+    "live_evaluated": "stage-specific attempted/completed/verified status; no inference from core qualification",
+    "benefit_demonstrated": "supported by predeclared quality and total-cost comparison; false or inconclusive permitted",
+    "whole_plan_verified": "all mandatory gates plus all actually applicable live stage requirements verified; never inferred from a blocked stage"
+  },
+  "conditional_exceptions": {
+    "blocked_external": [
+      "missing runtime credential",
+      "model or service access",
+      "official rate unavailable",
+      "required input data not authorized or available"
+    ],
+    "stopped_by_budget": "predeclared resource cap or unresolved charge stops further paid calls; does not become an external permission failure",
+    "not_run_by_stop_rule": "predeclared no-benefit research continuation predicate false; keep negative results",
+    "not_exempt": [
+      "internal checker error",
+      "semantic underapproximation",
+      "type or architecture gate failure",
+      "mandatory customer query failure"
+    ],
+    "live_discovered_core_failure": "revokes affected core gates and requires repair; conditional live status cannot excuse it"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "title": "基线、独立判据、工具和客户问题预注册",
+      "status": "passed",
+      "contributing_tasks": [
+        "N4-BOOT-01",
+        "N4-BOOT-02",
+        "N4-QUAL-01",
+        "N4-EVAL-01"
+      ],
+      "required_verified_tasks": [
+        "N4-BOOT-01",
+        "N4-BOOT-02",
+        "N4-QUAL-01",
+        "N4-EVAL-01"
+      ],
+      "acceptance_predicates": [
+        "actual_source_identity_and_dirty_state_recorded",
+        "original_46_and_prior_22_and_findings_mapped",
+        "independent_mandatory_oracles_and_existing_positive_controls_frozen",
+        "quality_tool_configuration_and_negative_guards_execute",
+        "customer_queries_golds_scopes_and_resource_limits_preregistered",
+        "does_not_require_final_solver_success_at_preregistration"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true,
+      "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+      "review_records": [
+        "docs/development/next/reviews/BOOT-01.md",
+        "docs/development/next/reviews/BOOT-02-semantic.md",
+        "docs/development/next/reviews/BOOT-02-domain-native.md",
+        "docs/development/next/reviews/QUAL-01.md",
+        "docs/development/next/reviews/EVAL-01.md"
+      ],
+      "scope": "Baseline/independent registration/tooling/client preregistration only; production repair gates remain unqualified."
+    },
+    {
+      "id": "G1",
+      "title": "真实类型合同和公共入口",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-TYPE-01",
+        "N4-API-01"
+      ],
+      "required_verified_tasks": [
+        "N4-TYPE-01",
+        "N4-API-01"
+      ],
+      "acceptance_predicates": [
+        "typed_contracts_consumed_by_a_real_call_effect_exit_query_path",
+        "source_file_project_inputs_and_mapping_config_normalized_once",
+        "defaults_and_custom_outputs_work_without_network_or_llm"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G2",
+      "title": "已知语义、域、状态、Native和导出缺陷闭合",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-BOOT-02",
+        "N4-TYPE-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-DOM-01",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-RESULT-01"
+      ],
+      "required_verified_tasks": [
+        "N4-BOOT-02",
+        "N4-TYPE-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-DOM-01",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-RESULT-01"
+      ],
+      "acceptance_predicates": [
+        "all_mandatory_audit_families_and_independent_variants_pass",
+        "normal_exception_effect_prefix_identity_coverage_preserved",
+        "no_profile_shrink_global_top_or_resource_inflation_substitution",
+        "state_graph_epoch_and_wire_residual_invariants_hold"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G3",
+      "title": "AI-primary、不动点与真实程序点增量",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03"
+      ],
+      "required_verified_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03"
+      ],
+      "acceptance_predicates": [
+        "pure_ai_mode_d_discovers_calls_and_outcomes_with_native_disabled",
+        "stateful_recursion_and_loop_widen_narrow_obligations_met",
+        "one_real_program_point_incremental_path_and_correct_invalidation",
+        "one_fair_same_quality_cost_improvement_with_dimension_recorded"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G4",
+      "title": "控制面、Native与Partial oracle协作",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-PTA-03",
+        "N4-CTRL-01",
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-BUDGET-01"
+      ],
+      "required_verified_tasks": [
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-PTA-03",
+        "N4-CTRL-01",
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-BUDGET-01"
+      ],
+      "acceptance_predicates": [
+        "every_accepted_control_has_scope_consumer_and_behavior_evidence",
+        "native_order_heap_join_late_replay_and_finite_context_guards_pass",
+        "on_demand_callable_profile_compiles_argument_parameter_return_constraints",
+        "partial_oracle_cannot_exclude_ai_discovered_behavior",
+        "all_conversion_and_oracle_costs_charged"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G5",
+      "title": "查询账本、L1/L2和离线可信边界",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-BUDGET-01",
+        "N4-AUDIT-01"
+      ],
+      "required_verified_tasks": [
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-BUDGET-01",
+        "N4-AUDIT-01"
+      ],
+      "acceptance_predicates": [
+        "source_observation_plan_and_revisioned_query_ledger_preserve_call_exit_facts",
+        "candidate_validity_local_input_coverage_and_whole_callsite_coverage_separate",
+        "finite_semantic_allocation_keys_and_atomic_semantic_publication",
+        "l1_target_query_quality_cost_adoption_with_baseline_preserved",
+        "local_parser_checker_transport_secret_and_budget_negative_controls_pass",
+        "non_author_review_of_actual_tcb_and_held_out_variants"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G6",
+      "title": "严格核心、架构与唯一可安装候选",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-QUAL-01",
+        "N4-ARCH-01",
+        "N4-TYPE-02",
+        "N4-OBS-01",
+        "N4-REL-01"
+      ],
+      "required_verified_tasks": [
+        "N4-QUAL-01",
+        "N4-ARCH-01",
+        "N4-TYPE-02",
+        "N4-OBS-01",
+        "N4-REL-01"
+      ],
+      "acceptance_predicates": [
+        "actual_core_typed_frontier_zero_diagnostics_and_no_any_escape",
+        "legacy_native_debt_precisely_listed_and_monotone",
+        "architecture_contracts_and_observer_noninterference_hold",
+        "wheel_members_hashes_metadata_py_typed_and_checkout_external_consumers_match",
+        "one_frozen_candidate_identity_for_formal_experiments"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G7",
+      "title": "真实客户问题与完整成本评估",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-AI-03",
+        "N4-BUDGET-01",
+        "N4-EVAL-01",
+        "N4-PERF-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "required_verified_tasks": [
+        "N4-AI-03",
+        "N4-BUDGET-01",
+        "N4-EVAL-01",
+        "N4-PERF-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "acceptance_predicates": [
+        "all_original_18_by_5_rows_and_failure_denominators_present",
+        "six_preregistered_nonliteral_queries_from_three_projects_including_invoke_and_framework",
+        "six_queries_closed_useful_in_declared_d_scopes_with_native_disabled",
+        "default_e_preserves_coverage_and_mandatory_query_usefulness",
+        "at_least_one_mandatory_query_closed_useful_on_unreduced_project_inventory_same_entry_input_query_model",
+        "all_micro_slice_project_scope_mappings_and_global_open_statuses_reported",
+        "fixed_10_or_preregistered_20_independent_paired_repetitions_complete",
+        "quality_and_total_wall_cpu_memory_work_and_offline_costs_separated",
+        "point_proof_and_materialized_answers_and_global_solver_status_separate",
+        "one_fair_hotspot_improvement_may_share_evidence_with_ai03"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    },
+    {
+      "id": "G8",
+      "title": "有条件分阶段真实LLM研究",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-AUDIT-01",
+        "N4-LIVE-01",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "required_verified_tasks": [],
+      "acceptance_predicates": [
+        "each_live_stage_has_an_explicit_status_denominator_cost_and_stop_reason",
+        "no_live_generation_before_audit_candidate_wheel_and_external_preconditions",
+        "live3_entry_predicate_frozen_before_live2_results",
+        "live_generations_and_replays_not_conflated",
+        "benefit_false_is_an_allowed_experiment_conclusion",
+        "unexecuted_stage_is_never_marked_verified"
+      ],
+      "required_gates": [],
+      "conditional_gates": [],
+      "gate_membership_does_not_add_task_start_dependencies": true,
+      "execution_policy": "conditional_stages_not_a_single_pass_bit",
+      "stages": [
+        {
+          "task": "N4-LIVE-01",
+          "entry": "task DAG dependencies verified; runtime key, model access, official rate and data authorization verified",
+          "maximum_generations": 2,
+          "max_input_tokens": 16000,
+          "max_output_tokens": 4096,
+          "max_usd": 0.25,
+          "max_wall_seconds": 120
+        },
+        {
+          "task": "N4-LIVE-02",
+          "entry": "LIVE-01 protocol and safety validated; EVAL-03 complete; held-out cases and arms frozen",
+          "maximum_generations": 24,
+          "max_input_tokens": 192000,
+          "max_output_tokens": 98304,
+          "max_usd": 2.25,
+          "max_wall_seconds": 1200
+        },
+        {
+          "task": "N4-LIVE-03",
+          "entry": "LIVE3-ENTRY-v1: preceding safety/protocol/cost gates pass, >=1 checked-and-applied live candidate, >=1 strict target-query improvement OR equal quality with lower deterministic runtime work; not a net-benefit claim",
+          "maximum_generations": 18,
+          "max_input_tokens": 144000,
+          "max_output_tokens": 73728,
+          "max_usd": 2.5,
+          "max_wall_seconds": 1200
+        }
+      ],
+      "shared_global_caps": {
+        "maximum_generations": 44,
+        "max_input_tokens": 352000,
+        "max_output_tokens": 176128,
+        "max_usd": 5,
+        "max_wall_seconds": 2520,
+        "max_auxiliary_requests": 50,
+        "concurrency": 1,
+        "sdk_retries": 0,
+        "manual_retries": 0,
+        "transport_timeout_seconds": 30,
+        "reasoning_effort": "omitted_provider_default_recorded",
+        "unknown_charge": "retain_reservation_and_stop_subsequent_paid_calls_in_this_live_run"
+      }
+    },
+    {
+      "id": "G9",
+      "title": "最终独立验收与准确交付",
+      "status": "planned_not_evaluated",
+      "contributing_tasks": [
+        "N4-DOC-01",
+        "N4-REL-02"
+      ],
+      "required_verified_tasks": [
+        "N4-DOC-01",
+        "N4-REL-02"
+      ],
+      "acceptance_predicates": [
+        "mandatory_gates_g0_through_g7_satisfied_for_full_planned_core_and_scale_acceptance",
+        "current_source_wheel_configs_and_evidence_share_identity",
+        "original_46_acceptances_requalified_individually",
+        "live_status_reported_separately_with_no_false_pass",
+        "final_report_and_remaining_debt_are_reproducible_and_non_sensitive"
+      ],
+      "required_gates": [
+        "G0",
+        "G1",
+        "G2",
+        "G3",
+        "G4",
+        "G5",
+        "G6",
+        "G7"
+      ],
+      "conditional_gates": [
+        "G8"
+      ],
+      "gate_membership_does_not_add_task_start_dependencies": true
+    }
+  ]
+}

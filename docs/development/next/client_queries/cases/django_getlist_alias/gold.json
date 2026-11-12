@@ -1,0 +1,67 @@
+{
+  "query_id": "django_getlist_alias:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "getlist calls _getlist with force_list=True. A present list is copied via builtin list before return; an absent key returns the provided non-None default directly, bypassing the force_list branch. Missing None default allocates []. The append therefore changes storage in none of these cases but changes explicit default in precisely its case.",
+  "expected": {
+    "rows": [
+      {
+        "scenario": "present",
+        "result_before": [
+          "a",
+          "b"
+        ],
+        "result_after": [
+          "a",
+          "b",
+          "c"
+        ],
+        "storage_after": [
+          "a",
+          "b"
+        ],
+        "must_alias_storage": false,
+        "fresh_result": true,
+        "exception": null
+      },
+      {
+        "scenario": "missing_with_default",
+        "result_before": [
+          "fallback"
+        ],
+        "result_after": [
+          "fallback",
+          "c"
+        ],
+        "default_after": [
+          "fallback",
+          "c"
+        ],
+        "must_alias_default": true,
+        "fresh_result": false,
+        "exception": null
+      },
+      {
+        "scenario": "missing_without_default",
+        "result_before": [],
+        "result_after": [
+          "c"
+        ],
+        "storage_after": {
+          "tags": [
+            "a",
+            "b"
+          ]
+        },
+        "fresh_result": true,
+        "exception": null
+      }
+    ]
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

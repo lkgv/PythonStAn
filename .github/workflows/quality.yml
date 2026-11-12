@@ -1,0 +1,36 @@
+name: Quality and refactor guards
+
+on:
+  push:
+    branches: [dev-cocktail-analysis]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the locked development tools
+        run: |
+          python -m pip install poetry==2.2.0
+          poetry install --with dev --no-root --no-interaction
+          poetry check --lock
+      - name: Check the complete production tree and guard controls
+        env:
+          QUALITY_COMPARISON_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -n "$QUALITY_COMPARISON_REF" && "$QUALITY_COMPARISON_REF" != "0000000000000000000000000000000000000000" ]]; then
+            poetry run python scripts/check_quality.py --comparison-ref "$QUALITY_COMPARISON_REF"
+          else
+            poetry run python scripts/check_quality.py
+          fi
+      - name: Verify diagnostic identity and negative controls
+        run: poetry run python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/regression/audit3/test_quality*.py

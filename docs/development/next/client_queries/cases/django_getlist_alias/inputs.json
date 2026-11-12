@@ -1,0 +1,78 @@
+{
+  "receiver_kind": "exact django.utils.datastructures.MultiValueDict",
+  "storage": {
+    "tags": [
+      "a",
+      "b"
+    ]
+  },
+  "scenarios": [
+    "present",
+    "missing_with_default",
+    "missing_without_default"
+  ],
+  "explicit_default": [
+    "fallback"
+  ],
+  "post_operation": "append c to result",
+  "forbid_user_subclasses": true,
+  "prepared_graph_template": {
+    "receiver": {
+      "id": "request_values",
+      "source_class": "django.utils.datastructures.MultiValueDict",
+      "builtin_dict_storage": {
+        "tags": "ref:stored_tags"
+      }
+    },
+    "stored_tags": {
+      "id": "stored_tags",
+      "builtin_kind": "list",
+      "elements": [
+        "a",
+        "b"
+      ]
+    },
+    "default": {
+      "id": "default",
+      "builtin_kind": "list",
+      "elements": [
+        "fallback"
+      ]
+    }
+  },
+  "exact_calls": [
+    {
+      "scenario": "present",
+      "callee": "MultiValueDict.getlist",
+      "positional": [
+        "ref:request_values",
+        "tags"
+      ],
+      "keyword": {},
+      "post": "result.append(c)"
+    },
+    {
+      "scenario": "missing_with_default",
+      "callee": "MultiValueDict.getlist",
+      "positional": [
+        "ref:request_values",
+        "absent",
+        "ref:default"
+      ],
+      "keyword": {},
+      "post": "result.append(c)"
+    },
+    {
+      "scenario": "missing_without_default",
+      "callee": "MultiValueDict.getlist",
+      "positional": [
+        "ref:request_values",
+        "absent"
+      ],
+      "keyword": {},
+      "post": "result.append(c)"
+    }
+  ],
+  "scenario_reset": "Fresh receiver/stored_tags/default graph per scenario; ref labels refer only to that scenario. Post append uses exact str c.",
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

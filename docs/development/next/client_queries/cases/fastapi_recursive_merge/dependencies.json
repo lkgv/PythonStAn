@@ -1,0 +1,28 @@
+{
+  "complete_for_declared_entry": true,
+  "symbols": [
+    "deep_dict_update recursive source",
+    "dict.items",
+    "dict membership/getitem/setitem",
+    "list addition"
+  ],
+  "source_fragments": [
+    {
+      "original_path": "fastapi/utils.py",
+      "qualname": "deep_dict_update",
+      "start_line": 103,
+      "end_line": 118,
+      "original_file_sha256": "0d7d15ae73307d5b19c51cfc222b50e36736fbef9f0f398566479131947650ca",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/fastapi_recursive_merge/source/fastapi_utils.py__deep_dict_update.txt",
+      "exact_fragment_sha256": "615949d755de58e708a3c590b8b76908571ae067a44488e3ea16dbeb7ad567ad",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "external_models": [
+    "exact builtin dict/list operations and isinstance",
+    "finite recursion on the sole nested options dictionary",
+    "no dynamic aliases beyond declared initial graph"
+  ],
+  "omitted_modules": "Remain in full project inventory; not producers for the sealed finite prepared-state input. This dependency claim must be independently revalidated before solver closure is accepted."
+}

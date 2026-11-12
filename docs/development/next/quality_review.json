@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "task_id": "N4-QUAL-01",
+  "reviewer": "/root/quality_tools/quality_negatives",
+  "implementation_author": "/root/quality_tools",
+  "source_baseline": {
+    "commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+    "tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6"
+  },
+  "reviewed_scope": [
+    "scripts/quality/debt.py",
+    "scripts/quality/policy.py",
+    "scripts/quality/tools.py",
+    "scripts/quality/cli.py",
+    "scripts/quality/capture_baseline.py",
+    "scripts/check_quality.py",
+    "pyproject.toml"
+  ],
+  "method": "Independent source inspection plus controlled temporary-git/config/AST mutants. Production source was not modified by the reviewer.",
+  "findings": [
+    {
+      "id": "QR-01",
+      "severity": "high",
+      "trigger": "Replace existing baseline unit_digests or append duplicate diagnostic entries without changing source_commit.",
+      "before": "Set-only policy comparison accepted changed baseline metadata/counts.",
+      "repair": "Reviewed baseline object is immutable against a validated comparison commit.",
+      "test": "test_reviewed_baseline_cannot_replace_units_or_increase_count",
+      "status": "repaired_and_retested"
+    },
+    {
+      "id": "QR-02",
+      "severity": "high",
+      "trigger": "Add production-only mypy override disallow_untyped_defs=false/check_untyped_defs=false.",
+      "before": "Global strict=true and toy negatives did not reject production-specific weakening.",
+      "repair": "Overrides only admit the reviewed expression-Any restriction; global strict weakening is rejected.",
+      "test": "test_production_only_type_waiver_is_rejected",
+      "status": "repaired_and_retested"
+    },
+    {
+      "id": "QR-03",
+      "severity": "medium",
+      "trigger": "Pass a nonexistent comparison git ref.",
+      "before": "git-show failure was treated as an initial baseline addition.",
+      "repair": "Comparison ref must resolve to an available commit before path lookup.",
+      "test": "test_invalid_comparison_ref_cannot_be_treated_as_initial_addition",
+      "status": "repaired_and_retested"
+    },
+    {
+      "id": "QR-04",
+      "severity": "high",
+      "trigger": "Add Ruff extend-ignore=[ANN].",
+      "before": "Only ignore/per-file-ignores were checked.",
+      "repair": "Additive ignores and forced exclusions are also rejected.",
+      "test": "test_additive_ruff_ignore_is_rejected",
+      "status": "repaired_and_retested"
+    },
+    {
+      "id": "QR-05",
+      "severity": "high",
+      "trigger": "Change an earlier duplicate-qualified function while retaining a later function with the same name.",
+      "before": "Last-write-wins unit hashing concealed the earlier semantic change and reused signature debt.",
+      "repair": "Unit digest aggregates every ordered definition sharing a qualname.",
+      "test": "test_duplicate_qualname_cannot_conceal_first_definition_edit",
+      "status": "repaired_and_retested"
+    },
+    {
+      "id": "QR-06",
+      "severity": "high",
+      "trigger": "Replace both import-contract source scopes by pythonstan.frontend while preserving names/counts.",
+      "before": "Configured contract count=2 and actual lint-imports reported 2 kept,0 broken while intended core/checker scopes were unprotected.",
+      "repair": "Required contract kinds/source/forbidden sets and root scan settings are checked; additional protections may expand them.",
+      "test": "test_import_contract_count_cannot_replace_protected_scope",
+      "status": "repaired_and_retested"
+    }
+  ],
+  "validation": {
+    "red": "artifacts/next/evidence/N4-QUAL-01/review_mutants.red.txt",
+    "green": "artifacts/next/evidence/N4-QUAL-01/review_mutants.green.txt",
+    "command": "python -m pytest -q --import-mode=importlib tests/regression/audit3/test_quality_policy.py",
+    "result": "6 passed",
+    "reviewer_tests_quality": "Ruff lint and format passed; strict mypy passed for scripts/quality and quality regression tests (10 files).",
+    "negative_tool_controls": "14 controls passed; 2 integration tests passed. This suite was authored by this reviewer and still needs a separate final integrator review."
+  },
+  "decision": "reviewed_implementation_with_scope_limits",
+  "limitations": [
+    "This review does not mark the parent task or G0 verified; dependencies and the final integrated whole-tree check remain the integrator responsibility.",
+    "The initial strict frontier has 13 marker/package modules. It does not establish runtime ID/Flow/Effect/ResolvedRequest adoption or the final strict core required by N4-TYPE-01/02.",
+    "Whole-tree mypy and Ruff retain explicitly recorded legacy debt. Tool exit/debt accounting is distinct from whole-tree cleanliness.",
+    "Toy type/import/archive mutants establish tool effectiveness, not production semantic soundness, certificate unforgeability, or production-wheel qualification.",
+    "Baseline migrations are deliberately rejected by the check command; any future logical-module migration needs a separate reviewed migration procedure."
+  ],
+  "final_fixture_revision_review": {
+    "author": "/root/quality_tools",
+    "reviewer": "/root/quality_tools/quality_negatives",
+    "revision": "CheckedSummary requires (_CheckerSeal, int). The positive fixture supplies the seal through check_summary(2); the negative supplies Candidate(3) in the seal position with the same constructor arity.",
+    "assessment": "The negative now tests nominal candidate-versus-checker-seal identity rather than missing-argument arity. Actual mypy emits arg-type for Candidate where _CheckerSeal is required. Python privacy still does not establish unforgeability, and this fixture does not imply production checker adoption.",
+    "python_environment": "Poetry pythonstan-1E3QVav1-py3.12",
+    "guard_suite": "14/14 passed",
+    "evidence": "artifacts/next/evidence/N4-QUAL-01/final-seal-type-guards/report.json"
+  }
+}

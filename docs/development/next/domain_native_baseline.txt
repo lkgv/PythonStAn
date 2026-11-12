@@ -1,0 +1,74 @@
+N4-BOOT-01/02 domain, identity, and Native baseline
+
+Source: e8d9e0d3d7cdf540622537f5af0490522edde91c
+Tree: 13a79f550daf75445f9529e5d5a89d70adabb1c6
+Profile: CPython 3.12; python-core-v1; AI-primary unless an explicit Native block is selected.
+Owner: domain_native_baseline. Independent review: pending.
+
+All five R3-DOM findings and all three NCOMP findings are still_present. The
+newer source commit changes the public control metadata mirror; these eight
+behaviors match the older audit. Original inputs were preserved read-only.
+Path-only adaptations and their exact commands, outputs, exit codes, and source
+identity live in artifacts/next/evidence/N4-BOOT-02/domain_native. An exit0 from
+an observational probe means the probe completed, not that its contract passed.
+
+R3-DOM-01: max_scalar_pairs=1 loses integer3 and the cross-sort TypeError; cap8
+returns3 and ab. The held-out integer4/string x/y component also fails.
+R3-DOM-02: finite float0.0 is ignored beside a string or positive integer interval;
+the false branch disappears. Cap8 remains a successful public control.
+R3-DOM-03: internal a* union z retains z, but the wire answer omits z. Independent
+prefix*/outside variant also fails; unrestricted finite export is a control.
+R3-DOM-04: selecting one of two generators under address cap1/trace cap1 raises a
+host KeyError. Both yielded1 and held-out yielded7 fail; address cap2 succeeds.
+R3-DOM-05: a seeded cyclic Store graph with owner collision raises AttributeError;
+Store.join separately breaks the embedded root alias. Acyclic collision and
+noncolliding cyclic remap succeed. Original host failure still leaves the epoch,
+aliases, and unit roots unpublished. This remains component/host evidence, not
+a claim of a source-generated occurrence of that exact graph.
+NCOMP-01: Native unpack keeps result0 after a later target fails instead of
+preserving completed write1. Heap, cell, and nested held-out targets fail; pure
+AI and successful Native assignment controls pass.
+NCOMP-02: a repeated Native dictionary allocation loses present through the old
+saved alias. Original range2 and held-out range3 both fail; pure AI, fixed-key,
+list/tuple, and single-allocation controls cover the result.
+NCOMP-03: regional relations=False differs from its canonical spelling; regional
+context_depth=0 does not merge the call units. A new real correlation witness
+also demonstrates nested max_traces_per_block=1 has no regional effect: global
+cap1 returns A/B/X, while the regional option retains A/X. This extends the old
+cached-driver-field observation to an actual result consumer.
+
+Frozen acceptance
+
+docs/development/next/domain_native_manifest.json contains stable finding IDs,
+exact 36-node mandatory denominator, per-file SHA256, independent expected
+invariants, API/component evidence levels, resource profiles, and limitations.
+tests/regression/audit3/domain_native_acceptance.py embeds the manifest digest,
+checks fixture hashes and exact test collection, then propagates pytest failure
+and rejects any skipped test. It never treats the baseline red results as gold.
+
+Commands (run with the project's test interpreter):
+python tests/regression/audit3/domain_native_acceptance.py --verify-freeze-only
+  exit0: exact frozen denominator and hashes verified; execution_qualified=false.
+python tests/regression/audit3/domain_native_acceptance.py
+  exit1: 36 executed,20 failed,16 passed,0 errors,0 skipped at this baseline.
+python -m pytest --import-mode=importlib -p no:cacheprovider -q
+  tests/regression/audit3/test_domain_registration_guard.py
+  exit0: four real downgrade mutations rejected: delete cases, mark unsupported,
+  inject a module skip, replace the result with Top.
+
+The new finite independent string gamma checks cover25 join/widen pairs and pass.
+Original finite scalar gamma checks cover2554 pairs and pass; original SlotMap
+checks cover324 pairs and pass. These are finite regression evidence only.
+
+Typing and scope
+
+All added functions and test helpers have complete parameter/return annotations;
+all new files pass Ruff lint/format. The acceptance runner and registration guard
+pass mypy strict. The direct SUT tests remain non-clean under strict mypy because
+they produce29 diagnostics at calls to legacy untyped production APIs; exact diagnostics are preserved,
+without ignores/casts or fake protocol wrappers. N4-TYPE-01 owns those production
+boundaries. No production semantics, old expected results, or audit inputs were
+modified. No LLM, benchmark tuning, commits, or pushes were performed by this role.
+
+W0 registration can be reviewed independently from the deliberately failing G2
+semantic acceptance. None of the eight repair cards can close on this evidence.

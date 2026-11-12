@@ -1,0 +1,13 @@
+    def __getitem__(self, key):
+        """
+        Return the last data value for this key, or [] if it's an empty list;
+        raise KeyError if not found.
+        """
+        try:
+            list_ = super().__getitem__(key)
+        except KeyError:
+            raise MultiValueDictKeyError(key)
+        try:
+            return list_[-1]
+        except IndexError:
+            return []

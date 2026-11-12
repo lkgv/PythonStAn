@@ -1,0 +1,11 @@
+{
+  "kind": "prepared_state_entry",
+  "module": "fastapi.utils",
+  "qualname": "deep_dict_update",
+  "inputs": "docs/development/next/client_queries/cases/fastapi_recursive_merge/inputs.json",
+  "models": "docs/development/next/client_queries/cases/fastapi_recursive_merge/models.json",
+  "source_map": "docs/development/next/client_queries/cases/fastapi_recursive_merge/source_map.json",
+  "require_original_definitions": true,
+  "no_dynamic_target_execution": "No import/exec of target is used by the analyzer or freeze process. Optional isolated CPython witness is separate evidence only.",
+  "executor_status": "pending_API_entry_implementation"
+}

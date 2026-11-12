@@ -37,9 +37,24 @@ class EngineSnapshot(Mapping[str, object]):
     _data: Mapping[str, object] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        names = ("engine", "solver_status", "coverage_status", "profile", "schema_version",
-                 "phase_trace", "values", "module_exits", "returns", "outcomes", "calls", "effects", "obligations",
-                 "diagnostics", "stats", "provenance")
+        names = (
+            "engine",
+            "solver_status",
+            "coverage_status",
+            "profile",
+            "schema_version",
+            "phase_trace",
+            "values",
+            "module_exits",
+            "returns",
+            "outcomes",
+            "calls",
+            "effects",
+            "obligations",
+            "diagnostics",
+            "stats",
+            "provenance",
+        )
         data = freeze_snapshot({name: getattr(self, name) for name in names})
         object.__setattr__(self, "_data", data)
         for name in names:
@@ -59,7 +74,12 @@ class EngineSnapshot(Mapping[str, object]):
 
 
 class Engine(Protocol):
-    def analyze(self, modules: Sequence[SourceModule], scenarios: Sequence[EntryScenario],
-                config: Mapping[str, object], queries: Sequence[object] = ()) -> EngineSnapshot:
+    def analyze(
+        self,
+        modules: Sequence[SourceModule],
+        scenarios: Sequence[EntryScenario],
+        config: Mapping[str, object],
+        queries: Sequence[object] = (),
+    ) -> EngineSnapshot:
         """Solve source/entry equations then freeze a self-contained result."""
         ...

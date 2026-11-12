@@ -1,0 +1,1729 @@
+{
+  "schema_version": 1,
+  "task": "N4-BOOT-02",
+  "source_baseline": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "profile": "python-core-v1/python-protocol-v1; CPython3.12 concrete order observations",
+  "oracle_interpreter": "CPython3.12",
+  "expected_authorship": "Independently stated Python semantics and supplied audit/design witnesses; no analyzer transfer generates expected answers.",
+  "freeze_rule": "Mandatory fixture IDs, classification, sources, inputs, required queries, expected and resource budgets cannot be weakened to close implementation failures.",
+  "resources": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512,
+    "external_seconds": 15
+  },
+  "retained_files": {
+    "docs/refactor/query-gold.json": "ace61498c7680dfd19000d8157d4554e158bf41998058d09ace415b9451f3fdb",
+    "docs/refactor/defect_ledger.json": "c605b22f7e61d25b598a9e9f7fbebeaf06cc06f791d09bbafbf5a25e8a7e7814",
+    "tests/refactor/semantics/heldout_cases.json": "f69acbe8d34e1331836de43daec57aa7c1d1f0b614ee0245264c17976fd67d66"
+  },
+  "retained_A01_A18": [
+    {
+      "id": "A01",
+      "tests": [
+        "test_gold.py::test_frozen_source_gold[A01_scalar_return]",
+        "tests/refactor/semantics/test_legacy_pipeline.py"
+      ],
+      "evidence_level": "pipeline",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A02",
+      "tests": [
+        "A02_lifted_literal",
+        "A02_local_control",
+        "tests/refactor/semantics/test_legacy_pipeline.py"
+      ],
+      "evidence_level": "pipeline",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A03",
+      "tests": [
+        "tests/refactor/semantics/test_gold.py A03_* fixtures",
+        "tests/refactor/semantics/heldout_cases.json"
+      ],
+      "evidence_level": "pipeline",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A04",
+      "tests": [
+        "test_caller_local_overlay_reaches_nested_callee_without_pta_masking",
+        "test_pure_scalar_callee_write_changes_the_caller_state"
+      ],
+      "evidence_level": "component_composition",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A05",
+      "tests": [
+        "tests/refactor/engines/test_native_context.py",
+        "tests/refactor/engines/test_native_heap_policy.py"
+      ],
+      "evidence_level": "bounded_native_and_structure",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A06",
+      "tests": [
+        "tests/refactor/engines/test_native_unknown_effects.py",
+        "test_unknown_dynamic_code_havoc_is_consumed",
+        "test_unknown_callback_havocs_reachable_closure_cells"
+      ],
+      "evidence_level": "current_source_plus_historical_witness",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A07",
+      "tests": [
+        "tests/refactor/domains/test_domain_repair.py",
+        "tests/refactor/domains/test_independent_review.py"
+      ],
+      "evidence_level": "finite_component_oracle_and_state",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A08",
+      "tests": [
+        "tests/refactor/domains/test_independent_review.py::test_dictionary_spill_and_unknown_writes_cover_concrete_maps",
+        "A08_bool_int_key",
+        "A08_missing_key"
+      ],
+      "evidence_level": "component_and_subscript_integration",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A09",
+      "tests": [
+        "tests/refactor/contracts/test_architecture.py",
+        "tests/refactor/composition/test_independent_review.py",
+        "A09_full_state_reabstract"
+      ],
+      "evidence_level": "component_state_composition",
+      "prior_status_only": "partial"
+    },
+    {
+      "id": "A10",
+      "tests": [
+        "A10_finally_override",
+        "A10_finally_write",
+        "A10_nested_override",
+        "tests/refactor/semantics/test_cleanup_lowering.py",
+        "test_with_captures_manager_and_runs_exit_before_suppressed_continuation"
+      ],
+      "evidence_level": "pipeline",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A11",
+      "tests": [
+        "A11_nonlocal_write",
+        "A11_shared_cells",
+        "A11_activation_isolation",
+        "test_unknown_callback_havocs_reachable_closure_cells"
+      ],
+      "evidence_level": "pipeline",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A12",
+      "tests": [
+        "tests/refactor/domains/test_independent_review.py::test_integer_refinement_and_parity_after_widening",
+        "tests/analysis/test_int_domain.py::TestIntDomainWiden"
+      ],
+      "evidence_level": "finite_component_oracle",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A13",
+      "tests": [
+        "A13_public_narrowing",
+        "test_checked_narrowing_rebuilds_the_public_summary",
+        "test_invalid_narrowed_entry_cannot_replace_the_established_result"
+      ],
+      "evidence_level": "current_source_review",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A14",
+      "tests": [
+        "tests/refactor/api/test_control_applicability.py",
+        "tests/refactor/engines/test_control_metadata.py",
+        "tests/refactor/api/test_independent_contract.py"
+      ],
+      "evidence_level": "current_source_inventory_and_component",
+      "prior_status_only": "partial"
+    },
+    {
+      "id": "A15",
+      "tests": [
+        "test_ai_primary_does_not_construct_or_solve_legacy_native",
+        "tests/refactor/semantics/test_gold.py",
+        "benchmark/refactor/runner.py D/E sentinels"
+      ],
+      "evidence_level": "current_source_review",
+      "prior_status_only": "partial"
+    },
+    {
+      "id": "A16",
+      "tests": [
+        "tests/refactor/verification/test_guarded_dispatch.py",
+        "tests/refactor/verification/test_public_l2.py",
+        "tests/refactor/llm/test_strategy_independent.py"
+      ],
+      "evidence_level": "offline_checker_and_source_scope",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A17",
+      "tests": [
+        "tests/refactor/api/test_public_contract.py",
+        "tests/refactor/api/test_independent_contract.py",
+        "test_three_input_forms_and_in_memory_source"
+      ],
+      "evidence_level": "constructor_and_source_review",
+      "prior_status_only": "repaired"
+    },
+    {
+      "id": "A18",
+      "tests": [
+        "tests/refactor/contracts/test_migration_boundaries.py",
+        "tests/refactor/contracts/test_legacy_source_snapshot.py"
+      ],
+      "evidence_level": "current_source_inventory",
+      "prior_status_only": "partial"
+    }
+  ],
+  "domain_native_manifest": "docs/development/next/domain_native_manifest.json",
+  "cases": [
+    {
+      "id": "call_star_order",
+      "finding": "AS-01",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\ndef accept(*args,**kwargs):pass\naccept(k=stamp('k'), *[stamp('s')])\nresult=log\n",
+      "source_sha256": "f72786ac862628503d3a5ce8050b296fa0d0be04f1fb5f95b4d907bc3394b767",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "sk"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "call_star_order_control",
+      "finding": "AS-01",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\ndef accept(*args,**kwargs):pass\naccept(*[stamp('s')],k=stamp('k'))\nresult=log\n",
+      "source_sha256": "075826412152f84799af0538ced7be2b186e37feca3cbcd8a1190d68b0d694cf",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "sk"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "del_missing",
+      "finding": "AS-02",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    del missing\n    result='wrong'\nexcept NameError:\n    result='caught'\n",
+      "source_sha256": "fa7f9111ded30fbb1884419cf808ce4b3bc788369c1c2e5887c8b2839d117398",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "del_bound_control",
+      "finding": "AS-02",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "marker='before'\ndel marker\ntry:\n    result=marker\nexcept NameError:\n    result='caught'\n",
+      "source_sha256": "aa2bcdcc45179eba9472126873094231c520b104faf8a24eb9cfc1224d442d81",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "del_function_unbound",
+      "finding": "AS-02",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def f():\n    try:\n        del x\n        return 'wrong'\n    except UnboundLocalError:\n        return 'caught'\nresult=f()\n",
+      "source_sha256": "58c06f1c76e523df298f8f94f3c7e5aab1c2dd6f68db60ae39968fd8227d6c59",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "comprehension_effects",
+      "finding": "AS-03",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\nitems=[stamp(x) for x in ['a','b']]\nresult=log\n",
+      "source_sha256": "f719d214720c24199efb054761ea77fdf2cdd25f5632bab41be151cca726af94",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "ab"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "sequential_effects_control",
+      "finding": "AS-03",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\nitems=[]\nitems.append(stamp('a'))\nitems.append(stamp('b'))\nresult=log\n",
+      "source_sha256": "1875c8137b426a5fee69fbabd2d0ee7be725b4f3a8bfe9ec4b7a4b91c7d5ac85",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "ab"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "comprehension_nested",
+      "finding": "AS-03",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=[(i,j) for i in [1] for j in [i]]\n",
+      "source_sha256": "fb940486ae5400b6e15ea03de1d7b2eddf1c58033aec6b4c599182114de86746",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        [
+          {
+            "tuple": [
+              1,
+              1
+            ]
+          }
+        ]
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "comprehension_filter",
+      "finding": "AS-03",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "items=[x for x in [1] if flag]\nresult=len(items)\n",
+      "source_sha256": "8a4c6fa8bb04f4add97d2fcb98b4426b531dbbc57f0bc5c34e765257a7fd3953",
+      "inputs": {
+        "subject.flag": {
+          "type": "bool",
+          "top": true
+        }
+      },
+      "oracle_inputs": [
+        {
+          "flag": false
+        },
+        {
+          "flag": true
+        }
+      ],
+      "expected": [
+        0,
+        1
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "comprehension_pure_control",
+      "finding": "AS-03",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=[x*x for x in [1,2]]\n",
+      "source_sha256": "bb487b8680a308db7169b4686a0dc8972f59f14a89d9520e49ce01481a4e7087",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        [
+          1,
+          4
+        ]
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "unary_typed_string",
+      "finding": "AS-04",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    ignored=-subject_input\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "e8662e99a27c9dc2b2fc4a371eed0024460547393258e261195331ca6b7a616e",
+      "inputs": {
+        "subject.subject_input": {
+          "type": "str",
+          "top": true
+        }
+      },
+      "oracle_inputs": [
+        {
+          "subject_input": "a"
+        },
+        {
+          "subject_input": ""
+        }
+      ],
+      "expected": [
+        "caught",
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "unary_literal_control",
+      "finding": "AS-04",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    ignored=-'a'\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "330517dc97488bc698e0a218fe81a11a9f56524061ac9cfc9936e8930c5676e4",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "iterator_invalid_return",
+      "finding": "AS-05",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "class C:\n    def __iter__(self):return 42\ntry:\n    iter(C())\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "ade41a8fc74e1431a5e2cbbb6ecf91c75ca3911c9fc008b4f24e9574109244b4",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "list_scalar_invalid",
+      "finding": "AS-05",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    list(42)\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "23810bb784248fb5e0ebd0bb59fa7e9f58722b84f760ae28c9b21fa100b32dea",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "dict_scalar_invalid",
+      "finding": "AS-05",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    dict(42)\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "2ec5e1c864ef66f40e825e7ff89ffbb4c315d96090d80cf8e89f1c2446512211",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "next_scalar_invalid",
+      "finding": "AS-05",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    next(42)\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "20a3c83b51ee14a6e788018e8b1c6096dec776ab8033587d6e7d95e40813bf84",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "star_scalar_invalid",
+      "finding": "AS-05",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def accept(*args):pass\ntry:\n    accept(*42)\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "9d63fd8dd8e7ab239396de312348027b8156a5f504c7dbbc050c740dab5bac34",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "list_valid_control",
+      "finding": "AS-05",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=list('ab')\n",
+      "source_sha256": "b85466110f16276bf61a3767911ffc6aef428332281cc0f8bdf2b77d584e5c50",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        [
+          "a",
+          "b"
+        ]
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "isinstance_builtin",
+      "finding": "AS-06",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=isinstance([],list)\n",
+      "source_sha256": "ba6d86416a637dcd5e380e4f89c1c8bddfcd8b003eb2f8886430313556b4d3a5",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        true
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "isinstance_tuple",
+      "finding": "AS-06",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "class C:pass\nresult=isinstance(C(),(C,))\n",
+      "source_sha256": "10e46da3de35e669a00413b10d3e21a29f4a63eb3f86717ba74f2e7ddb58f596",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        true
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "isinstance_invalid",
+      "finding": "AS-06",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    isinstance(1,42)\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "cf372164bc14c7395fdab07837b471b06b8c04548e1ecf84ec70b890f6d12990",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "isinstance_class_control",
+      "finding": "AS-06",
+      "role": "negative_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "class C:pass\nresult=isinstance(C(),object)\n",
+      "source_sha256": "0ab525a179829fdab887f2d50a0bfc573b6b5269aa34f61327c85d1868eabb8d",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        true
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "recursion_sum_default",
+      "finding": "AS-07",
+      "role": "performance_probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def f(n):\n    if n==0:return 0\n    local=n\n    r=f(n-1)\n    return local+r\nresult=f(4)\n",
+      "source_sha256": "9c9731a98d4b91b08727c03647023f2c8edac2a0cbc05d49ce27baa041eddacb",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        10
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "recursion_sum_context0",
+      "finding": "AS-07",
+      "role": "performance_probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def f(n):\n    if n==0:return 0\n    local=n\n    r=f(n-1)\n    return local+r\nresult=f(4)\n",
+      "source_sha256": "9c9731a98d4b91b08727c03647023f2c8edac2a0cbc05d49ce27baa041eddacb",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        10
+      ],
+      "abstract": {
+        "context_depth": 0
+      },
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": false,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught",
+        "non_top_inclusion_at_coarse_context_not_exactness"
+      ]
+    },
+    {
+      "id": "recursion_heap",
+      "finding": "AS-07",
+      "role": "performance_probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "box={'x':0}\ndef f(n):\n    if n>0:\n        f(n-1)\n    box['x']+=1\nf(4)\nresult=box['x']\n",
+      "source_sha256": "19b8f3b17b48da2077feb324f5e6924b1c9cee42d353d94a5630e497d5783a46",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        5
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "recursion_constant_control",
+      "finding": "AS-07",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def even(n):\n    if n==0:return 'base'\n    return odd(n-1)\ndef odd(n):\n    return even(n-1)\nresult=even(4)\n",
+      "source_sha256": "6f4b7e7ce4dc9af96c9bdf062ce99a6cad9b22688cb7bd3025bfdceaa3c733d4",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "base"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "loop_control",
+      "finding": "AS-07",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "n=0\nwhile n<4:\n    n+=1\nresult=n\n",
+      "source_sha256": "a7cca9344637e4e5b097dade914aae5bf6dbd53099e068f54256be3fb607a8f5",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        4
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "finally_control",
+      "finding": "nonregression",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def f():\n    try:return 'before'\n    finally:return 'after'\nresult=f()\n",
+      "source_sha256": "fb28285f045ae6217014d0b1c2804f257f6b4a2ece3e02f2d398cfc198178ee4",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "after"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "closure_control",
+      "finding": "nonregression",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def outer():\n    value='before'\n    def write():\n        nonlocal value\n        value='after'\n    def read():return value\n    write()\n    return read()\nresult=outer()\n",
+      "source_sha256": "5324e6d8f110d055037ab92f7601e3a767ed35e69afe588fd4a923821ea1bd41",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "after"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "generator_close_control",
+      "finding": "nonregression",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef g():\n    global log\n    try:\n        yield 1\n    finally:\n        log='closed'\nit=g()\nnext(it)\nit.close()\nresult=log\n",
+      "source_sha256": "1ff5039fa4fa77b3ca646b51614dcb4311a4d1e5842e464a279c33d03bbba0a5",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "closed"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "default_binding_control",
+      "finding": "AS-01",
+      "role": "capability_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def f(a='after',*,tag='tag'):\n    return a+tag\nresult=f()\n",
+      "source_sha256": "9d2c0922fb0111bf5a05e9949b8c9d84ae5cee1b556a3901d068499c1c8937b6",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "aftertag"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "bytes_iteration_open",
+      "finding": "nonregression",
+      "role": "unsupported_control",
+      "classification": "required_open",
+      "evidence_level": "public_api",
+      "source": "result=list(b'ab')\n",
+      "source_sha256": "851c4a7028d16dfef5d2395b6b0397d009deb51bac621e086b0842c1e34a96c4",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        [
+          97,
+          98
+        ]
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": false,
+      "require_closed": false,
+      "exact": false,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "bool_repeat_precision",
+      "finding": "AS-08",
+      "role": "precision_probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass C:\n    def __bool__(self):\n        global log\n        log+='b'\n        return False\nx=C()\nunused=x and 'middle' and 'last'\nresult=log\n",
+      "source_sha256": "80c7097eaa210946e64918f46177af547a3a304d95c7fb96ece337947acd9682",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "b"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "call_star_order_default_engine",
+      "finding": "AS-01",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\ndef accept(*args,**kwargs):pass\naccept(k=stamp('k'), *[stamp('s')])\nresult=log\n",
+      "source_sha256": "f72786ac862628503d3a5ce8050b296fa0d0be04f1fb5f95b4d907bc3394b767",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "sk"
+      ],
+      "abstract": {},
+      "engine": "hybrid",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "del_missing_default_engine",
+      "finding": "AS-02",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    del missing\n    result='wrong'\nexcept NameError:\n    result='caught'\n",
+      "source_sha256": "fa7f9111ded30fbb1884419cf808ce4b3bc788369c1c2e5887c8b2839d117398",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "hybrid",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "comprehension_effects_default_engine",
+      "finding": "AS-03",
+      "role": "probe",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef stamp(x):\n    global log\n    log+=x\n    return x\nitems=[stamp(x) for x in ['a','b']]\nresult=log\n",
+      "source_sha256": "f719d214720c24199efb054761ea77fdf2cdd25f5632bab41be151cca726af94",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "ab"
+      ],
+      "abstract": {},
+      "engine": "hybrid",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value",
+        "exception_prefix_preserved_if_caught"
+      ]
+    },
+    {
+      "id": "del_repeated_prefix",
+      "finding": "AS-02",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nx=1\ntry:\n    del x\n    log='deleted'\n    del x\nexcept NameError:\n    result=log\n",
+      "source_sha256": "160148fc9aa83c241000f81f584c8d6013b75a0606133c9761d129663b3332c2",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "deleted"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "second_delete_raises_NameError",
+        "prior_delete_effect",
+        "prefix_log"
+      ]
+    },
+    {
+      "id": "del_nonlocal_prefix",
+      "finding": "AS-02",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "def outer():\n    x=1\n    def f():\n        nonlocal x\n        del x\n        try:\n            del x\n        except NameError:\n            return 'caught'\n    return f()\nresult=outer()\n",
+      "source_sha256": "48ec330f683f8096261d93f94904a82a2d124bca8719e1923b2da4ad4de18882",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value"
+      ]
+    },
+    {
+      "id": "comprehension_false_filter_effect",
+      "finding": "AS-03",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\ndef keep(x):\n    global log\n    log+=x\n    return False\nitems=[x for x in ['a','b'] if keep(x)]\nresult=log\n",
+      "source_sha256": "58edde74dc43ea3d58c91f785eac1d133443aad08a49b3fa7a72a5ef47e205e8",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "ab"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "false_filter_keeps_effects",
+        "empty_container"
+      ]
+    },
+    {
+      "id": "comprehension_scope_control",
+      "finding": "AS-03",
+      "role": "positive_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "x=9\nitems=[x for x in [1,2]]\nresult=x\n",
+      "source_sha256": "98087ebc2d9b240ea6e85aae3b23acf2a9fdac0c0123db7e64bda6468c91eda8",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        9
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value"
+      ]
+    },
+    {
+      "id": "unary_typed_int_control",
+      "finding": "AS-04",
+      "role": "positive_control",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=-subject_input\n",
+      "source_sha256": "94c8655783df34a0d9b9ef3218fdd504b189c01ebeae087240b238d3b627f33a",
+      "inputs": {
+        "subject.subject_input": {
+          "type": "int",
+          "constants": [
+            2
+          ]
+        }
+      },
+      "oracle_inputs": [
+        {
+          "subject_input": 2
+        }
+      ],
+      "expected": [
+        -2
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value"
+      ]
+    },
+    {
+      "id": "iterator_error_prefix",
+      "finding": "AS-05",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass C:\n    def __iter__(self):\n        global log\n        log+='i'\n        return 42\ntry:\n    list(C())\nexcept TypeError:\n    result=log\n",
+      "source_sha256": "5fa8b5681413a5754a711c726dac0a00497a3105d9929516d7a24268f2b71574",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "i"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "TypeError_caught",
+        "iter_prefix_effect"
+      ]
+    },
+    {
+      "id": "classinfo_ordered_tuple_match",
+      "finding": "AS-06",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "result=isinstance(1,(int,42))\n",
+      "source_sha256": "ee436498c4548e29bd383f3548c525d9bede97cf13511afd3b1f8c69a64a030d",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        true
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "tuple_early_match_skips_invalid_tail"
+      ]
+    },
+    {
+      "id": "classinfo_ordered_tuple_raise",
+      "finding": "AS-06",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "try:\n    isinstance('x',(int,42))\n    result='wrong'\nexcept TypeError:\n    result='caught'\n",
+      "source_sha256": "40799cec686ab4c1983fcb5e4110df7eafc05516cf89ef0a5db48b38ffa69970",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "caught"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "tuple_unmatched_prefix_reaches_invalid_tail"
+      ]
+    },
+    {
+      "id": "bool_or_once",
+      "finding": "AS-08",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass C:\n    def __bool__(self):\n        global log\n        log+='b'\n        return True\nx=C()\nunused=x or 'middle' or 'last'\nresult=log\n",
+      "source_sha256": "ed4d6b3a5e3092355357fafaf2c9a570857019189571aa969d7a6b5ac77e7427",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "b"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "normal_exit",
+        "result_value"
+      ]
+    },
+    {
+      "id": "bool_exception_prefix",
+      "finding": "AS-08",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass C:\n    def __bool__(self):\n        global log\n        log+='b'\n        raise ValueError()\ntry:\n    ignored=C() and 'middle' and 'last'\nexcept ValueError:\n    result=log\n",
+      "source_sha256": "b42d62570f05ee534c3e50e80c339e5978182a9d062446a829793386db5afbe2",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "b"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "truth_raise_keeps_prefix",
+        "later_operands_unreachable"
+      ]
+    },
+    {
+      "id": "star_delayed_expansion",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\nf(*make(),k=mark('k'))\nresult=log\n",
+      "source_sha256": "8feff00da1e903939c7de727e3a54cd18faa24ecfb2eb7cd58e10aa8b2b19ac9",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "mki"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "CPython3.12_call_expression_vs_expansion_order",
+        "prefix_effects"
+      ]
+    },
+    {
+      "id": "star_text_reverse",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\nf(k=mark('k'),*make())\nresult=log\n",
+      "source_sha256": "1b0611f2cd40775ef6263492c7fb1f4d501ae9c61ff75422c24f23c7f0527506",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "mki"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "CPython3.12_call_expression_vs_expansion_order",
+        "prefix_effects"
+      ]
+    },
+    {
+      "id": "star_positional_expansion",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\nf(*make(),mark('p'),k=mark('k'))\nresult=log\n",
+      "source_sha256": "5b703797efb15d4d8af22ce6f6c17375eff75076506c23a078d568580acad775",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "mipk"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "CPython3.12_call_expression_vs_expansion_order",
+        "prefix_effects"
+      ]
+    },
+    {
+      "id": "star_multi_expansion",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\nf(*make(),*make(),k=mark('k'))\nresult=log\n",
+      "source_sha256": "a5ae3a11f0926e34e5a9f2cc144f76a35bcdf6cfeaaf15d86c656be3fbe16c05",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "mimik"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "CPython3.12_call_expression_vs_expansion_order",
+        "prefix_effects"
+      ]
+    },
+    {
+      "id": "kwargs_duplicate_prefix",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\ntry:\n    f(**{'x':mark('a')},**{'x':mark('b')},z=mark('c'))\nexcept TypeError:\n    result=log\n",
+      "source_sha256": "69eb9d96c7224ae425005d21e8f4c54605452fdd1195544ca265104bda61f656",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "ab"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "duplicate_mapping_merge_raises_before_later_keyword",
+        "prefix_effects"
+      ]
+    },
+    {
+      "id": "kwargs_nonstring_prefix",
+      "finding": "AS-01",
+      "role": "independent_variant",
+      "classification": "mandatory",
+      "evidence_level": "public_api",
+      "source": "log=''\nclass It:\n    def __iter__(self):\n        global log\n        log+='i'\n        return iter([1])\ndef make():\n    global log\n    log+='m'\n    return It()\ndef mark(x):\n    global log\n    log+=x\n    return 1\ndef f(*args,**kwargs):\n    pass\ntry:\n    f(x=mark('k'),**{1:mark('i')},z=mark('z'))\nexcept TypeError:\n    result=log\n",
+      "source_sha256": "93be45fc32ffc9119434c9e4b53e164f2fd6ea2043bd9f99ea75046309b4964c",
+      "inputs": {},
+      "oracle_inputs": [
+        {}
+      ],
+      "expected": [
+        "kiz"
+      ],
+      "abstract": {},
+      "engine": "ai_primary",
+      "require_non_top": true,
+      "require_closed": true,
+      "exact": true,
+      "obligations": [
+        "nonstring_key_error_after_later_expression",
+        "prefix_effects"
+      ]
+    }
+  ],
+  "llm_cases": [
+    {
+      "id": "lv_multi_call",
+      "finding": "LV-01",
+      "kind": "l2_calls",
+      "source": "def identity(payload):\n    return payload\ndef box(payload):\n    return {'value': payload}\ndef dispatch(table, key, payload):\n    ignored = table[key](payload)\n    return table[key](payload)\ntable = {'read': identity, 'write': box}\nplain = dispatch(table, 'read', 'original')\nboxed = dispatch(table, 'write', 'retained')\n",
+      "handler_names": [
+        "identity",
+        "box"
+      ],
+      "expected_handler_lines": [
+        6,
+        7
+      ],
+      "expected_handler_pairs": 4,
+      "require_non_top": true,
+      "require_closed": true,
+      "evidence_level": "public_api",
+      "role": "audit_witness"
+    },
+    {
+      "id": "lv_three_call_variant",
+      "finding": "LV-01",
+      "kind": "l2_calls",
+      "source": "def identity(payload):\n    return payload\ndef box(payload):\n    return {'value': payload}\ndef dispatch(table, key, payload):\n    first = table[key](payload)\n    second = table[key](payload)\n    return table[key](payload)\ntable = {'read': identity, 'write': box}\nplain = dispatch(table, 'read', 'original')\nboxed = dispatch(table, 'write', 'retained')\n",
+      "handler_names": [
+        "identity",
+        "box"
+      ],
+      "expected_handler_lines": [
+        6,
+        7,
+        8
+      ],
+      "expected_handler_pairs": 6,
+      "require_non_top": true,
+      "require_closed": true,
+      "evidence_level": "public_api",
+      "role": "independent_variant"
+    },
+    {
+      "id": "lv_single_call_control",
+      "finding": "LV-01",
+      "kind": "l2_calls",
+      "source": "def identity(payload):\n    return payload\ndef box(payload):\n    return {'value': payload}\ndef dispatch(table, key, payload):\n    return table[key](payload)\ntable = {'read': identity, 'write': box}\nplain = dispatch(table, 'read', 'original')\nboxed = dispatch(table, 'write', 'retained')\n",
+      "handler_names": [
+        "identity",
+        "box"
+      ],
+      "expected_handler_lines": [
+        6
+      ],
+      "expected_handler_pairs": 2,
+      "require_non_top": true,
+      "require_closed": true,
+      "evidence_level": "public_api",
+      "role": "positive_control"
+    },
+    {
+      "id": "lv_function_exit",
+      "finding": "LV-02",
+      "kind": "l2_function_exit",
+      "source": "def identity(payload):\n    return payload\ndef box(payload):\n    return {'value': payload}\ndef dispatch(table, key, payload):\n    return table[key](payload)\ntable = {'read': identity, 'write': box}\nplain = dispatch(table, 'read', 'original')\nboxed = dispatch(table, 'write', 'retained')\n",
+      "symbols": [
+        "identity",
+        "box",
+        "dispatch"
+      ],
+      "required_queries": [
+        "calls",
+        "returns",
+        "outcomes",
+        "effects",
+        "function_exit"
+      ],
+      "require_non_top": true,
+      "require_closed": true,
+      "evidence_level": "public_api",
+      "role": "audit_witness",
+      "expected_effect_reads": [
+        [
+          "subject.identity",
+          "payload",
+          ":2:11:Name"
+        ],
+        [
+          "subject.box",
+          "payload",
+          ":4:21:Name"
+        ],
+        [
+          "subject.dispatch",
+          "table",
+          ":6:11:Name"
+        ],
+        [
+          "subject.dispatch",
+          "key",
+          ":6:17:Name"
+        ],
+        [
+          "subject.dispatch",
+          "payload",
+          ":6:22:Name"
+        ]
+      ],
+      "expected_heap": {
+        "box_value": "retained",
+        "identity_value": "original",
+        "dispatch_includes_identity_and_fresh_box": true
+      },
+      "expected_outcomes": {
+        "normal_exit": true,
+        "exceptions": [],
+        "suspends": false
+      }
+    },
+    {
+      "id": "lv_dominated_policy",
+      "finding": "LV-03",
+      "kind": "l1_selection",
+      "direction": "degrade",
+      "expected_decision": "retained_baseline",
+      "expected_relation_pairs": 2,
+      "evidence_level": "public_api_plus_controller",
+      "role": "audit_witness"
+    },
+    {
+      "id": "lv_gain_control",
+      "finding": "LV-03",
+      "kind": "l1_selection",
+      "direction": "improve",
+      "expected_decision": "accepted",
+      "expected_relation_pairs": 2,
+      "evidence_level": "public_api_plus_controller",
+      "role": "positive_control"
+    }
+  ],
+  "limitations": [
+    "Finite concrete runs establish inclusion only for stated inputs, not universal soundness.",
+    "Semantic obligations not observable by the result/prefix projection remain explicit; effects/query/fresh are checked by companion suites.",
+    "No real provider is called; all L1/L2 cases are offline."
+  ]
+}

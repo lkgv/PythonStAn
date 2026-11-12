@@ -1,0 +1,11 @@
+{
+  "kind": "prepared_state_entry",
+  "module": "invoke.tasks",
+  "qualname": "Task.__call__",
+  "inputs": "docs/development/next/client_queries/cases/invoke_task_callback/inputs.json",
+  "models": "docs/development/next/client_queries/cases/invoke_task_callback/models.json",
+  "source_map": "docs/development/next/client_queries/cases/invoke_task_callback/source_map.json",
+  "require_original_definitions": true,
+  "no_dynamic_target_execution": "No import/exec of target is used by the analyzer or freeze process. Optional isolated CPython witness is separate evidence only.",
+  "executor_status": "pending_API_entry_implementation"
+}

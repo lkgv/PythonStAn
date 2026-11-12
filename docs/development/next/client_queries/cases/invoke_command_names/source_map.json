@@ -1,0 +1,58 @@
+{
+  "project": "invoke",
+  "case_id": "invoke_command_names",
+  "mappings": [
+    {
+      "original_path": "invoke/collection.py",
+      "qualname": "Collection.transform",
+      "start_line": 456,
+      "end_line": 493,
+      "original_file_sha256": "d10bfd6e77ca7946e401a4cb20dc6bcc6f4c06b863c2b85ded1bfabfa5a074a2",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/invoke_command_names/source/invoke_collection.py__Collection.transform.txt",
+      "exact_fragment_sha256": "d09ec6b14167da8424a33edc8e39f1750a8a980fd6334a052bc80cbd69a00de8",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "micro": {
+    "status": "registered_semantic_entry_contract",
+    "purpose": "Independent finite input/output relation in inputs/gold; not an analyzer implementation and not evidence of full-project performance."
+  },
+  "slice": {
+    "status": "exact_fragments_frozen_not_yet_executable",
+    "retains": "All target bodies; declared builtin/class/callback models. No source transfer replaced with a constant.",
+    "omitted": "Unreachable imports and package initialization under direct prepared-state entry; not arbitrary application startup."
+  },
+  "full_project": {
+    "path": "artifacts/next/preregistration/projects/invoke/invoke-3.0.3",
+    "inventory_path": "docs/development/next/client_queries/projects/invoke/inventory.json",
+    "inventory_digest": "33e1ef13eb5e5d8b7573aa7c114a554265a1491533d280d9da3c9f95ca32644c",
+    "unreduced_runtime_inventory": true,
+    "same_entry_input_model_query_as_slice": true,
+    "required_for_scale_gate": true,
+    "execution_status": "not_run_pending_entry_support_and_REL01",
+    "input_selection": {
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "invoke"
+      ],
+      "distribution_exclusions": [
+        "LICENSE",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.rst",
+        "invoke.egg-info",
+        "pyproject.toml",
+        "setup.cfg",
+        "sites",
+        "tasks.py",
+        "tests"
+      ],
+      "default_component_exclusions": false,
+      "must_equal_inventory_python_files": true
+    }
+  },
+  "license": "Original pinned public distribution; archive license retained with source cache."
+}

@@ -1,0 +1,52 @@
+{
+  "query_id": "invoke_task_callback:q1",
+  "source": "independent reviewed source semantics and finite partition",
+  "proof": "args[0] is evaluated before Context validation, so empty arguments raise IndexError. Invalid Context raises before body. With valid Context exactly one body invocation occurs; the increment follows that invocation and is skipped on its ValueError. The complete callbacks have no other effects.",
+  "expected": {
+    "rows": [
+      {
+        "scenario": "valid_context_return",
+        "return": 3,
+        "body_calls": 1,
+        "event_prefix": [
+          "body"
+        ],
+        "times_called": 1,
+        "exception": null
+      },
+      {
+        "scenario": "valid_context_raise",
+        "return": null,
+        "body_calls": 1,
+        "event_prefix": [
+          "body"
+        ],
+        "times_called": 0,
+        "exception": "ValueError"
+      },
+      {
+        "scenario": "invalid_context",
+        "return": null,
+        "body_calls": 0,
+        "event_prefix": [],
+        "times_called": 0,
+        "exception": "TypeError"
+      },
+      {
+        "scenario": "no_arguments",
+        "return": null,
+        "body_calls": 0,
+        "event_prefix": [],
+        "times_called": 0,
+        "exception": "IndexError"
+      }
+    ]
+  },
+  "complete_scope": true,
+  "dynamic_execution_used_to_exclude_behavior": false,
+  "analyzer_outputs_consulted": false,
+  "review_status": "reviewed",
+  "author": "client_preregistration",
+  "limitations": "Only the exact finite entry and declared initial heap/model; not arbitrary project requests or full initialization.",
+  "independent_reviewer": "requirements_audit"
+}

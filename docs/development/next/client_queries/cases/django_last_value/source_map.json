@@ -1,0 +1,77 @@
+{
+  "project": "django",
+  "case_id": "django_last_value",
+  "mappings": [
+    {
+      "original_path": "django/utils/datastructures.py",
+      "qualname": "MultiValueDictKeyError",
+      "start_line": 45,
+      "end_line": 46,
+      "original_file_sha256": "cfe76fe0e3ed795f44c49366ebf770c9e89baf3038a89283306c5b133d3f9eb1",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/django_last_value/source/django_utils_datastructures.py__MultiValueDictKeyError.txt",
+      "exact_fragment_sha256": "2961a0ad0e88bac70d3e69138fd1a629aec389f9687373e8829f21ecb0c5c8ec",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    },
+    {
+      "original_path": "django/utils/datastructures.py",
+      "qualname": "MultiValueDict.__getitem__",
+      "start_line": 80,
+      "end_line": 92,
+      "original_file_sha256": "cfe76fe0e3ed795f44c49366ebf770c9e89baf3038a89283306c5b133d3f9eb1",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/django_last_value/source/django_utils_datastructures.py__MultiValueDict.__getitem__.txt",
+      "exact_fragment_sha256": "47a566ccf1bcbc48ee29bb14d4d6032d0f45d3657a39e5f95d37c61e5ccd6b3f",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "micro": {
+    "status": "registered_semantic_entry_contract",
+    "purpose": "Independent finite input/output relation in inputs/gold; not an analyzer implementation and not evidence of full-project performance."
+  },
+  "slice": {
+    "status": "exact_fragments_frozen_not_yet_executable",
+    "retains": "All target bodies; declared builtin/class/callback models. No source transfer replaced with a constant.",
+    "omitted": "Unreachable imports and package initialization under direct prepared-state entry; not arbitrary application startup."
+  },
+  "full_project": {
+    "path": "artifacts/next/preregistration/projects/django/django-6.1.3",
+    "inventory_path": "docs/development/next/client_queries/projects/django/inventory.json",
+    "inventory_digest": "961e9aa22b5fdcaf42f464b5002d99cf758394aaa1973a7a704d7de9e4324310",
+    "unreduced_runtime_inventory": true,
+    "same_entry_input_model_query_as_slice": true,
+    "required_for_scale_gate": false,
+    "execution_status": "not_run_pending_entry_support_and_REL01",
+    "input_selection": {
+      "import_roots": [
+        "."
+      ],
+      "runtime_source_roots": [
+        "django"
+      ],
+      "distribution_exclusions": [
+        "AUTHORS",
+        "CONTRIBUTING.rst",
+        "Django.egg-info",
+        "Gruntfile.js",
+        "INSTALL",
+        "LICENSE",
+        "LICENSE.python",
+        "MANIFEST.in",
+        "PKG-INFO",
+        "README.rst",
+        "docs",
+        "extras",
+        "js_tests",
+        "package.json",
+        "pyproject.toml",
+        "setup.cfg",
+        "tests",
+        "tox.ini"
+      ],
+      "default_component_exclusions": false,
+      "must_equal_inventory_python_files": true
+    }
+  },
+  "license": "Original pinned public distribution; archive license retained with source cache."
+}

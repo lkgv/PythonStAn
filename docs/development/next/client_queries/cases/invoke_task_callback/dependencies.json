@@ -1,0 +1,69 @@
+{
+  "complete_for_declared_entry": true,
+  "symbols": [
+    "Task.__call__",
+    "Context class identity",
+    "callback normal/raising source"
+  ],
+  "source_fragments": [
+    {
+      "original_path": "invoke/tasks.py",
+      "qualname": "Task.__call__",
+      "start_line": 133,
+      "end_line": 141,
+      "original_file_sha256": "ecefc487fd8e9791640db8ed4be00f95582dd4a15da8a760a910e3a6333fdcee",
+      "exact_fragment_path": "docs/development/next/client_queries/cases/invoke_task_callback/source/invoke_tasks.py__Task.__call__.txt",
+      "exact_fragment_sha256": "24bfa4401571c483ca70ac6c8fcc38ca4253309ac761d8227aef606f4f3110be",
+      "transformation": "none; source lines preserved including indentation and comments",
+      "context": "Method fragments retain original class identity/MRO in the project input. They cannot be executed as freestanding top-level replacements."
+    }
+  ],
+  "external_models": [
+    "exact Context class membership",
+    "Task body field binds one of two synthetic callbacks",
+    "prepared Task receiver with times_called=0; do not run Task.__init__",
+    "int addition",
+    "TypeError str.format for invalid exact object",
+    "Callbacks are the exact two functions in callback_source; Context membership uses source class identity and default type metaclass."
+  ],
+  "omitted_modules": "Remain in full project inventory; not producers for the sealed finite prepared-state input. This dependency claim must be independently revalidated before solver closure is accepted.",
+  "synthetic_sources": [
+    {
+      "path": "benchmark/next/client_callbacks.py",
+      "sha256": "467d605dc5be69504c575774a506fd931d6dd7a6dec9d10d442cd40c6b4ade7c",
+      "normal_signature": [
+        "context:object",
+        "value:int",
+        "events:list[str]"
+      ],
+      "raising_signature": [
+        "context:object",
+        "value:int",
+        "events:list[str]"
+      ],
+      "callback_identity": "Distinct exact Python source functions; no decorators/closures/global mutation beyond events argument."
+    }
+  ],
+  "source_class_identity_evidence": [
+    {
+      "path": "invoke/context.py",
+      "class": "Context",
+      "line": 22,
+      "bases": [
+        "DataProxy"
+      ],
+      "explicit_metaclass": null,
+      "file_sha256": "beb757ddc97360a2d1e818fc68235edb7e1052f75089ddd08db30169b5d80d5c",
+      "assumption": "Original unmodified source definition; class identity/MRO prepared at entry, no constructors or package imports executed."
+    },
+    {
+      "path": "invoke/config.py",
+      "class": "DataProxy",
+      "line": 36,
+      "bases": [],
+      "explicit_metaclass": null,
+      "file_sha256": "97f2c5ab9bab1bc26466b35ef32b7647faabd96cfa72ea9eb891b3f8ae6af70e",
+      "assumption": "Original unmodified source definition; class identity/MRO prepared at entry, no constructors or package imports executed."
+    }
+  ]
+}

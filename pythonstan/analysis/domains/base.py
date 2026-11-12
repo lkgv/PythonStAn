@@ -1,338 +1,336 @@
-"""Base domain interface and registry for pluggable abstractions.
+"""Typed domain protocols and validated heterogeneous plugin registration.
 
-This module defines:
-- Domain: Abstract base class for value domains
-- DomainRegistry: Registration and coordination of domain plugins
+A registry deliberately crosses element types. Each registered provider checks
+its explicitly declared finite representation classes before receiving an
+opaque component; concrete lattice operations remain fully generic in D.
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    FrozenSet,
-    Generic,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from __future__ import annotations
 
-# Engine-specific reduction context is opaque to domain protocols.
-# Adapters provide values, addresses and budgets without reverse imports.
-AbsVal = Any
-AddrSet = FrozenSet[Any]
-AIState = Any
-AnalysisBudget = Any
+from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Protocol, TypedDict, override, runtime_checkable
+
+from pythonstan.analysis.contracts.budgets import AnalysisBudget
 
 __all__ = ["Domain", "DomainRegistry", "Fact"]
 
+type AddrSet = frozenset[object]
+type FactPayload = (
+    None
+    | bool
+    | int
+    | float
+    | str
+    | frozenset[int]
+    | frozenset[str]
+    | tuple[int | None, int | None]
+)
 
-# =============================================================================
-# Fact - Inter-domain communication
-# =============================================================================
 
 @dataclass(frozen=True)
 class Fact:
-    """A fact for inter-domain communication (reduction).
-    
-    Facts are produced by one domain and can be consumed by others
-    to enable sound communication in a reduced product.
-    
-    Examples:
-        - Fact("is_const_str", var="x", value="foo")
-        - Fact("is_none", var="x")
-        - Fact("in_range", var="x", lo=0, hi=10)
-    
-    Attributes:
-        kind: Type of fact
-        var: Variable the fact is about (optional)
-        data: Additional data
-    """
-    kind: str
-    var: Optional[str] = None
-    data: Any = None
+    """Finite scalar/range/set information exchanged by actual domain hooks."""
 
+    kind: str
+    var: str | None = None
+    data: FactPayload = None
+
+    @override
     def __str__(self) -> str:
         if self.var:
             return f"{self.kind}({self.var}, {self.data})"
         return f"{self.kind}({self.data})"
 
 
-# =============================================================================
-# Domain - Abstract base class for value domains
-# =============================================================================
+@runtime_checkable
+class TokenCapacityProvider(Protocol):
+    """The real optional setting shared by existing higher-order providers."""
 
-D = TypeVar('D')  # Domain element type
+    @property
+    def max_tokens(self) -> int: ...
 
 
-class Domain(ABC, Generic[D]):
-    """Abstract base class for pluggable value domains.
-    
-    A domain must implement:
-    - Lattice operations (bottom, top, join, meet, leq, widen, narrow)
-    - Optional transfer hooks for specific IR statements
-    - Optional fact production/consumption for reductions
-    
-    Type parameter D is the domain's element type.
-    """
+class Domain[D](ABC):
+    """A concrete typed lattice; registry erasure is validated separately."""
 
     @property
     @abstractmethod
-    def name(self) -> str:
-        """Domain name for identification."""
-        pass
-
-    # -------------------------------------------------------------------------
-    # Lattice operations
-    # -------------------------------------------------------------------------
+    def name(self) -> str: ...
 
     @abstractmethod
-    def bottom(self) -> D:
-        """Return bottom element (⊥)."""
-        pass
+    def bottom(self) -> D: ...
 
     @abstractmethod
-    def top(self) -> D:
-        """Return top element (⊤)."""
-        pass
+    def top(self) -> D: ...
 
     @abstractmethod
-    def join(self, a: D, b: D) -> D:
-        """Join (⊔): least upper bound."""
-        pass
+    def join(self, a: D, b: D) -> D: ...
 
     @abstractmethod
-    def meet(self, a: D, b: D) -> D:
-        """Meet (⊓): greatest lower bound."""
-        pass
+    def meet(self, a: D, b: D) -> D: ...
 
     @abstractmethod
-    def leq(self, a: D, b: D) -> bool:
-        """Partial order: a ⊑ b."""
-        pass
+    def leq(self, a: D, b: D) -> bool: ...
 
     def widen(self, old: D, new: D) -> D:
-        """Widening (∇): accelerate convergence.
-        
-        Default implementation just joins.
-        """
         return self.join(old, new)
 
     def narrow(self, old: D, new: D) -> D:
-        """Narrowing (△): refine after widening.
-        
-        Default implementation just meets.
-        """
         return self.meet(old, new)
 
-    # -------------------------------------------------------------------------
-    # Value abstraction
-    # -------------------------------------------------------------------------
-
-    def abstract_const(self, value: Any) -> Optional[D]:
-        """Abstract a constant value.
-        
-        Returns None if this domain doesn't handle this type.
-        """
+    def abstract_const(self, value: object) -> D | None:
         return None
 
-    # -------------------------------------------------------------------------
-    # Fact production/consumption (reduction)
-    # -------------------------------------------------------------------------
-
-    def produce_facts(self, var: str, elem: D) -> List[Fact]:
-        """Produce facts about a variable's domain element.
-        
-        Called during reduction to share information with other domains.
-        """
+    def produce_facts(self, var: str, elem: D) -> list[Fact]:
         return []
 
     def consume_fact(self, elem: D, fact: Fact) -> D:
-        """Consume a fact to refine this domain's element.
-        
-        Called during reduction to receive information from other domains.
-        """
         return elem
-
-    # -------------------------------------------------------------------------
-    # Address-based normalization (for deriving domain elements from addrs)
-    # -------------------------------------------------------------------------
 
     def on_reduce_value(
         self,
         var: str,
-        addrs: "AddrSet",
+        addrs: AddrSet,
         elem: D,
-        registry: "DomainRegistry",
-        budget: Optional["AnalysisBudget"] = None,
+        registry: DomainRegistry,
+        budget: AnalysisBudget | None = None,
     ) -> D:
-        """Hook invoked during value reduction to normalize based on addrs.
-        
-        Override this to derive domain elements from the address set.
-        For example, a callable domain can derive tokens from function objects
-        in the address set.
-        
-        Args:
-            var: Variable name being reduced
-            addrs: Points-to set (AbstractObject frozenset)
-            elem: Current domain element after fact exchange
-            registry: The domain registry
-            budget: Optional analysis budget for caps
-            
-        Returns:
-            Refined domain element
-        """
         return elem
 
-    # -------------------------------------------------------------------------
-    # Utilities
-    # -------------------------------------------------------------------------
-
     def is_bottom(self, elem: D) -> bool:
-        """Check if element is bottom."""
         return self.leq(elem, self.bottom()) and self.leq(self.bottom(), elem)
 
     def is_top(self, elem: D) -> bool:
-        """Check if element is top."""
         return self.leq(self.top(), elem)
 
+    def element_types(self) -> tuple[type[D], ...]:
+        """Declare all legal runtime representation variants.
 
-# =============================================================================
-# DomainRegistry - Coordination of domain plugins
-# =============================================================================
+        Current built-in providers each use one immutable record. A provider
+        with additional union variants overrides this finite declaration; it
+        must not assume that the class of bottom alone covers its values.
+        """
+        return (type(self.bottom()), type(self.top()))
+
+    def decode_element(self, value: object) -> D:
+        if not isinstance(value, self.element_types()):
+            raise TypeError(f"Invalid element representation for domain {self.name}")
+        return value
+
+    def register_with(self, registry: DomainRegistry) -> None:
+        """Preserve D while crossing a heterogeneous provider collection."""
+        registry.register(self)
+
+    def public_settings(self) -> Mapping[str, int]:
+        """Finite settings exposed by the read-only registered view."""
+        if isinstance(self, TokenCapacityProvider):
+            capacity: object = self.max_tokens
+            if not isinstance(capacity, int):
+                raise TypeError("Domain token capacity must be an integer")
+            return {"max_tokens": capacity}
+        return {}
+
+
+class RegisteredDomain(Protocol):
+    """Actual erased plugin boundary; every element argument is validated."""
+
+    @property
+    def name(self) -> str: ...
+    @property
+    def max_consts(self) -> int: ...
+    @property
+    def max_prefixes(self) -> int: ...
+    @property
+    def max_suffixes(self) -> int: ...
+    @property
+    def max_tokens(self) -> int: ...
+    def bottom(self) -> object: ...
+    def top(self) -> object: ...
+    def join(self, a: object, b: object) -> object: ...
+    def meet(self, a: object, b: object) -> object: ...
+    def leq(self, a: object, b: object) -> bool: ...
+    def widen(self, old: object, new: object) -> object: ...
+    def narrow(self, old: object, new: object) -> object: ...
+    def abstract_const(self, value: object) -> object | None: ...
+    def produce_facts(self, var: str, elem: object) -> list[Fact]: ...
+    def consume_fact(self, elem: object, fact: Fact) -> object: ...
+    def is_bottom(self, elem: object) -> bool: ...
+    def is_top(self, elem: object) -> bool: ...
+    def on_reduce_value(
+        self,
+        var: str,
+        addrs: AddrSet,
+        elem: object,
+        registry: DomainRegistry,
+        budget: AnalysisBudget | None = None,
+    ) -> object: ...
+
 
 @dataclass(frozen=True)
-class _ReadOnlyDomain:
-    """A provider's public settings cannot be mutated through a frozen bundle."""
-    _provider: Any
+class _RegisteredDomain[D]:
+    _provider: Domain[D]
 
-    def __getattr__(self, name):
-        return getattr(object.__getattribute__(self, "_provider"), name)
+    @property
+    def name(self) -> str:
+        return self._provider.name
+
+    def _setting(self, name: str) -> int:
+        try:
+            return self._provider.public_settings()[name]
+        except KeyError as error:
+            raise AttributeError(name) from error
+
+    @property
+    def max_consts(self) -> int:
+        return self._setting("max_consts")
+
+    @property
+    def max_prefixes(self) -> int:
+        return self._setting("max_prefixes")
+
+    @property
+    def max_suffixes(self) -> int:
+        return self._setting("max_suffixes")
+
+    @property
+    def max_tokens(self) -> int:
+        return self._setting("max_tokens")
+
+    def bottom(self) -> D:
+        return self._provider.bottom()
+
+    def top(self) -> D:
+        return self._provider.top()
+
+    def join(self, a: object, b: object) -> D:
+        return self._provider.join(
+            self._provider.decode_element(a), self._provider.decode_element(b)
+        )
+
+    def meet(self, a: object, b: object) -> D:
+        return self._provider.meet(
+            self._provider.decode_element(a), self._provider.decode_element(b)
+        )
+
+    def leq(self, a: object, b: object) -> bool:
+        return self._provider.leq(
+            self._provider.decode_element(a), self._provider.decode_element(b)
+        )
+
+    def widen(self, old: object, new: object) -> D:
+        return self._provider.widen(
+            self._provider.decode_element(old), self._provider.decode_element(new)
+        )
+
+    def narrow(self, old: object, new: object) -> D:
+        return self._provider.narrow(
+            self._provider.decode_element(old), self._provider.decode_element(new)
+        )
+
+    def abstract_const(self, value: object) -> D | None:
+        return self._provider.abstract_const(value)
+
+    def produce_facts(self, var: str, elem: object) -> list[Fact]:
+        return self._provider.produce_facts(var, self._provider.decode_element(elem))
+
+    def consume_fact(self, elem: object, fact: Fact) -> D:
+        return self._provider.consume_fact(self._provider.decode_element(elem), fact)
+
+    def is_bottom(self, elem: object) -> bool:
+        return self._provider.is_bottom(self._provider.decode_element(elem))
+
+    def is_top(self, elem: object) -> bool:
+        return self._provider.is_top(self._provider.decode_element(elem))
+
+    def on_reduce_value(
+        self,
+        var: str,
+        addrs: AddrSet,
+        elem: object,
+        registry: DomainRegistry,
+        budget: AnalysisBudget | None = None,
+    ) -> D:
+        return self._provider.on_reduce_value(
+            var, addrs, self._provider.decode_element(elem), registry, budget
+        )
+
+
+class RegistryState(TypedDict):
+    domains: dict[str, RegisteredDomain]
+    frozen: bool
+    version: str | None
 
 
 class DomainRegistry:
-    """Registry for domain plugins.
-    
-    Manages a collection of domains and coordinates:
-    - Registration of domains
-    - Reduction (fact exchange between domains)
-    - Widening/narrowing coordination
-    """
+    """Own provider membership and validate every heterogeneous component use."""
 
-    def __init__(self):
-        """Initialize empty registry."""
-        self._domains: Dict[str, Domain] = {}
+    _domains: Mapping[str, RegisteredDomain]
+    _frozen: bool
+    version: str | None
+
+    def __init__(self) -> None:
+        self._domains = {}
         self._frozen = False
         self.version = None
 
-    def register(self, domain: Domain) -> None:
-        """Register a domain plugin."""
+    def register[D](self, domain: Domain[D]) -> None:
         if self._frozen:
             raise TypeError("DomainRegistry is immutable after bundle construction")
-        self._domains[domain.name] = domain
+        registered: _RegisteredDomain[D] = _RegisteredDomain(domain)
+        self._domains = {**self._domains, domain.name: registered}
 
-    def freeze(self, version=None):
-        """Seal provider membership and expose read-only domain settings."""
-        from types import MappingProxyType
+    def freeze(self, version: str | None = None) -> DomainRegistry:
         if not self._frozen:
-            self._domains = MappingProxyType({name: _ReadOnlyDomain(value)
-                                               for name, value in self._domains.items()})
+            self._domains = MappingProxyType(dict(self._domains))
             self.version = version
             self._frozen = True
         return self
 
-    def __getstate__(self):
-        # Serialized snapshots own their registry; mappingproxy is rebuilt on
-        # load rather than leaking a mutable shared dictionary.
-        return {"domains": dict(self._domains), "frozen": self._frozen,
-                "version": self.version}
+    @override
+    def __getstate__(self) -> RegistryState:
+        return {"domains": dict(self._domains), "frozen": self._frozen, "version": self.version}
 
-    def __setstate__(self, state):
-        from types import MappingProxyType
+    def __setstate__(self, state: RegistryState) -> None:
         self.version = state["version"]
         self._frozen = state["frozen"]
-        self._domains = (MappingProxyType(state["domains"]) if self._frozen
-                         else state["domains"])
+        self._domains = MappingProxyType(state["domains"]) if self._frozen else state["domains"]
 
-    def get(self, name: str) -> Optional[Domain]:
-        """Get domain by name."""
+    def get(self, name: str) -> RegisteredDomain | None:
         return self._domains.get(name)
 
     @property
-    def domains(self) -> List[Domain]:
-        """Get all registered domains."""
+    def domains(self) -> list[RegisteredDomain]:
         return list(self._domains.values())
 
-    def reduce(self, var: str, components: Dict[str, Any]) -> Dict[str, Any]:
-        """Run reduction: exchange facts between domains.
-        
-        Args:
-            var: Variable name
-            components: {domain_name: element} mapping
-            
-        Returns:
-            Refined components after fact exchange
-        """
-        # Collect all facts
-        all_facts: List[Fact] = []
-        for domain_name, elem in components.items():
-            domain = self._domains.get(domain_name)
+    def reduce(self, var: str, components: dict[str, object]) -> dict[str, object]:
+        facts: list[Fact] = []
+        for name, elem in components.items():
+            domain = self._domains.get(name)
             if domain:
-                facts = domain.produce_facts(var, elem)
-                all_facts.extend(facts)
-
-        # If no facts, nothing to reduce
-        if not all_facts:
+                facts.extend(domain.produce_facts(var, elem))
+        if not facts:
             return components
-
-        # Distribute facts to all domains
-        new_components: Dict[str, Any] = {}
-        for domain_name, elem in components.items():
-            domain = self._domains.get(domain_name)
+        reduced: dict[str, object] = {}
+        for name, elem in components.items():
+            domain = self._domains.get(name)
             if domain:
-                refined = elem
-                for fact in all_facts:
-                    refined = domain.consume_fact(refined, fact)
-                new_components[domain_name] = refined
-            else:
-                new_components[domain_name] = elem
-
-        return new_components
+                for fact in facts:
+                    elem = domain.consume_fact(elem, fact)
+            reduced[name] = elem
+        return reduced
 
     def reduce_value(
         self,
         var: str,
-        addrs: "AddrSet",
-        components: Dict[str, Any],
-        budget: Optional["AnalysisBudget"] = None,
-        scalar_kinds=None,
+        addrs: AddrSet,
+        components: Mapping[str, object],
+        budget: AnalysisBudget | None = None,
+        scalar_kinds: frozenset[str] | None = None,
         has_object_alternatives: bool = False,
-    ) -> Dict[str, Any]:
-        """Run full value reduction: fact exchange + address-based normalization.
-        
-        This is the primary reduction entry point that:
-        1. Runs fact exchange between domains (via reduce())
-        2. Runs on_reduce_value for each domain to derive from addrs
-        
-        Args:
-            var: Variable name
-            addrs: Points-to set (AbstractObject frozenset)
-            components: {domain_name: element} mapping
-            budget: Optional analysis budget for caps
-            
-        Returns:
-            Refined components after full reduction
-        """
-        # Scalar components are tagged alternatives, while bool truthiness
-        # and None-ness are predicates. Only a single complete scalar sort can
-        # contribute unconditional facts. Facts from one arm of None|string
-        # must never erase the other arm. Untagged legacy products have no
-        # established exact sort and receive only covering address derivation.
+    ) -> dict[str, object]:
         reduced = dict(components)
         if scalar_kinds is not None and len(scalar_kinds) == 1 and not has_object_alternatives:
             name = next(iter(scalar_kinds))
@@ -344,15 +342,8 @@ class DomainRegistry:
                     for fact in facts:
                         elem = target.consume_fact(elem, fact)
                     reduced[target_name] = elem
-        
-        # Step 2: address-based normalization
-        for domain_name, elem in reduced.items():
-            domain = self._domains.get(domain_name)
+        for name, elem in reduced.items():
+            domain = self._domains.get(name)
             if domain:
-                reduced[domain_name] = domain.on_reduce_value(
-                    var, addrs, elem, self, budget
-                )
-        
+                reduced[name] = domain.on_reduce_value(var, addrs, elem, self, budget)
         return reduced
-
-

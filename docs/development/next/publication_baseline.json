@@ -1,0 +1,148 @@
+{
+  "source_head": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "wheel": "pythonstan-0.2.0-py3-none-any.whl",
+  "wheel_sha256": "c3754da3f9d41975cb9aa72753299de3179a8fa6ce81e9323d52a7fdf62e374f",
+  "retired_paths": [
+    {
+      "path": "pythonstan/analysis/deprecated_ai/__init__.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/logging.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/operation.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/pointer_adapter.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/solver.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/state.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/value.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/__init__.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/base.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/baseprocess.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg_pre_transform.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg_transform.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/postprocessor.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/preprocessor.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/graph/icfg/__init__.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    },
+    {
+      "path": "pythonstan/graph/icfg/icfg.py",
+      "source_exists": true,
+      "archive_exists": true,
+      "wheel_contains": true,
+      "decision": "archive_only_do_not_install",
+      "status": "still_present"
+    }
+  ],
+  "python_files": 305,
+  "py_typed_files": [],
+  "build_scope": "Pristine detached worktree e8d9e0d with committed pyproject and lock",
+  "note": "Baseline rebuilt wheel, not qualified candidate.17 archive-only paths remain installed; no py.typed."
+}

@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "task": "N4-TYPE-01 domain dependency",
+  "status": "interface_ready_waiting_root_W0_signal",
+  "production_modified": false,
+  "owned_modules": [
+    "none.py",
+    "bundle.py",
+    "bool.py",
+    "strings.py",
+    "ints.py",
+    "relations.py",
+    "base.py",
+    "values.py",
+    "__init__.py",
+    "reabstract.py"
+  ],
+  "source_inventory": {
+    "none.py": {
+      "lines": 130,
+      "sha256": "9f1f9b37e7223d56231e91d92ac79eedc982358b06807b2c48f403ba629246e4"
+    },
+    "bundle.py": {
+      "lines": 52,
+      "sha256": "48d66fde0ba2978bab91db628d2f74183195ee87a87df983135ff3d73def9327"
+    },
+    "bool.py": {
+      "lines": 235,
+      "sha256": "7ec876ecfbf681bcaf1704dcca28a19b98f9ff6dfce7ef91b7258759d2488700"
+    },
+    "strings.py": {
+      "lines": 712,
+      "sha256": "f25f458a81607b80a0a885ff9a08d6831dce19ea144c68a533eb5697d15774bc"
+    },
+    "ints.py": {
+      "lines": 785,
+      "sha256": "4b5c003f48f5ebe7a5d1d032396e7326597d05b354cebcfd1a63760f62b1579e"
+    },
+    "relations.py": {
+      "lines": 36,
+      "sha256": "2121d4daed146881341088415958246fb29524a4926a396f36c56640ae617726"
+    },
+    "base.py": {
+      "lines": 358,
+      "sha256": "13a715287cb98c701b74f0213fb4c23ae5c7f6401be0e1f01b05a42982214f17"
+    },
+    "values.py": {
+      "lines": 242,
+      "sha256": "20d87e335b1ea284a43b46bfa1bd426244420ba61f9cd44cc286889e4c2dc2e9"
+    },
+    "__init__.py": {
+      "lines": 1,
+      "sha256": "28d7f8e7c1520dc2d27502b9123df27cf315e744ca681b16be4a0311b06f6506"
+    },
+    "reabstract.py": {
+      "lines": 61,
+      "sha256": "97f8ffb1b80947108a79ae0eed2b631f7a3d433d842c0688d335d5c7819beb4b"
+    }
+  },
+  "canonical_identity": "analysis/contracts/identity.py ObjectId/CellId/IdentityEpoch supplied by TYPE01 owner",
+  "steps": [
+    {
+      "id": "DOMAIN-TYPE-00",
+      "goal": "Mechanical Ruff formatting only, AST excluding positions and annotations unchanged",
+      "evidence": "isolated before/after AST digest; root checkpoint separate from semantic commits"
+    },
+    {
+      "id": "DOMAIN-TYPE-01",
+      "goal": "Annotate actual Value, ValueOperations, relation tokens and IdentityArena. Value.refs uses canonical ObjectId; no duplicate IDs; exact constants use finite scalar union and wire result uses recursive validated JSON type."
+    },
+    {
+      "id": "DOMAIN-TYPE-02",
+      "goal": "Type integer/string/bool/None lattice APIs and constructor attributes. Fact payload becomes finite scalar/range/set union with real narrowing, not Any."
+    },
+    {
+      "id": "DOMAIN-TYPE-03",
+      "goal": "Replace unbounded frozen-provider __getattr__ by generic registered-domain adapter with genuine runtime element-class validation and explicit methods/settings. Heterogeneous registry stores typed adapter ports; no engine/compat reverse imports."
+    },
+    {
+      "id": "DOMAIN-TYPE-04",
+      "goal": "Type DomainBundle policy input through explicit budget-attribute Protocol; no getattr defaults on arbitrary object. Complete actual provider/registry consumers and serialization shape."
+    },
+    {
+      "id": "DOMAIN-TYPE-05",
+      "goal": "Full changed-module strict/Ruff diagnostics zero, run existing domains+state+shared legacy bridge tests and frozen known-red gates; compare behavior projections and do not close semantic findings."
+    }
+  ],
+  "constraints": [
+    "Wait for root W0-complete signal before production writes.",
+    "Mixed-sort scalar fallback, float truth, residual-string wire and R3 graph defects remain unchanged in the typing commit.",
+    "No Any, blanket ignores, unchecked cast, object+getattr, duplicate runtime contracts or whole-solver Protocol.",
+    "Object typing is legitimate only at validated concrete-input, JSON, or heterogeneous plugin element boundary; no general dynamic algorithm value.",
+    "Registry plugin type erasure needs runtime validation at each actual adapter call; preserving the full typed Domain[D] is preferable where consumers know its lattice.",
+    "Legacy additional domains remain supported through generic adapters and do not require canonical domains importing legacy types."
+  ],
+  "review_triggers": [
+    {
+      "modules": [
+        "ints.py",
+        "strings.py"
+      ],
+      "reason": "Existing scalar mathematics exceeds500lines; preserve algorithm layout during typing, do not mechanically split to meet size threshold."
+    }
+  ],
+  "unresolved_interfaces": [
+    "IdentityArena currently uses one raw namespace for both cell and object aliases. Coordinate explicit typed substitutions with TYPE01 owner without breaking seeded legacy mixed maps.",
+    "Frozen-provider settings currently exposed by __getattr__; inventory actual consumers before replacing with finite settings properties.",
+    "Heterogeneous registered domain decoder design needs reviewer agreement before implementation."
+  ]
+}

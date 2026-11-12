@@ -1,0 +1,3376 @@
+{
+  "schema_version": 1,
+  "task_id": "N4-QUAL-01",
+  "scope": "Q0 tooling and captured debt; no runtime type-adoption claim",
+  "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "production_files": 305,
+  "diagnostics": {
+    "format": 270,
+    "ruff": 12477,
+    "mypy": 10349
+  },
+  "frontier_modules": 13,
+  "modules": [
+    {
+      "module_id": "pythonstan",
+      "path": "pythonstan/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.__main__",
+      "path": "pythonstan/__main__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis",
+      "path": "pythonstan/analysis/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 3,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.analysis",
+      "path": "pythonstan/analysis/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 21
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.class_hierarchy",
+      "path": "pythonstan/analysis/class_hierarchy.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.closure",
+      "path": "pythonstan/analysis/closure.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 19
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.compact_liveness",
+      "path": "pythonstan/analysis/compact_liveness.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 26,
+        "mypy": 24
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition",
+      "path": "pythonstan/analysis/composition/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.guarded_dispatch",
+      "path": "pythonstan/analysis/composition/guarded_dispatch.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 65,
+        "mypy": 47
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.hybrid",
+      "path": "pythonstan/analysis/composition/hybrid.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 16,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.native_intrinsics",
+      "path": "pythonstan/analysis/composition/native_intrinsics.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.native_snapshot",
+      "path": "pythonstan/analysis/composition/native_snapshot.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 16,
+        "mypy": 16
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.oracle",
+      "path": "pythonstan/analysis/composition/oracle.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 199,
+        "mypy": 107
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.plan",
+      "path": "pythonstan/analysis/composition/plan.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 63,
+        "mypy": 30
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.reabstract",
+      "path": "pythonstan/analysis/composition/reabstract.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 8,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.region_engine",
+      "path": "pythonstan/analysis/composition/region_engine.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 173,
+        "mypy": 106
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.region_scheduler",
+      "path": "pythonstan/analysis/composition/region_scheduler.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 23,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.composition.state_adapter",
+      "path": "pythonstan/analysis/composition/state_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 29,
+        "mypy": 36
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts",
+      "path": "pythonstan/analysis/contracts/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.budgets",
+      "path": "pythonstan/analysis/contracts/budgets.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 3,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.engine",
+      "path": "pythonstan/analysis/contracts/engine.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 2,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.identity",
+      "path": "pythonstan/analysis/contracts/identity.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.observation",
+      "path": "pythonstan/analysis/contracts/observation.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 30,
+        "mypy": 42
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.outcomes",
+      "path": "pythonstan/analysis/contracts/outcomes.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 5,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.private_slots",
+      "path": "pythonstan/analysis/contracts/private_slots.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 12,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.wire",
+      "path": "pythonstan/analysis/contracts/wire.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.contracts.work",
+      "path": "pythonstan/analysis/contracts/work.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow",
+      "path": "pythonstan/analysis/dataflow/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 4,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow.analysis",
+      "path": "pythonstan/analysis/dataflow/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow.driver",
+      "path": "pythonstan/analysis/dataflow/driver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 10,
+        "mypy": 15
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow.liveness",
+      "path": "pythonstan/analysis/dataflow/liveness.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow.reaching_definition",
+      "path": "pythonstan/analysis/dataflow/reaching_definition.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 22,
+        "mypy": 13
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.dataflow.solver",
+      "path": "pythonstan/analysis/dataflow/solver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.defuse",
+      "path": "pythonstan/analysis/defuse.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 6,
+        "mypy": 13
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai",
+      "path": "pythonstan/analysis/deprecated_ai/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 5
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.logging",
+      "path": "pythonstan/analysis/deprecated_ai/logging.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 85,
+        "mypy": 65
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.operation",
+      "path": "pythonstan/analysis/deprecated_ai/operation.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 125,
+        "mypy": 95
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.pointer_adapter",
+      "path": "pythonstan/analysis/deprecated_ai/pointer_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 47,
+        "mypy": 32
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.solver",
+      "path": "pythonstan/analysis/deprecated_ai/solver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 65,
+        "mypy": 35
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.state",
+      "path": "pythonstan/analysis/deprecated_ai/state.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 172,
+        "mypy": 68
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.deprecated_ai.value",
+      "path": "pythonstan/analysis/deprecated_ai/value.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 96,
+        "mypy": 37
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains",
+      "path": "pythonstan/analysis/domains/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.base",
+      "path": "pythonstan/analysis/domains/base.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 42,
+        "mypy": 111
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.bool",
+      "path": "pythonstan/analysis/domains/bool.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 13
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.bundle",
+      "path": "pythonstan/analysis/domains/bundle.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 35
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.ints",
+      "path": "pythonstan/analysis/domains/ints.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 27,
+        "mypy": 39
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.none",
+      "path": "pythonstan/analysis/domains/none.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 12
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.reabstract",
+      "path": "pythonstan/analysis/domains/reabstract.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 31,
+        "mypy": 60
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.relations",
+      "path": "pythonstan/analysis/domains/relations.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 16,
+        "mypy": 18
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.strings",
+      "path": "pythonstan/analysis/domains/strings.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 46,
+        "mypy": 22
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.domains.values",
+      "path": "pythonstan/analysis/domains/values.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 101,
+        "mypy": 303
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines",
+      "path": "pythonstan/analysis/engines/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract",
+      "path": "pythonstan/analysis/engines/abstract/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.attributes",
+      "path": "pythonstan/analysis/engines/abstract/attributes.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 158,
+        "mypy": 164
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.continuations",
+      "path": "pythonstan/analysis/engines/abstract/continuations.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 346,
+        "mypy": 150
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.dictionaries",
+      "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 164,
+        "mypy": 39
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.dictionary_views",
+      "path": "pythonstan/analysis/engines/abstract/dictionary_views.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 64,
+        "mypy": 13
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.driver",
+      "path": "pythonstan/analysis/engines/abstract/driver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 322,
+        "mypy": 185
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.namespaces",
+      "path": "pythonstan/analysis/engines/abstract/namespaces.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 161,
+        "mypy": 70
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.state",
+      "path": "pythonstan/analysis/engines/abstract/state.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 115,
+        "mypy": 58
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.state_transform",
+      "path": "pythonstan/analysis/engines/abstract/state_transform.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 124,
+        "mypy": 64
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.engines.abstract.transfer",
+      "path": "pythonstan/analysis/engines/abstract/transfer.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 925,
+        "mypy": 580
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer",
+      "path": "pythonstan/analysis/pointer/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai",
+      "path": "pythonstan/analysis/pointer/ai/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 18
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai._cfg_adapter",
+      "path": "pythonstan/analysis/pointer/ai/_cfg_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai._narrowing",
+      "path": "pythonstan/analysis/pointer/ai/_narrowing.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai._trace_partition",
+      "path": "pythonstan/analysis/pointer/ai/_trace_partition.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.analysis",
+      "path": "pythonstan/analysis/pointer/ai/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.api",
+      "path": "pythonstan/analysis/pointer/ai/api.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified",
+      "path": "pythonstan/analysis/pointer/ai/certified/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 13
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.checker",
+      "path": "pythonstan/analysis/pointer/ai/certified/checker.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.closed_heap_effects",
+      "path": "pythonstan/analysis/pointer/ai/certified/closed_heap_effects.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 524,
+        "mypy": 471
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.driver",
+      "path": "pythonstan/analysis/pointer/ai/certified/driver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 13,
+        "mypy": 28
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.finite_entry",
+      "path": "pythonstan/analysis/pointer/ai/certified/finite_entry.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 48
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.heap_continuations",
+      "path": "pythonstan/analysis/pointer/ai/certified/heap_continuations.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 39,
+        "mypy": 94
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.heap_coroutines",
+      "path": "pythonstan/analysis/pointer/ai/certified/heap_coroutines.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 23,
+        "mypy": 16
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.llm",
+      "path": "pythonstan/analysis/pointer/ai/certified/llm.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 71
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.certified.read_specialization",
+      "path": "pythonstan/analysis/pointer/ai/certified/read_specialization.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 6,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.config",
+      "path": "pythonstan/analysis/pointer/ai/config.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains",
+      "path": "pythonstan/analysis/pointer/ai/domains/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 49,
+        "mypy": 44
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.attributes",
+      "path": "pythonstan/analysis/pointer/ai/domains/attributes.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.base",
+      "path": "pythonstan/analysis/pointer/ai/domains/base.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.binding",
+      "path": "pythonstan/analysis/pointer/ai/domains/binding.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.bool",
+      "path": "pythonstan/analysis/pointer/ai/domains/bool.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.builtins",
+      "path": "pythonstan/analysis/pointer/ai/domains/builtins.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.callable",
+      "path": "pythonstan/analysis/pointer/ai/domains/callable.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.calls",
+      "path": "pythonstan/analysis/pointer/ai/domains/calls.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.classinfo",
+      "path": "pythonstan/analysis/pointer/ai/domains/classinfo.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 13,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.conditions",
+      "path": "pythonstan/analysis/pointer/ai/domains/conditions.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.descriptor",
+      "path": "pythonstan/analysis/pointer/ai/domains/descriptor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.ints",
+      "path": "pythonstan/analysis/pointer/ai/domains/ints.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.iterators",
+      "path": "pythonstan/analysis/pointer/ai/domains/iterators.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 13,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.kwargs",
+      "path": "pythonstan/analysis/pointer/ai/domains/kwargs.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.mapslots",
+      "path": "pythonstan/analysis/pointer/ai/domains/mapslots.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.none",
+      "path": "pythonstan/analysis/pointer/ai/domains/none.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.scopes",
+      "path": "pythonstan/analysis/pointer/ai/domains/scopes.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.strings",
+      "path": "pythonstan/analysis/pointer/ai/domains/strings.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.subscripts",
+      "path": "pythonstan/analysis/pointer/ai/domains/subscripts.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.tuples",
+      "path": "pythonstan/analysis/pointer/ai/domains/tuples.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.domains.type_domain",
+      "path": "pythonstan/analysis/pointer/ai/domains/type_domain.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.generator_protocol",
+      "path": "pythonstan/analysis/pointer/ai/generator_protocol.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 120,
+        "mypy": 176
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.heap",
+      "path": "pythonstan/analysis/pointer/ai/heap.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.interpreter",
+      "path": "pythonstan/analysis/pointer/ai/interpreter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 23,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.lexical_bindings",
+      "path": "pythonstan/analysis/pointer/ai/lexical_bindings.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 29,
+        "mypy": 28
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.plan",
+      "path": "pythonstan/analysis/pointer/ai/plan.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.scalar_transfer",
+      "path": "pythonstan/analysis/pointer/ai/scalar_transfer.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.solver",
+      "path": "pythonstan/analysis/pointer/ai/solver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 31,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.state",
+      "path": "pythonstan/analysis/pointer/ai/state.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.summary",
+      "path": "pythonstan/analysis/pointer/ai/summary.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.ai.value_domain",
+      "path": "pythonstan/analysis/pointer/ai/value_domain.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa",
+      "path": "pythonstan/analysis/pointer/kcfa/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 2,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.allocation",
+      "path": "pythonstan/analysis/pointer/kcfa/allocation.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 5
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.analysis",
+      "path": "pythonstan/analysis/pointer/kcfa/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 55,
+        "mypy": 69
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.bootstrap",
+      "path": "pythonstan/analysis/pointer/kcfa/bootstrap.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 37,
+        "mypy": 43
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.builtin_api_handler",
+      "path": "pythonstan/analysis/pointer/kcfa/builtin_api_handler.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 215,
+        "mypy": 238
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.call_graph_analyzer",
+      "path": "pythonstan/analysis/pointer/kcfa/call_graph_analyzer.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 25,
+        "mypy": 18
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.class_hierarchy",
+      "path": "pythonstan/analysis/pointer/kcfa/class_hierarchy.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.config",
+      "path": "pythonstan/analysis/pointer/kcfa/config.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 20,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.constraints",
+      "path": "pythonstan/analysis/pointer/kcfa/constraints.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 82,
+        "mypy": 55
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.context",
+      "path": "pythonstan/analysis/pointer/kcfa/context.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 71,
+        "mypy": 141
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.context_selector",
+      "path": "pythonstan/analysis/pointer/kcfa/context_selector.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 25,
+        "mypy": 23
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.dependency_graph",
+      "path": "pythonstan/analysis/pointer/kcfa/dependency_graph.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 18,
+        "mypy": 14
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.diagnostics",
+      "path": "pythonstan/analysis/pointer/kcfa/diagnostics.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 67,
+        "mypy": 62
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.exception_models",
+      "path": "pythonstan/analysis/pointer/kcfa/exception_models.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 12,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.heap_model",
+      "path": "pythonstan/analysis/pointer/kcfa/heap_model.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 45
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.input_bindings",
+      "path": "pythonstan/analysis/pointer/kcfa/input_bindings.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 16,
+        "mypy": 7
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.ir_translator",
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 267,
+        "mypy": 124
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.libs.math",
+      "path": "pythonstan/analysis/pointer/kcfa/libs/math.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 128,
+        "mypy": 69
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.module_analysis",
+      "path": "pythonstan/analysis/pointer/kcfa/module_analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 23
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.module_summary",
+      "path": "pythonstan/analysis/pointer/kcfa/module_summary.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 5
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.mro_projection",
+      "path": "pythonstan/analysis/pointer/kcfa/mro_projection.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.native_mapping",
+      "path": "pythonstan/analysis/pointer/kcfa/native_mapping.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 109,
+        "mypy": 87
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.object",
+      "path": "pythonstan/analysis/pointer/kcfa/object.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 35,
+        "mypy": 39
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.pointer_flow_graph",
+      "path": "pythonstan/analysis/pointer/kcfa/pointer_flow_graph.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 59,
+        "mypy": 24
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.points_to_set",
+      "path": "pythonstan/analysis/pointer/kcfa/points_to_set.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 2,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.attribute_semantics",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/attribute_semantics.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 72,
+        "mypy": 54
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.class_protocol",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/class_protocol.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 51,
+        "mypy": 26
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.compose_processor",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/compose_processor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 9,
+        "mypy": 14
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.construction_hooks",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/construction_hooks.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 55,
+        "mypy": 34
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.container",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/container.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 25
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.generator",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/generator.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 73,
+        "mypy": 109
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.heap_mapping",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/heap_mapping.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 42,
+        "mypy": 23
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.keyword_expansion",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 46,
+        "mypy": 27
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.normal_call",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 36,
+        "mypy": 71
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.processor",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/processor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 12,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.super_resolve",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/super_resolve.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 9,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.truth_protocol",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/truth_protocol.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.processor.type_protocol",
+      "path": "pythonstan/analysis/pointer/kcfa/processor/type_protocol.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 18,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.protocol_context",
+      "path": "pythonstan/analysis/pointer/kcfa/protocol_context.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.pta_query_adapter",
+      "path": "pythonstan/analysis/pointer/kcfa/pta_query_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 19
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.query",
+      "path": "pythonstan/analysis/pointer/kcfa/query.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 105,
+        "mypy": 88
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.scheduler",
+      "path": "pythonstan/analysis/pointer/kcfa/scheduler.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 12,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.solver",
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 315,
+        "mypy": 266
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.solver_interface",
+      "path": "pythonstan/analysis/pointer/kcfa/solver_interface.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 36,
+        "mypy": 16
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.state",
+      "path": "pythonstan/analysis/pointer/kcfa/state.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 136,
+        "mypy": 112
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.super_lookup",
+      "path": "pythonstan/analysis/pointer/kcfa/super_lookup.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 32,
+        "mypy": 34
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.unknown_effects",
+      "path": "pythonstan/analysis/pointer/kcfa/unknown_effects.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 15
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.unknown_tracker",
+      "path": "pythonstan/analysis/pointer/kcfa/unknown_tracker.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.variable",
+      "path": "pythonstan/analysis/pointer/kcfa/variable.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 8,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.pointer.kcfa.worklist",
+      "path": "pythonstan/analysis/pointer/kcfa/worklist.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 18,
+        "mypy": 15
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.policies.partitions",
+      "path": "pythonstan/analysis/policies/partitions.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project",
+      "path": "pythonstan/analysis/project/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project.analysis",
+      "path": "pythonstan/analysis/project/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 97,
+        "mypy": 98
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project.entry_contracts",
+      "path": "pythonstan/analysis/project/entry_contracts.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 13,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project.frontend_lifetime",
+      "path": "pythonstan/analysis/project/frontend_lifetime.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 9,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project_frameworks",
+      "path": "pythonstan/analysis/project_frameworks/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.project_frameworks.entries",
+      "path": "pythonstan/analysis/project_frameworks/entries.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 92,
+        "mypy": 77
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.scope",
+      "path": "pythonstan/analysis/scope/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 3,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.scope.analysis",
+      "path": "pythonstan/analysis/scope/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.scope.closure",
+      "path": "pythonstan/analysis/scope/closure.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.security",
+      "path": "pythonstan/analysis/security/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.security.audit",
+      "path": "pythonstan/analysis/security/audit.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 145,
+        "mypy": 107
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.security.boundary_policy",
+      "path": "pythonstan/analysis/security/boundary_policy.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 100,
+        "mypy": 105
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.security.tasks",
+      "path": "pythonstan/analysis/security/tasks.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 8,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.semantics",
+      "path": "pythonstan/analysis/semantics/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.semantics.binding",
+      "path": "pythonstan/analysis/semantics/binding.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 24,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.semantics.control",
+      "path": "pythonstan/analysis/semantics/control.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.semantics.names",
+      "path": "pythonstan/analysis/semantics/names.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 36,
+        "mypy": 22
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform",
+      "path": "pythonstan/analysis/transform/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 7,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.block_cfg",
+      "path": "pythonstan/analysis/transform/block_cfg.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 76,
+        "mypy": 36
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.cfg",
+      "path": "pythonstan/analysis/transform/cfg.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 21
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.driver",
+      "path": "pythonstan/analysis/transform/driver.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 11,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg",
+      "path": "pythonstan/analysis/transform/icfg/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.base",
+      "path": "pythonstan/analysis/transform/icfg/base.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 18
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.baseprocess",
+      "path": "pythonstan/analysis/transform/icfg/baseprocess.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 79,
+        "mypy": 138
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.icfg",
+      "path": "pythonstan/analysis/transform/icfg/icfg.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.icfg_pre_transform",
+      "path": "pythonstan/analysis/transform/icfg/icfg_pre_transform.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 32,
+        "mypy": 14
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.icfg_transform",
+      "path": "pythonstan/analysis/transform/icfg/icfg_transform.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.postprocessor",
+      "path": "pythonstan/analysis/transform/icfg/postprocessor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 46,
+        "mypy": 28
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.icfg.preprocessor",
+      "path": "pythonstan/analysis/transform/icfg/preprocessor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 71,
+        "mypy": 46
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.ir",
+      "path": "pythonstan/analysis/transform/ir.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 219,
+        "mypy": 234
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.three_address",
+      "path": "pythonstan/analysis/transform/three_address.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 166,
+        "mypy": 270
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.transform.transform",
+      "path": "pythonstan/analysis/transform/transform.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 11,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification",
+      "path": "pythonstan/analysis/verification/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.closed_effects",
+      "path": "pythonstan/analysis/verification/closed_effects/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.closed_effects.checker",
+      "path": "pythonstan/analysis/verification/closed_effects/checker.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 39,
+        "mypy": 31
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch.apply",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/apply.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 56,
+        "mypy": 36
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch.checker",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/checker.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 27,
+        "mypy": 19
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch.language",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/language.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 24,
+        "mypy": 31
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch.obligations",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/obligations.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 29
+      }
+    },
+    {
+      "module_id": "pythonstan.analysis.verification.guarded_dispatch.semantics",
+      "path": "pythonstan/analysis/verification/guarded_dispatch/semantics.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.api",
+      "path": "pythonstan/api.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.cli",
+      "path": "pythonstan/cli.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 37,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.compat",
+      "path": "pythonstan/compat/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai",
+      "path": "pythonstan/compat/legacy_ai/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai._cfg_adapter",
+      "path": "pythonstan/compat/legacy_ai/_cfg_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 18,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai._trace_partition",
+      "path": "pythonstan/compat/legacy_ai/_trace_partition.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 7
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.analysis",
+      "path": "pythonstan/compat/legacy_ai/analysis.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 43,
+        "mypy": 27
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.api",
+      "path": "pythonstan/compat/legacy_ai/api.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 74,
+        "mypy": 21
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.config",
+      "path": "pythonstan/compat/legacy_ai/config.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 12,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains",
+      "path": "pythonstan/compat/legacy_ai/domains/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.base",
+      "path": "pythonstan/compat/legacy_ai/domains/base.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 6,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.binding",
+      "path": "pythonstan/compat/legacy_ai/domains/binding.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 4,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.callable",
+      "path": "pythonstan/compat/legacy_ai/domains/callable.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 12
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.descriptor",
+      "path": "pythonstan/compat/legacy_ai/domains/descriptor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 44,
+        "mypy": 14
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.kwargs",
+      "path": "pythonstan/compat/legacy_ai/domains/kwargs.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 39,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.mapslots",
+      "path": "pythonstan/compat/legacy_ai/domains/mapslots.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 73,
+        "mypy": 19
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.tuples",
+      "path": "pythonstan/compat/legacy_ai/domains/tuples.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.domains.type_domain",
+      "path": "pythonstan/compat/legacy_ai/domains/type_domain.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 10,
+        "mypy": 12
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.heap",
+      "path": "pythonstan/compat/legacy_ai/heap.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 41,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.plan",
+      "path": "pythonstan/compat/legacy_ai/plan.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 9,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.state",
+      "path": "pythonstan/compat/legacy_ai/state.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 88,
+        "mypy": 83
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.summary",
+      "path": "pythonstan/compat/legacy_ai/summary.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 7
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_ai.value_domain",
+      "path": "pythonstan/compat/legacy_ai/value_domain.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 57,
+        "mypy": 46
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_integer_adapter",
+      "path": "pythonstan/compat/legacy_integer_adapter.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 12
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.legacy_runner",
+      "path": "pythonstan/compat/legacy_runner.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 11,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.native_services",
+      "path": "pythonstan/compat/native_services.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.native_worker",
+      "path": "pythonstan/compat/native_worker.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 36,
+        "mypy": 26
+      }
+    },
+    {
+      "module_id": "pythonstan.compat.shared_ai",
+      "path": "pythonstan/compat/shared_ai.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 332,
+        "mypy": 228
+      }
+    },
+    {
+      "module_id": "pythonstan.config",
+      "path": "pythonstan/config/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.config.catalog",
+      "path": "pythonstan/config/catalog.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 33,
+        "mypy": 35
+      }
+    },
+    {
+      "module_id": "pythonstan.config.resolve",
+      "path": "pythonstan/config/resolve.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 79,
+        "mypy": 63
+      }
+    },
+    {
+      "module_id": "pythonstan.frontend",
+      "path": "pythonstan/frontend/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.frontend.private_names",
+      "path": "pythonstan/frontend/private_names.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 24,
+        "mypy": 22
+      }
+    },
+    {
+      "module_id": "pythonstan.frontend.source",
+      "path": "pythonstan/frontend/source.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 19,
+        "mypy": 16
+      }
+    },
+    {
+      "module_id": "pythonstan.graph",
+      "path": "pythonstan/graph/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.call_graph",
+      "path": "pythonstan/graph/call_graph/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 4,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.call_graph.call_edge",
+      "path": "pythonstan/graph/call_graph/call_edge.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.call_graph.call_graph",
+      "path": "pythonstan/graph/call_graph/call_graph.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 25,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg",
+      "path": "pythonstan/graph/cfg/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 4,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg.base_block",
+      "path": "pythonstan/graph/cfg/base_block.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 17,
+        "mypy": 11
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg.cfg",
+      "path": "pythonstan/graph/cfg/cfg.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 51,
+        "mypy": 34
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg.dump",
+      "path": "pythonstan/graph/cfg/dump.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg.edges",
+      "path": "pythonstan/graph/cfg/edges.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 58,
+        "mypy": 43
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.cfg.visualize",
+      "path": "pythonstan/graph/cfg/visualize.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 35
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.dominator_tree",
+      "path": "pythonstan/graph/dominator_tree.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 23,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.graph",
+      "path": "pythonstan/graph/graph.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.icfg",
+      "path": "pythonstan/graph/icfg/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.graph.icfg.icfg",
+      "path": "pythonstan/graph/icfg/icfg.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 41,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan.inputs",
+      "path": "pythonstan/inputs/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.inputs.snapshot",
+      "path": "pythonstan/inputs/snapshot.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 52,
+        "mypy": 24
+      }
+    },
+    {
+      "module_id": "pythonstan.inputs.targets",
+      "path": "pythonstan/inputs/targets.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 5
+      }
+    },
+    {
+      "module_id": "pythonstan.ir",
+      "path": "pythonstan/ir/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.ir.ir_statements",
+      "path": "pythonstan/ir/ir_statements.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 245,
+        "mypy": 251
+      }
+    },
+    {
+      "module_id": "pythonstan.ir.ir_visitor",
+      "path": "pythonstan/ir/ir_visitor.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.ir.semantic_residuals",
+      "path": "pythonstan/ir/semantic_residuals.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 11,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.llm",
+      "path": "pythonstan/llm/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.llm.candidates",
+      "path": "pythonstan/llm/candidates.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 2,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.llm.providers",
+      "path": "pythonstan/llm/providers.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 23,
+        "mypy": 17
+      }
+    },
+    {
+      "module_id": "pythonstan.llm.strategy",
+      "path": "pythonstan/llm/strategy.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 38,
+        "mypy": 29
+      }
+    },
+    {
+      "module_id": "pythonstan.models",
+      "path": "pythonstan/models/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.models.builtin_attributes",
+      "path": "pythonstan/models/builtin_attributes.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 3,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan.models.builtins",
+      "path": "pythonstan/models/builtins.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.models.exceptions",
+      "path": "pythonstan/models/exceptions.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.results",
+      "path": "pythonstan/results/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.results.schema",
+      "path": "pythonstan/results/schema.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 112,
+        "mypy": 133
+      }
+    },
+    {
+      "module_id": "pythonstan.session",
+      "path": "pythonstan/session.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 27,
+        "mypy": 50
+      }
+    },
+    {
+      "module_id": "pythonstan.utils",
+      "path": "pythonstan/utils/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.ast_rename",
+      "path": "pythonstan/utils/ast_rename.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 11,
+        "mypy": 6
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.common",
+      "path": "pythonstan/utils/common.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 29,
+        "mypy": 7
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.persistent_rb_tree",
+      "path": "pythonstan/utils/persistent_rb_tree.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 68,
+        "mypy": 97
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.temp_var_generator",
+      "path": "pythonstan/utils/temp_var_generator.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 28,
+        "mypy": 14
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.toposort",
+      "path": "pythonstan/utils/toposort.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 9,
+        "mypy": 3
+      }
+    },
+    {
+      "module_id": "pythonstan.utils.var_collector",
+      "path": "pythonstan/utils/var_collector.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 27,
+        "mypy": 20
+      }
+    },
+    {
+      "module_id": "pythonstan.world",
+      "path": "pythonstan/world/__init__.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 1,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan.world.analysis_manager",
+      "path": "pythonstan/world/analysis_manager.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 25,
+        "mypy": 30
+      }
+    },
+    {
+      "module_id": "pythonstan.world.class_hierarchy",
+      "path": "pythonstan/world/class_hierarchy.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 22,
+        "mypy": 9
+      }
+    },
+    {
+      "module_id": "pythonstan.world.config",
+      "path": "pythonstan/world/config.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 19,
+        "mypy": 10
+      }
+    },
+    {
+      "module_id": "pythonstan.world.import_manager",
+      "path": "pythonstan/world/import_manager.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 7,
+        "mypy": 2
+      }
+    },
+    {
+      "module_id": "pythonstan.world.module_exports",
+      "path": "pythonstan/world/module_exports.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 32,
+        "mypy": 32
+      }
+    },
+    {
+      "module_id": "pythonstan.world.namespace",
+      "path": "pythonstan/world/namespace.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 49,
+        "mypy": 39
+      }
+    },
+    {
+      "module_id": "pythonstan.world.pipeline",
+      "path": "pythonstan/world/pipeline.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 24,
+        "mypy": 47
+      }
+    },
+    {
+      "module_id": "pythonstan.world.scope_manager",
+      "path": "pythonstan/world/scope_manager.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 75,
+        "mypy": 66
+      }
+    },
+    {
+      "module_id": "pythonstan.world.world",
+      "path": "pythonstan/world/world.py",
+      "owner": "typing-architecture",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 16,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector",
+      "path": "pythonstan_inspector/__init__.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 0
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.__main__",
+      "path": "pythonstan_inspector/__main__.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 0,
+        "ruff": 0,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.adapter",
+      "path": "pythonstan_inspector/adapter.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 67,
+        "mypy": 146
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.checker",
+      "path": "pythonstan_inspector/checker.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 44,
+        "mypy": 93
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.cli",
+      "path": "pythonstan_inspector/cli.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 8
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.collector_checker",
+      "path": "pythonstan_inspector/collector_checker.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 83,
+        "mypy": 140
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.collector_view",
+      "path": "pythonstan_inspector/collector_view.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 51,
+        "mypy": 95
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.contract",
+      "path": "pythonstan_inspector/contract.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 14,
+        "mypy": 12
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.core",
+      "path": "pythonstan_inspector/core.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 137,
+        "mypy": 186
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.identity",
+      "path": "pythonstan_inspector/identity.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 4,
+        "mypy": 4
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.incident",
+      "path": "pythonstan_inspector/incident.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 48,
+        "mypy": 34
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.native_identity_projection",
+      "path": "pythonstan_inspector/native_identity_projection.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 13,
+        "mypy": 22
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.project_process",
+      "path": "pythonstan_inspector/project_process.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 27,
+        "mypy": 22
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.project_progress",
+      "path": "pythonstan_inspector/project_progress.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 5,
+        "mypy": 1
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.project_runner",
+      "path": "pythonstan_inspector/project_runner.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 87,
+        "mypy": 129
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.refactor_adapter",
+      "path": "pythonstan_inspector/refactor_adapter.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 15,
+        "mypy": 15
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.runner",
+      "path": "pythonstan_inspector/runner.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 10,
+        "mypy": 19
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.storage",
+      "path": "pythonstan_inspector/storage.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 71,
+        "mypy": 132
+      }
+    },
+    {
+      "module_id": "pythonstan_inspector.trace",
+      "path": "pythonstan_inspector/trace.py",
+      "owner": "inspector-owner",
+      "removal_task": "N4-TYPE-02",
+      "diagnostics": {
+        "format": 1,
+        "ruff": 36,
+        "mypy": 53
+      }
+    }
+  ],
+  "remaining_obligations": [
+    "N4-TYPE-01 actual runtime contracts and direct-SUT strict-call typing",
+    "N4-TYPE-02 complete required core frontier and module-specific Native/Inspector debt removal cards",
+    "REL-01 actual candidate wheel py.typed/public export/retired-member gates"
+  ]
+}

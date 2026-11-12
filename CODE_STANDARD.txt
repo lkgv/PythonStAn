@@ -1,0 +1,106 @@
+PythonStAn 下一轮严格代码规范与验收门（可直接交给实施 agent）
+基线：b19d98e0cdca8fd23d49ec82a526f814309edf75；日期：2026-11-11。
+这份规范是本轮设计要求；算法正确性仍由独立语义、状态和覆盖测试验收。
+
+执行摘要：Ruff format/lint + mypy strict（唯一权威）+ Import Linter + typed-frontier/精确债务门；保持现有 Poetry。
+配置候选：pyproject.quality.toml（合并片段，不是完整项目配置）；必须锁定已发布兼容版本并实际运行验证。
+
+一、严格代码规范（给实施 agent 的 MUST）
+
+1.1 形式与结构
+
+- Python 3.12 作为语义与最低类型语法目标；已声明的 Python 支持范围不能靠提升最低版本绕开问题。工具版本在 Poetry lock 固定，CI 打印工具版本与配置 digest。
+- Ruff 统一格式，4 空格、100 列目标、双引号、LF、禁止分号串联多条语句与单行条件修改多个状态。100 列是 formatter 目标，不用 E501 制造与 formatter 冲突的硬错误。较长错误信息、URL、数学表达式由阅读审查决定。
+- 每个新函数、方法、内部 helper、测试 fixture 与回调都有完整参数和返回注解；self/cls 不强制冗余注解，__init__ 明确 -> None；async def 的返回注解写 await 后的结果 T；普通函数返回 awaitable 时才标 Awaitable[T]；生成器用 Generator[YieldT, SendT, ReturnT] 或适用的 Iterator[T]/AsyncIterator[T]。
+- 无裸 dict/list/set/tuple/Callable/Mapping；没有“为了过检查，把所有值改成 object 后再 cast”的逃生通道。
+- 每个模块只有清楚的一组语义责任；名字说明行为与数据含义。逐步移除 core.py、utils.py、manager.py 式无边界收纳。不能为了函数数或行数阈值造一层无意义转发。
+- 不让构造函数启动分析、执行网络或隐式选择全局策略。装配与执行分开；异常类、参数对象构造可以做无副作用的校验。
+- 内部算法数据用具名类型；字符串/dict 只属于明确的协议、文件、JSON、日志边界。不要把 dict[str,object] 当另一种无注解状态。
+- 公共导出使用明确 __all__ 或显式 re-export；兼容模块可以转发到唯一 canonical 实现，不复制算法。
+- 不引入面向对象框架或依赖注入容器来承载简单函数。纯域运算保持函数/小对象；需要替换实现、测试或限制能力的位置使用窄 Protocol。
+
+1.2 类型纪律
+
+- 默认 strict；开启显式 Any、未跟随导入的 Any、未标注定义/调用、裸泛型、返回 Any、未使用 ignore、遗漏 override 与不穷尽 match 的检查。
+- 不用包级 ignore_errors、follow_imports=skip、ignore_missing_imports=true；不能把源码移动到 exclude 目录或 .pyi 遮住未类型化实现来使门通过。
+- Any 仅可出现在第三方动态 API/反序列化边界的单点适配，必须有具体错误码、原因、负责人、独立验证，以及到内部 typed DTO 的转换。核心 Value/State/Flow/Effect/Policy 不允许 Any。
+- JSON/YAML 输入首先是 object，再递归验证成 JsonValue/RawRequest，最后构造成业务类型。不得把 json.loads 的结果直接 cast(EffectiveConfig, ...)；TypedDict 不执行运行时校验。
+- NewType 适合 ObjectId/CellId/FunctionId/ContinuationId/RegionId 等不可混用的身份；需要 epoch/version/run 的运行时检查必须用具名 dataclass/Handle，NewType 不提供运行时隔离。
+- 同一种身份只保留一种 canonical 类型；不同时流通裸 str、整段编码字符串和 tuple 版本。解析/编码只在边界，稳定显示串与内存身份区分。
+- 使用 Literal/Enum 或 dataclass 判别联合表达语义分支；使用 match + assert_never 或被锁定版本支持的 exhaustive-match。default 分支不能把未知 variant 静默当 normal。
+- frozen=True 只冻结属性赋值，不使里面的 dict/list 自动不可变。共享政策、摘要和结果内部必须采用只读不可变容器或防御性构造；slots 可减少意外属性，但不得破坏现有图复制/反序列化，需先有图测试。
+- 没有事实证明的 cast 不能代替验证。每个必要 cast 集中在 codec/兼容边界；型别检查通过不提升 coverage/proof 状态。
+
+1.3 控制流与错误
+
+- 函数返回值明确区分 Value.bottom、空容器、没有该查询、未支持操作、正常语句无表达式值和不可达路径。
+- 本轮与语义专家统一采用 Flow = NormalFlow | ReturnFlow | RaiseFlow | BreakFlow | ContinueFlow | SuspendFlow。每个 variant 携带 state: StateHandle；Raise 有 ExceptionValue，Suspend 有 ContinuationId 和 typed resume payload；表达式 normal Value 与语句无值不得共用 Bottom 哨兵。
+- effects 使用 CellWrite/HeapWrite/HeapDelete/HeapDefaultWrite/MetadataUpdate/Havoc 等具名变体；Store.apply 实际消费它们。不得保留旧 tuple 作为真实执行路径，而把新类型仅放在 contracts 中。
+- 捕获预期异常并保留语义分支；配置/输入错用一致的 ConfigurationError/InputError。只有顶层执行、外部 provider 和进程边界允许宽泛 Exception 捕获，并记录 typed failure 后采取已定义 fallback；禁止空 except/pass，禁止吞掉内部 AssertionError 后报告 closed。
+- 独立任务的正常完成、预算耗尽、外部中断、内部故障具有不同完成状态；不要靠 return {} 或 return [] 抹掉原因。
+- 算法中不使用 Python 的 bool(Value) 或 bool(abstract_container) 作目标语言真值判断；调用完整 truthiness 语义服务。加针对误用的静态/运行时守卫。
+
+1.4 深层可读性审查阈值
+
+以下是 review trigger，不是自动强拆：单函数逻辑代码超过约 80 行、模块超过约 500 行、圈复杂度超过 12、嵌套层数超过 4、一个函数接收超过 6 个独立位置参数、一个类同时做解析/求解/输出。越界必须记录语义责任、当前不拆的理由与风险；显式语法派发或清楚的数学推导可保留。
+
+禁止把这些指标“过线”当 bug，禁止为降数值把控制流散成几十个微函数。真正硬门为：无反向依赖；类型化输入输出；无隐式状态替换；所有副作用有所有权；未知分支不能丢行为；不让服务获取整台 solver。Ruff complexity 规则可单独生成 review 报告，不将整个 PLR/C901 无差别加入硬 lint 门。
+
+二、typed frontier 与债务迁移
+
+2.1 初始清点
+
+BOOT 对固定源码运行全树 Ruff/mypy，保存完整诊断与实际文件清单；不能根据审计注解比例推算错误数。建立 quality_debt.json，每条是相对路径、symbol、错误码、稳定的语法锚点/消息指纹、原因、owner、预计清除任务；行号作为辅助，不能靠挪行甩掉债务。保留错误条目而非只保留总数，防止修一条又添另一条。
+
+mypy 仍全树检查；外层质量脚本把已有债务与新增诊断分开报告，绝不声称 mypy 全树 clean。新文件和修改的语义单元零新增诊断；禁止 CI 自动重置/再生成债务基线；typed frontier 内整模块零诊断；边界所有入/出类型及跨模块调用一起检查。若一个改动扩散大量旧问题，先形成窄且运行时可验证的适配接口，不全局静音。
+
+2.2 本轮分期
+
+Q0：工具版本和配置锁定；全树 baseline；统一格式的机械变更单独提交，并比较去位置信息 AST/运行回归，不能混合语义修复。语义文件 owner 协调格式化时间，避免多 agent 冲突。
+Q1：api/session/inputs/config/results、contracts 与公开 codecs 全部零错误；所有新增代码强制完整注解。原始 Mapping 到内部 DTO 的转换完成。
+Q2：analysis/state（从现有 abstract/state 与 state_transform 逐步迁移）、domains、真实 Flow/Effect/metadata/continuation 全部零错误；关键域/状态模块启用 disallow_any_expr。
+Q3：abstract driver/transfer/semantic services/composition/verification/LLM provider protocol 的 canonical 运行模块全部零错误；新增/被改 Native 模块与全部 Native adapter/公开入口零错误。
+Q4：发布时核心调用链零债务；完整旧 Native 实现、旧 inspector 等未触及模块若还有债务，必须逐模块公开数量和后续任务，不能宣称全仓严格。后续目标是全生产树严格，不能永久把 legacy 当 exemption。
+
+项目必须维护 versioned typed-frontier 清单；清单只能扩大。一个模块迁入后不得迁回。工具升级单独提交，记录新诊断并处理，不通过换工具版本减少看见的问题。
+
+本轮最终 strict frontier 必须覆盖 api/session/inputs/config/results/contracts/domains/state/semantics/abstract/composition/observations/verification/llm 自有层；其中任何遗留 ignore 都不得通过迁移进入 frontier。旧 Native 剩余债务必须拆为带模块集合、owner、验收命令和依赖的归零子卡，不能只写“以后处理”。全部实例/类状态属性、公开变量和共享容器显式类型化；清楚的局部变量可依类型推断，但不能推断出 Any/unknown 并穿越边界。
+
+2.3 针对工具本身的负例守卫
+
+至少应证明：ObjectId/CellId 互换失败；raw output Mapping 不能直接构造只接收 ResolvedRequest 的 Session；Flow 新增 variant 后旧 exhaustive handler 失败；裸 Any 注入 Value/State 失败；未经校验的 provider payload 不能作为 CheckedSummary；有意引入的反向依赖失败；退休模块加入 wheel 失败。
+
+这些负例是保护开发门是否有效，数量保持精简，不对每个 getter 写镜像测试。Epoch 的数值新鲜性和 alias 图闭包不能靠 Python 静态类型证明，仍用运行期检查和独立图性质测试。
+
+
+三、CI 与重构守卫执行顺序
+
+本地 fast gate：格式检查 → lint 精确债务/typed frontier → mypy 与类型负例 → import contracts → 本次改动对应语义反例和正例。完整集成 gate 再加所有必需阶段测试、state/epoch/graph性质测试、公开入口矩阵、wheel/member/hash验证；性能比较在固定同版本完整成本下运行。
+
+建议统一脚本 scripts/check_quality.py（名字可由实现调整）只编排固定工具命令与诊断比较，不自行发明类型检查器。记录每条命令 exit/status，strict frontier 与 legacy debt 分开输出；不能运行工具后无论 exit code 都返回 success。Ruff 配置用 --show-settings 核对代表文件；mypy BOOT 执行 --help/版本并验证所有 error code；未知/过期配置使 gate 失败。
+
+重构每片要求：先保持或增加真实行为包含关系和客户查询能力，再允许内部布局变化。结果 canonical 化只能忽略时间/run_id/合法重分配标识等预登记无关字段，不能忽略 calls/effects/returns/coverage/proof/status。对 known-bug 旧行为不要求等价，必须有独立 concrete witness 与新的预期覆盖。
+
+机械格式化、目录搬迁、语义修复、性能优化尽量分可审查提交；每个提交/任务注明 source identity 和触达模块。一个共享热点文件只有一个写入 owner，其他 expert 交付补丁建议或接口请求；集成人解决依赖顺序，不能靠最后一个 agent 覆盖前一个。
+
+
+四、补充硬门
+1. 公开 API/配置/结果只通过 ResolvedRequest 进入 Session；禁止内部反复解释原始 Mapping。
+2. 每个 accepted control 对应已实现 consumer、合法 scope、canonical policy 和行为证据；未支持明确拒绝。
+3. 所有权/epoch、join/leq纯读、Flow/Effect穷尽处理必须在实际调用链上执行。
+4. 占用性能预算的复制/归一化/观测/导出全量计费；注解/目录改动不得隐藏语义/性能回归。
+5. wheel/source/manifest/控制元数据/公开类型分发一致；py.typed是标记，不是全仓类型完成证据。
+6. 维护最小的负例守卫套件，证明lint/type/import/package门真实失败；不能测试只验证配置文件存在。
+7. 不允许用修改基线、扩大exclude、无理由ignore、滥用cast/Any/object/getattr、闲置Protocol、或删除支持行为来通过门。
+
+五、官方依据
+https://docs.astral.sh/ruff/configuration/
+https://docs.astral.sh/ruff/formatter/
+https://mypy.readthedocs.io/en/stable/config_file.html
+https://mypy.readthedocs.io/en/stable/error_code_list2.html
+https://import-linter.readthedocs.io/en/stable/get_started/configure/
+https://import-linter.readthedocs.io/en/stable/contract_types/forbidden/
+
+整合补充：NormalFlow为NormalExprFlow|NormalStmtFlow别名，正常表达式与正常语句无值必须可区分。AnalysisObligation、Python Completion、SemanticEffect、ObservationEvent保持独立通道。纯目录搬迁按逻辑module identity、AST/符号映射一对一迁移精确旧债，不增债、不退frontier；新实现/语义变更不能借搬迁豁免。
+
+本设计后续验证：协调者已在隔离toy package用Ruff0.17.4、mypy2.4.1、Import Linter2.16实际加载配置，正例和所选负例通过预期；这仅证明配置和部分守卫可执行，不代表PythonStAn全树已lint/type-clean。实施时仍需把版本写入Poetry lock并扫描实际仓库。

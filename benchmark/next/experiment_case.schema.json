@@ -1,0 +1,559 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pythonstan:schema:experiment-case:v1",
+  "title": "PythonStAn next-round pre-registered experiment case",
+  "description": "Design template; semantic validation of oracle scope, case freezes and resource comparability is still required.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "family": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tier": {
+      "enum": [
+        "S",
+        "M",
+        "L"
+      ]
+    },
+    "track": {
+      "enum": [
+        "legacy_compatibility",
+        "real_client",
+        "mechanism",
+        "llm_pilot"
+      ]
+    },
+    "acceptance_class": {
+      "enum": [
+        "mandatory",
+        "stress",
+        "diagnostic"
+      ]
+    },
+    "dataset_split": {
+      "enum": [
+        "development",
+        "held_out",
+        "compatibility"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "inventory_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "target_kind": {
+          "enum": [
+            "source",
+            "file",
+            "project"
+          ]
+        },
+        "target_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness_digest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "python_semantic_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_map_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependency_manifest_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependency_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "project",
+        "revision",
+        "source_digest",
+        "inventory_digest",
+        "target_kind",
+        "target_path",
+        "harness_digest",
+        "python_semantic_version",
+        "source_map_path",
+        "dependency_manifest_path",
+        "dependency_digest"
+      ],
+      "additionalProperties": false
+    },
+    "entry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "module_initialization",
+            "declared_application_entries",
+            "reviewed_finite_harness"
+          ]
+        },
+        "scenarios": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "input_bound_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input_bound_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "model_manifest_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "entry_contract_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "complete_input_reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "scenarios",
+        "input_bound_file",
+        "input_bound_digest",
+        "model_manifest_file",
+        "model_digest",
+        "entry_contract_digest",
+        "complete_input_reason"
+      ],
+      "additionalProperties": false
+    },
+    "queries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "value",
+              "calls",
+              "returns",
+              "effects",
+              "outcomes",
+              "identity",
+              "relation",
+              "property"
+            ]
+          },
+          "module": {
+            "type": "string",
+            "minLength": 1
+          },
+          "qualname": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "point": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "projection": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "customer_question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "usefulness_predicate": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "module",
+          "qualname",
+          "point",
+          "scope_digest",
+          "projection",
+          "customer_question",
+          "usefulness_predicate"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "oracles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "finite_exhaustive_spec",
+              "reviewed_closed_profile",
+              "dynamic_witness_lower_bound",
+              "differential_sanity",
+              "diagnostic_literal"
+            ]
+          },
+          "evidence_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "complete_scope": {
+            "type": "boolean"
+          },
+          "scope_description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected_must": {
+            "type": "array",
+            "items": {}
+          },
+          "expected_may": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {}
+          },
+          "forbidden_relations": {
+            "type": "array",
+            "items": {}
+          },
+          "reviewer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "query_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "kind",
+          "evidence_path",
+          "evidence_sha256",
+          "complete_scope",
+          "scope_description",
+          "method",
+          "expected_must",
+          "expected_may",
+          "forbidden_relations",
+          "reviewer",
+          "query_ids"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "dynamic_witness_lower_bound"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "properties": {
+                "complete_scope": {
+                  "const": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "max_work": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_memory_mib": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outer_timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "work_schema_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "max_work",
+        "max_seconds",
+        "max_memory_mib",
+        "outer_timeout_seconds",
+        "work_schema_version"
+      ],
+      "additionalProperties": false
+    },
+    "measurement": {
+      "type": "object",
+      "properties": {
+        "modes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "E"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "arms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "cache_regimes": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "application_cold",
+              "application_warm"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fixed_process_repetitions": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "parallel_workers": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "order_seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "order_plan_path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "comparability_review_path": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "modes",
+        "arms",
+        "cache_regimes",
+        "fixed_process_repetitions",
+        "parallel_workers",
+        "order_seed",
+        "order_plan_path",
+        "protocol_digest",
+        "comparability_review_path"
+      ],
+      "additionalProperties": false
+    },
+    "data_policy": {
+      "type": "object",
+      "properties": {
+        "classification": {
+          "enum": [
+            "synthetic_public",
+            "public_reviewed",
+            "private",
+            "unknown"
+          ]
+        },
+        "allow_external_llm": {
+          "type": "boolean"
+        },
+        "allowlist_review_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "classification",
+        "allow_external_llm",
+        "allowlist_review_path"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "allow_external_llm": {
+                "const": true
+              }
+            },
+            "required": [
+              "allow_external_llm"
+            ]
+          },
+          "then": {
+            "properties": {
+              "classification": {
+                "enum": [
+                  "synthetic_public",
+                  "public_reviewed"
+                ]
+              },
+              "allowlist_review_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "freeze": {
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "independent_reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA256 of canonical manifest content excluding this self digest and detached signatures; never a recursive self hash."
+        }
+      },
+      "required": [
+        "timestamp",
+        "author",
+        "independent_reviewer",
+        "manifest_digest"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "case_id",
+    "family",
+    "tier",
+    "track",
+    "acceptance_class",
+    "dataset_split",
+    "identity",
+    "entry",
+    "queries",
+    "oracles",
+    "budget",
+    "measurement",
+    "data_policy",
+    "freeze"
+  ],
+  "additionalProperties": false
+}

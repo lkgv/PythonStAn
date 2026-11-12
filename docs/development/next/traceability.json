@@ -1,0 +1,570 @@
+{
+  "schema_version": 1,
+  "original_46": [
+    {
+      "id": "BOOT-01",
+      "next_tasks": [
+        "N4-BOOT-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SPEC-01",
+      "next_tasks": [
+        "N4-BOOT-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "ARCH-01",
+      "next_tasks": [
+        "N4-QUAL-01",
+        "N4-TYPE-01",
+        "N4-ARCH-01",
+        "N4-TYPE-02",
+        "N4-DOC-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CFG-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-CTRL-01",
+        "N4-DOC-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "RESULT-01",
+      "next_tasks": [
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-OBS-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "INPUT-01",
+      "next_tasks": [
+        "N4-API-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SESSION-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-API-01",
+        "N4-BUDGET-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "API-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-REL-01",
+        "N4-DOC-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CLI-01",
+      "next_tasks": [
+        "N4-API-01",
+        "N4-REL-01",
+        "N4-DOC-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "DOM-01",
+      "next_tasks": [
+        "N4-DOM-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "DOM-02",
+      "next_tasks": [
+        "N4-RESULT-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "DOM-03",
+      "next_tasks": [
+        "N4-CTRL-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "DOM-04",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-AI-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "DOM-05",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-02",
+        "N4-PERF-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-01",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-03",
+        "N4-SEM-04"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-02",
+      "next_tasks": [
+        "N4-SEM-01",
+        "N4-SEM-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-03",
+      "next_tasks": [
+        "N4-SEM-02",
+        "N4-SEM-04"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-04",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-PTA-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-05",
+      "next_tasks": [
+        "N4-SEM-05"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "PTA-01",
+      "next_tasks": [
+        "N4-PTA-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "PTA-02",
+      "next_tasks": [
+        "N4-PTA-02",
+        "N4-PTA-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "PTA-03",
+      "next_tasks": [
+        "N4-PTA-03",
+        "N4-HYB-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "PTA-04",
+      "next_tasks": [
+        "N4-PTA-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "AI-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-SEM-04",
+        "N4-AI-01",
+        "N4-AI-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "AI-02",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03",
+        "N4-PERF-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "AI-03",
+      "next_tasks": [
+        "N4-SEM-05",
+        "N4-AI-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "AI-04",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-AI-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "AI-05",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-AI-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "SEM-06",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-SEM-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CTRL-01",
+      "next_tasks": [
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CTRL-02",
+      "next_tasks": [
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "HYB-01",
+      "next_tasks": [
+        "N4-HYB-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CTRL-03",
+      "next_tasks": [
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-CTRL-01",
+        "N4-CTRL-02",
+        "N4-HYB-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CTRL-04",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-HYB-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "CTRL-05",
+      "next_tasks": [
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-AI-03",
+        "N4-LLM-02",
+        "N4-LLM-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "VERIFY-01",
+      "next_tasks": [
+        "N4-LLM-02",
+        "N4-AUDIT-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "QUERY-01",
+      "next_tasks": [
+        "N4-TYPE-01",
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-PERF-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "LLM-01",
+      "next_tasks": [
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-LIVE-01",
+        "N4-LIVE-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "LLM-02",
+      "next_tasks": [
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-AUDIT-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "LLM-03",
+      "next_tasks": [
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-04",
+        "N4-BUDGET-01",
+        "N4-AUDIT-01",
+        "N4-EVAL-03",
+        "N4-LIVE-01",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "OBS-01",
+      "next_tasks": [
+        "N4-QUERY-01",
+        "N4-OBS-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "TEST-01",
+      "next_tasks": [
+        "N4-BOOT-02",
+        "N4-AUDIT-01",
+        "N4-EVAL-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "EVAL-01",
+      "next_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "EVAL-02",
+      "next_tasks": [
+        "N4-EVAL-01",
+        "N4-PERF-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03",
+        "N4-LIVE-02",
+        "N4-LIVE-03"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "MIG-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    },
+    {
+      "id": "RELEASE-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-QUAL-01",
+        "N4-TYPE-02",
+        "N4-REL-01",
+        "N4-DOC-01",
+        "N4-REL-02"
+      ],
+      "mapping_kind": "direct_development_and_reacceptance"
+    }
+  ],
+  "prior_22": [
+    {
+      "id": "AUD-01",
+      "next_tasks": [
+        "N4-BOOT-01",
+        "N4-ARCH-01",
+        "N4-REL-01"
+      ]
+    },
+    {
+      "id": "FIX-01",
+      "next_tasks": [
+        "N4-SEM-01"
+      ]
+    },
+    {
+      "id": "FIX-02",
+      "next_tasks": [
+        "N4-SEM-02"
+      ]
+    },
+    {
+      "id": "FIX-03",
+      "next_tasks": [
+        "N4-DOM-01",
+        "N4-SEM-03"
+      ]
+    },
+    {
+      "id": "FIX-04",
+      "next_tasks": [
+        "N4-SEM-04"
+      ]
+    },
+    {
+      "id": "FIX-05",
+      "next_tasks": [
+        "N4-SEM-05"
+      ]
+    },
+    {
+      "id": "FIX-06",
+      "next_tasks": [
+        "N4-PTA-01"
+      ]
+    },
+    {
+      "id": "FIX-07",
+      "next_tasks": [
+        "N4-PTA-02"
+      ]
+    },
+    {
+      "id": "FIX-08",
+      "next_tasks": [
+        "N4-STATE-01"
+      ]
+    },
+    {
+      "id": "FIX-09",
+      "next_tasks": [
+        "N4-STATE-02"
+      ]
+    },
+    {
+      "id": "FIX-10",
+      "next_tasks": [
+        "N4-RESULT-01"
+      ]
+    },
+    {
+      "id": "FIX-11",
+      "next_tasks": [
+        "N4-QUERY-01",
+        "N4-LLM-01",
+        "N4-LLM-02"
+      ]
+    },
+    {
+      "id": "CFG-02",
+      "next_tasks": [
+        "N4-PTA-03",
+        "N4-CTRL-01",
+        "N4-CTRL-02"
+      ]
+    },
+    {
+      "id": "API-02",
+      "next_tasks": [
+        "N4-API-01"
+      ]
+    },
+    {
+      "id": "TYPE-01",
+      "next_tasks": [
+        "N4-QUAL-01",
+        "N4-TYPE-01",
+        "N4-TYPE-02"
+      ]
+    },
+    {
+      "id": "ARCH-02",
+      "next_tasks": [
+        "N4-ARCH-01"
+      ]
+    },
+    {
+      "id": "LLM-04",
+      "next_tasks": [
+        "N4-LLM-03"
+      ]
+    },
+    {
+      "id": "PERF-01",
+      "next_tasks": [
+        "N4-AI-01",
+        "N4-AI-02"
+      ]
+    },
+    {
+      "id": "PERF-02",
+      "next_tasks": [
+        "N4-AI-03",
+        "N4-BUDGET-01",
+        "N4-PERF-01"
+      ]
+    },
+    {
+      "id": "EVAL-03",
+      "next_tasks": [
+        "N4-EVAL-01",
+        "N4-EVAL-03"
+      ]
+    },
+    {
+      "id": "EVAL-04",
+      "next_tasks": [
+        "N4-BUDGET-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03"
+      ]
+    },
+    {
+      "id": "REL-02",
+      "next_tasks": [
+        "N4-AUDIT-01",
+        "N4-REL-02"
+      ]
+    }
+  ],
+  "note": "Traceability links do not imply acceptance; original obligations and audited states remain authoritative until requalified."
+}

@@ -1,0 +1,124 @@
+{
+  "task_scope": "N4-BOOT-01 publication delta; final REL-01 remains pending",
+  "operation": "Remove17 redundant installed copies already archived byte-for-byte",
+  "base_public_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "mechanical_commit": "37f9a93",
+  "retired": [
+    {
+      "path": "pythonstan/analysis/deprecated_ai/__init__.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/__init__.py",
+      "archive_sha256": "11e8a8e705a78e33e9a0e4d98c9e8ea697b7ba6e662492347202b802876a90c8",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/logging.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/logging.py",
+      "archive_sha256": "415fc88d9b746c37fff647b84fbd044ef0cf194469a6f6cc27a5324e2997b683",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/operation.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/operation.py",
+      "archive_sha256": "0914e3aef60048ab82dd08237680469ad94b35c7b4660c4d5f742e56711d7bfd",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/pointer_adapter.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/pointer_adapter.py",
+      "archive_sha256": "4f417944247365feb50ef15ba736f4d4ec23e546d2792b32d6375703d9694d13",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/solver.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/solver.py",
+      "archive_sha256": "fcae0dfcb27f436ccc52a52c698556231513374bb84c64ed4d4657e53ec80850",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/state.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/state.py",
+      "archive_sha256": "4102485c9602a8f0cbb2539edc0bc4bde2d7d243ccd61be05b308732b861a884",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/deprecated_ai/value.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/deprecated_ai/value.py",
+      "archive_sha256": "09dc3e4d351571c68071c60b189896036dfdd94f4602d2636345cba3683ea077",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/__init__.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/__init__.py",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/base.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/base.py",
+      "archive_sha256": "74ac8eaf41cbcbffbaa8a25c832a7ddd1433c26a9fba5cf56ef50548b16e2594",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/baseprocess.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/baseprocess.py",
+      "archive_sha256": "3cbdac039f39a57a38d4002f1f52cd21da57f569473105f76dbd028ed1a27d8d",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/icfg.py",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg_pre_transform.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/icfg_pre_transform.py",
+      "archive_sha256": "fcdff1ba824fb387bffbefec1f0eac3de38cff41cdcf5d91f94fbcae023690f3",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/icfg_transform.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/icfg_transform.py",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/postprocessor.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/postprocessor.py",
+      "archive_sha256": "6b7d5ad816b33ea4db5190466056251a5b6c008b37807f9a1bd17f146668237d",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/analysis/transform/icfg/preprocessor.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/analysis/transform/icfg/preprocessor.py",
+      "archive_sha256": "62fe01b3b2e09773337b44dc143b3d3719b4a6b682db2583cfd443741a5c9fbe",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/graph/icfg/__init__.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/graph/icfg/__init__.py",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "canonical_decision": "archive_only_do_not_install"
+    },
+    {
+      "path": "pythonstan/graph/icfg/icfg.py",
+      "archive": "legacy/prototypes/20261111/pythonstan/graph/icfg/icfg.py",
+      "archive_sha256": "e5ef0dbe1bb3b74c3212288bf5a7d81741cfe511d88888d804ee15f23cf79acb",
+      "canonical_decision": "archive_only_do_not_install"
+    }
+  ],
+  "consumer_basis": "BOOT01 independent zero direct imports across production/scripts/tests; retirement declared before this iteration",
+  "source_originals_remaining": 0,
+  "release_qualified": false,
+  "remaining": [
+    "py.typed and public consumer verification",
+    "full canonical source/wheel manifests",
+    "same-identity installed API/CLI/type/export checks"
+  ],
+  "wheel_member_check": {
+    "wheel_sha256": "bfa4db4830ebadbae4bc56f99334f4e5dc8d77e85e18f15af28d5a716785ac11",
+    "retired_remaining": [],
+    "python_file_count": 305,
+    "note": "Dirty W1 source packaging-only check; not frozen release candidate"
+  }
+}

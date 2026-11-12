@@ -1,0 +1,213 @@
+{
+  "task": "N4-BOOT-02",
+  "status": "implementation_done_independent_review_accepted",
+  "source_head": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "profile": "CPython3.12/python-core-v1/python-protocol-v1",
+  "manifest": "tests/regression/audit3/semantic_manifest.json",
+  "manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "concrete_oracle": {
+    "cases": 52,
+    "passed": 52,
+    "exit_code": 0
+  },
+  "strict_analyzer_acceptance": {
+    "cases": 58,
+    "passed": 19,
+    "failed": 39,
+    "exit_code": 1,
+    "all_findings_closed": false
+  },
+  "findings": [
+    {
+      "id": "AS-01",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "call_star_order",
+        "call_star_order_default_engine",
+        "star_delayed_expansion",
+        "star_text_reverse",
+        "star_positional_expansion",
+        "star_multi_expansion",
+        "kwargs_duplicate_prefix",
+        "kwargs_nonstring_prefix"
+      ],
+      "current_green": [
+        "call_star_order_control",
+        "default_binding_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-02",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "del_missing",
+        "del_function_unbound",
+        "del_missing_default_engine",
+        "del_repeated_prefix",
+        "del_nonlocal_prefix"
+      ],
+      "current_green": [
+        "del_bound_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-03",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "comprehension_effects",
+        "comprehension_nested",
+        "comprehension_filter",
+        "comprehension_effects_default_engine",
+        "comprehension_false_filter_effect"
+      ],
+      "current_green": [
+        "sequential_effects_control",
+        "comprehension_pure_control",
+        "comprehension_scope_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-04",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "unary_typed_string"
+      ],
+      "current_green": [
+        "unary_literal_control",
+        "unary_typed_int_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-05",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "iterator_invalid_return",
+        "list_scalar_invalid",
+        "dict_scalar_invalid",
+        "next_scalar_invalid",
+        "star_scalar_invalid",
+        "iterator_error_prefix"
+      ],
+      "current_green": [
+        "list_valid_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-06",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "isinstance_builtin",
+        "isinstance_tuple",
+        "isinstance_invalid",
+        "classinfo_ordered_tuple_match",
+        "classinfo_ordered_tuple_raise"
+      ],
+      "current_green": [
+        "isinstance_class_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "AS-07",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "recursion_sum_default",
+        "recursion_sum_context0",
+        "recursion_heap"
+      ],
+      "current_green": [
+        "recursion_constant_control",
+        "loop_control"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "precision_or_usefulness"
+    },
+    {
+      "id": "AS-08",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "bool_repeat_precision",
+        "bool_or_once"
+      ],
+      "current_green": [
+        "bool_exception_prefix"
+      ],
+      "baseline_comparison_available": false,
+      "classification": "precision_or_usefulness"
+    },
+    {
+      "id": "LV-01",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "lv_multi_call",
+        "lv_three_call_variant"
+      ],
+      "current_green": [
+        "lv_single_call_control"
+      ],
+      "baseline_comparison_available": true,
+      "classification": "closed_missed_witness_or_query_fact"
+    },
+    {
+      "id": "LV-02",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "current_red": [
+        "lv_function_exit"
+      ],
+      "current_green": [],
+      "baseline_comparison_available": true,
+      "classification": "precision_or_usefulness"
+    },
+    {
+      "id": "LV-03",
+      "status": "still_present",
+      "evidence_level": "public_api_plus_controller",
+      "current_red": [
+        "lv_dominated_policy"
+      ],
+      "current_green": [
+        "lv_gain_control"
+      ],
+      "baseline_comparison_available": true,
+      "classification": "precision_or_usefulness"
+    }
+  ],
+  "retained_A01_A18": "Original ledger test selectors and fixture IDs resolve; current old-stage behavior is verified by the central BOOT-01 stage run, not inferred from historical statuses.",
+  "domain_native_manifest": "docs/development/next/domain_native_manifest.json",
+  "raw_evidence": "artifacts/next/evidence/N4-BOOT-02",
+  "limitations": [
+    "No production implementation was changed.",
+    "AS-07 is a useful convergence/precision target, AS-08 and LV-03 are precision/usefulness defects, not newly claimed missed concrete behaviors.",
+    "LV-02 explicit unavailable is honest but loses requested capability; bulk answer closure must not hide omitted function scope.",
+    "LV-01 does not disprove the separately verified return relation.",
+    "Current fixed fixture results are bounded witnesses, not a universal soundness proof.",
+    "Negative tests protect the existing denominator; future additions require review and a new explicit freeze."
+  ],
+  "independent_review": "docs/development/next/reviews/BOOT-02-semantic.md",
+  "oracle_integrity_tests": {
+    "passed": 69,
+    "failed": 0
+  }
+}

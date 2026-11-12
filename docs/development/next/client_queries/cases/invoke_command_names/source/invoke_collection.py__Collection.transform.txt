@@ -1,0 +1,38 @@
+    def transform(self, name: str) -> str:
+        """
+        Transform ``name`` with the configured auto-dashes behavior.
+
+        If the collection's ``auto_dash_names`` attribute is ``True``
+        (default), all non leading/trailing underscores are turned into dashes.
+        (Leading/trailing underscores tend to get stripped elsewhere in the
+        stack.)
+
+        If it is ``False``, the inverse is applied - all dashes are turned into
+        underscores.
+
+        .. versionadded:: 1.0
+        """
+        # Short-circuit on anything non-applicable, e.g. empty strings, bools,
+        # None, etc.
+        if not name:
+            return name
+        from_, to = "_", "-"
+        if not self.auto_dash_names:
+            from_, to = "-", "_"
+        replaced = []
+        end = len(name) - 1
+        for i, char in enumerate(name):
+            # Don't replace leading or trailing underscores (+ taking dotted
+            # names into account)
+            # TODO: not 100% convinced of this / it may be exposing a
+            # discrepancy between this level & higher levels which tend to
+            # strip out leading/trailing underscores entirely.
+            if (
+                i not in (0, end)
+                and char == from_
+                and name[i - 1] != "."
+                and name[i + 1] != "."
+            ):
+                char = to
+            replaced.append(char)
+        return "".join(replaced)

@@ -1,0 +1,96 @@
+{
+  "main": {
+    "options": {
+      "keep": 1,
+      "mode": "old"
+    },
+    "tags": [
+      "base"
+    ],
+    "port": 80
+  },
+  "update": {
+    "options": {
+      "mode": "new"
+    },
+    "tags": [
+      "extra"
+    ],
+    "port": null,
+    "new": [
+      "fresh"
+    ]
+  },
+  "saved_aliases": [
+    "main.options",
+    "main.tags",
+    "update.tags",
+    "update.new"
+  ],
+  "forbid_user_subclasses": true,
+  "initial_graph_acyclic": true,
+  "prepared_graph": {
+    "main": "ref:main_dict",
+    "update": "ref:update_dict",
+    "nodes": {
+      "main_dict": {
+        "kind": "dict",
+        "entries": {
+          "options": "ref:main_options",
+          "tags": "ref:main_tags",
+          "port": 80
+        }
+      },
+      "main_options": {
+        "kind": "dict",
+        "entries": {
+          "keep": 1,
+          "mode": "old"
+        }
+      },
+      "main_tags": {
+        "kind": "list",
+        "elements": [
+          "base"
+        ]
+      },
+      "update_dict": {
+        "kind": "dict",
+        "entries": {
+          "options": "ref:update_options",
+          "tags": "ref:update_tags",
+          "port": null,
+          "new": "ref:update_new"
+        }
+      },
+      "update_options": {
+        "kind": "dict",
+        "entries": {
+          "mode": "new"
+        }
+      },
+      "update_tags": {
+        "kind": "list",
+        "elements": [
+          "extra"
+        ]
+      },
+      "update_new": {
+        "kind": "list",
+        "elements": [
+          "fresh"
+        ]
+      }
+    }
+  },
+  "exact_call": {
+    "callee": "fastapi.utils.deep_dict_update",
+    "positional": [
+      "ref:main_dict",
+      "ref:update_dict"
+    ],
+    "keyword": {},
+    "initial_alias_constraints": "Every separately named mutable node is must-distinct; saved_aliases are references to their named nodes; no other aliases or incoming references."
+  },
+  "closed_world": "Only declared nodes and aliases, exact builtin kinds/source class definitions, no monkey patching, concurrent writes, metaclass callbacks, object subclasses or hidden global producers. Each scenario is independent."
+}

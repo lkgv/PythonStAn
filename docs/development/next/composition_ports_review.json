@@ -1,0 +1,57 @@
+{
+  "reviewer": "requirements_audit",
+  "status": "accepted_narrow_production_ports",
+  "parent_cards_verified": false,
+  "head": "7a2f0f5cac6d801973e9fd6c31f521ebd46b3455",
+  "source_sha256": {
+    "pythonstan/analysis/composition/plan.py": "904fd59fd80d97cf95b31574b18461df285831baf23b9326b9513397cf875022",
+    "pythonstan/analysis/composition/oracle.py": "1a300047eb41c45304eb2f971bea07863e8bd3ef1a34f0fa837ffbfaab227c9a",
+    "pythonstan/analysis/composition/native_snapshot.py": "3978cac6ebc043750d766c37311a02edd701d8f570a1ee976e9d4a47c05f25b1",
+    "pythonstan/analysis/composition/hybrid.py": "9952af8061003b3a0f694031e974a1c7b7ca63ba618073fc3786a4590f2bd321",
+    "pythonstan/analysis/composition/region_scheduler.py": "f5268148c04b879a8df344fd9021c27470f66bb49aff23be4020413e749f7c79",
+    "pythonstan/analysis/contracts/oracle.py": "77616757038514014e0ca8402425658c8c9269bf3fa5eaa1c4749e441553147c",
+    "tests/regression/audit3/test_region_policy_ports.py": "4ed2a35d416b8147a8e56ce13cabc131675ff66a67a0f43272c1d128312db8ec",
+    "pythonstan/config/catalog.py": "1bf6e958a7f2981257bc34458a0eb2aef150355744b0717d939ac976997b788c",
+    "pythonstan/config/resolve.py": "1e28f369b15f77ff3e7121b6d8b0c159cd30f86d5d18bb45e252c6d1351dc9b8",
+    "pythonstan/config/__init__.py": "94341e50a2e3a6e2df93b76bf6dc62b4c277efe7651ba6083a7740084820e6f4",
+    "pythonstan/config/model.py": "9b22370f8d2198c507a9236696caf3c6582425550d7487839bf99d5c2559532f",
+    "pythonstan/config/errors.py": "caf17c070ad07d9d62333231e99e37785070ff010033715b495fb26903a18e5b"
+  },
+  "accepted_scope": [
+    "Immutable actual SourceRegion/RegionDecision execution records and canonical source points; structural Mapping compatibility and detached wire projections",
+    "Real inclusion kernel/host ports with unchanged delta replay, address-key roles, identity validation and preparation charging",
+    "Partial CandidateAnswer remains generic and cannot authorize exclusion; minimal candidate-only provider preserves independent AI results",
+    "Frozen Native snapshot scalar projection and repeated statistics without copying the values projection",
+    "Typed region scheduler/hybrid pipeline boundary and separately reviewed resolved configuration dependency"
+  ],
+  "independent_verification": {
+    "behavior": "49 passed in 0.88s",
+    "behavior_receipt": "artifacts/next/evidence/reviewer-W1/composition-final/receipt.json",
+    "strict_owned_diagnostics": 0,
+    "strict_underlying_exit": 1,
+    "strict_imported_diagnostic_count": 1783,
+    "strict_receipt": "artifacts/next/evidence/reviewer-W1/composition-config-final-types/receipt.json",
+    "source_stable": true
+  },
+  "resolved_findings": [
+    {
+      "finding": "NativeSnapshotOracle.statistics copied the full frozen snapshot",
+      "resolution": "Read the frozen mapping directly and thaw only exact exported metadata leaves; repeated-read control rejects container traversal"
+    },
+    {
+      "finding": "Late concrete snapshot narrowing broke three existing epoch/L2 fixtures",
+      "resolution": "Actual read-only SourceBundle.modules port; same assertions and test-file SHA in independent red/green receipts",
+      "evidence": "artifacts/next/evidence/reviewer-W1/late-ports/guarded_snapshot_green.receipt.json"
+    },
+    {
+      "finding": "Dataclass equality weakened the previous Mapping result equality",
+      "resolution": "eq=False retains inherited Mapping structural equality"
+    }
+  ],
+  "limits": [
+    "This accepts the listed dependency ports, not complete N4-API-01 or N4-TYPE-01.",
+    "Imported parser/driver/runtime typing debt is retained, and whole-tree mypy is not clean.",
+    "IncrementalOraclePort is a declared lower contract; this review does not claim every optional lifecycle hook or hasattr path was replaced.",
+    "Known frozen semantic audit reds, complete Flow/state/metadata ownership, full cost ledger and release qualification remain separate obligations."
+  ]
+}

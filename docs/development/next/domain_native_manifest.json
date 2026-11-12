@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "baseline_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+  "owner": "domain_native_baseline",
+  "review_status": "pending_independent_review",
+  "python_profile": "CPython 3.12",
+  "mandatory_nodes": [
+    "tests/regression/audit3/test_domain_mandatory.py::test_scalar_sort_fallback_preserves_normal_and_raise[1-a-b]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_scalar_sort_fallback_preserves_normal_and_raise[4-x-y]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_public_binary_cap_keeps_both_normal_sorts[1]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_public_binary_cap_keeps_both_normal_sorts[8]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_float_zero_truth_survives_nonfinite_other_sort[a]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_float_zero_truth_survives_nonfinite_other_sort[other]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_public_float_truth_branch_coverage[1]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_public_float_truth_branch_coverage[8]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_wire_preserves_pattern_and_residual_constant[a-z]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_wire_preserves_pattern_and_residual_constant[prefix-outside]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[1-1]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[1-2]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[7-1]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[7-2]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_cyclic_graph_quotient_preserves_root_alias[False]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_cyclic_graph_quotient_preserves_root_alias[True]",
+    "tests/regression/audit3/test_domain_mandatory.py::test_cyclic_join_preserves_embedded_root_alias",
+    "tests/regression/audit3/test_domain_mandatory.py::test_collision_without_cycle_positive_control",
+    "tests/regression/audit3/test_domain_mandatory.py::test_finite_string_join_widen_membership_positive_control",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[heap-False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[heap-True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[cell-False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[cell-True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[nested-False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[nested-True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_success_positive_control[False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_assignment_success_positive_control[True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[2-False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[2-True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[3-False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[3-True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_fixed_key_allocation_positive_control[False]",
+    "tests/regression/audit3/test_native_mandatory.py::test_fixed_key_allocation_positive_control[True]",
+    "tests/regression/audit3/test_native_mandatory.py::test_regional_context_policy_has_real_callsite_consumer",
+    "tests/regression/audit3/test_native_mandatory.py::test_regional_relation_alias_matches_canonical_policy",
+    "tests/regression/audit3/test_native_mandatory.py::test_regional_nested_trace_budget_changes_actual_paths"
+  ],
+  "mandatory_node_count": 36,
+  "fixtures": {
+    "tests/regression/audit3/domain_oracles.py": "d078d39f240891e303f9c5434be3568908e32fa3147ad28b9d89d16105237c58",
+    "tests/regression/audit3/test_domain_mandatory.py": "90e22580b522e378dfe51fb13d9e7ba04eed27233c6785367df881e480b71787",
+    "tests/regression/audit3/test_native_mandatory.py": "db63fba66a23c748c45288fdf6ceddd0905f73660aa30c675dac8f878b1dd2f7"
+  },
+  "resource_profile": {
+    "new_public_fixture": "S; work10000, internal wall8s, memory1536MiB",
+    "original_probes": "Original frozen budgets preserved; path-only adapted copies in raw evidence",
+    "oracle_subprocess_seconds": 2
+  },
+  "findings": [
+    {
+      "finding_id": "R3-DOM-01",
+      "status": "still_present",
+      "evidence_level": "public_api_and_component",
+      "observed": "scalar cap fallback omits normal integer sort and cross-sort TypeError",
+      "original_probe": "scalar_binary",
+      "independent_variant_and_control": "integer/string inputs at cap1 vs cap8; independent changed integer=4 and strings=x/y",
+      "expected": "3 and ab plus TypeError",
+      "mandatory_tests": [
+        "test_scalar_sort_fallback_preserves_normal_and_raise",
+        "test_public_binary_cap_keeps_both_normal_sorts"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "R3-DOM-02",
+      "status": "still_present",
+      "evidence_level": "public_api_and_component",
+      "observed": "truthiness drops finite zero float next to other facet",
+      "original_probe": "scalar_truth",
+      "independent_variant_and_control": "a/other with 0.0 and unbounded positive-int facet; cap8 positive control",
+      "expected": "both False and True; public falsey/truthy",
+      "mandatory_tests": [
+        "test_float_zero_truth_survives_nonfinite_other_sort",
+        "test_public_float_truth_branch_coverage"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "R3-DOM-03",
+      "status": "still_present",
+      "evidence_level": "public_api_and_component",
+      "observed": "wire omits residual constants beside a prefix language",
+      "original_probe": "string_export",
+      "independent_variant_and_control": "a* union z; prefix* union outside held-out variant",
+      "expected": "wire membership covers each original constant",
+      "mandatory_tests": [
+        "test_wire_preserves_pattern_and_residual_constant"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "R3-DOM-04",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "observed": "stale generator address after an epoch change raises KeyError",
+      "original_probe": "resume_epoch",
+      "independent_variant_and_control": "two generators yield1 or held-out yield7; cap1 defect vs cap2 control",
+      "expected": "no host exception; result includes yielded value",
+      "mandatory_tests": [
+        "test_generator_resume_reresolves_epoch_handle"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "R3-DOM-05",
+      "status": "still_present",
+      "evidence_level": "component_and_host_transaction",
+      "observed": "cyclic owner collision raises AttributeError; Store.join loses root alias",
+      "original_probe": "graph",
+      "independent_variant_and_control": "same root self-cycle remap collision; noncollision and acyclic collision controls",
+      "expected": "root alias preserved; subsequent writes visible; merged nonsingleton; failure atomicity retained",
+      "mandatory_tests": [
+        "test_cyclic_graph_quotient_preserves_root_alias",
+        "test_cyclic_join_preserves_embedded_root_alias",
+        "test_collision_without_cycle_positive_control"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "NCOMP-01",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "observed": "native target failure discards earlier assignment effects",
+      "original_probe": "native_composition/region_prefix_probe",
+      "independent_variant_and_control": "heap/cell/nested unpack; pure AI and successful native controls",
+      "expected": "completed first target remains1 after second target IndexError",
+      "mandatory_tests": [
+        "test_assignment_failure_keeps_completed_prefix",
+        "test_assignment_success_positive_control"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "NCOMP-02",
+      "status": "still_present",
+      "evidence_level": "public_api",
+      "observed": "native repeated dict allocation overwrites old live shape",
+      "original_probe": "native_composition/region_alloc_probe",
+      "independent_variant_and_control": "range2 and held-out range3; pure AI/fixed-key controls",
+      "expected": "old saved alias still covers present",
+      "mandatory_tests": [
+        "test_repeated_dictionary_allocation_retains_old_alias",
+        "test_fixed_key_allocation_positive_control"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    },
+    {
+      "finding_id": "NCOMP-03",
+      "status": "still_present",
+      "evidence_level": "public_api_and_driver_consumers",
+      "observed": "regional aliases/context/nested trace controls accepted but ignored",
+      "original_probe": "native_composition/region_control_probe",
+      "independent_variant_and_control": "relation pair equivalence; context merges actual call units; new trace correlation consumer",
+      "expected": "relations alias equivalent; context0 merges calls; trace1 matches global coarse correlation behavior",
+      "mandatory_tests": [
+        "test_regional_context_policy_has_real_callsite_consumer",
+        "test_regional_relation_alias_matches_canonical_policy",
+        "test_regional_nested_trace_budget_changes_actual_paths"
+      ],
+      "support_status": "mandatory",
+      "known_bug_delta": "Replace deficient baseline with independent expected invariants; never bless old result."
+    }
+  ],
+  "baseline_result": {
+    "failed": 20,
+    "passed": 16,
+    "skipped": 0,
+    "exit_status": 1,
+    "raw_evidence": "artifacts/next/evidence/N4-BOOT-02/domain_native/mandatory.receipt.json"
+  },
+  "positive_finite_domain_controls": {
+    "legacy_scalar_pairs": 2554,
+    "legacy_scalar_failures": 0,
+    "legacy_slot_pairs": 324,
+    "legacy_slot_failures": 0,
+    "new_finite_string_pairs": 25
+  },
+  "limitations": [
+    "Finite gamma and CPython traces establish these bounded invariants only, not universal soundness.",
+    "R3-DOM-05 explicitly seeded admissible component graph; no source-generated occurrence of the exact shape established.",
+    "Raw original probe exit0 means runner finished; it does not mean the expected semantic contract passed.",
+    "Strict mypy on new tests follows untyped legacy calls and remains red; no suppression or production modification added.",
+    "No production fixes or live LLM calls performed."
+  ],
+  "type_diagnostics": {
+    "status": "not_strict_clean",
+    "owner_task": "N4-TYPE-01",
+    "reason": "Legacy production APIs remain untyped; these tests deliberately call them without ignores, casts, or fake protocols.",
+    "observed_test_diagnostics": 29,
+    "error_codes": [
+      "no-untyped-call"
+    ],
+    "raw_output": "artifacts/next/evidence/N4-BOOT-02/domain_native/mypy_new_tests.stdout.txt",
+    "acceptance_runner_strict": "tests/regression/audit3/domain_native_acceptance.py is independently mypy strict clean."
+  }
+}

@@ -1,5 +1,31 @@
-from .api import (analyze, Source, File, Project, OutputSpec, ValueQuery, PropertyQuery,
-                  AnalysisResult, QueryAnswer, AnalysisConfig, AnalysisSession)
+from .api import (
+    AnalysisConfig,
+    AnalysisResult,
+    AnalysisSession,
+    File,
+    OutputSpec,
+    Project,
+    PropertyQuery,
+    QueryAnswer,
+    ResolvedRequest,
+    Source,
+    ValueQuery,
+    analyze,
+    resolve_request,
+)
 
-__all__ = ["analyze", "Source", "File", "Project", "OutputSpec", "ValueQuery", "PropertyQuery",
-           "AnalysisResult", "QueryAnswer", "AnalysisConfig", "AnalysisSession"]
+__all__ = [
+    "analyze",
+    "Source",
+    "File",
+    "Project",
+    "OutputSpec",
+    "ValueQuery",
+    "PropertyQuery",
+    "AnalysisResult",
+    "QueryAnswer",
+    "AnalysisConfig",
+    "AnalysisSession",
+    "ResolvedRequest",
+    "resolve_request",
+]

@@ -1,0 +1,1439 @@
+{
+  "schema_version": 1,
+  "manifest_id": "real-client-v1",
+  "task": "N4-EVAL-01",
+  "status": "interface_ready_reviewed_pending_task_dependencies",
+  "baseline_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+  "created_before_current_analyzer_client_runs": true,
+  "previous_question_ids_preserved": true,
+  "previous_run_policy": "Same six scenario families retained for continuity; only verified immutable archive source bytes are reused. Previous green receipts are not current evidence. Input/gold scope freshly enumerated before any current solver tuning.",
+  "projects": {
+    "django": {
+      "revision": "django-6.1.3",
+      "archive_filename": "django-6.1.3.tar.gz",
+      "archive_sha256": "b5d2d9e35295065d13b1927b3f19a59bd119f737aa6299def14ccca1ae3c8c0d",
+      "source_digest": "480f734977031c8c9fd6f416853333e76746b44790dee0c87b1f902026a53fcc",
+      "inventory_digest": "961e9aa22b5fdcaf42f464b5002d99cf758394aaa1973a7a704d7de9e4324310",
+      "inventory_path": "docs/development/next/client_queries/projects/django/inventory.json",
+      "runtime_source_count": 909,
+      "project_root": "artifacts/next/preregistration/projects/django/django-6.1.3",
+      "input_selection": {
+        "import_roots": [
+          "."
+        ],
+        "runtime_source_roots": [
+          "django"
+        ],
+        "distribution_exclusions": [
+          "AUTHORS",
+          "CONTRIBUTING.rst",
+          "Django.egg-info",
+          "Gruntfile.js",
+          "INSTALL",
+          "LICENSE",
+          "LICENSE.python",
+          "MANIFEST.in",
+          "PKG-INFO",
+          "README.rst",
+          "docs",
+          "extras",
+          "js_tests",
+          "package.json",
+          "pyproject.toml",
+          "setup.cfg",
+          "tests",
+          "tox.ini"
+        ],
+        "default_component_exclusions": false,
+        "must_equal_inventory_python_files": true
+      }
+    },
+    "fastapi": {
+      "revision": "fastapi-0.162.0",
+      "archive_filename": "fastapi-0.162.0.tar.gz",
+      "archive_sha256": "6a22c1e2e6e32e0633ee7e170f00009a29b8228b16feb219ee42f32fd8d88a8f",
+      "source_digest": "f5cdbc50bf0f4a42d4c2f64b440f1f429b6544fb1f05e1112182b27bf20534fd",
+      "inventory_digest": "ce7c958b8545f07b55dfb423c4b7ee4bcc145b1fb06f3a4c2462c2dd2a6af045",
+      "inventory_path": "docs/development/next/client_queries/projects/fastapi/inventory.json",
+      "runtime_source_count": 52,
+      "project_root": "artifacts/next/preregistration/projects/fastapi/fastapi-0.162.0",
+      "input_selection": {
+        "import_roots": [
+          "."
+        ],
+        "runtime_source_roots": [
+          "fastapi"
+        ],
+        "distribution_exclusions": [
+          "LICENSE",
+          "PKG-INFO",
+          "README.md",
+          "docs",
+          "docs_src",
+          "pyproject.toml",
+          "scripts",
+          "tests"
+        ],
+        "default_component_exclusions": false,
+        "must_equal_inventory_python_files": true
+      }
+    },
+    "invoke": {
+      "revision": "invoke-3.0.3",
+      "archive_filename": "invoke-3.0.3.tar.gz",
+      "archive_sha256": "437b6a622223824380bfb4e64f612711a6b648c795f565efc8625af66fb57f0c",
+      "source_digest": "128ac840f85e2547a58cf914e76191f388f96902ac0e39162b592aa63df1b4e0",
+      "inventory_digest": "33e1ef13eb5e5d8b7573aa7c114a554265a1491533d280d9da3c9f95ca32644c",
+      "inventory_path": "docs/development/next/client_queries/projects/invoke/inventory.json",
+      "runtime_source_count": 47,
+      "project_root": "artifacts/next/preregistration/projects/invoke/invoke-3.0.3",
+      "input_selection": {
+        "import_roots": [
+          "."
+        ],
+        "runtime_source_roots": [
+          "invoke"
+        ],
+        "distribution_exclusions": [
+          "LICENSE",
+          "MANIFEST.in",
+          "PKG-INFO",
+          "README.rst",
+          "invoke.egg-info",
+          "pyproject.toml",
+          "setup.cfg",
+          "sites",
+          "tasks.py",
+          "tests"
+        ],
+        "default_component_exclusions": false,
+        "must_equal_inventory_python_files": true
+      }
+    }
+  },
+  "compatibility_manifest_path": "docs/development/next/client_queries/legacy_compatibility.json",
+  "protocol_path": "docs/development/next/client_queries/protocol.json",
+  "protocol_sha256": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+  "mandatory_case_count": 6,
+  "mandatory_query_count": 6,
+  "case_schema_path": "benchmark/next/experiment_case.schema.json",
+  "cases": [
+    {
+      "schema_version": 1,
+      "case_id": "invoke_command_names",
+      "family": "invoke",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "invoke",
+        "revision": "invoke-3.0.3",
+        "source_digest": "128ac840f85e2547a58cf914e76191f388f96902ac0e39162b592aa63df1b4e0",
+        "inventory_digest": "33e1ef13eb5e5d8b7573aa7c114a554265a1491533d280d9da3c9f95ca32644c",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/invoke/invoke-3.0.3",
+        "harness_digest": "2298bef8d29b0b1a1ff163377edd4bb5e28cd460f7e16f7e3a06d8d990b4de81",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/invoke_command_names/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/invoke_command_names/dependencies.json",
+        "dependency_digest": "a9576ec3a52c498e0ae9242e5a39b4ed68e2ecdfad7331cf0fba09e3f7726118"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "invoke_command_names:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/invoke_command_names/inputs.json",
+        "input_bound_digest": "579f10ae98d31e36bfc5b62e1f399935135a161495711da57a0f0423b0133e19",
+        "model_manifest_file": "docs/development/next/client_queries/cases/invoke_command_names/models.json",
+        "model_digest": "274941595b13020e1606b05b8eebc790a0679b9e0601814b2652a2388c5d5cef",
+        "complete_input_reason": "For the16 finite name/policy pairs, each character is replaced iff internal, equal to the selected source character, and neither neighbor is dot. The independent position predicate enumerates all finite positions; source has no other calls except modeled builtins. Returns are exact and no exception is possible under the string/boolean input contract.",
+        "entry_contract_digest": "467ced2d6243a28bd7f4ea53e83d8c572401e82a9e90c82f46f8c3e6e5f62a3b"
+      },
+      "queries": [
+        {
+          "id": "invoke_command_names:q1",
+          "kind": "relation",
+          "module": "invoke.collection",
+          "qualname": "Collection.transform",
+          "point": "function_exit",
+          "scope_digest": "4313972362516e6d740cb88dd02fd1cdd0fc736713052684dd99a761e7f6116c",
+          "projection": [
+            "exact finite name/policy to returned string relation",
+            "normal/exception completion",
+            "no externally reachable effects"
+          ],
+          "customer_question": "Which CLI command name results under each auto-dash policy, including dotted and boundary underscores?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/invoke_command_names/gold.json",
+          "evidence_sha256": "8985155ace65bca7aec692d27f8311494e0f2e5bc44e88f3aca4595afe39ad68",
+          "complete_scope": true,
+          "scope_description": "For the16 finite name/policy pairs, each character is replaced iff internal, equal to the selected source character, and neither neighbor is dot. The independent position predicate enumerates all finite positions; source has no other calls except modeled builtins. Returns are exact and no exception is possible under the string/boolean input contract.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "rows": [
+                {
+                  "input": {
+                    "name": "",
+                    "auto_dash_names": false
+                  },
+                  "return": "",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "build_docs",
+                    "auto_dash_names": false
+                  },
+                  "return": "build_docs",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_private_name_",
+                    "auto_dash_names": false
+                  },
+                  "return": "_private_name_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns._private_name",
+                    "auto_dash_names": false
+                  },
+                  "return": "ns._private_name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns.task_name",
+                    "auto_dash_names": false
+                  },
+                  "return": "ns.task_name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a_.b_c",
+                    "auto_dash_names": false
+                  },
+                  "return": "a_.b_c",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a-b",
+                    "auto_dash_names": false
+                  },
+                  "return": "a_b",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_",
+                    "auto_dash_names": false
+                  },
+                  "return": "_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "",
+                    "auto_dash_names": true
+                  },
+                  "return": "",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "build_docs",
+                    "auto_dash_names": true
+                  },
+                  "return": "build-docs",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_private_name_",
+                    "auto_dash_names": true
+                  },
+                  "return": "_private-name_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns._private_name",
+                    "auto_dash_names": true
+                  },
+                  "return": "ns._private-name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns.task_name",
+                    "auto_dash_names": true
+                  },
+                  "return": "ns.task-name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a_.b_c",
+                    "auto_dash_names": true
+                  },
+                  "return": "a_.b-c",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a-b",
+                    "auto_dash_names": true
+                  },
+                  "return": "a-b",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_",
+                    "auto_dash_names": true
+                  },
+                  "return": "_",
+                  "exceptions": []
+                }
+              ]
+            }
+          ],
+          "expected_may": [
+            {
+              "rows": [
+                {
+                  "input": {
+                    "name": "",
+                    "auto_dash_names": false
+                  },
+                  "return": "",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "build_docs",
+                    "auto_dash_names": false
+                  },
+                  "return": "build_docs",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_private_name_",
+                    "auto_dash_names": false
+                  },
+                  "return": "_private_name_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns._private_name",
+                    "auto_dash_names": false
+                  },
+                  "return": "ns._private_name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns.task_name",
+                    "auto_dash_names": false
+                  },
+                  "return": "ns.task_name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a_.b_c",
+                    "auto_dash_names": false
+                  },
+                  "return": "a_.b_c",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a-b",
+                    "auto_dash_names": false
+                  },
+                  "return": "a_b",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_",
+                    "auto_dash_names": false
+                  },
+                  "return": "_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "",
+                    "auto_dash_names": true
+                  },
+                  "return": "",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "build_docs",
+                    "auto_dash_names": true
+                  },
+                  "return": "build-docs",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_private_name_",
+                    "auto_dash_names": true
+                  },
+                  "return": "_private-name_",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns._private_name",
+                    "auto_dash_names": true
+                  },
+                  "return": "ns._private-name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "ns.task_name",
+                    "auto_dash_names": true
+                  },
+                  "return": "ns.task-name",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a_.b_c",
+                    "auto_dash_names": true
+                  },
+                  "return": "a_.b-c",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "a-b",
+                    "auto_dash_names": true
+                  },
+                  "return": "a-b",
+                  "exceptions": []
+                },
+                {
+                  "input": {
+                    "name": "_",
+                    "auto_dash_names": true
+                  },
+                  "return": "_",
+                  "exceptions": []
+                }
+              ]
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "invoke_command_names:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.722725+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "9fe36f7de7b6b646d115266da839ddc20305584117aa18493265b8fa13dda9e7"
+      }
+    },
+    {
+      "schema_version": 1,
+      "case_id": "invoke_task_callback",
+      "family": "invoke",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "invoke",
+        "revision": "invoke-3.0.3",
+        "source_digest": "128ac840f85e2547a58cf914e76191f388f96902ac0e39162b592aa63df1b4e0",
+        "inventory_digest": "33e1ef13eb5e5d8b7573aa7c114a554265a1491533d280d9da3c9f95ca32644c",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/invoke/invoke-3.0.3",
+        "harness_digest": "9153db880ca85469d5b67ee6bac198f5be9e425c72db725461c245f47b9fc906",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/invoke_task_callback/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/invoke_task_callback/dependencies.json",
+        "dependency_digest": "d3bcd3248f0d742e73299b42774d7751009e08892286a4a60e03f470b378f19e"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "invoke_task_callback:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/invoke_task_callback/inputs.json",
+        "input_bound_digest": "0686ee059338aea5eaac6a9643e09bb0a82746d215d49a04d05774f749babffb",
+        "model_manifest_file": "docs/development/next/client_queries/cases/invoke_task_callback/models.json",
+        "model_digest": "1a245e31c101f272ed959bc1d0d33e340f8a17c83aee42e21dd478f941fbe50d",
+        "complete_input_reason": "args[0] is evaluated before Context validation, so empty arguments raise IndexError. Invalid Context raises before body. With valid Context exactly one body invocation occurs; the increment follows that invocation and is skipped on its ValueError. The complete callbacks have no other effects.",
+        "entry_contract_digest": "59cc1e7061a2105f2e6befa15a0ddd388950194366a98bd42f55d292355ff733"
+      },
+      "queries": [
+        {
+          "id": "invoke_task_callback:q1",
+          "kind": "effects",
+          "module": "invoke.tasks",
+          "qualname": "Task.__call__",
+          "point": "function_exit",
+          "scope_digest": "73eb7eb9d3ab3d0f7fbf0de14770ccaedc13b8eeb6e727ba8f6b2c708afe9478",
+          "projection": [
+            "normal return or exception kind by scenario",
+            "body call occurrence",
+            "events list prefix",
+            "Task.times_called final field"
+          ],
+          "customer_question": "Does a task call the selected body, preserve its exception prefix, and increment times_called only after a normal body return?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/invoke_task_callback/gold.json",
+          "evidence_sha256": "94f8d61659ad6b624ad83c6862370da2aac818eb827a512431866f9df3e0d3e5",
+          "complete_scope": true,
+          "scope_description": "args[0] is evaluated before Context validation, so empty arguments raise IndexError. Invalid Context raises before body. With valid Context exactly one body invocation occurs; the increment follows that invocation and is skipped on its ValueError. The complete callbacks have no other effects.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "rows": [
+                {
+                  "scenario": "valid_context_return",
+                  "return": 3,
+                  "body_calls": 1,
+                  "event_prefix": [
+                    "body"
+                  ],
+                  "times_called": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "valid_context_raise",
+                  "return": null,
+                  "body_calls": 1,
+                  "event_prefix": [
+                    "body"
+                  ],
+                  "times_called": 0,
+                  "exception": "ValueError"
+                },
+                {
+                  "scenario": "invalid_context",
+                  "return": null,
+                  "body_calls": 0,
+                  "event_prefix": [],
+                  "times_called": 0,
+                  "exception": "TypeError"
+                },
+                {
+                  "scenario": "no_arguments",
+                  "return": null,
+                  "body_calls": 0,
+                  "event_prefix": [],
+                  "times_called": 0,
+                  "exception": "IndexError"
+                }
+              ]
+            }
+          ],
+          "expected_may": [
+            {
+              "rows": [
+                {
+                  "scenario": "valid_context_return",
+                  "return": 3,
+                  "body_calls": 1,
+                  "event_prefix": [
+                    "body"
+                  ],
+                  "times_called": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "valid_context_raise",
+                  "return": null,
+                  "body_calls": 1,
+                  "event_prefix": [
+                    "body"
+                  ],
+                  "times_called": 0,
+                  "exception": "ValueError"
+                },
+                {
+                  "scenario": "invalid_context",
+                  "return": null,
+                  "body_calls": 0,
+                  "event_prefix": [],
+                  "times_called": 0,
+                  "exception": "TypeError"
+                },
+                {
+                  "scenario": "no_arguments",
+                  "return": null,
+                  "body_calls": 0,
+                  "event_prefix": [],
+                  "times_called": 0,
+                  "exception": "IndexError"
+                }
+              ]
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "invoke_task_callback:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.726262+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "205d45245a1045a2e81fcacebe4e62c7d7a7dd2d67f9032c716d77fc0b8644c3"
+      }
+    },
+    {
+      "schema_version": 1,
+      "case_id": "django_last_value",
+      "family": "django",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "django",
+        "revision": "django-6.1.3",
+        "source_digest": "480f734977031c8c9fd6f416853333e76746b44790dee0c87b1f902026a53fcc",
+        "inventory_digest": "961e9aa22b5fdcaf42f464b5002d99cf758394aaa1973a7a704d7de9e4324310",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/django/django-6.1.3",
+        "harness_digest": "31a8f59b3df2ea50aa2957e165a5fb9bc2150c963ba583053f9ab571c4c079f9",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/django_last_value/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/django_last_value/dependencies.json",
+        "dependency_digest": "4ec62adbeb3ba6b635706cfdae57bade2538f24cb1f482d7f9ba4217c8e7c66d"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "django_last_value:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/django_last_value/inputs.json",
+        "input_bound_digest": "9ecb5cb9b87cf36935882d2e694f673eb554d2e1a843fedce4cc96d4970ec1f2",
+        "model_manifest_file": "docs/development/next/client_queries/cases/django_last_value/models.json",
+        "model_digest": "b1fa87d124739b7af3ee06b862ec28550bb122dd6cc337757d642fcaef40d235",
+        "complete_input_reason": "super().__getitem__ is builtin dict lookup on the finite exact receiver. The three keys partition nonempty, empty and absent values. Last index returns Grace; empty index raises IndexError caught into a newly allocated []; absent lookup raises KeyError rethrown as source MultiValueDictKeyError.",
+        "entry_contract_digest": "8dae0b385d1d0a480ee29f6739e832e4cfe3c6b335d8c3853e8099e6e2975e63"
+      },
+      "queries": [
+        {
+          "id": "django_last_value:q1",
+          "kind": "outcomes",
+          "module": "django.utils.datastructures",
+          "qualname": "MultiValueDict.__getitem__",
+          "point": "function_exit",
+          "scope_digest": "822acc3856597dc863362e0bcad5a77e35370cbaa5d5c355bc2ba54760f33537",
+          "projection": [
+            "key to return/exception association",
+            "returned empty-list freshness and disjointness from input storage"
+          ],
+          "customer_question": "Does a multi-value request parameter select its final value, return a fresh empty list for an empty stored list, and raise MultiValueDictKeyError for a missing name?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/django_last_value/gold.json",
+          "evidence_sha256": "4759d25fff9f5556b8628d5b151cebadee6dccaf12cd2a47c8d39e6a8a3cb51f",
+          "complete_scope": true,
+          "scope_description": "super().__getitem__ is builtin dict lookup on the finite exact receiver. The three keys partition nonempty, empty and absent values. Last index returns Grace; empty index raises IndexError caught into a newly allocated []; absent lookup raises KeyError rethrown as source MultiValueDictKeyError.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "rows": [
+                {
+                  "key": "name",
+                  "return": "Grace",
+                  "exception": null
+                },
+                {
+                  "key": "empty",
+                  "return": [],
+                  "exception": null,
+                  "return_fresh": true,
+                  "return_aliases_storage": false
+                },
+                {
+                  "key": "missing",
+                  "return": null,
+                  "exception": "MultiValueDictKeyError",
+                  "exception_argument": "missing"
+                }
+              ]
+            }
+          ],
+          "expected_may": [
+            {
+              "rows": [
+                {
+                  "key": "name",
+                  "return": "Grace",
+                  "exception": null
+                },
+                {
+                  "key": "empty",
+                  "return": [],
+                  "exception": null,
+                  "return_fresh": true,
+                  "return_aliases_storage": false
+                },
+                {
+                  "key": "missing",
+                  "return": null,
+                  "exception": "MultiValueDictKeyError",
+                  "exception_argument": "missing"
+                }
+              ]
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "django_last_value:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.730448+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "6e98e886492b736de860e9b1f7aeea93eafa0a2a5127ccb02ccfb33c174db2e4"
+      }
+    },
+    {
+      "schema_version": 1,
+      "case_id": "django_getlist_alias",
+      "family": "django",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "django",
+        "revision": "django-6.1.3",
+        "source_digest": "480f734977031c8c9fd6f416853333e76746b44790dee0c87b1f902026a53fcc",
+        "inventory_digest": "961e9aa22b5fdcaf42f464b5002d99cf758394aaa1973a7a704d7de9e4324310",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/django/django-6.1.3",
+        "harness_digest": "f1b52d11e030dd57c0ded631a61dc5f0be181f565542765e63b2920d3ff8128f",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/django_getlist_alias/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/django_getlist_alias/dependencies.json",
+        "dependency_digest": "1e8e1fc9a4bfc3fa8efb7fb1492aee561091576daa2456fb1684c6ac0af07710"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "django_getlist_alias:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/django_getlist_alias/inputs.json",
+        "input_bound_digest": "d7029af325be7d8b55df6bd47b9f912a347cb705e5708a4e195d496d262f8696",
+        "model_manifest_file": "docs/development/next/client_queries/cases/django_getlist_alias/models.json",
+        "model_digest": "02a97607652cd006a4da1a8f442b8d8855fdf10dec823334cea35b0782e686da",
+        "complete_input_reason": "getlist calls _getlist with force_list=True. A present list is copied via builtin list before return; an absent key returns the provided non-None default directly, bypassing the force_list branch. Missing None default allocates []. The append therefore changes storage in none of these cases but changes explicit default in precisely its case.",
+        "entry_contract_digest": "ba0d33e38434e0ba4885bfe32b0c1055a2b8669e000e152d03f4fab72886d6e8"
+      },
+      "queries": [
+        {
+          "id": "django_getlist_alias:q1",
+          "kind": "identity",
+          "module": "django.utils.datastructures",
+          "qualname": "MultiValueDict.getlist",
+          "point": "finite_entry_continuation_exit",
+          "scope_digest": "9bd25d2d1bfd914e29830ed30d0e22f1e77820d862ab725c50c5ae562971a842",
+          "projection": [
+            "returned list must-alias/must-distinct/fresh relation",
+            "declared post-append result/storage/default graph",
+            "normal/exception completion"
+          ],
+          "customer_question": "Can mutating getlist output modify the stored request list or an explicitly supplied default list?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/django_getlist_alias/gold.json",
+          "evidence_sha256": "5625e110a66af7e630d52e43474d21beb0d3cd30c233e471d513a5bb170701ca",
+          "complete_scope": true,
+          "scope_description": "getlist calls _getlist with force_list=True. A present list is copied via builtin list before return; an absent key returns the provided non-None default directly, bypassing the force_list branch. Missing None default allocates []. The append therefore changes storage in none of these cases but changes explicit default in precisely its case.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "rows": [
+                {
+                  "scenario": "present",
+                  "result_before": [
+                    "a",
+                    "b"
+                  ],
+                  "result_after": [
+                    "a",
+                    "b",
+                    "c"
+                  ],
+                  "storage_after": [
+                    "a",
+                    "b"
+                  ],
+                  "must_alias_storage": false,
+                  "fresh_result": true,
+                  "exception": null
+                },
+                {
+                  "scenario": "missing_with_default",
+                  "result_before": [
+                    "fallback"
+                  ],
+                  "result_after": [
+                    "fallback",
+                    "c"
+                  ],
+                  "default_after": [
+                    "fallback",
+                    "c"
+                  ],
+                  "must_alias_default": true,
+                  "fresh_result": false,
+                  "exception": null
+                },
+                {
+                  "scenario": "missing_without_default",
+                  "result_before": [],
+                  "result_after": [
+                    "c"
+                  ],
+                  "storage_after": {
+                    "tags": [
+                      "a",
+                      "b"
+                    ]
+                  },
+                  "fresh_result": true,
+                  "exception": null
+                }
+              ]
+            }
+          ],
+          "expected_may": [
+            {
+              "rows": [
+                {
+                  "scenario": "present",
+                  "result_before": [
+                    "a",
+                    "b"
+                  ],
+                  "result_after": [
+                    "a",
+                    "b",
+                    "c"
+                  ],
+                  "storage_after": [
+                    "a",
+                    "b"
+                  ],
+                  "must_alias_storage": false,
+                  "fresh_result": true,
+                  "exception": null
+                },
+                {
+                  "scenario": "missing_with_default",
+                  "result_before": [
+                    "fallback"
+                  ],
+                  "result_after": [
+                    "fallback",
+                    "c"
+                  ],
+                  "default_after": [
+                    "fallback",
+                    "c"
+                  ],
+                  "must_alias_default": true,
+                  "fresh_result": false,
+                  "exception": null
+                },
+                {
+                  "scenario": "missing_without_default",
+                  "result_before": [],
+                  "result_after": [
+                    "c"
+                  ],
+                  "storage_after": {
+                    "tags": [
+                      "a",
+                      "b"
+                    ]
+                  },
+                  "fresh_result": true,
+                  "exception": null
+                }
+              ]
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "django_getlist_alias:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.735772+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "2cd063d2c5ba1bc259b6508332924f35b0bd66909305ce0a8349a873be5b1968"
+      }
+    },
+    {
+      "schema_version": 1,
+      "case_id": "fastapi_default_priority",
+      "family": "fastapi",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "fastapi",
+        "revision": "fastapi-0.162.0",
+        "source_digest": "f5cdbc50bf0f4a42d4c2f64b440f1f429b6544fb1f05e1112182b27bf20534fd",
+        "inventory_digest": "ce7c958b8545f07b55dfb423c4b7ee4bcc145b1fb06f3a4c2462c2dd2a6af045",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/fastapi/fastapi-0.162.0",
+        "harness_digest": "8b82c809555a2b6824108aa800c8af6d75dcf227b82cd80f9244685687f6ccd8",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/fastapi_default_priority/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/fastapi_default_priority/dependencies.json",
+        "dependency_digest": "5472441937444540079c4b3686f46d04c7edb2ddb2c09bf7575eafe3da91062e"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "fastapi_default_priority:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/fastapi_default_priority/inputs.json",
+        "input_bound_digest": "494a98a8b8c69db77952587e36c61e8529dc4eeffa11b43dc259d03d407b4cfe",
+        "model_manifest_file": "docs/development/next/client_queries/cases/fastapi_default_priority/models.json",
+        "model_digest": "9c64c3a2ea33c32833f433690f623c1a7adbc7a81f138be9064430dd3e00b588",
+        "complete_input_reason": "The source tests isinstance against DefaultPlaceholder, not truthiness. Tuple iteration is ordered and returns at the first nonplaceholder. If all items are placeholders it returns first_item. Each of the four finite lists has a complete class-membership partition and preserves the returned object identity.",
+        "entry_contract_digest": "31102d875e434426a781aead2d776d3586967ae5608ad641205c1e812360139f"
+      },
+      "queries": [
+        {
+          "id": "fastapi_default_priority:q1",
+          "kind": "relation",
+          "module": "fastapi.utils",
+          "qualname": "get_value_or_default",
+          "point": "function_exit",
+          "scope_digest": "f428b8c3a07900eaa3b811da65d23f25bcae331feff98aeca104dadc47e4bb9a",
+          "projection": [
+            "input sequence to selected index/value relation",
+            "returned mutable input identity",
+            "normal/exception completion"
+          ],
+          "customer_question": "Which explicit value wins default resolution, including falsy values and the all-placeholder case, and is its input identity preserved?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/fastapi_default_priority/gold.json",
+          "evidence_sha256": "9ac90183f7beb7dee42c2b02e61eb27c7e78b57bfee501d397b2c35ab74cfb8c",
+          "complete_scope": true,
+          "scope_description": "The source tests isinstance against DefaultPlaceholder, not truthiness. Tuple iteration is ordered and returns at the first nonplaceholder. If all items are placeholders it returns first_item. Each of the four finite lists has a complete class-membership partition and preserves the returned object identity.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "rows": [
+                {
+                  "scenario": "none_explicit",
+                  "return": null,
+                  "return_input_index": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "false_explicit",
+                  "return": false,
+                  "return_input_index": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "all_placeholder",
+                  "return_placeholder_value": "first",
+                  "return_input_index": 0,
+                  "must_alias_first": true,
+                  "exception": null
+                },
+                {
+                  "scenario": "first_empty_list",
+                  "return": [],
+                  "return_input_index": 0,
+                  "must_alias_first": true,
+                  "exception": null
+                }
+              ]
+            }
+          ],
+          "expected_may": [
+            {
+              "rows": [
+                {
+                  "scenario": "none_explicit",
+                  "return": null,
+                  "return_input_index": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "false_explicit",
+                  "return": false,
+                  "return_input_index": 1,
+                  "exception": null
+                },
+                {
+                  "scenario": "all_placeholder",
+                  "return_placeholder_value": "first",
+                  "return_input_index": 0,
+                  "must_alias_first": true,
+                  "exception": null
+                },
+                {
+                  "scenario": "first_empty_list",
+                  "return": [],
+                  "return_input_index": 0,
+                  "must_alias_first": true,
+                  "exception": null
+                }
+              ]
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "fastapi_default_priority:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.738606+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "876f2240e757cac6f6f316f1b114a6f758dcb050dee8dfad79cea8ff46327412"
+      }
+    },
+    {
+      "schema_version": 1,
+      "case_id": "fastapi_recursive_merge",
+      "family": "fastapi",
+      "tier": "M",
+      "track": "real_client",
+      "acceptance_class": "mandatory",
+      "dataset_split": "development",
+      "identity": {
+        "project": "fastapi",
+        "revision": "fastapi-0.162.0",
+        "source_digest": "f5cdbc50bf0f4a42d4c2f64b440f1f429b6544fb1f05e1112182b27bf20534fd",
+        "inventory_digest": "ce7c958b8545f07b55dfb423c4b7ee4bcc145b1fb06f3a4c2462c2dd2a6af045",
+        "target_kind": "project",
+        "target_path": "artifacts/next/preregistration/projects/fastapi/fastapi-0.162.0",
+        "harness_digest": "0e763dc9fad7b32b40bae211e538567afda344a80e1762820f3456dfa15fe91b",
+        "python_semantic_version": "CPython3.12",
+        "source_map_path": "docs/development/next/client_queries/cases/fastapi_recursive_merge/source_map.json",
+        "dependency_manifest_path": "docs/development/next/client_queries/cases/fastapi_recursive_merge/dependencies.json",
+        "dependency_digest": "90681b9c345d43166e03976b620882deebcf638244b11f3a01f4aa09d2764748"
+      },
+      "entry": {
+        "kind": "declared_application_entries",
+        "scenarios": [
+          "fastapi_recursive_merge:finite_entry"
+        ],
+        "input_bound_file": "docs/development/next/client_queries/cases/fastapi_recursive_merge/inputs.json",
+        "input_bound_digest": "e49f3614f63284d8ee1643b577e1f755f972f4077ab7db926c368e0af3c75409",
+        "model_manifest_file": "docs/development/next/client_queries/cases/fastapi_recursive_merge/models.json",
+        "model_digest": "a3d2c090543ffa6d1a20b283717e84fa6b286d91d8ca4b38a38debd128bca91e",
+        "complete_input_reason": "There is one nested dict recursion on options, which overwrites mode and retains keep without replacing that dict. List/list branch uses + and assigns a new list. Scalar port falls through to assignment. Missing new key assigns the original update value. Exact acyclic builtin dictionaries/lists and fixed keys eliminate user protocols and unbounded recursion.",
+        "entry_contract_digest": "e4917db9476b49f8f75334f11346335dbe19db3d220aa68ff9dc3b869c48be0d"
+      },
+      "queries": [
+        {
+          "id": "fastapi_recursive_merge:q1",
+          "kind": "effects",
+          "module": "fastapi.utils",
+          "qualname": "deep_dict_update",
+          "point": "function_exit",
+          "scope_digest": "3f6e72282d8002cdaf50101cdf4b8c88978238bbeed35d912e929d054cfad9eb",
+          "projection": [
+            "normal return/exception completion",
+            "reachable main/update/saved-alias graph after merge",
+            "list and nested dictionary must-alias/must-distinct relations"
+          ],
+          "customer_question": "Does recursive metadata merge update nested mappings in place, concatenate lists into a new list, and preserve update-object alias when a missing key is inserted?",
+          "usefulness_predicate": "Exact registered finite relation/graph/outcomes; every specified outcome, effect and identity retained, no unexpected finite-scope pair; no Top/Unknown/unsupported/unavailable/truncated projection. Closed-useful requires complete input and source dependency evidence; global Open recorded separately."
+        }
+      ],
+      "oracles": [
+        {
+          "kind": "reviewed_closed_profile",
+          "evidence_path": "docs/development/next/client_queries/cases/fastapi_recursive_merge/gold.json",
+          "evidence_sha256": "8f73a0188e4dfa052ef087b2dd96ff5c3dad306ad583c2df2c84cc11c99414e4",
+          "complete_scope": true,
+          "scope_description": "There is one nested dict recursion on options, which overwrites mode and retains keep without replacing that dict. List/list branch uses + and assigns a new list. Scalar port falls through to assignment. Missing new key assigns the original update value. Exact acyclic builtin dictionaries/lists and fixed keys eliminate user protocols and unbounded recursion.",
+          "method": "Independent source-body case partition, finite input enumeration and graph reasoning; not analyzer output or a lone dynamic trace. Approval remains pending until independent source review.",
+          "expected_must": [
+            {
+              "return": null,
+              "exception": null,
+              "main_after": {
+                "options": {
+                  "keep": 1,
+                  "mode": "new"
+                },
+                "tags": [
+                  "base",
+                  "extra"
+                ],
+                "port": null,
+                "new": [
+                  "fresh"
+                ]
+              },
+              "relations": {
+                "main.options_aliases_saved_options": true,
+                "main.tags_aliases_saved_tags": false,
+                "main.tags_aliases_update_tags": false,
+                "main.new_aliases_update_new": true
+              },
+              "unchanged": {
+                "saved_tags": [
+                  "base"
+                ],
+                "update_tags": [
+                  "extra"
+                ],
+                "update_options": {
+                  "mode": "new"
+                }
+              }
+            }
+          ],
+          "expected_may": [
+            {
+              "return": null,
+              "exception": null,
+              "main_after": {
+                "options": {
+                  "keep": 1,
+                  "mode": "new"
+                },
+                "tags": [
+                  "base",
+                  "extra"
+                ],
+                "port": null,
+                "new": [
+                  "fresh"
+                ]
+              },
+              "relations": {
+                "main.options_aliases_saved_options": true,
+                "main.tags_aliases_saved_tags": false,
+                "main.tags_aliases_update_tags": false,
+                "main.new_aliases_update_new": true
+              },
+              "unchanged": {
+                "saved_tags": [
+                  "base"
+                ],
+                "update_tags": [
+                  "extra"
+                ],
+                "update_options": {
+                  "mode": "new"
+                }
+              }
+            }
+          ],
+          "forbidden_relations": [
+            "Any outcome or input-output/alias pair inconsistent with the exact finite gold."
+          ],
+          "reviewer": "requirements_audit",
+          "query_ids": [
+            "fastapi_recursive_merge:q1"
+          ]
+        }
+      ],
+      "budget": {
+        "max_work": 100000,
+        "max_seconds": 30,
+        "max_memory_mib": 1536,
+        "outer_timeout_seconds": 40,
+        "work_schema_version": "baseline-public-e8d9e0d-v1"
+      },
+      "measurement": {
+        "modes": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "arms": [
+          "baseline"
+        ],
+        "cache_regimes": [
+          "application_cold"
+        ],
+        "fixed_process_repetitions": 10,
+        "parallel_workers": 1,
+        "order_seed": 20261111,
+        "order_plan_path": "docs/development/next/client_queries/order_plan.json",
+        "protocol_digest": "97e7b1a2f7134ef517071735d7f34e2d8f2fe877a8db79bd746e5015c05fa2dc",
+        "comparability_review_path": "docs/development/next/client_queries/comparability.json"
+      },
+      "data_policy": {
+        "classification": "public_reviewed",
+        "allow_external_llm": false,
+        "allowlist_review_path": null
+      },
+      "freeze": {
+        "timestamp": "2026-11-11T23:20:56.740555+09:00",
+        "author": "client_preregistration",
+        "independent_reviewer": "requirements_audit",
+        "manifest_digest": "c9eb012616b2a91fcc4f1bd5dbf78d1de953fc62a4b203471fcbfe8d7810f631"
+      }
+    }
+  ],
+  "required_full_project_query_ids": [
+    "invoke_command_names:q1"
+  ],
+  "dependencies": [
+    "N4-BOOT-01",
+    "N4-BOOT-02"
+  ],
+  "completion": "Pre-registration only, not N4-EVAL-03 or a core/scale/live qualification.",
+  "source_map_sha256": {
+    "invoke_command_names": "65e3feb581cc00330c06a0dc8a0907d4636f0766cf6058d96372abdc394d52b9",
+    "invoke_task_callback": "5d7f807a69d369dc189d5963009a1afaad2e626ecee5dd114de563361e71af79",
+    "django_last_value": "6d2b17eedb0378227e323dac7dc971fbe40c8190e27038d8acf3f16252c0091a",
+    "django_getlist_alias": "daf36eeb4abf44075aa90a77ccbca3db83725f9d8c8eb1d06701264f5436dcb4",
+    "fastapi_default_priority": "15bb7c9595a5729ab4a22cea67c521cc1f15e1dc29e4c11d3d5702ac3822385d",
+    "fastapi_recursive_merge": "cdf9217273063441b931ca883d2b57c9e1bfc0e1482b317f990028b9764fbb48"
+  },
+  "independent_review": {
+    "reviewer": "requirements_audit",
+    "accepted_semantic_contract_digest": "fd2982a8802af72928b67f47028cb446befb58c11a573bb8801e04b69a90349d",
+    "scope": "Preregistration source/input/gold, source inventories, exact fragment mapping and8 guard tests. Not analyzer closure or scale.",
+    "semantic_contracts_changed_during_review_writeback": false
+  },
+  "freeze_digest": "d5210825712acd0ef6522c5b0d916d0db7ec28b0f841d734755c1d798272103b"
+}

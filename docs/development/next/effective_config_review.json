@@ -1,0 +1,62 @@
+{
+  "reviewer": "/root/quality_tools/quality_negatives",
+  "implementation_author": "/root/quality_tools",
+  "scope": [
+    "pythonstan/config/model.py",
+    "pythonstan/config/resolve.py",
+    "pythonstan/config/errors.py",
+    "pythonstan/config/__init__.py"
+  ],
+  "finding": {
+    "id": "CFG-REVIEW-01",
+    "trigger": "Known inputs.bindings JSON leaf contains a recursive Mapping.",
+    "observed_before": "RecursionError escaped the public resolver rather than ConfigurationError.",
+    "repair_owner": "APIowner",
+    "repair": "Canonical JSON boundary detects path-local reference cycles and limits depth128; resolver converts ValueError to ConfigurationError.",
+    "status": "repaired_and_retested"
+  },
+  "tested_invariants": [
+    "External mutable inputs and returned document/provenance copies cannot mutate EffectiveConfig or its digest.",
+    "Published input binding objects are immutable MappingProxyType with tuple descendants.",
+    "Already typed query/output leaves pass through by identity; events queries enable required observation with provenance.",
+    "File discovery searches ancestors; project discovery stops at its root; competing default files reject.",
+    "Config-file paths resolve relative to its directory; higher resource overrides retain override provenance.",
+    "Precise native preset and mode/ai aliases preserve choices; inactive controls and conflicting relations reject.",
+    "Duplicate JSON/YAML keys and unsafe YAML object tags yield ConfigurationError.",
+    "Cyclic mapping now yields ConfigurationError without recursion escape.",
+    "Output Mapping and equivalent OutputSpec yield identical effective documents and digest; unknown output fields raise ConfigurationError in both config and output argument tiers (MAINT/API)."
+  ],
+  "validation": {
+    "pytest": "11 passed in 0.10s",
+    "log": "artifacts/next/evidence/N4-API-01/config-review/pytest.green.txt",
+    "ruff": "new test format/lint clean",
+    "mypy": "Full normal-import scan exited1 due remaining imported legacy errors; zero diagnostics in config package and the independent regression test.",
+    "mypy_raw": "artifacts/next/evidence/N4-API-01/config-review/mypy.stdout.jsonl"
+  },
+  "review_limits": [
+    "Leaf query/output public re-export migration remains owned by APIowner; no false failure is asserted for that in-progress interface.",
+    "This review does not qualify runtime semantic soundness or all future API/session paths.",
+    "Catalog was authored by this reviewer and requires separate root/APIowner review.",
+    "Configuration discovery and existing relative-path semantics were checked against the previous resolver rather than silently redefined."
+  ],
+  "source_identity": {
+    "git_head": "37f9a9373adf801848a8b0ff5aed067e107bb75e",
+    "file_sha256": {
+      "pythonstan/config/catalog.py": "1bf6e958a7f2981257bc34458a0eb2aef150355744b0717d939ac976997b788c",
+      "pythonstan/config/model.py": "3387a85e2c445517fa8cbe1cc387d5a7581d4d9887922156ece353f277f4ca94",
+      "pythonstan/config/resolve.py": "1e28f369b15f77ff3e7121b6d8b0c159cd30f86d5d18bb45e252c6d1351dc9b8",
+      "pythonstan/config/errors.py": "caf17c070ad07d9d62333231e99e37785070ff010033715b495fb26903a18e5b",
+      "pythonstan/config/__init__.py": "58e04a182e2577d667417ff9957b9d270381e7e8cf7b524704a969c377c504be",
+      "tests/regression/audit3/test_effective_config.py": "7ad45e388d0c9f5163298d6625a5efa8be262dd22be08651f4bfe865e61637b4"
+    },
+    "note": "File digests identify the reviewed working tree; HEAD alone does not include uncommitted typed boundary changes."
+  },
+  "review_decision": "accepted_for_listed_independent_scope",
+  "catalog_review": {
+    "author": "/root/quality_tools/quality_negatives",
+    "independent_reviewer": "root/APIowner",
+    "status": "separate_review_required",
+    "note": "Catalog digest is recorded for integrated identity, but this reviewer authored it and does not independently approve its implementation."
+  },
+  "test_author": "independent reviewer /root/quality_tools/quality_negatives"
+}
