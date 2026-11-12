@@ -13,35 +13,19 @@ from pythonstan.analysis.pointer.ai.analysis import AIAnalysisDriver
 from pythonstan.analysis.closure import ClosureAnalysis
 
 DEFAULT_ANALYSIS = [
+    AnalysisConfig(name="three address", id="ThreeAddress", options={"type": "transform"}),
     AnalysisConfig(
-        name="three address",
-        id="ThreeAddress",
-        options={"type": "transform"}
+        name="ir", id="IR", prev_analysis=["three address"], options={"type": "transform"}
     ),
     AnalysisConfig(
-        name="ir",
-        id="IR",
-        prev_analysis=["three address"],
-        options={"type": "transform"}
+        name="block cfg", id="BlockCFG", prev_analysis=["ir"], options={"type": "transform"}
     ),
     AnalysisConfig(
-        name="block cfg",
-        id="BlockCFG",
-        prev_analysis=["ir"],
-        options={"type": "transform"}
+        name="cfg", id="CFG", prev_analysis=["block cfg"], options={"type": "transform"}
     ),
     AnalysisConfig(
-        name="cfg",
-        id="CFG",
-        prev_analysis=["block cfg"],
-        options={"type": "transform"}
+        name="closure", id="Closure", prev_analysis=["cfg"], options={"type": "closure analysis"}
     ),
-    AnalysisConfig(
-        name="closure",
-        id="Closure",
-        prev_analysis=["cfg"],
-        options={"type": "closure analysis"}
-    )
 ]
 
 
@@ -68,7 +52,7 @@ class AnalysisManager:
         self.reset()
         for config in order_analysis_configs([*DEFAULT_ANALYSIS, *configs]):
             self.add_analyzer(config)
-    
+
     def set_time_count(self, time_count: bool):
         self.time_count = time_count
 
@@ -96,6 +80,7 @@ class AnalysisManager:
             analyzer = AIAnalysisDriver(config)
         elif config.type == "certified analysis":
             from pythonstan.analysis.pointer.ai.certified.driver import SourceCertificateDriver
+
             analyzer = SourceCertificateDriver(config)
         elif config.type == "closure analysis":
             analyzer = ClosureAnalysis(config)
@@ -106,16 +91,18 @@ class AnalysisManager:
     def analysis(self, analyzer_name: str, module: IRModule):
         if self.time_count:
             start_time = time.perf_counter()
-            
+
         analyzer = self.analyzers.get(analyzer_name, None)
         if analyzer is None:
             raise NotImplementedError(f"Analysis {analyzer_name} not implemented!")
         self.do_analysis(analyzer, module)
-        
+
         if self.time_count:
             end_time = time.perf_counter()
             if not isinstance(analyzer, TransformDriver):
-                print(f"Analysis {analyzer_name} for module {module.get_qualname()} took {end_time - start_time:.2f} seconds")
+                print(
+                    f"Analysis {analyzer_name} for module {module.get_qualname()} took {end_time - start_time:.2f} seconds"
+                )
 
     def do_analysis(self, analyzer: AnalysisDriver, module: IRModule):
         prev_results = {}

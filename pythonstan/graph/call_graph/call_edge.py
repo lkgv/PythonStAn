@@ -5,7 +5,7 @@ from enum import Enum
 __all__ = ["CallKind", "CallEdge"]
 
 CallSite = TypeVar("CallSite")
-Method = TypeVar('Method')
+Method = TypeVar("Method")
 
 
 class CallKind(Enum):
@@ -39,8 +39,12 @@ class CallEdge(Generic[CallSite, Method]):
     def __eq__(self, other):
         if other is None or not isinstance(other, CallEdge):
             return False
-        return self.kind == other.kind and self.callsite == other.callsite and self.callee == other.callee
-    
+        return (
+            self.kind == other.kind
+            and self.callsite == other.callsite
+            and self.callee == other.callee
+        )
+
     def __str__(self):
         return f"CallEdge(kind={self.kind}, callsite={self.callsite}, callee={self.callee})"
 

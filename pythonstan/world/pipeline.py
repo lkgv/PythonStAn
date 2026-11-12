@@ -12,6 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class Pipeline:
     config: Config
     analysis_manager: AnalysisManager
@@ -30,6 +31,7 @@ class Pipeline:
         self.analysis_manager = AnalysisManager()
         self.analysis_manager.build(self.config.get_analysis_list())
         from pythonstan.compat.native_services import configure_native_services
+
         configure_native_services(self.analysis_manager)
         self.analysis_manager.set_time_count(self.config.time_count)
         World().analysis_manager = self.analysis_manager
@@ -72,7 +74,9 @@ class Pipeline:
                     # chain. Keep those real __init__.py modules in the same
                     # arena; the import edge still identifies the leaf module.
                     for end in range(1, len(mod_ns.names)):
-                        parent = World().namespace_manager.resolve_import('.'.join(mod_ns.names[:end]))
+                        parent = World().namespace_manager.resolve_import(
+                            ".".join(mod_ns.names[:end])
+                        )
                         if parent is None:
                             continue
                         parent_ns, parent_path = parent
@@ -81,11 +85,13 @@ class Pipeline:
                             continue
                         if parent_mod not in g.get_modules():
                             g.add_node(parent_mod)
-                        if (not self.config.lazy_ir_construction
-                                and (self.config.import_level < 0 or level < self.config.import_level)):
+                        if not self.config.lazy_ir_construction and (
+                            self.config.import_level < 0 or level < self.config.import_level
+                        ):
                             q.append((parent_ns, parent_mod, level + 1))
-                    if (not self.config.lazy_ir_construction
-                            and (self.config.import_level < 0 or level < self.config.import_level)):
+                    if not self.config.lazy_ir_construction and (
+                        self.config.import_level < 0 or level < self.config.import_level
+                    ):
                         q.append((mod_ns, new_mod, level + 1))
         World().scope_manager.set_module_graph(g)
         # ClosureAnalysis traverses all built scopes internally; invoke it once.
@@ -126,16 +132,16 @@ class Pipeline:
                     self.analyse_inter_procedure(analyzer)
                 else:
                     self.analyse_intra_procedure(analyzer)
-            elif analyzer.config.type == 'transform':
+            elif analyzer.config.type == "transform":
                 self.do_transform(analyzer)
-            elif analyzer.config.type == 'closure analysis':
+            elif analyzer.config.type == "closure analysis":
                 self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == 'pointer analysis':
+            elif analyzer.config.type == "pointer analysis":
                 # Pointer analysis is typically inter-procedural
                 self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == 'ai analysis':
+            elif analyzer.config.type == "ai analysis":
                 self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == 'certified analysis':
+            elif analyzer.config.type == "certified analysis":
                 self.analyse_inter_procedure(analyzer)
             else:
                 raise ValueError(f"Unsupported pipeline analysis type: {analyzer.config.type}")

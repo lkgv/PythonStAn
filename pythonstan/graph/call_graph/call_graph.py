@@ -7,7 +7,7 @@ from .call_edge import CallEdge
 __all__ = ["AbstractCallGraph"]
 
 CallSite = TypeVar("CallSite")
-Method = TypeVar('Method')
+Method = TypeVar("Method")
 
 
 class AbstractCallGraph(Generic[CallSite, Method], ABC):
@@ -28,7 +28,7 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
         self.entry_scopes = {*()}
         self.reachable_scopes = {*()}
         self.edges = {*()}
-    
+
     def add_edge(self, edge: CallEdge[CallSite, Method]):
         if edge.get_callsite() not in self.callsite_to_edges:
             self.callsite_to_edges[edge.get_callsite()] = {*()}
@@ -69,12 +69,12 @@ class AbstractCallGraph(Generic[CallSite, Method], ABC):
 
     def get_edges(self) -> Set[CallEdge[CallSite, Method]]:
         return self.edges
-    
+
     def get_number_of_edges(self) -> int:
         return len(self.edges)
-    
+
     def get_nodes(self) -> Set[Method]:
         return self.reachable_scopes
-    
+
     def has_edge(self, edge: CallEdge[CallSite, Method]) -> bool:
         return edge in self.edges

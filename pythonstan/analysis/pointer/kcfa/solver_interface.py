@@ -313,4 +313,3 @@ class ISolverQuery(Protocol):
     def get_field(self, obj: "AbstractObject", field: "Field") -> "PointsToSet":
         """DEPRECATED: Use field_of_objects() or container-specific methods."""
         ...
-
