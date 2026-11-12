@@ -13,6 +13,7 @@ import math
 import uuid
 from collections import deque
 from collections.abc import Mapping
+from typing import TypedDict
 
 from .contract import InspectorError, canonical_bytes
 
@@ -26,6 +27,17 @@ _WORK_KINDS = ("static", "constraint_replay", "builtin_replay", "points_to")
 _WORK_FIELDS = frozenset(("iteration", "kind", "cursor", "pending_work_by_kind"))
 _LIFECYCLE_KINDS = frozenset(("run_start", "run_stop", "phase_start", "phase_stop"))
 _RESERVED = frozenset(("stream_id", "sequence", "kind", "evidence_kind"))
+
+
+class ColdTraceBatch(TypedDict):
+    """Owned fields produced by the recorder's bounded cold observation cut."""
+
+    events: list[dict[str, object]]
+    encoded_event_bytes: int
+    after_sequence: int
+    last_sequence: object
+    gap_before_batch: bool
+    health: dict[str, object]
 
 
 def _increment(value: int) -> int:
@@ -232,7 +244,7 @@ class TraceRecorder:
 
     def cold_batch(
         self, after_sequence: int = 0, *, max_events: int = 128, max_bytes: int = 65536
-    ) -> dict[str, object]:
+    ) -> ColdTraceBatch:
         """Copy one bounded batch outside atomic solver work; invoke no sink.
 
         The ring remains the only event inventory. A sequence gap is explicit;

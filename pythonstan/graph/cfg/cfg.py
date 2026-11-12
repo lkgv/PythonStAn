@@ -1,27 +1,27 @@
-from typing import *
+from typing import override
 
-from ..graph import Edge, Node, Graph
-
-from .base_block import BaseBlock
-from .edges import NormalEdge
-from pythonstan.ir import *
+from pythonstan.ir import IRStatement, Label
 from pythonstan.utils.var_collector import VarCollector
+
+from ..graph import Edge, Graph, Node
+from .base_block import BaseBlock
+from .edges import NormalEdge as NormalEdge
 
 __all__ = ["ControlFlowGraph"]
 
 
 class ControlFlowGraph(Graph):
     entry_blk: BaseBlock
-    exit_blks: Set[BaseBlock]
-    super_exit_blk: Optional[BaseBlock]
-    in_edges: Dict[BaseBlock, List[Edge]]
-    out_edges: Dict[BaseBlock, List[Edge]]
-    blks: Set[BaseBlock]
-    stmts: Set[IRStatement]
-    label2blk: Dict[Label, BaseBlock]
-    blk2label: Dict[BaseBlock, Label]
+    exit_blks: set[BaseBlock]
+    super_exit_blk: BaseBlock | None
+    in_edges: dict[BaseBlock, list[Edge]]
+    out_edges: dict[BaseBlock, list[Edge]]
+    blks: set[BaseBlock]
+    stmts: set[IRStatement]
+    label2blk: dict[Label, BaseBlock]
+    blk2label: dict[BaseBlock, Label]
 
-    def __init__(self, entry_blk=None):
+    def __init__(self, entry_blk: BaseBlock | None = None) -> None:
         self.blks = {*()}
         self.stmts = {*()}
         self.in_edges = {}
@@ -29,75 +29,69 @@ class ControlFlowGraph(Graph):
         self.entry_blk = entry_blk if entry_blk is not None else BaseBlock(0)
         self.exit_blks = {*()}
         self.super_exit_blk = None
-        self.var_collector = VarCollector()
+        self.var_collector: VarCollector = VarCollector()
         self.label2blk = {}
         self.blk2label = {}
 
-    def preds_of(self, node: Node) -> List[BaseBlock]:
+    @override
+    def preds_of(self, node: Node) -> list[BaseBlock]:
         preds = []
         for e in self.in_edges_of(node):
             pred = e.get_src()
             if isinstance(pred, BaseBlock):
                 preds.append(pred)
             else:
-                raise ValueError(
-                    "The type of Node in the current CFG can only be BaseBlock!")
+                raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
         return preds
 
-    def succs_of(self, node: Node) -> List[BaseBlock]:
+    @override
+    def succs_of(self, node: Node) -> list[BaseBlock]:
         succs = []
         for e in self.out_edges_of(node):
             succ = e.get_tgt()
             if isinstance(succ, BaseBlock):
                 succs.append(succ)
             else:
-                raise ValueError(
-                    "The type of Node in the current CFG can only be BaseBlock!")
+                raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
         return succs
 
     def in_edges_of(self, node: Node):
         if isinstance(node, BaseBlock):
             return self.in_edges[node]
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def out_edges_of(self, node: Node):
         if isinstance(node, BaseBlock):
             return self.out_edges[node]
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def in_degree_of(self, node: Node) -> int:
         if isinstance(node, BaseBlock):
             return len(self.in_edges_of(node))
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def out_degree_of(self, node: Node) -> int:
         if isinstance(node, BaseBlock):
             return len(self.out_edges_of(node))
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def get_entry(self) -> BaseBlock:
         return self.entry_blk
 
     def get_exit(self) -> BaseBlock:
         if self.super_exit_blk is None:
-            raise ValueError(
-                "Super Exit Block in current CFG does not exists!")
+            raise ValueError("Super Exit Block in current CFG does not exists!")
         return self.super_exit_blk
 
     def add_node(self, node: Node):
         if isinstance(node, BaseBlock):
             self.add_blk(node)
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def add_blk(self, blk: BaseBlock):
         if blk not in self.blks:
@@ -122,8 +116,7 @@ class ControlFlowGraph(Graph):
             self.in_edges[tgt].append(edge)
             self.out_edges[src].append(edge)
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def add_exit(self, blk: BaseBlock):
         self.exit_blks.add(blk)
@@ -151,8 +144,7 @@ class ControlFlowGraph(Graph):
         if isinstance(node, BaseBlock):
             self.delete_block(node)
         else:
-            raise ValueError(
-                "The type of Node in the current CFG can only be BaseBlock!")
+            raise ValueError("The type of Node in the current CFG can only be BaseBlock!")
 
     def delete_block(self, blk: BaseBlock):
         if blk in self.exit_blks:
@@ -173,8 +165,7 @@ class ControlFlowGraph(Graph):
         self.in_edges_of(e.get_tgt()).remove(e)
 
     def delete_invalid_blk(self):
-        q = {blk for blk in self.blks
-             if blk != self.entry_blk and self.in_degree_of(blk) == 0}
+        q = {blk for blk in self.blks if blk != self.entry_blk and self.in_degree_of(blk) == 0}
         while len(q) > 0:
             cur = q.pop()
             out_list = self.succs_of(cur)
@@ -183,18 +174,18 @@ class ControlFlowGraph(Graph):
                 if self.in_degree_of(blk) == 0:
                     q.add(blk)
 
-    def get_nodes(self) -> Set[BaseBlock]:
+    @override
+    def get_nodes(self) -> set[BaseBlock]:
         return self.blks
 
-    def retrive_label(self, label: Label) -> Optional[BaseBlock]:
+    def retrive_label(self, label: Label) -> BaseBlock | None:
         if label in self.label2blk:
             return self.label2blk[label]
-        else:
-            return None
+        return None
 
     def add_label(self, label: Label, block: BaseBlock):
         self.label2blk[label] = block
         self.blk2label[block] = label
 
-    def get_stmts(self) -> Set[IRStatement]:
+    def get_stmts(self) -> set[IRStatement]:
         return self.stmts

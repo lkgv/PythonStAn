@@ -1,66 +1,51 @@
 {
-  "phase": "W1 resumed actual execution contracts",
+  "phase": "W1 verified",
   "api_card": "verified",
-  "type_card": "running_not_verified",
-  "current_record": "docs/development/next/RESUMED_CHECKPOINT_20261112.json",
-  "historical_record": "docs/development/next/TYPE_CHECKPOINT_20261112.json",
-  "original_stage": {
+  "type_card": "verified",
+  "current_record": "docs/development/next/TYPE01_ACCEPTANCE_20261112.json",
+  "stage": {
     "passed": 1001,
     "exit_code": 0,
-    "seconds": 88.51,
-    "source_stable": true
+    "seconds": 88.04
   },
-  "new_controls": {
-    "passed": 4114,
+  "controls": {
+    "passed": 4171,
     "exit_code": 0,
-    "seconds": 39.197,
-    "source_stable": true,
-    "separate_frozen_red_suites": [
+    "seconds": 51.64,
+    "separate_frozen_mandatory_red": [
       "test_domain_mandatory.py",
       "test_native_mandatory.py"
-    ],
-    "scope_note": "Mandatory red repair obligations remain unchanged and are not counted green."
+    ]
   },
   "quality": {
-    "passed": false,
+    "passed": true,
+    "added_diagnostics": 0,
+    "modified_unit_diagnostics": 0,
     "diagnostic_counts": {
-      "format": 109,
-      "ruff": 3715,
-      "mypy": 3431
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
     },
-    "added_diagnostics": 43,
-    "modified_unit_diagnostics": 136,
-    "resolved_diagnostics": 15884,
+    "resolved_diagnostics": 17289,
     "negative_controls_passed": true,
     "whole_tree_mypy_clean": false
   },
-  "canonical_core": {
-    "modules": 98,
-    "source_stable": true,
-    "checks": {
-      "ordinary": {
-        "exit_code": 1,
-        "all_errors": 1412,
-        "core_errors": 0
-      },
-      "any_expr": {
-        "exit_code": 1,
-        "all_errors": 4947,
-        "core_errors": 0
-      },
-      "ruff": {
-        "exit_code": 0,
-        "all_errors": 0,
-        "core_errors": 0
-      }
-    },
-    "scope_note": "Own-module zero with normal imported diagnostics retained; not whole-tree strict."
-  },
-  "qualifications": {
-    "type_01_verified": false,
+  "qualification": {
+    "type_01_verified": true,
+    "type_02_verified": false,
     "core_qualified": false,
     "scale_qualified": false,
     "release_qualified": false,
+    "whole_tree_strict": false,
     "live_llm_requests": 0
-  }
+  },
+  "next_ready_tasks": [
+    "N4-STATE-01",
+    "N4-STATE-02",
+    "N4-DOM-01",
+    "N4-SEM-01",
+    "N4-SEM-02",
+    "N4-CTRL-01",
+    "N4-LLM-04"
+  ]
 }

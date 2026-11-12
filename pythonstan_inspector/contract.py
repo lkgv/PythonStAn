@@ -4,6 +4,7 @@ Local integer references are scoped by the enclosing SnapshotRef. Labels and
 origins are descriptions, never identities. Encoded snapshots own all bytes;
 each decode returns a fresh tree with no connection to a live analyzer.
 """
+
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -12,8 +13,16 @@ from typing import Any, Mapping, Optional, Tuple
 
 SCHEMA_MAJOR = 1
 SCHEMA_MINOR = 0
-REFERENCE_STATES = frozenset(("resolved", "omitted_by_capture", "outside_scope",
-    "not_captured", "missing_in_engine", "unknown"))
+REFERENCE_STATES = frozenset(
+    (
+        "resolved",
+        "omitted_by_capture",
+        "outside_scope",
+        "not_captured",
+        "missing_in_engine",
+        "unknown",
+    )
+)
 
 
 class InspectorError(ValueError):
@@ -22,8 +31,9 @@ class InspectorError(ValueError):
 
 def canonical_bytes(value: Any) -> bytes:
     try:
-        return json.dumps(value, ensure_ascii=False, sort_keys=True,
-                          separators=(",", ":"), allow_nan=False).encode("utf-8")
+        return json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
     except (ValueError, TypeError, UnicodeError, RecursionError, OverflowError):
         raise InspectorError("value cannot be encoded as supported UTF-8 JSON") from None
 
@@ -54,17 +64,23 @@ class CaptureRequest:
     scope: str = "all_current_state"
 
     def __post_init__(self):
-        if (type(self.views) is not tuple or len(self.views) > 32
-                or any(type(v) is not str or not 0 < len(v) <= 64 for v in self.views)
-                or len(set(self.views)) != len(self.views)):
+        if (
+            type(self.views) is not tuple
+            or len(self.views) > 32
+            or any(type(v) is not str or not 0 < len(v) <= 64 for v in self.views)
+            or len(set(self.views)) != len(self.views)
+        ):
             raise InspectorError("views must be a bounded tuple of distinct names")
         if type(self.scope) is not str or not 0 < len(self.scope) <= 128:
             raise InspectorError("capture scope must be bounded text")
         for name in ("max_entities", "max_rows", "max_bytes"):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise InspectorError("capture limits must be positive integers")
-        if (type(self.deadline_seconds) not in (int, float)
-                or not math.isfinite(self.deadline_seconds) or self.deadline_seconds <= 0):
+        if (
+            type(self.deadline_seconds) not in (int, float)
+            or not math.isfinite(self.deadline_seconds)
+            or self.deadline_seconds <= 0
+        ):
             raise InspectorError("capture deadline must be positive and finite")
 
 
@@ -80,8 +96,11 @@ class QueryLimits:
         for name in ("max_rows", "max_visited", "max_bytes", "max_depth"):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise InspectorError("query limits must be positive integers")
-        if (type(self.deadline_seconds) not in (int, float)
-                or not math.isfinite(self.deadline_seconds) or self.deadline_seconds <= 0):
+        if (
+            type(self.deadline_seconds) not in (int, float)
+            or not math.isfinite(self.deadline_seconds)
+            or self.deadline_seconds <= 0
+        ):
             raise InspectorError("query deadline must be positive and finite")
 
 

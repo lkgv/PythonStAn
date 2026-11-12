@@ -1,0 +1,41 @@
+{
+  "reviewer": "quality_review",
+  "production_author": "producer_quality",
+  "result": "accepted bounded producer/consumer repair; whole-candidate acceptance pending",
+  "source_sha256": {
+    "pythonstan/analysis/dataflow/equations.py": "c4180f1bbf0e5e5f0ec01adb4a344047896adffc4a64bceb6e1e05e6d35a39d9",
+    "pythonstan/analysis/dataflow/solver.py": "433bacc0e0b2e729150faebe389fc8bcbc00e74af49944b8007ef203d1034306",
+    "pythonstan/analysis/dataflow/execution.py": "3dedc5107a3709e8281d0c9f6f9148ee93c5a263641cbe66c6783e0b323d9896",
+    "pythonstan/analysis/dataflow/reaching_definition.py": "5a29288ecf37ab29e0d9d69169d1753cb0e1eca0ca6662903b234c7f69fac754",
+    "pythonstan/analysis/defuse.py": "8e15af930419edbfcd3a1ab1065ec977fdbe398127dcc705b115a9fe90a8a41c",
+    "pythonstan/analysis/compact_liveness.py": "bd7c482ff0a6502f0170d270882eb56fb69ad06a6e95fd6c22abdf930addf0a0",
+    "pythonstan/ir/semantic_residuals.py": "61334c728f6cc2a8bedcb73ca028f60fd50a351b35231af25def5af9be4595c9",
+    "pythonstan/analysis/project/entry_contracts.py": "e48632829647aea8a14e2309645e41b1c24bd9b0810daa235e02690c5326067e",
+    "tests/regression/audit3/test_defuse_independent_semantics.py": "f46bfe803aa4d1f2bdbf11146e8b08acf1539d775a00d104fdebf67db66eaf32"
+  },
+  "actual_body_observations": [
+    "DataflowEquations exposes only the operations consumed by WorklistSolver and the mask implementation; no registry or arbitrary generic Fact witness is inferred.",
+    "Compact liveness retains exact class/method checks and custom-solver fallback; ordinary and compact mappings keep their object ownership and decoded reads remain separate copies.",
+    "DefUse consumes actual block-entry RD maps, applies statement prefixes after observing each use, respects store/load switches, and returns/publishes the same result tuple.",
+    "RD single-target kills remain exact; multi-store definitions are retained when a different store remains. The statement-level domain intentionally admits extra overwritten-name witnesses.",
+    "Frontend residual decoder preserves an exact valid tuple identity; foreign iterables use a single host protocol iterator, and malformed payloads receive explicit errors.",
+    "Export entry template nominally mutable IR payload still gets runtime validation; unsupported metadata remains uncovered rather than being silently promoted to coverage."
+  ],
+  "independent_tests": {
+    "defuse_prefix_branch_loop_options_and_rd": {
+      "passed": 7,
+      "test": "tests/regression/audit3/test_defuse_independent_semantics.py",
+      "own_ordinary_mypy": 0
+    },
+    "baseline_rd": "Exact c4275e3 source method replay loses real IRAstStmt defining{x,y} after onlyx overwritten; JSON record retained.",
+    "fixture_correction": "Initial multi-target IRCopy fixture violated its one-target contract and was corrected; only the valid generic IRAstStmt replay is used as semantic evidence."
+  },
+  "author_evidence": "docs/development/next/producer_quality_resume2.json",
+  "limits": [
+    "Bounded normalized/source IR profile; no proof for arbitrary Python or every unnormalized generic AST.",
+    "The may statement domain can retain extra definitions for overwritten targets.",
+    "Solver strong expression debt is explicitly retained; ordinary zero does not imply strong or whole-tree zero.",
+    "Full fixed-source integration and quality guard checks remain required."
+  ],
+  "raw_evidence": "artifacts/next/evidence/quality-review-resume2"
+}

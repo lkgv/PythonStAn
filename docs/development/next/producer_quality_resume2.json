@@ -1,0 +1,408 @@
+{
+  "author": "producer_quality",
+  "baseline": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "status": "bounded_producer_consumer_migration_ready_for_independent_review",
+  "scope": [
+    "pythonstan/analysis/compact_liveness.py",
+    "pythonstan/analysis/defuse.py",
+    "pythonstan/analysis/dataflow/liveness.py",
+    "pythonstan/analysis/dataflow/equations.py",
+    "pythonstan/analysis/dataflow/solver.py",
+    "pythonstan/analysis/dataflow/execution.py",
+    "pythonstan/analysis/dataflow/reaching_definition.py",
+    "pythonstan/analysis/project/entry_contracts.py",
+    "pythonstan/ir/semantic_residuals.py"
+  ],
+  "partial_ports": {
+    "pythonstan/graph/cfg/cfg.py": {
+      "ControlFlowGraph.__init__": [
+        24,
+        34
+      ]
+    },
+    "pythonstan/ir/ir_statements.py": {
+      "IRStatement.get_semantic_residuals": [
+        93,
+        97
+      ],
+      "IRCatchException.__init__": [
+        290,
+        303
+      ],
+      "IRYield.__init__": [
+        464,
+        477
+      ],
+      "IRYield.get_ast": [
+        510,
+        512
+      ]
+    }
+  },
+  "source_sha256": {
+    "pythonstan/analysis/compact_liveness.py": "bd7c482ff0a6502f0170d270882eb56fb69ad06a6e95fd6c22abdf930addf0a0",
+    "pythonstan/analysis/defuse.py": "8e15af930419edbfcd3a1ab1065ec977fdbe398127dcc705b115a9fe90a8a41c",
+    "pythonstan/analysis/dataflow/liveness.py": "86d9d58deaca42d530a32ccf6536f066d900cc0d79806b2646ca18e38cc9053c",
+    "pythonstan/analysis/dataflow/equations.py": "c4180f1bbf0e5e5f0ec01adb4a344047896adffc4a64bceb6e1e05e6d35a39d9",
+    "pythonstan/analysis/dataflow/solver.py": "433bacc0e0b2e729150faebe389fc8bcbc00e74af49944b8007ef203d1034306",
+    "pythonstan/analysis/dataflow/execution.py": "3dedc5107a3709e8281d0c9f6f9148ee93c5a263641cbe66c6783e0b323d9896",
+    "pythonstan/analysis/dataflow/reaching_definition.py": "5a29288ecf37ab29e0d9d69169d1753cb0e1eca0ca6662903b234c7f69fac754",
+    "pythonstan/analysis/project/entry_contracts.py": "e48632829647aea8a14e2309645e41b1c24bd9b0810daa235e02690c5326067e",
+    "pythonstan/ir/semantic_residuals.py": "61334c728f6cc2a8bedcb73ca028f60fd50a351b35231af25def5af9be4595c9",
+    "pythonstan/ir/ir_statements.py": "8f5ea8117a954dff1c8a5ee07441e920f773d9f175d521ad8a1022f1ccfcab75",
+    "pythonstan/graph/cfg/cfg.py": "03cc103cb5410f12720185e25ea2c68a9b183e778410fe631b1fe419812c3e5c",
+    "tests/regression/audit3/test_defuse_independent_semantics.py": "f46bfe803aa4d1f2bdbf11146e8b08acf1539d775a00d104fdebf67db66eaf32",
+    "tests/regression/audit3/test_producer_metadata_contracts.py": "129c8a2e6774504d4e50c3313c3fb5c58739882c47af4ddc584643da4974333f",
+    "tests/regression/audit3/test_dataflow_execution_contracts.py": "7cdf9b942cef1b8735e865388c68fd08500cb78b37364c6cc8632bc6576fb0af",
+    "tests/round11_liveness/test_compact_closure.py": "23dc0786a9259e7d16b31e2bf6a8f8f33a910e16f90f50864c27b28bbf4e7d81",
+    "tests/round11_formal/test_compact_liveness_reference.py": "02a7d0fc3a2a29a36b27d63db93c880aa265c5def3bf1bf10f271bc310744af8",
+    "tests/round11_applications/test_export_argument_templates.py": "b7b1d3b387ab88aefc4bbac7f09cf2c1b4daee28db3fcd33ab5a6940fab693f5",
+    "tests/round7_formal/test_exported_entry_contracts.py": "9a41e90aea89af859b306d8a8b57efedc55056314ac1c769930ce869f73a7482",
+    "tests/round9_frontend/test_liveness_retention.py": "203b30b7d3330ff1bf3ded0481ab865d00506e6e76428b58e0b994c6834764ea",
+    "tests/round9_frontend/test_dataflow_pending_work.py": "039220559e5f4455720e9b9d68f2d0a98f5e9e651c93a476817dd6a9817476a1"
+  },
+  "source_stable": true,
+  "contracts": [
+    "DataflowEquations describes only operations actually read by the worklist and the integer liveness model; it does not copy a driver interface or invent registry membership.",
+    "Compact specialization keeps exact class/method identity guards, decoded observation copies, actual map identities and customized-analysis fallback. Erased fallback facts are not asserted to have an arbitrary Fact type.",
+    "DefUse now calls the real Dataflow driver with dependency arguments, reads published block-entry maps, decodes actual IRStatement facts and applies the preceding statement prefix. It returns and publishes the same public (stores, loads) tuple.",
+    "Reaching definitions retain a compound statement while any written target survives. Single-target kills stay exact; compound statements can remain conservative extra witnesses for overwritten names.",
+    "Entry templates keep malformed runtime IR as an explicit uncovered value despite nominal field types; ordered shape/origin sorting is unchanged.",
+    "Actual AST residual metadata is finite-checked, preserves exact immutable tuple identity and uses the host iteration protocol exactly once for other payloads.",
+    "IR Import metadata remains absent until the real resolver writes it. IRYield.get_ast returns the actual Expr/Assign wrapper rather than incorrectly claiming the inner Yield expression.",
+    "Liveness/CFG constructor changes are actual annotations. Initial CFG constructor-port plus formatting AST equivalence is retained; subsequent star-import cleanup preserves the existing graph/edge algorithms and explicitly re-exports NormalEdge."
+  ],
+  "checks": {
+    "ordinary": {
+      "exit_code": 1,
+      "own_diagnostics": 0,
+      "normal_imports_retained": true
+    },
+    "strong": {
+      "exit_code": 1,
+      "own_diagnostics": 24,
+      "all_own_rows": [
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 108,
+          "column": 24,
+          "end_line": 108,
+          "end_column": 45,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 109,
+          "column": 55,
+          "end_line": 109,
+          "end_column": 56,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 110,
+          "column": 30,
+          "end_line": 110,
+          "end_column": 31,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 111,
+          "column": 27,
+          "end_line": 111,
+          "end_column": 30,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 112,
+          "column": 38,
+          "end_line": 112,
+          "end_column": 41,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 113,
+          "column": 51,
+          "end_line": 113,
+          "end_column": 54,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 132,
+          "column": 74,
+          "end_line": 132,
+          "end_column": 93,
+          "message": "Expression type contains \"Any\" (has type \"Callable[[Any], Any]\")",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 132,
+          "column": 86,
+          "end_line": 132,
+          "end_column": 93,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 142,
+          "column": 16,
+          "end_line": 142,
+          "end_column": 17,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 143,
+          "column": 37,
+          "end_line": 143,
+          "end_column": 38,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 144,
+          "column": 51,
+          "end_line": 144,
+          "end_column": 52,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 145,
+          "column": 54,
+          "end_line": 145,
+          "end_column": 55,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 169,
+          "column": 24,
+          "end_line": 169,
+          "end_column": 46,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 170,
+          "column": 55,
+          "end_line": 170,
+          "end_column": 56,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 171,
+          "column": 30,
+          "end_line": 171,
+          "end_column": 31,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 172,
+          "column": 27,
+          "end_line": 172,
+          "end_column": 30,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 173,
+          "column": 37,
+          "end_line": 173,
+          "end_column": 40,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 174,
+          "column": 51,
+          "end_line": 174,
+          "end_column": 54,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 195,
+          "column": 20,
+          "end_line": 195,
+          "end_column": 39,
+          "message": "Expression type contains \"Any\" (has type \"Callable[[Any], Any]\")",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 195,
+          "column": 32,
+          "end_line": 195,
+          "end_column": 39,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 205,
+          "column": 16,
+          "end_line": 205,
+          "end_column": 17,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 206,
+          "column": 36,
+          "end_line": 206,
+          "end_column": 37,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 207,
+          "column": 51,
+          "end_line": 207,
+          "end_column": 52,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        },
+        {
+          "file": "pythonstan/analysis/dataflow/solver.py",
+          "line": 208,
+          "column": 54,
+          "end_line": 208,
+          "end_column": 55,
+          "message": "Expression has type \"Any\"",
+          "hint": null,
+          "code": "misc",
+          "severity": "error"
+        }
+      ],
+      "qualification": "The24 remaining Any-expression rows are old CFG edge getter/lambda provenance in solver.py, not whole-scope strong acceptance."
+    },
+    "runtime": {
+      "exit_code": 0,
+      "summary": [
+        "129 passed in 1.91s"
+      ],
+      "source_stable": true
+    },
+    "partial_changed_functions": {
+      "mypy": 0,
+      "ruff": 0,
+      "whole_ir_or_cfg_qualified": false
+    },
+    "cold_imports": "5 fresh import orders passed",
+    "cfg_format": {
+      "baseline": "c4275e3",
+      "scope": "constructor parameter/return and real collector attribute annotation only; remaining delta is formatting",
+      "ast_without_locations_equal_after_explicit_ports": true,
+      "current_sha256": "f13ac759992530d61ae740621267c113e0591d5aa4e55fd1f0817a7d430fc99d",
+      "scope_note": "This AST-equivalence receipt covers the initial constructor-port+formatter step. Subsequent import cleanup adds explicit imports, modern equivalent annotations, accessor overrides, and an equivalent label lookup return; see post_gate_cfg_import_fix."
+    }
+  },
+  "independent_semantic_evidence": [
+    "tests/regression/audit3/test_defuse_independent_semantics.py authored by quality_review,7green",
+    "Five original DefUse execution failures were real; real IRAstStmt multi-store baseline loses still-live y after x overwrite. Corrected baseline component receipt is artifacts/next/evidence/quality-review-resume2/rd-real-multistore-baseline.json.",
+    "The initial reviewer multi-target IRCopy fixture was outside the documented single-target contract and is not used as semantic bug evidence. Assertions remained unchanged when the fixture used the genuine multi-store producer."
+  ],
+  "separate_historical_failures": {
+    "suite": "tests/round5_integration/test_frontend_protocol_residuals.py",
+    "baseline": "c4275e3 detached worktree",
+    "baseline_result": "4passed6failed",
+    "current_mixed_selection": "35passed6failed",
+    "same_six_failed_ids": true,
+    "reason": "Specific frontend residual tags absent from existing legacy AI summary incomplete_reasons; lowering residual observations pass. Not counted as new success."
+  },
+  "limits": [
+    "This is not whole-tree strict typing, a whole-program soundness proof or parent TYPE-01 acceptance.",
+    "CFG and IR modules retain untouched historical diagnostics outside the declared constructor/metadata ports.",
+    "Compound-definition statement granularity can retain extra old may-witnesses after sequential partial overwrites.",
+    "The existing generic DataflowAnalysis base constructor config-initialization hole remains separate; RD explicitly retains its own config, no global initialization guarantee inferred.",
+    "Malformed AST residual payloads now fail explicitly at the host metadata boundary; parsed/lowered valid source profile is unchanged."
+  ],
+  "quality_policy": "No debt reset/frontier retreat/Any/cast/ignore or test-gold changes.",
+  "raw_receipt": "artifacts/next/evidence/producer-quality-round2-final/receipt.json",
+  "type_01_verified": false,
+  "live_llm_requests": 0,
+  "post_gate_cfg_import_fix": {
+    "status": "ready_held",
+    "source_sha256": "03cc103cb5410f12720185e25ea2c68a9b183e778410fe631b1fe419812c3e5c",
+    "reason": "13 new quality gate modified-class F405 rows came from old typing/IR star imports after actual constructor port.",
+    "change": "Explicit IR imports and proper builtins/union annotations, preserve NormalEdge alias; required accessor overrides and equivalent label-lookup return structure. No edge/graph algorithm change.",
+    "changed_unit_mypy": 0,
+    "changed_unit_ruff": 0,
+    "runtime": "50passed",
+    "evidence_prefix": "artifacts/next/evidence/producer-quality-round2/cfg-star-fixed-",
+    "full_scope_recheck": "Final9module ordinary own0;129runtime pass,source-stable;9module strong24 only old solver CFG provenance."
+  }
+}

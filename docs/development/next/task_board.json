@@ -413,25 +413,19 @@
       "evidence_directory": "artifacts/next/evidence/N4-TYPE-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "running",
+      "status": "verified",
       "implementation_record": {
         "owner": "root integration; domain_native_baseline runtime; semantic_baseline graph/provider/context; input_typing bridge/inputs; quality_tools contracts/oracle/intrinsics; client_preregistration worker/API",
-        "reviewer": "requirements_audit",
+        "reviewer": "quality_review; cross-owner independent reviews; Inspector for quality guard",
         "commit": null,
         "evidence": [
           "docs/development/next/TYPE_CHECKPOINT_20261112.json",
           "docs/development/next/evidence/type_checkpoint_20261112",
-          "docs/development/next/RESUMED_CHECKPOINT_20261112.json"
+          "docs/development/next/RESUMED_CHECKPOINT_20261112.json",
+          "docs/development/next/TYPE01_ACCEPTANCE_20261112.json"
         ],
-        "remaining_obligations": [
-          "Clear43 new and136 modified-unit quality diagnostics without baseline reset or suppressions",
-          "Finish actual Native state/heap/IRTranslator and legacy driver consumers",
-          "Finish Inspector cold-batch consumer and modified helper formatting",
-          "Expand reviewed whole-module frontier and complete TYPE-01 acceptance before dependent repair cards",
-          "Preserve frozen mandatory semantic/domain/Native repair witnesses and execute remaining task dependencies",
-          "Keep live LLM behind offline semantic and independent audit gates; read future credentials only from environment"
-        ],
-        "scope": "Integrated actual TYPE contracts and checked-summary/Native boundary checkpoint; parent TYPE-01 remains unverified",
+        "remaining_obligations": [],
+        "scope": "Exact N4-TYPE-01 criteria only; TYPE-02/full-tree and semantic qualification separate.",
         "review_records": [
           "docs/development/next/domain_native_independent_review.json",
           "docs/development/next/domain_native_legacy_registry_review.json",
@@ -442,7 +436,8 @@
           "docs/development/next/reviews/TYPE-01-shared-bridge.md",
           "docs/development/next/reviews/W1-domain-config-input.md",
           "docs/development/next/reviews/W1-effect-slice.md",
-          "docs/development/next/reviews/W1-low-contracts-ports.md"
+          "docs/development/next/reviews/W1-low-contracts-ports.md",
+          "docs/development/next/reviews/TYPE-01-final-acceptance-20261112.json"
         ],
         "recovery": {
           "external_blocker_resolved": true,
@@ -515,7 +510,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-STATE-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -590,7 +585,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-STATE-02",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -666,7 +661,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-DOM-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -740,7 +735,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -811,7 +806,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-02",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "M",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1587,7 +1582,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-CTRL-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -2468,7 +2463,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-LLM-04",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "M",
-      "status": "pending_dependencies",
+      "status": "ready",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -3522,7 +3517,7 @@
     "dirty_at_clone": false
   },
   "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
-  "current_phase": "W1 actual execution contracts; resumed",
+  "current_phase": "W2 and other DAG-ready repairs after W1 verified",
   "qualification": {
     "core_qualified": false,
     "scale_qualified": false,
@@ -3532,7 +3527,8 @@
       "LIVE-3": "pending_internal_prerequisites"
     },
     "benefit_demonstrated": "not_evaluated",
-    "release_qualified": false
+    "release_qualified": false,
+    "type_01_verified": true
   },
   "publication_status": {
     "remote_branch": "dev-cocktail-analysis",
@@ -3542,5 +3538,5 @@
     "history_note": "Original local formatting/implementation history is retained under checkpoint refs; connector publication commit identities can differ while trees match.",
     "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged."
   },
-  "checkpoint_note": "Resumed fixed source:1001 stage+4114 audit3 pass;98 core ordinary/AnyExpr/Ruff own0. Full quality43new136modified, negative guards pass. TYPE-01 remains running; no final qualification."
+  "checkpoint_note": "TYPE-01 verified:stage1001+audit3controls4171 pass;quality0new0modified,negativeguards pass;110ordinaryfrontier and98core strong0. Semantic18red/36 remain; no final qualification."
 }

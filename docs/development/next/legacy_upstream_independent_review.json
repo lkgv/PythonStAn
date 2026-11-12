@@ -1,0 +1,60 @@
+{
+  "reviewer": "native_quality",
+  "authors": "legacy_quality",
+  "status": "accepted_bounded_actual_predecessor_boundary",
+  "source_sha256": {
+    "pythonstan/compat/legacy_ai/analysis.py": "0ebe8cfa9c47d914957444162dec4a51f62d0fc25a931eceb4d847b1b1225c9d",
+    "pythonstan/compat/legacy_ai/upstream.py": "7fa75cf2930dfc36273b4846b94708d853db9867726eedb68a29375f762903b1",
+    "tests/regression/audit3/test_legacy_upstream_independent.py": "10ce344ea2527c074c4f0ea047b8f5adb6873df23688df05025123702bc194bc"
+  },
+  "baseline": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "validated_contracts": [
+    "Default _get_pta_results retains exact raw predecessor object in LegacyProvider and validates actual Native state at query decoding, retaining its identity.",
+    "Original get_statistics and query existence/invocation lookup pairs remain two external getter accesses; the original query _state getter is consumed once.",
+    "Only converged metadata is requested from opaque predecessor statistics; arbitrary other metadata is not enumerated or normalized.",
+    "RuntimeError raised by external getters/callables is propagated as the original exception object; noncallable optional query stays a TypeError, and absent state remains RuntimeError.",
+    "Foreign non-Native _state objects are explicitly rejected at the actual default boundary, without casting them into a trusted State.",
+    "Original upstream convergence cases and actual Native module seeding remain green; DI tests that replace typed factory/adapter/engine are behavior controls only."
+  ],
+  "findings_fixed": [
+    {
+      "issue": "Native-state internal-scope fallback getter double read",
+      "proof": "Actual PointerAnalysisState subclass with hidden optional scope service and real _internal_scope dictionary succeeded with one getter in c427; intermediate code read twice and raised second-getter RuntimeError.",
+      "repair": "Author restored a typed single read with AttributeError fallback.",
+      "red": "native-fallback-red.txt",
+      "green": "independent11.txt"
+    },
+    {
+      "issue": "Host AST argument subclass truth behavior changed by is-not-None extraction",
+      "proof": "Real IRFunc with valid ast.arg subclasses having false truth yielded[] in c427, but intermediate code yieldeditems/extras.",
+      "repair": "Author restored original truth checks, optional field read timing and list-comprehension consumption boundaries.",
+      "green": "nominal_ast_argument_subclass test"
+    }
+  ],
+  "checks": {
+    "independent_runtime": {
+      "passed": 11,
+      "failed": 0
+    },
+    "combined_existing_and_independent": {
+      "passed": 54,
+      "failed": 0,
+      "scope": "new11 + original driver boundary + legacy pipeline/shared bridge"
+    },
+    "new_test_mypy": {
+      "own_diagnostics": [],
+      "command_exit": 1,
+      "all_imported_records": 749,
+      "whole_tree_clean": false
+    },
+    "ruff": "passed",
+    "format": "passed"
+  },
+  "raw_evidence": "artifacts/next/evidence/legacy-upstream-independent",
+  "qualification_limits": [
+    "Review applies to the actual default factory and real Native-state payloads. Deliberately type-invalid monkeypatched test factories do not validate production State capabilities.",
+    "Nominal predecessor-state validation is a bounded host ABI check, not a proof of predecessor soundness/completeness.",
+    "No whole legacy package, whole-tree strict, core or TYPE-01 qualification is inferred.",
+    "Final root fixed-source regression evidence supersedes local scoped execution receipts."
+  ]
+}

@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "author": "producer_quality read-only readiness",
+  "date": "2026-11-12",
+  "status": "measurement_and_planning_only_no_dependent_implementation",
+  "source_commit": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "working_tree_dirty": true,
+  "source_manifest_sha256": "3980aa45246078a7f91bbfa81c9770f320e956c03bd89ff39e3c9e8d1d5284d4",
+  "source_manifest_algorithm": "SHA256(json.dumps(source_sha256, sort_keys=True).encode('utf-8'))",
+  "source_stable": true,
+  "source_file_count": 333,
+  "selected_source_sha256": {
+    "pythonstan/analysis/composition/region_engine.py": "357fd3a185cfc6595ab740417b4c6407054df95a2f02c82521ed46e7ec2ff3b4",
+    "pythonstan/analysis/composition/region_scheduler.py": "599ee09f50ae2e113559404f89c1bd800ac838aa5971c8859ad71ab9a71579af",
+    "pythonstan/analysis/domains/values.py": "8926fa2974bafcfb77d147397791103304681b1d4d9d1a4479359ddc24533abd",
+    "pythonstan/analysis/engines/abstract/continuations.py": "a2dce8a41822f374325f2694b47dfd63c278383314fd4d25d211c7594b0bf6e3",
+    "pythonstan/analysis/engines/abstract/driver.py": "5c736c511e9c22bbf72b112ebfb4dee03f39ae13e0ad799eba41f86625e1cb59",
+    "pythonstan/analysis/engines/abstract/runtime_options.py": "cd34e3fe8fa5bf6603dacb19621e18d8528ab1130a048fed6aa8bea0ded92539",
+    "pythonstan/analysis/state/metadata.py": "85240d477f0c81545d2642172c1c4cc4cda10c6de03dd22f1dbe5ac456fca5a1",
+    "pythonstan/analysis/state/store.py": "66c43394241eae74d522b5df085fd0793efc7064bb9e7da0e1ada96af057b4c4",
+    "pythonstan/analysis/state/transform.py": "5e82b962d14f61e9263ad549dbb6931db5fa86fb7d50c5e6315745e33a9927ef",
+    "pythonstan/config/resolve.py": "fc7107797244c24fbdd93490ecae34a54d94334e6a1fdc9e2c49dfdee93593c1",
+    "tests/regression/audit3/domain_oracles.py": "d078d39f240891e303f9c5434be3568908e32fa3147ad28b9d89d16105237c58",
+    "tests/regression/audit3/test_domain_mandatory.py": "90e22580b522e378dfe51fb13d9e7ba04eed27233c6785367df881e480b71787",
+    "tests/regression/audit3/test_native_mandatory.py": "db63fba66a23c748c45288fdf6ceddd0905f73660aa30c675dac8f878b1dd2f7"
+  },
+  "profile": {
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "--tb=long",
+      "tests/regression/audit3/test_domain_mandatory.py",
+      "tests/regression/audit3/test_native_mandatory.py",
+      "--junitxml=/workspace/scratch/8d3426210943/PythonStAn/artifacts/next/evidence/mandatory-readiness-final-round2/profiles.xml"
+    ],
+    "exit_code": 1,
+    "seconds": 1.829,
+    "counts": {
+      "passed": 18,
+      "failed": 18,
+      "skipped": 0
+    },
+    "by_module": {
+      "test_domain_mandatory": {
+        "passed": 9,
+        "failed": 10,
+        "skipped": 0
+      },
+      "test_native_mandatory": {
+        "passed": 9,
+        "failed": 8,
+        "skipped": 0
+      }
+    },
+    "budgets_unchanged": {
+      "max_work": 10000,
+      "max_seconds": 8,
+      "max_memory_mb": 1536,
+      "concrete_subprocess_timeout_seconds": 2
+    },
+    "gold_changed": false,
+    "xfail_or_skip_added": false
+  },
+  "families": [
+    {
+      "finding": "R3-DOM-01",
+      "tasks": [
+        "N4-DOM-01"
+      ],
+      "failed": 3,
+      "current_trigger": "Mixed int|string addition with max_scalar_pairs=1 loses integer normal results and cross-sort TypeError. API cap8 positive control passes.",
+      "root_cause": "ValueOperations.scalar_binary uses whole-value enumeration eligibility, then returns immediately from the str+str fallback before visiting int+int or incompatible sort pairs.",
+      "source": [
+        "pythonstan/analysis/domains/values.py::ValueOperations.scalar_binary"
+      ],
+      "next_smallest_batch": "Define one actual facet decomposition and per-kind-pair outcome join. Enumeration budget chooses precision; it must not choose which sorts or exceptions survive. Validate normal/error/effect covering across Add/Sub/Mult and numeric/string/bool/float/None facets; preserve exact finite controls."
+    },
+    {
+      "finding": "R3-DOM-02",
+      "tasks": [
+        "N4-DOM-01"
+      ],
+      "failed": 3,
+      "current_trigger": "0.0 mixed with a nonenumerated string/interval facet loses False; cap8 API control passes.",
+      "root_cause": "ValueOperations.truth nonenumerating path visits bool/None/int/string facets but never the finite floats facet.",
+      "source": [
+        "pythonstan/analysis/domains/values.py::ValueOperations.truth"
+      ],
+      "next_smallest_batch": "Join finite-float truth alternatives into the same facet truth contract; test zero, signed zero, nonzero, interval mixtures and nonenumerable string facets. Do not equate budget exhaustion with True."
+    },
+    {
+      "finding": "R3-DOM-03",
+      "tasks": [
+        "N4-RESULT-01"
+      ],
+      "failed": 2,
+      "current_trigger": "Internal widened string retains residual z/outside, but published wire only contains pattern language and drops the residual.",
+      "root_cause": "Value.export emits finite string constants only when strings.get_consts() is not None. Pattern+residual uses None, and string_patterns lacks the residual constant component.",
+      "source": [
+        "pythonstan/analysis/domains/values.py::Value.export"
+      ],
+      "next_smallest_batch": "After DOM acceptance, export the full existing union: exact residual string constants alongside patterns. Independent wire decoder and roundtrip must cover both; extend the same review to typedTop/interval/unbound/refs/relations/truncation without narrowing mandatory profile."
+    },
+    {
+      "finding": "R3-DOM-04",
+      "tasks": [
+        "N4-STATE-01"
+      ],
+      "failed": 2,
+      "current_trigger": "Both max_addr_set_size=1 cases now terminate with an answered Top/Open value and havoc_suspended_or_iterator_state, rather than the old KeyError crash. Both cap2 controls pass.",
+      "root_cause": "coarsen_flows quotients two generator refs into one summary; merged suspension metadata/cardinality is not representable as the current singular GeneratorMeta, so resume deliberately rejects havoc or nonsingleton suspended objects. Active ObjectHandle refresh now exists after generator block execution, but this mandatory case stops earlier at the precision fallback.",
+      "source": [
+        "pythonstan/analysis/engines/abstract/driver.py::InterproceduralDriver.coarsen_flows",
+        "pythonstan/analysis/state/store.py::HeapObject._merge_from",
+        "pythonstan/analysis/state/metadata.py::GeneratorMeta",
+        "pythonstan/analysis/engines/abstract/continuations.py::ContinuationEngine.resume"
+      ],
+      "next_smallest_batch": "Specify and actually consume a bounded suspension-state join (phase/continuation/frame/entry correlations) rather than deleting the havoc guard or making a summary singleton. Re-resolve handles across all reentry points, and weakly update the summary. Validate send/throw/close/yield-from/finally and protocol-triggered coarsening, not only constant first-yield fixtures.",
+      "qualification": "The stale-epoch crash is not reproduced by these current mandatory cases; useful precision remains unmet. Raw post-failure public answer retained separately."
+    },
+    {
+      "finding": "R3-DOM-05",
+      "tasks": [
+        "N4-STATE-02"
+      ],
+      "failed": 0,
+      "current_trigger": "Cycle-only, cycle+collision and same-root cyclic join tests all pass; collision-only positive control passes.",
+      "root_cause": "The W1 graph memo/shell implementation now repairs the frozen alias witnesses. Full STATE02 acceptance is broader than these three cases.",
+      "source": [
+        "pythonstan/analysis/state/transform.py::PayloadTransformer",
+        "pythonstan/analysis/state/store.py::Store.join",
+        "pythonstan/analysis/state/store.py::Store.leq"
+      ],
+      "next_smallest_batch": "Keep these greens; separately repair/readiness-audit comparison purity, two-input may/must alias behavior, metadata joins, and host/oracle/provider failure injection. Do not reimplement the already-green cycle fix.",
+      "extra_confirmed_issue": "Store.leq implicitly calls ensure_current on both operands. A valid A->S arena epoch advance causes a comparison returning True to mutate both heap maps/cell refs/identity_epoch/state_revision; component probe retained."
+    },
+    {
+      "finding": "NCOMP-01",
+      "tasks": [
+        "N4-PTA-01"
+      ],
+      "failed": 3,
+      "current_trigger": "AI retains first heap/cell/nested target write on later IndexError; Native returns old0 rather than1. Both success controls pass.",
+      "root_cause": "NativeRegionEngine accumulates writes and a flat error set, then reconstructs every exceptional flow from adapter.encode(original flow). It has no ordered per-target prefix checkpoint; later target traversal can continue after a failed inner target.",
+      "source": [
+        "pythonstan/analysis/composition/region_engine.py::NativeRegionEngine.execute",
+        "pythonstan/analysis/composition/region_engine.py::assign"
+      ],
+      "next_smallest_batch": "After SEM01 acceptance, compile ordered unpack/materialization/target-write checkpoints with current versioned boundary state. An error publishes exactly earlier successful effects. Merely replacing original flow with the final boundary would wrongly include effects after the failing target; add a third-target-after-inner-failure variant."
+    },
+    {
+      "finding": "NCOMP-02",
+      "tasks": [
+        "N4-PTA-02"
+      ],
+      "failed": 2,
+      "current_trigger": "Repeated varying-key dictionary allocations at one Native site lose an earlier alias value, publishing only missing. AI and fixed-key positive controls pass.",
+      "root_cause": "Native allocation sees an old object but constructs a fresh empty BoundaryObject and finally overwrites boundary.heap[objid], retaining only the new field directory. Inclusion facts alone cannot restore descriptor presence/shape.",
+      "source": [
+        "pythonstan/analysis/composition/region_engine.py::compile_expression",
+        "pythonstan/analysis/composition/region_engine.py::NativeRegionEngine.execute"
+      ],
+      "next_smallest_batch": "After STATE02 acceptance, reuse the canonical full HeapJoin: MayKey union, MustKey intersection, defaults/missing/cardinality/length/typed metadata, weak writes for repeated allocation. Two distinct one-key objects must not become length2 simply because the abstract field directory contains two keys."
+    },
+    {
+      "finding": "NCOMP-03",
+      "tasks": [
+        "N4-CTRL-01"
+      ],
+      "failed": 3,
+      "current_trigger": "Regional context_depth0, relations aliasFalse and nested max_traces_per_block1 are accepted but differ from equivalent global controls.",
+      "root_cause": "RegionScheduler updates driver.abstract and four ValuePolicy fields, while driver.context_depth/max_paths were decoded once at construction. Regional nested solver_options are not flattened into the cached consumer and relations alias is not consistently canonicalized at the regional boundary.",
+      "source": [
+        "pythonstan/analysis/composition/region_scheduler.py::RegionScheduler.execute",
+        "pythonstan/analysis/engines/abstract/runtime_options.py::decode_runtime_options",
+        "pythonstan/analysis/engines/abstract/driver.py::InterproceduralDriver.request_function",
+        "pythonstan/config/resolve.py"
+      ],
+      "next_smallest_batch": "Compile one typed canonical RegionPolicy and wire actual context/path/relation/domain consumers with exact scoped save/restore. Preserve global work quotas. A temporary precise rejection can contain unsupported settings but does not pass the unchanged mandatory tests expecting runtime answers; do not rewrite those tests to accept rejection."
+    }
+  ],
+  "card_dependencies_unchanged": {
+    "N4-DOM-01": [
+      "N4-TYPE-01"
+    ],
+    "N4-RESULT-01": [
+      "N4-DOM-01"
+    ],
+    "N4-STATE-01": [
+      "N4-TYPE-01"
+    ],
+    "N4-STATE-02": [
+      "N4-TYPE-01"
+    ],
+    "N4-SEM-01": [
+      "N4-TYPE-01"
+    ],
+    "N4-PTA-01": [
+      "N4-TYPE-01",
+      "N4-SEM-01"
+    ],
+    "N4-PTA-02": [
+      "N4-TYPE-01",
+      "N4-STATE-02"
+    ],
+    "N4-CTRL-01": [
+      "N4-API-01",
+      "N4-TYPE-01"
+    ]
+  },
+  "post_type_repair_sequence_recommendation": [
+    {
+      "batch": "A",
+      "cards": [
+        "N4-DOM-01"
+      ],
+      "reason": "Three scalar-pair and three float-truth mandatory reds have local Value facet roots; include unary unknown-string exception/effect obligation from AS04 before closing DOM.",
+      "owner_leases": "One domains/values.py writer; coordinate the small actual UnaryOp transfer consumer with SEM01 writer."
+    },
+    {
+      "batch": "B",
+      "cards": [
+        "N4-STATE-02",
+        "N4-STATE-01"
+      ],
+      "reason": "Graph frozen aliases are now green. Comparison purity has a concrete extra red, while generator summary precision needs an actual metadata algebra. Parallel design/review is possible; serialize edits to shared Store/Metadata/Transform files.",
+      "dependency_note": "This is integration coordination, not an added task-board prerequisite: both cards officially depend only on TYPE01."
+    },
+    {
+      "batch": "C",
+      "cards": [
+        "N4-CTRL-01"
+      ],
+      "reason": "Independent regional policy compilation/real consumer fixes can proceed after its existing API+TYPE prerequisites; no global quota resets."
+    },
+    {
+      "batch": "D",
+      "cards": [
+        "N4-RESULT-01"
+      ],
+      "reason": "Wait for DOM01 as declared, then repair lossless scalar/pattern union export with independent decoder coverage."
+    },
+    {
+      "batch": "E",
+      "cards": [
+        "N4-PTA-01",
+        "N4-PTA-02"
+      ],
+      "reason": "Respect SEM01 and STATE02 declared dependencies respectively. Both edit region_engine.py, so one writer integrates prefix versioning and allocation HeapJoin sequentially."
+    }
+  ],
+  "preserved_positive_controls": [
+    "cap8 mixed binary exact coverage",
+    "cap8 float branch coverage",
+    "cap2 generator first-yield values1and7",
+    "three cyclic alias/root probes",
+    "collision without cycle",
+    "finite string join/widen membership",
+    "ordinary AI prefix effects",
+    "AI varying-key aliases",
+    "Native successful assignment and fixed-key allocation"
+  ],
+  "broader_not_yet_qualified": [
+    "STATE02 full read purity/transaction atomicity is not proved by existing cycle greens.",
+    "STATE01 cannot close by merely catching missing identities, returning Top/Open, raising capacities or making summaries singleton.",
+    "NCOMP01 cannot close by applying every final write to every exception branch.",
+    "NCOMP02 cannot close by field union alone or deriving concrete length from abstract key count.",
+    "Finite mandatory tests are regression evidence, not proof of arbitrary Python soundness."
+  ],
+  "raw_evidence": "artifacts/next/evidence/mandatory-readiness-final-round2/receipt.json",
+  "extra_readiness_probes": {
+    "generator_cap1_public_payload": "artifacts/next/evidence/mandatory-readiness-round2/generator_cap1_payload.json",
+    "comparison_purity_component": "artifacts/next/evidence/mandatory-readiness-round2/leq_mutation_probe.json"
+  },
+  "production_edits_for_this_readiness_task": false,
+  "dependent_task_statuses_changed": false,
+  "parent_type_01_verified": false,
+  "separate_TYPE_preservation_edit": "CFG import cleanup was completed under the separate root request; no dependent State/Domain/Native semantic repair was implemented."
+}

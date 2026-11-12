@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "timezone": "Asia/Shanghai",
+  "card": "N4-TYPE-01",
+  "status": "verified",
+  "source_parent_commit": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "previous_published_commit": "ec70e2e44ec6fd633579076fd4ea3ffdb775b556",
+  "source_manifest_sha256": "b2d4a759f85ac89c30d81c9aba60926aa7b8cc5f5d06e6fc2c9587d09e4d9284",
+  "source_stable": true,
+  "stage": {
+    "passed": 1001,
+    "exit_code": 0,
+    "seconds": 88.04
+  },
+  "audit3_controls": {
+    "passed": 4171,
+    "exit_code": 0,
+    "seconds": 51.64,
+    "separate_frozen_mandatory_red": [
+      "test_domain_mandatory.py",
+      "test_native_mandatory.py"
+    ]
+  },
+  "quality": {
+    "passed": true,
+    "added_diagnostics": 0,
+    "modified_unit_diagnostics": 0,
+    "diagnostic_counts": {
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
+    },
+    "resolved_diagnostics": 17289,
+    "negative_controls_passed": true,
+    "whole_tree_mypy_clean": false
+  },
+  "ordinary_frontier_modules": 110,
+  "core98": {
+    "ordinary": {
+      "exit_code": 1,
+      "all_errors": 749,
+      "core_errors": 0
+    },
+    "any_expr": {
+      "exit_code": 1,
+      "all_errors": 2288,
+      "core_errors": 0
+    },
+    "ruff": {
+      "exit_code": 0,
+      "all_errors": 0,
+      "core_errors": 0
+    }
+  },
+  "frozen_ledger": {
+    "sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "modules": 305,
+    "rows": 23096,
+    "raw_bytes_unchanged": true,
+    "verified_header_anchors_interpreted_in_memory": 683,
+    "normalization_scope": "Exact immutable e8 source bytes only; no generic matching fallback."
+  },
+  "independent_review": "docs/development/next/reviews/TYPE-01-final-acceptance-20261112.json",
+  "mandatory_readiness": {
+    "passed": 18,
+    "failed": 18,
+    "skipped": 0,
+    "scope": "36 domain/Native fixtures; not full semantic gate",
+    "record": "docs/development/next/semantic_repair_readiness_round2.json"
+  },
+  "qualifications": {
+    "type_01_verified": true,
+    "type_02_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "whole_tree_strict": false,
+    "live_llm_requests": 0
+  },
+  "limits": [
+    "Type contracts and current positive profiles do not prove arbitrary Python soundness.",
+    "Whole-tree legacy debt and remaining TYPE-02 obligations remain explicit.",
+    "Mandatory semantic/domain/state/Native repair obligations remain open; leq observation mutation is separately recorded.",
+    "Broader inherited test failures, missing benchmark modules and work-count nondeterminism remain accurately classified."
+  ],
+  "evidence": "docs/development/next/evidence/type01_acceptance_20261112"
+}

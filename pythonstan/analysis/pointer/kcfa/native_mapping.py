@@ -5,10 +5,13 @@ not a key-presence or insertion-order fact.  Dispatch deliberately keeps both
 equality directions; collision/precedence/exception/reentry are obligations.
 """
 
+from __future__ import annotations
+
 import ast
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import override
+from typing import TYPE_CHECKING, Protocol, override, runtime_checkable
 
 from .constraints import (
     CallConstraint,
@@ -17,9 +20,10 @@ from .constraints import (
     ResidualEffectConstraint,
     TruthTestConstraint,
 )
-from .context import CallSite
+from .context import CallSite, Ctx, Scope
 from .heap_model import Field, FieldKind, attr, elem, key
 from .object import (
+    AbstractObject,
     BuiltinInstanceObject,
     ClassObject,
     ConstantObject,
@@ -31,7 +35,31 @@ from .object import (
 )
 from .pointer_flow_graph import GuardNode, NormalNode, PointerFlowEdge, PointerFlowKind
 from .points_to_set import PointsToSet
-from .variable import Variable, VariableKind
+from .variable import FieldAccess, Variable, VariableKind
+
+if TYPE_CHECKING:
+    from .solver import PointerSolver
+    from .state import PointerAnalysisState
+
+_MISSING_SOURCE_AST = object()
+
+
+@runtime_checkable
+class _SourceASTReader(Protocol):
+    def __call__(self) -> object: ...
+
+
+def _source_ast(source: object) -> object:
+    """Read the existing source metadata method without assuming its payload."""
+    attribute = "get_ast"
+    probe: object = getattr(source, attribute, _MISSING_SOURCE_AST)
+    if probe is _MISSING_SOURCE_AST:
+        return None
+    reader: object = getattr(source, attribute)
+    if not isinstance(reader, _SourceASTReader):
+        raise TypeError("Source get_ast metadata must be callable")
+    return reader()
+
 
 NATIVE_MAPPING_KEYS = Field(FieldKind.CLASS_METADATA, "native_mapping_keys")
 NATIVE_MAPPING_NONSCALAR_KEYS = Field(FieldKind.CLASS_METADATA, "native_mapping_nonscalar_keys")
@@ -61,7 +89,7 @@ def exact_native_mapping(obj: object) -> bool:
     )
 
 
-def exact_scalar_key(obj):
+def exact_scalar_key(obj: AbstractObject) -> bool:
     return isinstance(obj, ConstantObject) and type(obj.value) in (
         bool,
         int,
@@ -73,8 +101,12 @@ def exact_scalar_key(obj):
     )
 
 
-def _observe(state, source, callback):
-    def observe(_edge, points):
+def _observe(
+    state: PointerAnalysisState,
+    source: Ctx[Variable | FieldAccess],
+    callback: Callable[[PointsToSet], None],
+) -> None:
+    def observe(_edge: PointerFlowEdge, points: PointsToSet) -> PointsToSet:
         callback(points)
         return PointsToSet.empty()
 
@@ -83,14 +115,20 @@ def _observe(state, source, callback):
 
 
 class NativeMappingProtocols:
-    def __init__(self, solver):
+    def __init__(self, solver: PointerSolver) -> None:
         self.solver = solver
-        self.installed = set()
-        self.bound_variables = {}
-        self.metaclass_calls = set()
-        self.classified_mappings = set()
-        self.tuple_protocols = set()
-        self._tuple_pending = deque()
+        self.installed: set[tuple[Scope, NativeMappingProtocolConstraint, AbstractObject]] = set()
+        self.bound_variables: dict[tuple[Scope, CallSite, AbstractObject], Variable] = {}
+        self.metaclass_calls: set[
+            tuple[Scope, CallSite, ClassObject, str, tuple[Variable, ...], Variable | None]
+        ] = set()
+        self.classified_mappings: set[AbstractObject] = set()
+        self.tuple_protocols: set[
+            tuple[Scope, CallSite, TupleObject, str, tuple[TupleObject, ...]]
+        ] = set()
+        self._tuple_pending: deque[
+            tuple[Scope, NativeMappingProtocolConstraint, TupleObject, str, tuple[TupleObject, ...]]
+        ] = deque()
         self._tuple_draining = False
         self.statistics = {
             "classified_key_objects": 0,
@@ -103,7 +141,7 @@ class NativeMappingProtocols:
             "tuple_equality_candidate_pairs": 0,
         }
 
-    def _classify_mapping(self, scope, mapping):
+    def _classify_mapping(self, scope: Scope, mapping: AbstractObject) -> None:
         """Classify each stored key once per mapping, never per query/store."""
         if mapping in self.classified_mappings:
             return
@@ -111,9 +149,9 @@ class NativeMappingProtocols:
         state = self.solver.state
         source = state.get_field(scope, scope.context, mapping, NATIVE_MAPPING_KEYS)
         target = state.get_field(scope, scope.context, mapping, NATIVE_MAPPING_NONSCALAR_KEYS)
-        observed = set()
+        observed: set[AbstractObject] = set()
 
-        def classify(_edge, points):
+        def classify(_edge: PointerFlowEdge, points: PointsToSet) -> PointsToSet:
             fresh = [obj for obj in points if obj not in observed]
             observed.update(fresh)
             self.statistics["classified_key_objects"] += len(fresh)
@@ -127,7 +165,9 @@ class NativeMappingProtocols:
             PointerFlowEdge(gate, NormalNode(target), PointerFlowKind.NORMAL)
         )
 
-    def _bound(self, scope, constraint, obj):
+    def _bound(
+        self, scope: Scope, constraint: NativeMappingProtocolConstraint, obj: AbstractObject
+    ) -> Variable:
         identity = (scope, constraint.call_site, obj)
         variable = self.bound_variables.get(identity)
         if variable is None:
@@ -139,7 +179,7 @@ class NativeMappingProtocols:
             self.solver.handle_new_points_to(contextual, scope, PointsToSet.singleton(obj))
         return variable
 
-    def _residual(self, scope, constraint):
+    def _residual(self, scope: Scope, constraint: NativeMappingProtocolConstraint) -> None:
         self.solver.add_constraint(
             scope,
             scope.context,
@@ -159,7 +199,14 @@ class NativeMappingProtocols:
             ),
         )
 
-    def _method(self, scope, constraint, receiver, method, others=()):
+    def _method(
+        self,
+        scope: Scope,
+        constraint: NativeMappingProtocolConstraint,
+        receiver: AbstractObject,
+        method: str,
+        others: tuple[AbstractObject, ...] = (),
+    ) -> None:
         if exact_scalar_key(receiver):
             return
         self._residual(scope, constraint)
@@ -171,7 +218,7 @@ class NativeMappingProtocols:
             if method == "__hash__":
                 self._tuple_protocol(scope, constraint, receiver, method)
             elif method == "__eq__" and len(others) == 1 and isinstance(others[0], TupleObject):
-                self._tuple_protocol(scope, constraint, receiver, method, others)
+                self._tuple_protocol(scope, constraint, receiver, method, (others[0],))
             return
         arguments = tuple(self._bound(scope, constraint, other) for other in others)
         result = None
@@ -196,10 +243,10 @@ class NativeMappingProtocols:
             self._metaclass_method(scope, constraint, receiver, method, arguments, result)
 
     @staticmethod
-    def _tuple_arity(receiver):
+    def _tuple_arity(receiver: TupleObject) -> int | None:
         """Known literal arity, never inferred from currently nonempty slots."""
         statement = receiver.alloc_site.stmt
-        node = statement.get_ast() if hasattr(statement, "get_ast") else None
+        node = _source_ast(statement)
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             node = node.value
         if isinstance(node, ast.Tuple) and not any(
@@ -208,7 +255,7 @@ class NativeMappingProtocols:
             return len(node.elts)
         return None
 
-    def _tuple_fields(self, receiver):
+    def _tuple_fields(self, receiver: TupleObject) -> tuple[Field, ...]:
         # Literal producers have a fixed set of positions. Subscribe before
         # their values appear, as well as to their aggregate element relation.
         # tuple(iterable) and other modeled producers publish through elem().
@@ -225,7 +272,14 @@ class NativeMappingProtocols:
                 fields[field] = None
         return tuple(fields)
 
-    def _tuple_protocol(self, scope, constraint, receiver, method, others=()):
+    def _tuple_protocol(
+        self,
+        scope: Scope,
+        constraint: NativeMappingProtocolConstraint,
+        receiver: TupleObject,
+        method: str,
+        others: tuple[TupleObject, ...] = (),
+    ) -> None:
         identity = (scope, constraint.call_site, receiver, method, others)
         if identity in self.tuple_protocols:
             return
@@ -248,11 +302,13 @@ class NativeMappingProtocols:
         finally:
             self._tuple_draining = False
 
-    def _install_tuple_hash(self, scope, constraint, receiver):
+    def _install_tuple_hash(
+        self, scope: Scope, constraint: NativeMappingProtocolConstraint, receiver: TupleObject
+    ) -> None:
         self.statistics["tuple_hash_observers"] += 1
-        observed = set()
+        observed: set[AbstractObject] = set()
 
-        def components_added(points):
+        def components_added(points: PointsToSet) -> None:
             for component in points:
                 if component in observed:
                     continue
@@ -265,7 +321,13 @@ class NativeMappingProtocols:
             source = state.get_field(scope, scope.context, receiver, field)
             _observe(state, source, components_added)
 
-    def _install_tuple_equality(self, scope, constraint, left, right):
+    def _install_tuple_equality(
+        self,
+        scope: Scope,
+        constraint: NativeMappingProtocolConstraint,
+        left: TupleObject,
+        right: TupleObject,
+    ) -> None:
         """Persistent binary may-join, with no snapshot-only scalar pruning."""
         self.statistics["tuple_equality_observers"] += 1
         left_arity, right_arity = self._tuple_arity(left), self._tuple_arity(right)
@@ -276,7 +338,8 @@ class NativeMappingProtocols:
             and not is_summary_object(left)
             and not is_summary_object(right)
         )
-        if indexed:
+        groups: list[tuple[tuple[Field, ...], tuple[Field, ...]]]
+        if indexed and left_arity is not None and right_arity is not None:
             # Different lengths still compare their common prefix first.
             groups = [
                 (
@@ -308,18 +371,29 @@ class NativeMappingProtocols:
         for left_fields, right_fields in groups:
             self._tuple_equality_group(scope, constraint, left, right, left_fields, right_fields)
 
-    def _tuple_equality_group(self, scope, constraint, left, right, left_fields, right_fields):
+    def _tuple_equality_group(
+        self,
+        scope: Scope,
+        constraint: NativeMappingProtocolConstraint,
+        left: TupleObject,
+        right: TupleObject,
+        left_fields: tuple[Field, ...],
+        right_fields: tuple[Field, ...],
+    ) -> None:
         # Do not enumerate primitive x primitive pairs: exact primitive payloads
         # cannot run Python hooks. Classification is per arriving object, so a
         # later custom component always joins all earlier opposite-side values.
-        left_all, right_all, left_custom, right_custom = set(), set(), set(), set()
+        left_all: set[AbstractObject] = set()
+        right_all: set[AbstractObject] = set()
+        left_custom: set[AbstractObject] = set()
+        right_custom: set[AbstractObject] = set()
 
-        def compare(left_value, right_value):
+        def compare(left_value: AbstractObject, right_value: AbstractObject) -> None:
             self.statistics["tuple_equality_candidate_pairs"] += 1
             self._method(scope, constraint, left_value, "__eq__", (right_value,))
             self._method(scope, constraint, right_value, "__eq__", (left_value,))
 
-        def left_added(points):
+        def left_added(points: PointsToSet) -> None:
             for obj in points:
                 if obj in left_all:
                     continue
@@ -332,7 +406,7 @@ class NativeMappingProtocols:
                     for other in tuple(right_all):
                         compare(obj, other)
 
-        def right_added(points):
+        def right_added(points: PointsToSet) -> None:
             for obj in points:
                 if obj in right_all:
                     continue
@@ -351,7 +425,15 @@ class NativeMappingProtocols:
         for field in right_fields:
             _observe(state, state.get_field(scope, scope.context, right, field), right_added)
 
-    def _metaclass_method(self, scope, constraint, receiver, method, arguments, result):
+    def _metaclass_method(
+        self,
+        scope: Scope,
+        constraint: NativeMappingProtocolConstraint,
+        receiver: ClassObject,
+        method: str,
+        arguments: tuple[Variable, ...],
+        result: Variable | None,
+    ) -> None:
         identity = (scope, constraint.call_site, receiver, method, arguments, result)
         if identity in self.metaclass_calls:
             return
@@ -382,7 +464,7 @@ class NativeMappingProtocols:
         )
         registered = False
 
-        def activate(_edge, points):
+        def activate(_edge: PointerFlowEdge, points: PointsToSet) -> PointsToSet:
             nonlocal registered
             functions = [obj for obj in points if isinstance(obj, FunctionObject)]
             if functions and not registered:
@@ -406,7 +488,7 @@ class NativeMappingProtocols:
             )
         )
 
-    def apply(self, scope, constraint):
+    def apply(self, scope: Scope, constraint: NativeMappingProtocolConstraint) -> None:
         state = self.solver.state
         for mapping in state.get_points_to(
             state.get_variable(scope, scope.context, constraint.base)
@@ -419,7 +501,9 @@ class NativeMappingProtocols:
             self.installed.add(identity)
             self._install(scope, constraint, mapping)
 
-    def _install(self, scope, constraint, mapping):
+    def _install(
+        self, scope: Scope, constraint: NativeMappingProtocolConstraint, mapping: AbstractObject
+    ) -> None:
         # Each mapping gets its own closure variables; a union base must never
         # alias the key sets of a different mapping's observation callbacks.
         state = self.solver.state
@@ -429,15 +513,18 @@ class NativeMappingProtocols:
             scope, scope.context, mapping, NATIVE_MAPPING_NONSCALAR_KEYS
         )
         self._classify_mapping(scope, mapping)
-        scalar_queries, custom_queries, all_keys, custom_keys = set(), set(), set(), set()
+        scalar_queries: set[AbstractObject] = set()
+        custom_queries: set[AbstractObject] = set()
+        all_keys: set[AbstractObject] = set()
+        custom_keys: set[AbstractObject] = set()
         watching_all_keys = False
 
-        def pair(left, right):
+        def pair(left: AbstractObject, right: AbstractObject) -> None:
             self.statistics["equality_candidate_pairs"] += 1
             self._method(scope, constraint, left, "__eq__", (right,))
             self._method(scope, constraint, right, "__eq__", (left,))
 
-        def all_stored_added(points):
+        def all_stored_added(points: PointsToSet) -> None:
             for obj in points:
                 if obj in all_keys:
                     continue
@@ -445,7 +532,7 @@ class NativeMappingProtocols:
                 for other in tuple(custom_queries):
                     pair(obj, other)
 
-        def query_added(points):
+        def query_added(points: PointsToSet) -> None:
             nonlocal watching_all_keys
             for obj in points:
                 if obj in scalar_queries or obj in custom_queries:
@@ -469,7 +556,7 @@ class NativeMappingProtocols:
                     for other in tuple(all_keys):
                         pair(other, obj)
 
-        def stored_added(points):
+        def stored_added(points: PointsToSet) -> None:
             for obj in points:
                 if obj in custom_keys:
                     continue
@@ -484,14 +571,25 @@ class NativeMappingProtocols:
             state._add_var_points_flow(query, stored)
 
 
-def apply_native_mapping_protocol(solver, scope, constraint):
-    manager = getattr(solver.state, "_native_mapping_protocols", None)
+def apply_native_mapping_protocol(
+    solver: PointerSolver, scope: Scope, constraint: NativeMappingProtocolConstraint
+) -> None:
+    try:
+        manager: NativeMappingProtocols | None = solver.state._native_mapping_protocols
+    except AttributeError:
+        manager = None
     if manager is None:
         manager = solver.state._native_mapping_protocols = NativeMappingProtocols(solver)
     manager.apply(scope, constraint)
 
 
-def copy_native_mapping_keys(state, scope, source, target, excluded=frozenset()):
+def copy_native_mapping_keys(
+    state: PointerAnalysisState,
+    scope: Scope,
+    source: AbstractObject,
+    target: AbstractObject,
+    excluded: frozenset[str] = frozenset(),
+) -> None:
     """Persistent may-key identities, excluding only definitely consumed names.
 
     The caller installs this once per mapping-copy relation. Unknown/summary
@@ -506,7 +604,7 @@ def copy_native_mapping_keys(state, scope, source, target, excluded=frozenset())
                 state._add_var_points_flow(source_slot, target_slot)
                 continue
 
-            def unconsumed(_edge, points):
+            def unconsumed(_edge: PointerFlowEdge, points: PointsToSet) -> PointsToSet:
                 return PointsToSet.from_objects(
                     obj
                     for obj in points

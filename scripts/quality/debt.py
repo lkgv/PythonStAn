@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import subprocess
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -108,6 +109,11 @@ class SourceIndex:
     @classmethod
     def read(cls, root: Path, path: str) -> SourceIndex:
         raw = (root / path).read_bytes()
+        return cls.from_source(path, raw)
+
+    @classmethod
+    def from_source(cls, path: str, raw: bytes) -> SourceIndex:
+        """Index exact source bytes, including immutable committed baseline files."""
         tree = ast.parse(raw, filename=path)
         symbols: list[tuple[int, int, str]] = []
 
@@ -128,7 +134,7 @@ class SourceIndex:
             tuple(symbols),
         )
 
-    def anchor(self, line: int) -> tuple[str, str]:
+    def _anchored_node(self, line: int) -> tuple[str, ast.stmt | None]:
         scopes = [(end - start, name) for start, end, name in self.symbols if start <= line <= end]
         symbol = min(scopes)[1] if scopes else "<module>"
         candidates = [
@@ -138,13 +144,54 @@ class SourceIndex:
             and node.lineno <= line <= (node.end_lineno or node.lineno)
         ]
         if not candidates:
-            return symbol, self.ast_digest
+            return symbol, None
         node = min(candidates, key=lambda item: (item.end_lineno or item.lineno) - item.lineno)
-        # Definition diagnostics use the signature, independent of unrelated body edits.
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and line == node.lineno:
-            payload = ast.dump(node.args, include_attributes=False)
-            payload += ast.dump(node.returns, include_attributes=False) if node.returns else "None"
-        elif isinstance(node, ast.ClassDef) and line == node.lineno:
+        return symbol, node
+
+    @staticmethod
+    def _function_header(
+        node: ast.stmt, line: int
+    ) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return None
+        first = node.body[0]
+        first_line = first.lineno
+        if isinstance(first, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            first_line = min([first_line, *(item.lineno for item in first.decorator_list)])
+        if line == node.lineno or node.lineno <= line < first_line:
+            return node
+        return None
+
+    @staticmethod
+    def _signature_digest(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
+        payload = ast.dump(node.args, include_attributes=False)
+        payload += ast.dump(node.returns, include_attributes=False) if node.returns else "None"
+        return digest(payload.encode())
+
+    def function_header_anchors(self, line: int) -> tuple[str, str, str] | None:
+        """Return the symbol, canonical and original header anchors for this exact layout."""
+        symbol, node = self._anchored_node(line)
+        if node is None or self._function_header(node, line) is None:
+            return None
+        assert isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        canonical = self._signature_digest(node)
+        original = (
+            canonical
+            if line == node.lineno
+            else digest(ast.dump(node, include_attributes=False).encode())
+        )
+        return symbol, canonical, original
+
+    def anchor(self, line: int) -> tuple[str, str]:
+        symbol, node = self._anchored_node(line)
+        if node is None:
+            return symbol, self.ast_digest
+        # Every physical header line describes the same signature. Whitespace
+        # changes must not turn an argument diagnostic into whole-body debt.
+        header = self._function_header(node, line)
+        if header is not None:
+            return symbol, self._signature_digest(header)
+        if isinstance(node, ast.ClassDef) and line == node.lineno:
             payload = repr([ast.dump(base, include_attributes=False) for base in node.bases])
         else:
             payload = ast.dump(node, include_attributes=False)
@@ -207,7 +254,35 @@ def parse_diagnostics(
     return diagnostics
 
 
-def baseline_diagnostics(data: Mapping[str, JsonValue]) -> list[Diagnostic]:
+def frozen_source_indices(root: Path, data: Mapping[str, JsonValue]) -> dict[str, SourceIndex]:
+    """Read the frozen commit, validating every byte digest before anchor interpretation.
+
+    The ledger remains unchanged. Reading current checkout bytes here would
+    allow real signature or body edits to reinterpret old diagnostic debt.
+    """
+    commit = string(data["source_commit"])
+    if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):
+        raise ValueError("Frozen source must identify an exact immutable commit")
+    result: dict[str, SourceIndex] = {}
+    for raw_module in sequence(data["modules"]):
+        module = mapping(raw_module)
+        path = string(module["path"])
+        if path in result:
+            raise ValueError(f"Duplicate frozen source path: {path}")
+        completed = subprocess.run(
+            ["git", "show", f"{commit}:{path}"], cwd=root, capture_output=True, check=False
+        )
+        if completed.returncode:
+            raise ValueError(f"Frozen source is unavailable: {path}")
+        if digest(completed.stdout) != string(module["source_sha256"]):
+            raise ValueError(f"Frozen source hash mismatch: {path}")
+        result[path] = SourceIndex.from_source(path, completed.stdout)
+    return result
+
+
+def baseline_diagnostics(
+    data: Mapping[str, JsonValue], *, source_indices: Mapping[str, SourceIndex] | None = None
+) -> list[Diagnostic]:
     result: list[Diagnostic] = []
     for raw_module in sequence(data["modules"]):
         module = mapping(raw_module)
@@ -216,15 +291,29 @@ def baseline_diagnostics(data: Mapping[str, JsonValue]) -> list[Diagnostic]:
             raise ValueError(f"Unreviewed logical module mapping: {path}")
         for raw_row in sequence(module["diagnostics"]):
             row = mapping(raw_row)
+            anchor = string(row["anchor"])
+            symbol = string(row["symbol"])
+            line = integer(row["line"])
+            if source_indices is not None:
+                if path not in source_indices or source_indices[path].path != path:
+                    raise ValueError(f"Frozen source index is unavailable: {path}")
+                header = source_indices[path].function_header_anchors(line)
+                if header is not None and string(row["tool"]) in {"ruff", "mypy"}:
+                    old_symbol, canonical, original = header
+                    if symbol != old_symbol or anchor not in {canonical, original}:
+                        raise ValueError(
+                            f"Frozen header diagnostic does not match its source: {path}"
+                        )
+                    anchor = canonical
             result.append(
                 Diagnostic(
                     string(row["tool"]),
                     path,
-                    string(row["symbol"]),
+                    symbol,
                     string(row["code"]),
-                    string(row["anchor"]),
+                    anchor,
                     string(row["message"]),
-                    integer(row["line"]),
+                    line,
                 )
             )
     return result

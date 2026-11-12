@@ -4,7 +4,7 @@ from typing import ClassVar, override
 
 from pythonstan.graph.cfg import BaseBlock
 
-from .analysis import DataflowAnalysis
+from .equations import DataflowEquations
 
 
 class Solver[Fact](ABC):
@@ -21,7 +21,7 @@ class Solver[Fact](ABC):
 
     @classmethod
     def init(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         if analysis.is_forward:
             in_facts, out_facts = cls.init_forward(analysis)
@@ -31,7 +31,7 @@ class Solver[Fact](ABC):
 
     @classmethod
     def init_forward(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_cfg()
@@ -46,7 +46,7 @@ class Solver[Fact](ABC):
 
     @classmethod
     def init_backward(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.cfg
@@ -61,7 +61,7 @@ class Solver[Fact](ABC):
 
     @classmethod
     def solve(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         in_facts, out_facts = cls.init(analysis)
         if analysis.is_forward:
@@ -74,7 +74,7 @@ class Solver[Fact](ABC):
     @abstractmethod
     def solve_forward(
         cls,
-        analysis: DataflowAnalysis[Fact],
+        analysis: DataflowEquations[Fact],
         in_facts: dict[BaseBlock, Fact],
         out_facts: dict[BaseBlock, Fact],
     ) -> None:
@@ -84,7 +84,7 @@ class Solver[Fact](ABC):
     @abstractmethod
     def solve_backward(
         cls,
-        analysis: DataflowAnalysis[Fact],
+        analysis: DataflowEquations[Fact],
         in_facts: dict[BaseBlock, Fact],
         out_facts: dict[BaseBlock, Fact],
     ) -> None:
@@ -95,7 +95,7 @@ class WorklistSolver[Fact](Solver[Fact]):
     @classmethod
     @override
     def init_forward(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_cfg()
@@ -123,7 +123,7 @@ class WorklistSolver[Fact](Solver[Fact]):
     @override
     def solve_forward(
         cls,
-        analysis: DataflowAnalysis[Fact],
+        analysis: DataflowEquations[Fact],
         in_facts: dict[BaseBlock, Fact],
         out_facts: dict[BaseBlock, Fact],
     ) -> None:
@@ -156,7 +156,7 @@ class WorklistSolver[Fact](Solver[Fact]):
     @classmethod
     @override
     def init_backward(
-        cls, analysis: DataflowAnalysis[Fact]
+        cls, analysis: DataflowEquations[Fact]
     ) -> tuple[dict[BaseBlock, Fact], dict[BaseBlock, Fact]]:
         in_facts, out_facts = {}, {}
         cfg = analysis.get_cfg()
@@ -184,7 +184,7 @@ class WorklistSolver[Fact](Solver[Fact]):
     @override
     def solve_backward(
         cls,
-        analysis: DataflowAnalysis[Fact],
+        analysis: DataflowEquations[Fact],
         in_facts: dict[BaseBlock, Fact],
         out_facts: dict[BaseBlock, Fact],
     ) -> None:

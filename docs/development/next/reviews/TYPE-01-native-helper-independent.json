@@ -1,0 +1,39 @@
+{
+  "reviewer": "quality_review",
+  "production_author": "native_quality",
+  "result": "accepted bounded Native helper type migration; whole-candidate freeze still required",
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/super_lookup.py": "22c0eb6eaac618f85658a29d28aea67c6ddbe46542ba4897f5aa3600bcb644ef",
+    "pythonstan/analysis/pointer/kcfa/native_mapping.py": "955f078a492caee948db56b9f76aef79455fd283d1d3a114384cb57847fd45cf",
+    "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py": "945052dd4e5f66caab67f18f588b6a7cff43f9f5f97c617ae1fdc2bad020a634",
+    "pythonstan/analysis/pointer/kcfa/state.py": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+    "tests/regression/audit3/test_native_source_metadata_independent.py": "b6e79d240450aa316376b5cb86e520ef50800753debe2f1deb7b4615f3cb28a0"
+  },
+  "actual_body_observations": [
+    "Persistent edge/observer installation and replay order remain unchanged for supported Native state.",
+    "Per-mapping/query/component seen sets remain separate; new type declarations do not alias those stores.",
+    "Both equality directions, non-string-key effect retention, class receiver binding and residual uncertainty remain explicit.",
+    "Source get_ast decoder retains historical hasattr+second lookup behavior; no truth test or iterator wrapping is introduced.",
+    "Keyword projection still guards receiver installation before recursive replay, keeps opaque/native operand facts and installs callback effects before key validity branching.",
+    "State export observation uses actual IR metadata methods; ensure creates the old export set only on publication, not observation."
+  ],
+  "checks": {
+    "runtime": "93 passed,2 failed in6.00s",
+    "baseline_classification": "Both failures independently reproduced in immutable c4275e3 archive: historical non-string tuple-key precision assertion and absent keyword_correlation_source fixture.",
+    "new_metadata_controls": 4,
+    "strong_mypy": {
+      "own_scanned_modules": 3,
+      "own_test_files": 1,
+      "own_diagnostics": 0,
+      "all_retained_records": 2442,
+      "command_exit": 1,
+      "normal_imports": true
+    }
+  },
+  "evidence": "artifacts/next/evidence/quality-review-resume2",
+  "limits": [
+    "The helper suite is not a whole-program soundness proof.",
+    "Nonzero imported diagnostics and the two historical failures are retained; full Native is not qualified.",
+    "Other production writers were active; final integration must bind the whole candidate identity."
+  ]
+}

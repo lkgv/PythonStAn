@@ -1,52 +1,69 @@
-from typing import Set, Dict
-from ast import stmt
+"""Statement-granularity may-reaching definitions over the actual CFG."""
 
-from pythonstan.graph.cfg import BaseBlock
+from typing import override
+
+from pythonstan.analysis.analysis import AnalysisConfig
+from pythonstan.graph.cfg import BaseBlock, CFGEdge, ControlFlowGraph
 from pythonstan.ir import IRScope, IRStatement
-from pythonstan.utils.var_collector import VarCollector
-from pythonstan.graph.cfg import ControlFlowGraph
+
 from .analysis import DataflowAnalysis
 
 
-class ReachingDefinitionAnalysis(DataflowAnalysis[Set[IRStatement]]):
-    defs: Dict[str, Set[IRStatement]]
+def advance_definitions(fact: set[IRStatement], statement: IRStatement) -> set[IRStatement]:
+    """Apply a write without losing other targets of a compound definition.
 
-    def __init__(self, scope, cfg, config):
+    Facts identify defining statements rather than individual variable writes.
+    A definition must remain a may-witness until every name it defines has
+    been overwritten. Keeping such a statement can add an old witness for an
+    already overwritten name; it cannot lose its still-live other targets.
+    """
+    written = statement.get_stores()
+    result: set[IRStatement] = set()
+    for definition in fact:
+        targets = definition.get_stores()
+        if not targets or not targets <= written:
+            result.add(definition)
+    if written:
+        result.add(statement)
+    return result
+
+
+class ReachingDefinitionAnalysis(DataflowAnalysis[set[IRStatement]]):
+    defs: dict[str, set[IRStatement]]
+
+    def __init__(self, scope: IRScope, cfg: ControlFlowGraph, config: AnalysisConfig) -> None:
         self.is_forward = True
         self.inter_procedure = False
-
-        from pythonstan.world import World
-        cfg = World().scope_manager.get_ir(scope, "cfg")
         self.defs = self.compute_defs(scope, cfg)
         super().__init__(scope, cfg, config)
-    
-    def new_boundary_fact(self) -> Set[IRStatement]:
+        self.config = config
+
+    @override
+    def new_boundary_fact(self) -> set[IRStatement]:
         return self.new_init_fact()
-    
-    def new_init_fact(self) -> Set[IRStatement]:
+
+    @override
+    def new_init_fact(self) -> set[IRStatement]:
         return {*()}
-    
-    def meet(self, fact_1: Set[IRStatement], fact_2: Set[IRStatement]) -> Set[IRStatement]:
+
+    @override
+    def meet(self, fact_1: set[IRStatement], fact_2: set[IRStatement]) -> set[IRStatement]:
         return fact_1.union(fact_2)
 
-    def need_transfer_edge(self, edge):
-        super().need_transfer_edge(edge)
-    
-    def compute_defs(self, scope: IRScope, cfg: ControlFlowGraph):
-        defs = {}
-        for cur_stmt in cfg.stmts:
-            for var_id in cur_stmt.get_stores():
-                if var_id in defs:
-                    defs[var_id].add(cur_stmt)
-                else:
-                    defs[var_id] = {cur_stmt}
-        return defs
+    @override
+    def need_transfer_edge(self, edge: CFGEdge) -> bool:
+        return False
 
-    def transfer_node(self, node: BaseBlock, fact: Set[IRStatement]) -> Set[IRStatement]:
-        fact_out = fact.copy()
-        for cur_stmt in node.stmts:
-            for var_id in cur_stmt.get_stores():
-                if var_id in self.defs:
-                    fact_out.difference_update(self.defs[var_id])
-                    fact_out.add(cur_stmt)
-        return fact_out
+    def compute_defs(self, scope: IRScope, cfg: ControlFlowGraph) -> dict[str, set[IRStatement]]:
+        definitions: dict[str, set[IRStatement]] = {}
+        for statement in cfg.stmts:
+            for name in statement.get_stores():
+                definitions.setdefault(name, set()).add(statement)
+        return definitions
+
+    @override
+    def transfer_node(self, node: BaseBlock, fact: set[IRStatement]) -> set[IRStatement]:
+        result = fact.copy()
+        for statement in node.stmts:
+            result = advance_definitions(result, statement)
+        return result

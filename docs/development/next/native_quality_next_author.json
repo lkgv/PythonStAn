@@ -1,0 +1,110 @@
+{
+  "source_commit": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "scope": "Actual Native helper/type migration; parent TYPE remains unqualified",
+  "owned_source_stable": true,
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/class_hierarchy.py": "0b1eae49c08daa5289d36cc68718382372d22b423e020a2bebb540ba2f35aac4",
+    "pythonstan/analysis/pointer/kcfa/heap_model.py": "6bf734961ccd21a6c6cb4616fc7a085231cd8c0e6e26b1e691b45fbb4b633587",
+    "pythonstan/analysis/pointer/kcfa/state.py": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": "7056478ffed95244202cdcac44ac10abd3a3323d0ae194da7d715fad91558938",
+    "pythonstan/analysis/pointer/kcfa/solver_statistics.py": "354d2543cbee66a70fa29aa8ddc82f09251f0c258db2137e0c7b9650a25abfed",
+    "pythonstan/analysis/pointer/kcfa/processor/container.py": "51504894f74e28a4b0bf76a1f1d810fe3bbfa5fab7d8ec3c09008430d961b352",
+    "pythonstan/analysis/pointer/kcfa/processor/normal_call.py": "c1d355de96e2df08bcc0cc527ef23906882e089835631ca2dd99e03f3c097309",
+    "pythonstan/analysis/pointer/kcfa/native_mapping.py": "955f078a492caee948db56b9f76aef79455fd283d1d3a114384cb57847fd45cf",
+    "pythonstan/analysis/pointer/kcfa/super_lookup.py": "22c0eb6eaac618f85658a29d28aea67c6ddbe46542ba4897f5aa3600bcb644ef",
+    "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py": "945052dd4e5f66caab67f18f588b6a7cff43f9f5f97c617ae1fdc2bad020a634"
+  },
+  "checks": {
+    "strong": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "mypy",
+        "--no-incremental",
+        "--disallow-any-expr",
+        "--output=json",
+        "pythonstan/analysis/pointer/kcfa/class_hierarchy.py",
+        "pythonstan/analysis/pointer/kcfa/heap_model.py",
+        "pythonstan/analysis/pointer/kcfa/state.py",
+        "pythonstan/analysis/pointer/kcfa/input_bindings.py",
+        "pythonstan/analysis/pointer/kcfa/solver_statistics.py",
+        "pythonstan/analysis/pointer/kcfa/processor/container.py",
+        "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+        "pythonstan/analysis/pointer/kcfa/native_mapping.py",
+        "pythonstan/analysis/pointer/kcfa/super_lookup.py",
+        "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py"
+      ],
+      "exit_code": 1,
+      "all_diagnostics": 2440,
+      "own_diagnostics": []
+    },
+    "ruff": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "ruff",
+        "check",
+        "--output-format=json",
+        "pythonstan/analysis/pointer/kcfa/class_hierarchy.py",
+        "pythonstan/analysis/pointer/kcfa/heap_model.py",
+        "pythonstan/analysis/pointer/kcfa/state.py",
+        "pythonstan/analysis/pointer/kcfa/input_bindings.py",
+        "pythonstan/analysis/pointer/kcfa/solver_statistics.py",
+        "pythonstan/analysis/pointer/kcfa/processor/container.py",
+        "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+        "pythonstan/analysis/pointer/kcfa/native_mapping.py",
+        "pythonstan/analysis/pointer/kcfa/super_lookup.py",
+        "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py"
+      ],
+      "exit_code": 0,
+      "all_diagnostics": 0,
+      "own_diagnostics": []
+    },
+    "format": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "pythonstan/analysis/pointer/kcfa/class_hierarchy.py",
+        "pythonstan/analysis/pointer/kcfa/heap_model.py",
+        "pythonstan/analysis/pointer/kcfa/state.py",
+        "pythonstan/analysis/pointer/kcfa/input_bindings.py",
+        "pythonstan/analysis/pointer/kcfa/solver_statistics.py",
+        "pythonstan/analysis/pointer/kcfa/processor/container.py",
+        "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+        "pythonstan/analysis/pointer/kcfa/native_mapping.py",
+        "pythonstan/analysis/pointer/kcfa/super_lookup.py",
+        "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py"
+      ],
+      "exit_code": 0,
+      "all_diagnostics": 0,
+      "own_diagnostics": []
+    }
+  },
+  "runtime": {
+    "helper_cases_passed": 99,
+    "helper_cases_failed": 2,
+    "baseline_failed_same": 2,
+    "baseline": "clean c4275e3",
+    "failing_scope": "keyword_review inherited tuple precision + missing fixture file",
+    "raw_evidence": "artifacts/next/evidence/native-quality-next"
+  },
+  "review_obligations": [
+    "Root quality_review is independently checking actual callback and getter behavior.",
+    "Translator+TAC separate subagent record; final root integration supersedes mutable-import scoped checks."
+  ],
+  "preserved_contracts": [
+    "Input publication counter is the actual TypedDict field consumed at seed boundary.",
+    "Native class hierarchy retains source-label values without coercion; metadata-only object boundary reflects legacy cache names.",
+    "State optional manager storage remains absent until actual producer; callback read and write order retained.",
+    "C3, super receiver may-closure, native key callbacks and keyword projection use real typed closures; no replacement algorithms.",
+    "Only local names/annotation/flow spelling changed in Container/NormalCall lint cleanup; effectful property reads retained."
+  ],
+  "qualifications": {
+    "whole_tree_clean": false,
+    "type_01_verified": false
+  },
+  "field_display_recheck": "Previous2heapdisplay diagnostics fixed by truthful Enum payload display + override; previous rawreceipt retained."
+}

@@ -68,23 +68,19 @@ class ContainerProcessor(Processor):
 
     def _alloc_list(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> ListObject:
         """Allocate list object."""
-        obj = ListObject(context, c.alloc_site)
-        return obj
+        return ListObject(context, c.alloc_site)
 
     def _alloc_tuple(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> TupleObject:
         """Allocate tuple object."""
-        obj = TupleObject(context, c.alloc_site)
-        return obj
+        return TupleObject(context, c.alloc_site)
 
     def _alloc_dict(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> DictObject:
         """Allocate dict object."""
-        obj = DictObject(context, c.alloc_site)
-        return obj
+        return DictObject(context, c.alloc_site)
 
     def _alloc_set(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> SetObject:
         """Allocate set object."""
-        obj = SetObject(context, c.alloc_site)
-        return obj
+        return SetObject(context, c.alloc_site)
 
     @override
     def handle_constraint(
@@ -148,7 +144,7 @@ class ContainerProcessor(Processor):
         if not self.index_sensitive:
             solver.add_constraint(scope, scope.context, StoreConstraint(c.base, elem(), c.source))
             return True
-        state = solver.state
+        _state = solver.state
         unknown_index = False
         stored_elem = False
         for index_obj in pts:

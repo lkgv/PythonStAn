@@ -1,0 +1,125 @@
+{
+  "task": "N4-TYPE-01",
+  "reviewer": "quality_review",
+  "date": "2026-11-12",
+  "verdict": "accepted for the four N4-TYPE-01 card criteria on the frozen working tree",
+  "comparison_commit": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "source_binding": {
+    "quality_receipt": "artifacts/next/evidence/type01-final-20261112/quality/execution_receipt.json",
+    "quality_source_manifest_sha256": "b2d4a759f85ac89c30d81c9aba60926aa7b8cc5f5d06e6fc2c9587d09e4d9284",
+    "stage_and_controls_python_policy_files": 809,
+    "quality_python_policy_files": 810,
+    "current_hashes_rechecked": "All entries in stage, controls and quality receipts match the current files; no source or test edits were made during final review."
+  },
+  "criteria": [
+    {
+      "criterion": "至少一条真实调用→效果→异常/返回→查询链完全使用新类型。",
+      "verdict": "pass",
+      "actual_body_review": "Transfer.call and InterproceduralDriver.request_function carry canonical Flow and Value; driver records nominal SummaryDependency. Canonical Store.apply exhaustively consumes CellWrite/HeapWrite/HeapDelete/HeapDefaultWrite/MetadataUpdate/Havoc and keeps caller-private state. Engine state.py is a thin compatibility export to the single canonical implementation.",
+      "behavior_witness": "test_runtime_effects.py executes real source through InterproceduralDriver, mutates cell and heap locations, exercises both return and raise, checks projected result=7 and closed_under_profile, inspects real callee outcomes, and rejects tuple footprints. Unknown effects are separately applied to shared cells while preserving private caller state.",
+      "evidence": [
+        "tests/regression/audit3/test_runtime_effects.py",
+        "artifacts/next/evidence/type01-final-20261112/controls.receipt.json"
+      ]
+    },
+    {
+      "criterion": "所有新改定义完整类型；新增Flow变体能触发旧handler穷尽检查失败。",
+      "verdict": "pass",
+      "actual_body_review": "Canonical Flow is a closed discriminated union with separate expression/statement/return/raise/break/continue/suspend records. Actual with_state and flow_payload handlers end in assert_never. The mutation helper edits the production union in an isolated copy while leaving the real handler intact, requires the positive compile to succeed and requires the added variant to be rejected at that handler.",
+      "typing_witness": "Final no-new and modified-unit gates both report zero diagnostics. The reviewed 110-module ordinary frontier is clean. The three translator/TAC/tempvar modules have complete argument and return annotations on every actual definition, independently checked from their AST; their ordinary owned diagnostics are zero.",
+      "evidence": [
+        "tests/regression/audit3/test_runtime_flow.py",
+        "tests/regression/audit3/flow_exhaustiveness.py",
+        "artifacts/next/evidence/type01-final-20261112/quality/report.json",
+        "docs/development/next/translator_tac_type_receipt.json"
+      ]
+    },
+    {
+      "criterion": "核心Value/State/Flow/Policy没有Any泄漏，metadata不是dict[str,Any]的重命名。",
+      "verdict": "pass for the canonical core contract",
+      "actual_body_review": "Canonical state/effects/metadata and Value/Policy dependencies use nominal identities, finite write and metadata variants, typed Continuation and SummaryDependency. Metadata.from_record validates its semantic role; explicit legacy/component boundaries validate object payloads into finite ComponentField records. This is consumed storage, not an idle re-export or dict[str,Any] alias.",
+      "typing_witness": "The exact reviewed 98 canonical modules have zero own ordinary, disallow-any-expr and Ruff errors with normal imports. Imported debt remains visible: ordinary command exits 1 with 749 imported errors; strong command exits 1 with 2288 imported errors. State/domain stronger checking is persisted in project configuration. No general strong qualification is inferred for all Native or translator code.",
+      "evidence": [
+        "artifacts/next/evidence/type01-final-20261112/core/receipt.json",
+        "pythonstan/analysis/state/metadata.py",
+        "pythonstan/analysis/state/store.py",
+        "pythonstan/analysis/state/effects.py",
+        "docs/development/next/reviews/TYPE-01-graph-metadata.md",
+        "docs/development/next/reviews/TYPE-01-producer-independent-resume2.json"
+      ]
+    },
+    {
+      "criterion": "所有旧语义正例保持；state canonical迁到analysis/state时依赖不反转。",
+      "verdict": "pass for the frozen established positive profile; separate mandatory known-red repair obligations remain open",
+      "regression_witness": "Original stage selection: 1001 passed. Current audit3 control selection: 4171 passed. Both exit 0, use identical stable 809-file source/policy manifests, and include direct production call/effect/Flow, graph/metadata, Native, source, query, lifecycle and negative typing consumers. The supported Module translator profile has 30/30 author AST parity plus 8/8 independently selected full archived-baseline differential cases.",
+      "dependency_witness": "Canonical analysis/state does not import analysis/engines or compat/legacy. The old engine state module imports only canonical state and exports its compatibility factory/classes. The quality import guard and its reverse-import negative control pass.",
+      "evidence": [
+        "artifacts/next/evidence/type01-final-20261112/stage.receipt.json",
+        "artifacts/next/evidence/type01-final-20261112/controls.receipt.json",
+        "artifacts/next/evidence/type01-final-20261112/quality/report.json",
+        "artifacts/next/evidence/quality-review-resume2/translator-independent-final.json"
+      ]
+    }
+  ],
+  "translator_independent_review": {
+    "author": "native_quality/translator",
+    "verdict": "accepted for ordinary typing and established source Module behavior",
+    "actual_bodies_reviewed": [
+      "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "pythonstan/analysis/transform/three_address.py",
+      "pythonstan/utils/temp_var_generator.py"
+    ],
+    "findings": "Reviewed annotation-erased executable diff and actual decoder/generator implementations. Native scope labels still use real IRScope provenance; normalized subscript checks validate the required Name boundary. Stdlib dispatch is decoded into actual AST statements/expressions, retains list identities and statement objects on the validated list path, and consumes foreign prefix iterables once. Removed BoolOp definition was overwritten by the retained final definition. Explicit temporary indices, context cache identity and generation order remain unchanged.",
+    "runtime": "Author focused 55 controls pass; the final 4171-control run includes the four new dispatcher/tempvar controls.",
+    "module_ast_parity": "Author 30/30 successful cases preserve coordinates and all AST fields except normalizing missing type_params to the empty prior default. Independent 8/8 successful cases compare exact archived c427 package against current source, covering nested closures/defaults, class base evaluation, unpack targets, cleanup, async comprehension, relative imports, loop-else and decorator/default order.",
+    "expression_root": "Independently reproduced the old expression-root AttributeError (BinOp has no value) and the new explicit TypeError requiring a statement-prefix Module context. This is an authorized diagnostic clarification of a broken path; expression-root support is not claimed.",
+    "limits": [
+      "No strong Any-expression qualification: the translator exploration retains 24 owned records.",
+      "This validates preservation of the established lowering profile, not Python semantic soundness of all existing lowering algorithms.",
+      "Malformed direct IR, arbitrary monkeypatched AST classes and invalid foreign dispatch outputs are not added to the supported profile."
+    ],
+    "evidence": [
+      "docs/development/next/translator_tac_type_receipt.json",
+      "artifacts/next/evidence/translator_tac_comparison.json",
+      "artifacts/next/evidence/translator-tac-runtime-final.txt",
+      "artifacts/next/evidence/quality-review-resume2/translator-independent-final.json"
+    ],
+    "source_sha256": {
+      "pythonstan/analysis/pointer/kcfa/ir_translator.py": "fee7a409c21a2ba23723235532f7acaf473b77eb58d0dc0f79b7fc10e2639229",
+      "pythonstan/analysis/transform/three_address.py": "5858c9402015be86c2321856dca9be30753503061706f3a0ee42cdaad8dc0370",
+      "pythonstan/utils/temp_var_generator.py": "7ef3f1259679d2cd4e1965f652ceca1725a7ec1c4f4919da9339d75d1c47e508"
+    }
+  },
+  "author_independence": {
+    "reviewer_authored_scope": "scripts/quality/debt.py and cli.py plus independent controls; no runtime implementation authored by this reviewer in the final resumed batch.",
+    "independent_review_of_reviewer_code": "docs/development/next/reviews/TYPE-01-header-provenance-independent.json; all six recorded production/test/workflow hashes match the frozen source.",
+    "other_actual_source_reviews": [
+      "docs/development/next/reviews/TYPE-01-native-helper-independent.json",
+      "docs/development/next/reviews/TYPE-01-producer-independent-resume2.json",
+      "docs/development/next/reviews/TYPE-01-root-ports-independent.json",
+      "docs/development/next/legacy_upstream_independent_review.json"
+    ]
+  },
+  "quality_result": {
+    "passed": true,
+    "added_diagnostics": 0,
+    "modified_unit_diagnostics": 0,
+    "negative_controls_passed": true,
+    "whole_tree_mypy_clean": false,
+    "retained_whole_tree_diagnostics": {
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
+    },
+    "baseline_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "baseline_policy": "Frozen debt bytes unchanged. Header rows are canonically interpreted only from hash-verified immutable original source; no debt reset or suppression. New production suppression comments are rejected globally."
+  },
+  "remaining_obligations": [
+    "N4-TYPE-02 remains open: complete all required public adapters/changed Native whole-module admissions and all class/shared-state typing; inventory remaining Native/Inspector debt as exact module/owner/dependency/command cleanup work. The 110 ordinary frontier is not 110 strong-zero.",
+    "Mandatory frozen semantic/domain/Native/state known-red suites remain independently executed and recorded; preserve their fixtures, assertions and profiles. TYPE-01 acceptance does not repair or waive DOM/STATE/SEM/PTA/control/query correctness findings. Current readiness is recorded in semantic_repair_readiness_round2.json.",
+    "Existing Native helper precision and known-field workcount failures, previously reproduced on c427, remain visible obligations; they were not converted into passing TYPE controls or removed from their own suites.",
+    "Whole-tree strict, global core soundness/useful coverage, scale, release/wheel and live LLM qualification are not granted by this card. The final core error counts are a bounded type receipt, not a semantic theorem.",
+    "Ready dependent tasks may advance only when all of their other DAG prerequisites are satisfied; authorization to continue does not alter their acceptance predicates."
+  ],
+  "recommendation": "Close N4-TYPE-01 as verified for these four criteria, attach this review and the frozen final receipts, then schedule eligible dependent repair cards. Keep N4-TYPE-02 and the semantic/release obligations open."
+}

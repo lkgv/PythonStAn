@@ -177,9 +177,10 @@ def reject_source_suppressions(root: Path, frontier: set[str], paths: tuple[str,
                     failures.append(
                         f"Per-source mypy configuration is forbidden: {path}:{token.start[0]}"
                     )
-                if path in frontier and re.search(r"#\s*(?:type\s*:\s*ignore|noqa)", text):
+                if re.search(r"#\s*(?:type\s*:\s*ignore|noqa)", text):
+                    scope = "Migrated frontier" if path in frontier else "Production source"
                     failures.append(
-                        f"Migrated frontier cannot use diagnostic suppression: {path}:{token.start[0]}"
+                        f"{scope} cannot use diagnostic suppression: {path}:{token.start[0]}"
                     )
     return failures
 

@@ -17,6 +17,7 @@ from .debt import (
     changed_unit_diagnostics,
     check_frontier,
     digest,
+    frozen_source_indices,
     json_value,
     load_json,
     mapping,
@@ -37,7 +38,9 @@ def check(root: Path, output: Path, comparison_ref: str | None, *, negatives: bo
     output.mkdir(parents=True, exist_ok=True)
     baseline = mapping(load_json(root / "docs/development/next/quality_debt.json"))
     frontier = mapping(load_json(root / "docs/development/next/quality_frontier.json"))
-    baseline_rows = baseline_diagnostics(baseline)
+    baseline_rows = baseline_diagnostics(
+        baseline, source_indices=frozen_source_indices(root, baseline)
+    )
     versions = tool_versions()
     if baseline["tool_versions"] != dict(versions):
         raise ValueError("Frozen debt and current tool identities disagree")

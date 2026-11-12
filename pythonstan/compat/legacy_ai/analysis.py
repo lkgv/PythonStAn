@@ -4,43 +4,71 @@ Consumes KCFA results to run AI on a configured plan of scopes without
 invoking KCFA again.
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, override
 
-from pythonstan.analysis import AnalysisDriver, AnalysisConfig
-from pythonstan.ir import IRFunc, IRScope
-from pythonstan.world import World
-
-from pythonstan.analysis.pointer.kcfa.object import ConstantObject
-from pythonstan.analysis.pointer.kcfa.pta_query_adapter import PtaQueryAdapter
-from pythonstan.analysis.pointer.kcfa.variable import VariableKind
+from pythonstan.analysis.analysis import AnalysisConfig, AnalysisDriver
+from pythonstan.analysis.pointer.kcfa.class_hierarchy import ClassHierarchyManager
+from pythonstan.analysis.pointer.kcfa.context import NativeContext, Scope
 from pythonstan.analysis.pointer.kcfa.context_selector import ContextSelector, parse_policy
-
-from pythonstan.compat.legacy_ai.api import AISummary, AISummaryEngine, AnalysisBudget, ArgBinding
-from pythonstan.compat.legacy_ai.state import AbsVal
+from pythonstan.analysis.pointer.kcfa.object import AbstractObject, ConstantObject
+from pythonstan.analysis.pointer.kcfa.pta_query_adapter import PtaQueryAdapter
+from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
+from pythonstan.analysis.pointer.kcfa.variable import VariableKind
+from pythonstan.compat.legacy_ai.api import AISummary, AISummaryEngine, ArgBinding
 from pythonstan.compat.legacy_ai.config import Config
 from pythonstan.compat.legacy_ai.plan import AIPlan, build_plan
+from pythonstan.compat.legacy_ai.state import AbsVal
+from pythonstan.compat.legacy_ai.upstream import LegacyProvider, QueryState
+from pythonstan.ir import IRFunc, IRScope
+from pythonstan.world import World
 
 __all__ = ["AIAnalysisDriver", "AIAnalysisResult"]
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from pythonstan.world.analysis_manager import AnalysisManager
+
+
+def _analysis_manager() -> AnalysisManager | None:
+    """Observe the existing optional World service without creating one."""
+    world = World()
+    try:
+        return world.analysis_manager
+    except AttributeError:
+        return None
+
 
 class AIAnalysisResult:
+    summaries: dict[str, AISummary]
+    plan: AIPlan
+    config: Config
+    context_summaries: dict[str, tuple[tuple[NativeContext, AISummary], ...]]
+
     def __init__(
-        self, summaries: Dict[str, AISummary], plan: AIPlan, config: Config, context_summaries=None
-    ):
+        self,
+        summaries: dict[str, AISummary],
+        plan: AIPlan,
+        config: Config,
+        context_summaries: dict[str, tuple[tuple[NativeContext, AISummary], ...]] | None = None,
+    ) -> None:
         self.summaries = summaries
         self.plan = plan
         self.config = config
         self.context_summaries = context_summaries or {}
 
-    def get_summary(self, qualname: str) -> Optional[AISummary]:
+    def get_summary(self, qualname: str) -> AISummary | None:
         return self.summaries.get(qualname)
 
 
 class AIAnalysisDriver(AnalysisDriver):
     """AI analysis driver that consumes existing KCFA results."""
+
+    ai_config: Config
 
     def __init__(self, analysis_config: AnalysisConfig) -> None:
         super().__init__(analysis_config)
@@ -48,7 +76,8 @@ class AIAnalysisDriver(AnalysisDriver):
         self._setup_logging()
         self.results = None
 
-    def analyze(self, scope: IRScope, prev_results: Dict[str, Any]) -> AIAnalysisResult:
+    @override
+    def analyze(self, scope: IRScope, prev_results: dict[str, object]) -> AIAnalysisResult:
         logger.info("Starting AI analysis driver")
         pta_results = self._get_pta_results(prev_results)
         statistics = pta_results.get_statistics() if hasattr(pta_results, "get_statistics") else {}
@@ -57,7 +86,7 @@ class AIAnalysisDriver(AnalysisDriver):
         converged = statistics.get("converged")
         upstream_incomplete = not (type(converged) in (bool, int) and converged == 1)
         solver_query = self._get_solver_query(pta_results)
-        state = getattr(solver_query, "_state", None)
+        state = solver_query._state if hasattr(solver_query, "_state") else None
         if state is None:
             raise RuntimeError("KCFA solver query does not expose analysis state")
 
@@ -69,7 +98,7 @@ class AIAnalysisDriver(AnalysisDriver):
         engine = AISummaryEngine(pta_query, budget, solver_config=self.ai_config.to_solver_config())
 
         plan = build_plan(self.ai_config)
-        summaries: Dict[str, AISummary] = {}
+        summaries: dict[str, AISummary] = {}
         if not plan.scopes:
             logger.warning("AI analysis plan is empty")
             self.results = AIAnalysisResult(summaries, plan, self.ai_config)
@@ -77,15 +106,16 @@ class AIAnalysisDriver(AnalysisDriver):
 
         entry_context = self._get_entry_context(context_selector)
 
-        context_summaries = {}
+        context_summaries: dict[str, tuple[tuple[NativeContext, AISummary], ...]] = {}
         for scope_ir in plan.scopes:
             scope_qualname = scope_ir.get_qualname()
             contexts = self._get_scope_contexts(state, scope_ir)
-            parts = []
+            parts: list[tuple[NativeContext, AISummary]] = []
             # Keep the argument/heap context relationship until the summary
             # boundary. Joining all arguments then querying one context loses
             # effects found only in the other callers.
-            for caller_scope in contexts or [None]:
+            callers: Sequence[Scope | None] = contexts or [None]
+            for caller_scope in callers:
                 selected = [caller_scope] if caller_scope is not None else []
                 call_context = caller_scope.context if caller_scope is not None else entry_context
                 arg_bindings = self._build_arg_bindings(state, scope_ir, selected)
@@ -123,45 +153,50 @@ class AIAnalysisDriver(AnalysisDriver):
         return self.results
 
     def _setup_logging(self) -> None:
+        level: object = getattr(logging, self.ai_config.log_level)
+        if not isinstance(level, (int, str)):
+            raise TypeError("Configured logging level must be an integer or text")
         logging.basicConfig(
-            level=getattr(logging, self.ai_config.log_level),
+            level=level,
             format="%(levelname)s: %(message)s",
         )
 
-    def _get_pta_results(self, prev_results: Dict[str, Any]) -> Any:
+    def _get_pta_results(self, prev_results: dict[str, object]) -> LegacyProvider:
         pta_name = self.ai_config.pta_analysis_name
         pta_results = prev_results.get(pta_name)
         if pta_results is not None:
-            return pta_results
+            return LegacyProvider(pta_results)
 
-        world = World()
-        analysis_manager = getattr(world, "analysis_manager", None)
+        analysis_manager = _analysis_manager()
         if analysis_manager is None:
             raise RuntimeError(f"Missing KCFA results for analysis '{pta_name}'")
         try:
-            return analysis_manager.get_results(pta_name)
+            return LegacyProvider(analysis_manager.get_results(pta_name))
         except Exception as exc:
             raise RuntimeError(f"Missing KCFA results for analysis '{pta_name}'") from exc
 
-    def _get_solver_query(self, pta_results: Any) -> Any:
-        if hasattr(pta_results, "query"):
+    def _get_solver_query(self, pta_results: LegacyProvider | QueryState) -> QueryState:
+        if isinstance(pta_results, LegacyProvider):
             return pta_results.query()
         return pta_results
 
-    def _get_kcfa_helpers(self) -> Tuple[Optional[Any], Optional[Any]]:
-        world = World()
-        analysis_manager = getattr(world, "analysis_manager", None)
+    def _get_kcfa_helpers(self) -> tuple[ClassHierarchyManager | None, ContextSelector | None]:
+        analysis_manager = _analysis_manager()
         if analysis_manager is None:
             return None, None
         try:
             analyzer = analysis_manager.get_analyzer(self.ai_config.pta_analysis_name)
         except Exception:
             return None, None
-        class_hierarchy = getattr(analyzer, "class_hierarchy", None)
-        context_selector = getattr(analyzer, "context_selector", None)
+        class_hierarchy: object = getattr(analyzer, "class_hierarchy", None)
+        context_selector: object = getattr(analyzer, "context_selector", None)
+        if class_hierarchy is not None and not isinstance(class_hierarchy, ClassHierarchyManager):
+            raise TypeError("KCFA class hierarchy must implement the Native hierarchy contract")
+        if context_selector is not None and not isinstance(context_selector, ContextSelector):
+            raise TypeError("KCFA context selector must implement the Native selection contract")
         return class_hierarchy, context_selector
 
-    def _validate_context_policy(self, context_selector):
+    def _validate_context_policy(self, context_selector: ContextSelector | None) -> None:
         requested = self.ai_config.context_policy
         if requested == "inherit":
             return
@@ -171,7 +206,7 @@ class AIAnalysisDriver(AnalysisDriver):
                 "AI context_policy must match its KCFA predecessor; use inherit or rerun KCFA"
             )
 
-    def _get_entry_context(self, context_selector: Optional[Any]):
+    def _get_entry_context(self, context_selector: ContextSelector | None) -> NativeContext:
         if context_selector is not None:
             return context_selector.empty_context()
         policy = parse_policy(
@@ -179,19 +214,24 @@ class AIAnalysisDriver(AnalysisDriver):
         )
         return ContextSelector(policy=policy).empty_context()
 
-    def _get_scope_contexts(self, state: Any, scope_ir: IRScope) -> List[Any]:
+    def _get_scope_contexts(self, state: PointerAnalysisState, scope_ir: IRScope) -> list[Scope]:
         if hasattr(state, "get_scopes_for_ir"):
             return state.get_scopes_for_ir(scope_ir)
-        contexts: List[Any] = []
-        internal = getattr(state, "_internal_scope", {})
+        contexts: list[Scope] = []
+        internal: Mapping[AbstractObject, Scope | None]
+        try:
+            internal = state._internal_scope
+        except AttributeError:
+            internal = {}
         for _, ctx_scope in internal.items():
             if ctx_scope is None:
                 continue
-            if getattr(ctx_scope, "stmt", None) is scope_ir:
+            owner: object = getattr(ctx_scope, "stmt", None)
+            if owner is scope_ir:
                 contexts.append(ctx_scope)
         return contexts
 
-    def _select_caller_scope(self, contexts: List[Any]) -> Optional[Any]:
+    def _select_caller_scope(self, contexts: list[Scope]) -> Scope | None:
         if not contexts:
             return None
         for ctx_scope in contexts:
@@ -202,21 +242,47 @@ class AIAnalysisDriver(AnalysisDriver):
                 continue
         return contexts[0]
 
-    def _get_param_names(self, scope_ir: IRFunc) -> List[str]:
+    def _get_param_names(self, scope_ir: IRFunc) -> list[str]:
         args = scope_ir.args
-        names: List[str] = []
-        names.extend([a.arg for a in getattr(args, "posonlyargs", [])])
-        names.extend([a.arg for a in getattr(args, "args", [])])
-        if getattr(args, "vararg", None):
-            names.append(args.vararg.arg)
-        names.extend([a.arg for a in getattr(args, "kwonlyargs", [])])
-        if getattr(args, "kwarg", None):
-            names.append(args.kwarg.arg)
+        names: list[str] = []
+        try:
+            positional_only = args.posonlyargs
+        except AttributeError:
+            positional_only = []
+        names.extend([a.arg for a in positional_only])
+        try:
+            positional = args.args
+        except AttributeError:
+            positional = []
+        names.extend([a.arg for a in positional])
+        try:
+            vararg = args.vararg
+        except AttributeError:
+            vararg = None
+        if vararg:
+            selected_vararg = args.vararg
+            if selected_vararg is None:
+                raise AttributeError("'NoneType' object has no attribute 'arg'")
+            names.append(selected_vararg.arg)
+        try:
+            keyword_only = args.kwonlyargs
+        except AttributeError:
+            keyword_only = []
+        names.extend([a.arg for a in keyword_only])
+        try:
+            kwarg = args.kwarg
+        except AttributeError:
+            kwarg = None
+        if kwarg:
+            selected_kwarg = args.kwarg
+            if selected_kwarg is None:
+                raise AttributeError("'NoneType' object has no attribute 'arg'")
+            names.append(selected_kwarg.arg)
         return names
 
     def _build_arg_bindings(
-        self, state: Any, scope_ir: IRScope, contexts: List[Any]
-    ) -> List[ArgBinding]:
+        self, state: PointerAnalysisState, scope_ir: IRScope, contexts: list[Scope]
+    ) -> list[ArgBinding]:
         if not isinstance(scope_ir, IRFunc):
             return []
 
@@ -224,9 +290,9 @@ class AIAnalysisDriver(AnalysisDriver):
         if not param_names:
             return []
 
-        bindings: List[ArgBinding] = []
+        bindings: list[ArgBinding] = []
         for name in param_names:
-            pts_union = set()
+            pts_union: set[AbstractObject] = set()
             const_strs = set()
             for ctx_scope in contexts:
                 ctx_var = state._get_variable_direct(
@@ -257,17 +323,16 @@ class AIAnalysisDriver(AnalysisDriver):
         return bindings
 
     def _build_var_bindings_from_kcfa(
-        self, state: Any, scope_ir: IRScope, contexts: List[Any]
-    ) -> List[ArgBinding]:
+        self, state: PointerAnalysisState, scope_ir: IRScope, contexts: list[Scope]
+    ) -> list[ArgBinding]:
         """Build variable bindings from KCFA points-to for non-parameter variables.
 
         This seeds the AI initial state with KCFA results for module/class-level variables.
         """
-        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
-        from pythonstan.analysis.pointer.kcfa.object import ConstantObject
         from pythonstan.analysis.pointer.kcfa.pointer_flow_graph import NormalNode
+        from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
 
-        bindings: List[ArgBinding] = []
+        bindings: list[ArgBinding] = []
 
         # If we have contexts, find the primary one (empty context preferred)
         ctx_scope = None
@@ -284,7 +349,7 @@ class AIAnalysisDriver(AnalysisDriver):
 
         var_names_seen = set()
         # Iterate through all context-variable pairs in KCFA state
-        for node in state._env.keys():
+        for node in state._env:
             # The environment is indexed by flow-graph nodes, not bare Ctxs.
             # Field/selector nodes must not become lexical variable bindings.
             if not isinstance(node, NormalNode):
@@ -299,7 +364,7 @@ class AIAnalysisDriver(AnalysisDriver):
                 continue
 
             # Match scope
-            var_scope = getattr(ctx_var, "scope", None)
+            var_scope: object = getattr(ctx_var, "scope", None)
             if var_scope != ctx_scope:
                 continue
 

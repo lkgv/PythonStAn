@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 import ast
 import os
 from importlib.util import resolve_name
 from pathlib import Path
-from typing import List, Dict, Tuple, Any, Optional
+from typing import ClassVar, override
 
 from pythonstan.ir import IRImport
-from pythonstan.utils.common import is_src_file, srcfile_to_name, builtin_module_names
+from pythonstan.utils.common import builtin_module_names, is_src_file
 
 
-def get_root(path: str, names: List[str]) -> str:
+def get_root(path: str, names: list[str]) -> str:
     prev_num = len(names)
     path_obj = Path(path)
     if path_obj.name == "__init__.py":
@@ -25,33 +27,29 @@ def get_root(path: str, names: List[str]) -> str:
 
 
 class Namespace:
-    names: List[str]
-    empty_ns = None
+    names: list[str]
+    empty_ns: ClassVar[Namespace | None] = None
 
-    ns_dict: Dict[str, "Namespace"] = {}
+    ns_dict: ClassVar[dict[str, Namespace]] = {}
 
-    def __init__(self, names):
+    def __init__(self, names: list[str]) -> None:
         assert len(names) > 0, "Cannot  construct empty namespace"
         self.names = names
         self.ns_dict[".".join(names)] = self
 
-    def __str__(self):
-        return ".".join(self.names)
-
     @classmethod
-    def build(cls, names: List[str]) -> "Namespace":
+    def build(cls, names: list[str]) -> Namespace:
         name_str = ".".join(names)
         if name_str in cls.ns_dict:
             return cls.ns_dict[name_str]
-        else:
-            return cls(names)
+        return cls(names)
 
     @classmethod
-    def from_str(cls, name_str: str) -> "Namespace":
+    def from_str(cls, name_str: str) -> Namespace:
         return cls.build(name_str.split("."))
 
     @classmethod
-    def from_path(cls, filename: str) -> "Namespace":
+    def from_path(cls, filename: str) -> Namespace:
         path_obj = Path(filename)
         if path_obj.name == "__init__.py":
             module_path = path_obj.parent
@@ -67,28 +65,30 @@ class Namespace:
     def to_str(self) -> str:
         return ".".join(self.names)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         return self.to_str()
 
+    @override
     def __repr__(self) -> str:
         return self.to_str()
 
-    def to_filepath(self, rootpath: Optional[str] = None) -> str:
+    def to_filepath(self, rootpath: str | None = None) -> str:
         path = f"{'/'.join(self.names)}.py"
         if rootpath is not None:
             path = os.path.join(rootpath, path)
         return path
 
-    def to_dirpath(self, rootpath: Optional[str] = None) -> str:
+    def to_dirpath(self, rootpath: str | None = None) -> str:
         path = f"{'/'.join(self.names)}/__init__.py"
         if rootpath is not None:
             path = os.path.join(rootpath, path)
         return path
 
-    def base(self):
+    def base(self) -> str:
         return self.names[0]
 
-    def relative_ns(self, names: List[str], level: int) -> "Namespace":
+    def relative_ns(self, names: list[str], level: int) -> Namespace:
         assert level >= 0
         assert len(self.names) >= level
 
@@ -98,17 +98,16 @@ class Namespace:
 
         if level > 0:
             return self.build(self.names[:-level] + names)
-        else:
-            return self.build(self.names + names)
-
-    def next_ns(self, names: List[str]) -> "Namespace":
         return self.build(self.names + names)
 
-    def subns(self, name):
+    def next_ns(self, names: list[str]) -> Namespace:
+        return self.build(self.names + names)
+
+    def subns(self, name: str) -> Namespace:
         assert len(name) > 0
         return Namespace(self.names + [name])
 
-    def prev_ns(self) -> "Namespace":
+    def prev_ns(self) -> Namespace:
         assert len(self.names) > 0
         return Namespace(self.names[:-1])
 
@@ -119,9 +118,9 @@ class Namespace:
 
 class NamespaceManager:
     homepath: str
-    paths: List[str]
-    names2path: Dict[str, str]
-    ns2path: Dict[Namespace, str]
+    paths: list[str]
+    names2path: dict[str, str]
+    ns2path: dict[Namespace, str]
     mock_root: Path
     mock_libs: bool
     prefer_mock_libs: bool
@@ -129,10 +128,10 @@ class NamespaceManager:
     def build(
         self,
         homepath: str,
-        paths: Optional[List[str]],
+        paths: list[str] | None,
         mock_libs: bool = True,
         prefer_mock_libs: bool = False,
-    ):
+    ) -> None:
         self.homepath = homepath
         self.paths = [homepath] + (paths or [])
         self.names2path = {}
@@ -150,8 +149,7 @@ class NamespaceManager:
                 if (is_src_file(cur_path) and os.path.isfile(cur_path)) or os.path.isdir(cur_path):
                     full_path = cur_path
                     break
-        ns = Namespace.from_str(full_path)
-        return ns
+        return Namespace.from_str(full_path)
 
     def get_ns2path(self, ns: Namespace) -> str:
         return self.names2path[ns.to_str()]
@@ -167,28 +165,28 @@ class NamespaceManager:
         self.names2path[ns.to_str()] = module_path
         return ns
 
-    def names_from_import(self, ir: IRImport) -> List[str]: ...
+    def names_from_import(self, ir: IRImport) -> None: ...
 
     def _cache_ns_path(self, ns: Namespace, path: str) -> str:
         self.ns2path[ns] = path
         self.names2path[ns.to_str()] = path
         return path
 
-    def find_ns_in_path(self, paths: List[str], ns: Namespace) -> Optional[str]:
+    def find_ns_in_path(self, paths: list[str], ns: Namespace) -> str | None:
         for path in paths:
             # FileFinder checks a package initializer before an equal-named
             # module in the same search directory.
             if os.path.isfile(ns.to_dirpath(rootpath=path)):
                 mod_path = ns.to_dirpath(path)
                 return self._cache_ns_path(ns, mod_path)
-            elif os.path.isfile(ns.to_filepath(rootpath=path)):
+            if os.path.isfile(ns.to_filepath(rootpath=path)):
                 mod_path = ns.to_filepath(path)
                 return self._cache_ns_path(ns, mod_path)
         if ns.base() in builtin_module_names():
             return self._cache_ns_path(ns, f"__builtin__.{ns.base()}")
         return None
 
-    def _find_mock_path(self, ns: Namespace) -> Optional[str]:
+    def _find_mock_path(self, ns: Namespace) -> str | None:
         if not self.mock_libs:
             return None
         if not self.mock_root.exists():
@@ -201,7 +199,7 @@ class NamespaceManager:
             return dir_path
         return None
 
-    def _resolve_import_path(self, ns: Namespace) -> Optional[str]:
+    def _resolve_import_path(self, ns: Namespace) -> str | None:
         if ns.base() in builtin_module_names():
             return self.find_ns_in_path(self.paths, ns)
         if not self.mock_libs:
@@ -219,7 +217,7 @@ class NamespaceManager:
             return self._cache_ns_path(ns, mock_path)
         return None
 
-    def resolve_import(self, name: str) -> Optional[Tuple[Namespace, str]]:
+    def resolve_import(self, name: str) -> tuple[Namespace, str] | None:
         """
         Resolve import from name to namespace and path.
 
@@ -227,7 +225,7 @@ class NamespaceManager:
             name: Name of the module to import
 
         Returns:
-            Tuple[Namespace, str]: Namespace and path of the imported module
+            tuple[Namespace, str]: Namespace and path of the imported module
         """
         ns = Namespace.from_str(name)
         path = self._resolve_import_path(ns)
@@ -235,7 +233,7 @@ class NamespaceManager:
             return ns, path
         return None
 
-    def resolve_importfrom(self, module: str, name: str) -> Optional[Tuple[Namespace, str]]:
+    def resolve_importfrom(self, module: str, name: str) -> tuple[Namespace, str] | None:
         """
         Resolve import from module.name to name.
 
@@ -244,7 +242,7 @@ class NamespaceManager:
             name: Name of the item to import
 
         Returns:
-            Tuple[Namespace, str]: Namespace and path of the imported module
+            tuple[Namespace, str]: Namespace and path of the imported module
         """
         mod_ns = Namespace.from_str(module)
         succ_mod_ns = mod_ns.next_ns([name])
@@ -252,13 +250,13 @@ class NamespaceManager:
         mod_path = self._resolve_import_path(mod_ns)
         if succ_mod_path is not None:
             return succ_mod_ns, succ_mod_path
-        elif mod_path is not None:
+        if mod_path is not None:
             return mod_ns, mod_path
         return None
 
     def resolve_rel_importfrom(
-        self, cur_ns: Namespace, module: str, name: str, level: int
-    ) -> Optional[Tuple[Namespace, str]]:
+        self, cur_ns: Namespace, module: str | None, name: str, level: int
+    ) -> tuple[Namespace, str] | None:
         """
         Resolve relative import from cur_ns to module.name with level.
 
@@ -269,7 +267,7 @@ class NamespaceManager:
             level: Level of the relative import
 
         Returns:
-            Tuple[Namespace, str]: Namespace and path of the imported module
+            tuple[Namespace, str]: Namespace and path of the imported module
         """
         package = (
             cur_ns.to_str()
@@ -281,7 +279,7 @@ class NamespaceManager:
         absolute = resolve_name("." * level + (module or ""), package)
         return self.resolve_importfrom(absolute, name)
 
-    def get_import(self, cur_ns: Namespace, ir: IRImport) -> Optional[Tuple[Namespace, str]]:
+    def get_import(self, cur_ns: Namespace, ir: IRImport) -> tuple[Namespace, str] | None:
         """
         Get namespace and path of the imported module from cur_ns and ir.
 
@@ -290,29 +288,31 @@ class NamespaceManager:
             ir: Import statement
 
         Returns:
-            Tuple[Namespace, str]: Namespace and path of the imported module
+            tuple[Namespace, str]: Namespace and path of the imported module
         """
-        if isinstance(ir.stmt, ast.Import):
+        statement: ast.AST = ir.stmt
+        if isinstance(statement, ast.Import):
             ir._import_base_name = ir.name
             ret = self.resolve_import(ir.name)
             ir._resolved_import_name = ret[0].to_str() if ret is not None else None
             return ret
-        elif isinstance(ir.stmt, ast.ImportFrom):
+        if isinstance(statement, ast.ImportFrom):
             if ir.level == 0:
                 ir._import_base_name = ir.module
+                if ir.module is None:
+                    raise AttributeError("'NoneType' object has no attribute 'split'")
                 ret = self.resolve_importfrom(ir.module, ir.name)
                 # assert ret is not None, f"Failed to resolve import: {ir.module}, {ir.name}"
                 ir._resolved_import_name = ret[0].to_str() if ret is not None else None
                 return ret
-            else:
-                package = (
-                    cur_ns.to_str()
-                    if self.ns2path[cur_ns].endswith("__init__.py")
-                    else ".".join(cur_ns.names[:-1])
-                )
-                ir._import_base_name = resolve_name("." * ir.level + (ir.module or ""), package)
-                ret = self.resolve_rel_importfrom(cur_ns, ir.module, ir.name, ir.level)
-                # assert ret is not None, f"Failed to resolve relative import: {ir.module}, {ir.name}, {ir.level}"
-                ir._resolved_import_name = ret[0].to_str() if ret is not None else None
-                return ret
+            package = (
+                cur_ns.to_str()
+                if self.ns2path[cur_ns].endswith("__init__.py")
+                else ".".join(cur_ns.names[:-1])
+            )
+            ir._import_base_name = resolve_name("." * ir.level + (ir.module or ""), package)
+            ret = self.resolve_rel_importfrom(cur_ns, ir.module, ir.name, ir.level)
+            # assert ret is not None, f"Failed to resolve relative import: {ir.module}, {ir.name}, {ir.level}"
+            ir._resolved_import_name = ret[0].to_str() if ret is not None else None
+            return ret
         return None

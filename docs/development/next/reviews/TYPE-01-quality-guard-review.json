@@ -1,0 +1,23 @@
+{
+  "reviewer": "quality_review",
+  "production_author": "root",
+  "status": "accepted bounded source-suppression guard correction",
+  "source_sha256": {
+    "scripts/quality/policy.py": "28487bd542aff8ce1c871a0dbc0022dd1d6b3de88c5c728a9406aa9528739302",
+    "tests/regression/audit3/test_quality_policy.py": "974767044f9dda2c1066e6c5eb2ecc27bc9c9fca0f6708d7659795baee7eea7a"
+  },
+  "finding": "Previously, nonfrontier production modules could introduce inline type/noqa suppressions without a policy failure. Current production had no such comments; this was a demonstrated guard hole, not an allegation that a suppression was used.",
+  "repair": "All production source suppressions are rejected, while tokenization avoids classifying text inside Python string literals as directives. Existing frontier-specific explanatory messages remain distinct.",
+  "independent_witnesses": {
+    "red": "2 failed,1 passed; nonfrontier type-ignore/noqa mutants failed expectations, string-literal control passed",
+    "green": "15 passed across quality policy,debt and deliberate tool negative controls",
+    "mypy": "Success: no issues found in8source files; expected unused domains override note retained",
+    "ruff": "New test module lint+format clean"
+  },
+  "evidence": "artifacts/next/evidence/quality-review-resume2",
+  "qualification_limits": [
+    "No debt reset, frontier retreat or tool suppression was used.",
+    "This bounded review does not qualify whole TYPE-01 or semantics.",
+    "Whole-tree final quality check remains required on the frozen candidate."
+  ]
+}

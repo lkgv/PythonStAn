@@ -346,7 +346,7 @@ class NormalCallProcessor(Processor):
         assert isinstance(func_ir, IRFunc), (
             f"MethodObject alloc site stmt should be IRFunc, {type(func_ir)} got!"
         )
-        func_name = func_ir.get_qualname()
+        _func_name = func_ir.get_qualname()
 
         if func_ir.is_static_method:
             return self._handle_function_call(solver, scope, context, call, method_obj)
@@ -394,10 +394,7 @@ class NormalCallProcessor(Processor):
         )
         assert holder_obj
 
-        if func_ir.is_class_method:
-            call_kind = CallKind.CLASS
-        else:
-            call_kind = CallKind.INSTANCE
+        call_kind = CallKind.CLASS if func_ir.is_class_method else CallKind.INSTANCE
         call_edge = CallEdge(
             kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope
         )
@@ -452,8 +449,8 @@ class NormalCallProcessor(Processor):
             return False
 
         func_ir: IRFunc = func_obj.alloc_site.require_function_source()
-        func_name = func_ir.get_name()
-        alloc_site = func_obj.alloc_site
+        _func_name = func_ir.get_name()
+        _alloc_site = func_obj.alloc_site
         # logger.info(f"Handling function call: {call.call_site} -> {alloc_site}")
         args = [solver.state.get_variable(scope, context, arg) for arg in call.args]
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
@@ -473,7 +470,7 @@ class NormalCallProcessor(Processor):
 
         # func_ir = self.function_registry[func_name]
         # method_scope = solver.state.obj_scope[func_obj]
-        alloc_site = func_obj.alloc_site
+        _alloc_site = func_obj.alloc_site
         # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
         defining_scope = func_obj.container_scope
         callee_scope = Scope.new(
@@ -561,11 +558,11 @@ class NormalCallProcessor(Processor):
             state._add_var_points_flow(var, target_var)
 
         nonlocal_vars = state.get_nonlocal_vars(callee_obj)
-        for name, var in nonlocal_vars.items():
+        for _name, var in nonlocal_vars.items():
             state.set_variable(callee_scope, call_context, var.content, var)
 
         global_vars = state.get_global_vars(callee_obj)
-        for name, var in global_vars.items():
+        for _name, var in global_vars.items():
             state.set_variable(callee_scope, call_context, var.content, var)
 
     def _match_parameters(
@@ -712,7 +709,7 @@ class NormalCallProcessor(Processor):
             # 2. Handle regular positional/keyword parameters
             # These can be filled by either positional OR keyword arguments
             if func_args.args:
-                for param_idx, param in enumerate(func_args.args):
+                for _param_idx, param in enumerate(func_args.args):
                     param_name = param.arg
                     param_var = state.get_variable(
                         callee_scope,

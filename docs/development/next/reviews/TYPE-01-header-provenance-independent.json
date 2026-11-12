@@ -1,0 +1,124 @@
+{
+  "reviewer": "inspector_quality",
+  "author": "quality_review",
+  "status": "accepted bounded multiline-header provenance correction",
+  "source_sha256": {
+    "scripts/quality/debt.py": "24610048d9740a34ad57cc1e7b1c02ecc85febb09ad427b60a0610ee481f0ada",
+    "scripts/quality/cli.py": "762292e22992c7e015cd9e2653bba59e03fc193769a781a6bf559c0384bd3596",
+    "scripts/quality/policy.py": "28487bd542aff8ce1c871a0dbc0022dd1d6b3de88c5c728a9406aa9528739302",
+    "tests/regression/audit3/test_quality_frozen_headers.py": "3ab89e1e7753efdd48909dda39ed11a20284b73a8dd6cb41a8b92b52e084742f",
+    "tests/regression/audit3/test_quality_policy.py": "49af4d70d928f1c727242e1ffe86bbaaef2e88dbcf5123971c19e5cdeb7e0e49",
+    ".github/workflows/quality.yml": "d06f3c70e3d3e2eb74cb38a7e89051480a23370c65281bc5163c6b510301190e"
+  },
+  "pipeline_review": [
+    "CLI baseline interpretation calls frozen_source_indices on the exact reviewed source_commit, not on current checkout indices.",
+    "Every frozen file is read by immutable git object id and checked against the unchanged source_sha256 before header interpretation. Missing source or malformed identity fails, with no fallback to current code.",
+    "Only source-verified function header rows for Ruff/mypy change anchor in memory. Legacy and canonical anchor validation binds the original symbol and exact frozen header. No symbol/code/count matching fallback was added.",
+    "Current signature anchors are layout-independent; changed-unit diagnostics still compare complete function/class/module AST units against the original frozen ledger.",
+    "Raw row count and diagnostic identity/multiplicity excluding the interpreted anchor remain unchanged; the on-disk baseline is neither rewritten nor regenerated.",
+    "Counter-based diagnostic multiplicity and body-call anchors remain in use. A direct AST edit to the diagnostic's recorded unit cannot consume only reinterpreted header debt and bypass the modified-unit check.",
+    "The existing production policy comparison rejects any change to raw frozen metadata, including recorded line values.",
+    "CI already uses checkout fetch-depth0. The pinned e8d commit exists as a commit and its actual tree matches the recorded frozen tree. No shallow-fetch or branch-name fallback was introduced."
+  ],
+  "real_ledger": {
+    "source_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
+    "source_tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
+    "git_object_type": "commit",
+    "raw_ledger_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "raw_count": 23096,
+    "canonical_count": 23096,
+    "frozen_modules": 305,
+    "memory_and_disk_baseline_unchanged": true,
+    "identity_and_multiplicity_preserved": true,
+    "changed_anchor_rows": 683,
+    "malformed_probes": {
+      "bad_symbol": true,
+      "bad_anchor": true,
+      "bad_file_hash": true,
+      "mutable_source_reference": true,
+      "line_metadata_alteration_rejected": true
+    }
+  },
+  "normalization_footprint": {
+    "header_rows": 683,
+    "modules": 53,
+    "scope_note": "These683 verified header anchors are interpreted in memory; all23096 counted rows and raw bytes remain unchanged."
+  },
+  "independent_checks": {
+    "existing_and_author_guard_tests": {
+      "passed": 23,
+      "evidence": "artifacts/next/evidence/inspector-quality-resume/header-guard/independent-tests.txt"
+    },
+    "actual_ruff_mypy_isolated_git_cases": [
+      {
+        "case": "format_only",
+        "actual_ruff_rows": 1,
+        "added": 0,
+        "modified_unit": 0,
+        "quality_would_pass": true
+      },
+      {
+        "case": "async_kind",
+        "actual_ruff_rows": 1,
+        "added": 0,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      },
+      {
+        "case": "type_parameter",
+        "actual_ruff_rows": 1,
+        "added": 0,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      },
+      {
+        "case": "decorator",
+        "actual_ruff_rows": 1,
+        "added": 0,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      },
+      {
+        "case": "default_value",
+        "actual_ruff_rows": 1,
+        "added": 1,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      },
+      {
+        "case": "body_edit",
+        "actual_ruff_rows": 1,
+        "added": 0,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      },
+      {
+        "case": "same_count_different_call_site",
+        "actual_mypy_rows": 2,
+        "added": 1,
+        "modified_unit": 2,
+        "quality_would_pass": false
+      },
+      {
+        "case": "real_import_change",
+        "old_ruff_rows": 1,
+        "current_ruff_rows": 1,
+        "added": 1,
+        "modified_unit": 1,
+        "quality_would_pass": false
+      }
+    ],
+    "malformed_probes": {
+      "bad_symbol": true,
+      "bad_anchor": true,
+      "bad_file_hash": true,
+      "mutable_source_reference": true,
+      "line_metadata_alteration_rejected": true
+    }
+  },
+  "limits": [
+    "This is a diagnostic-identity guard review, not a proof of analyzer semantic soundness.",
+    "Acceptance is bound to the actual CLI producer chain that obtains indices from verified immutable source; arbitrary direct internal helper misuse is outside the command boundary.",
+    "Final whole-tree diagnostics and TYPE-01 qualification remain separate and pending root frozen execution."
+  ]
+}

@@ -71,7 +71,7 @@
     {
       "id": "G1",
       "title": "真实类型合同和公共入口",
-      "status": "planned_not_evaluated",
+      "status": "passed",
       "contributing_tasks": [
         "N4-TYPE-01",
         "N4-API-01"
@@ -87,7 +87,13 @@
       ],
       "required_gates": [],
       "conditional_gates": [],
-      "gate_membership_does_not_add_task_start_dependencies": true
+      "gate_membership_does_not_add_task_start_dependencies": true,
+      "review_records": [
+        "docs/development/next/reviews/TYPE-01-final-acceptance-20261112.json",
+        "docs/development/next/reviews/API-01-integration.md"
+      ],
+      "scope": "Typed real execution and resolved public input only; no semantic/core/release qualification.",
+      "evidence": "docs/development/next/TYPE01_ACCEPTANCE_20261112.json"
     },
     {
       "id": "G2",

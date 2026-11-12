@@ -148,14 +148,16 @@ def derive_exported_function_templates(points: Iterable[AbstractObject]) -> Expo
     grouped: dict[ArgumentShape, list[OriginRow]] = {}
     uncovered: dict[tuple[str, str], int] = {}
     count = 0
+    reason: str | None
     for obj in points:
         count += 1
         if type(obj) is not FunctionObject:
             reason = "not_an_exact_unbound_source_function_value"
-        elif not isinstance(obj.ir, IRFunc):
-            reason = "unrecognized_source_function_ir"
         else:
-            reason = None
+            # Native objects are mutable metadata carriers. Keep the runtime
+            # boundary check even when the nominal field annotation is IRFunc.
+            source_ir: object = obj.ir
+            reason = None if isinstance(source_ir, IRFunc) else "unrecognized_source_function_ir"
         if reason is not None:
             key = (type(obj).__name__, reason)
             uncovered[key] = uncovered.get(key, 0) + 1
@@ -188,10 +190,19 @@ def derive_exported_function_templates(points: Iterable[AbstractObject]) -> Expo
     def shape_key(
         signature: ArgumentShape,
     ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], str, str]:
-        return (*signature[:3], signature[3] or "", signature[4] or "")
+        return (
+            signature[0],
+            signature[1],
+            signature[2],
+            signature[3] or "",
+            signature[4] or "",
+        )
+
+    def origin_key(row: OriginRow) -> FunctionOrigin:
+        return row[0]
 
     for signature in sorted(grouped, key=shape_key):
-        rows = sorted(grouped[signature], key=lambda row: row[0])
+        rows = sorted(grouped[signature], key=origin_key)
         origins = tuple(sorted({row[0] for row in rows}))
         templates.append(
             FunctionArgumentTemplate(*signature, origins, tuple(row[1] for row in rows), rows[0][2])

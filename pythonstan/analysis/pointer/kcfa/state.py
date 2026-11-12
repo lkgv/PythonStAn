@@ -21,9 +21,9 @@ from .debug_boundary import feature, record_points_to_update
 from .heap_model import Field, FieldKind, HeapModel, unknown
 from .object import (
     AbstractObject,
-    BuiltinClassObject,
     AllocSite,
     AsyncGeneratorObject,
+    BuiltinClassObject,
     ClassObject,
     CoroutineObject,
     FunctionObject,
@@ -47,7 +47,10 @@ from .variable import FieldAccess, Variable, VariableFactory, VariableKind
 
 if TYPE_CHECKING:
     from pythonstan.world.scope_manager import ScopeManager
+
     from .allocation import AllocationPolicyRegistry
+    from .native_mapping import NativeMappingProtocols
+    from .processor.heap_mapping import FieldCreatedObserver
     from .unknown_effects import UnknownEffects
     from .worklist import ConsumerFairWorklist
 
@@ -87,9 +90,7 @@ class PointerCallGraph(AbstractCallGraph[Ctx[CallSite], Scope]):
 
     @override
     def has_edge(self, edge: CallEdge[Ctx[CallSite], Scope]) -> bool:
-        if (edge.callsite, edge.callee) in self.visited_edges:
-            return True
-        return False
+        return (edge.callsite, edge.callee) in self.visited_edges
 
     def num_plain_edges(self) -> int:
         return len(self.plain_edges)
@@ -165,6 +166,9 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
 
+    _native_mapping_protocols: "NativeMappingProtocols"
+    _instance_namespace_views: "FieldCreatedObserver"
+    _mapping_field_copies: "FieldCreatedObserver"
     _builtin_exception_classes: dict[str, BuiltinClassObject]
     _residual_effects: dict[Hashable, dict[str, object]]
     _consumer_worklist: "ConsumerFairWorklist | None"
@@ -183,14 +187,14 @@ class PointerAnalysisState:
         self.unknown_effects: UnknownEffects | None = None
         self._env: dict[NativePointsKey, PointsToSet] = {}
         self._heap = HeapModel()
-        self._call_graph: "PointerCallGraph" = PointerCallGraph()
+        self._call_graph: PointerCallGraph = PointerCallGraph()
         self._constraints: ConstraintManager = ConstraintManager()
         self._call_edges: list[CallEdge[Ctx[CallSite], Scope]] = []
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
-        self._field_accesses: dict[tuple["AbstractObject", "Field"], FieldAccess] = {}
+        self._field_accesses: dict[tuple[AbstractObject, Field], FieldAccess] = {}
         # Field slots only grow through set_field. Preserve each object's
         # creation order so snapshot models need not rescan every heap slot.
-        self._known_fields_by_object: dict["AbstractObject", dict["Field", None]] = {}
+        self._known_fields_by_object: dict[AbstractObject, dict[Field, None]] = {}
         self._variable_factory: VariableFactory = VariableFactory()
         self._worklist: Worklist | ConsumerFairWorklist = Worklist()
         self._consumer_worklist = None
@@ -258,21 +262,20 @@ class PointerAnalysisState:
     def set_internal_scope(self, obj: AbstractObject, scope: Scope) -> None:
         self._internal_scope[obj] = scope
 
-    def is_module_export(self, module, name):
-        from pythonstan.world.module_exports import source_export_names
+    def is_module_export(self, module: IRScope, name: str) -> bool:
+        from pythonstan.world.module_exports import source_has_export
 
-        return name in source_export_names(module) or name in getattr(
-            module, "_source_extra_exports", ()
-        )
+        if source_has_export(module, name):
+            return True
+        exports = module.peek_source_extra_exports()
+        return name in (() if exports is None else exports)
 
-    def register_module_export(self, module_scope, name):
+    def register_module_export(self, module_scope: Scope, name: object) -> None:
         """Record a real modeled module write/import effect, not builtin fallback."""
         if not isinstance(name, str) or not name.isidentifier():
             return
         module = module_scope.module.stmt
-        extra = getattr(module, "_source_extra_exports", None)
-        if extra is None:
-            extra = module._source_extra_exports = set()
+        extra = module.ensure_source_extra_exports()
         extra.add(name)
         variable = self._get_variable_direct(
             module_scope.module, module_scope.module.context, name, VariableKind.GLOBAL
@@ -309,7 +312,7 @@ class PointerAnalysisState:
 
     def get_all_ctx_vars_for(self, scope: Scope, var: "Variable") -> list["Ctx[Variable]"]:
         scopes = self.get_scopes_for_ir(scope.stmt)
-        ctx_vars: list["Ctx[Variable]"] = []
+        ctx_vars: list[Ctx[Variable]] = []
         for scoped in scopes:
             ctx_vars.append(self.get_variable(scoped, scoped.context, var))
         return ctx_vars
@@ -387,8 +390,7 @@ class PointerAnalysisState:
         """
         # TODO here is just a trivial mock and did not consider the complex features such as inheritance and MRO.
 
-        field_access = self._field_accesses.get((obj, field), None)
-        return field_access
+        return self._field_accesses.get((obj, field), None)
 
     def get_field(
         self,
@@ -464,7 +466,7 @@ class PointerAnalysisState:
                             internal_scope.stmt, variable.name
                         ):
                             self._add_var_points_flow(cvar, cfield)
-                    residuals = getattr(self, "_residual_effects", None)
+                    residuals = self.peek_residual_effects()
                     if residuals is not None:
                         residuals[(obj, "unknown_module_attribute")] = {
                             "origin": internal_scope.stmt.get_qualname(),
@@ -742,6 +744,20 @@ class PointerAnalysisState:
         }
         return methods.get(builtin_type, set())
 
+    def peek_instance_namespace_views(self) -> "FieldCreatedObserver | None":
+        """Read an optional namespace subscriber without allocating one."""
+        try:
+            return self._instance_namespace_views
+        except AttributeError:
+            return None
+
+    def peek_mapping_field_copies(self) -> "FieldCreatedObserver | None":
+        """Read an optional copy subscriber without allocating one."""
+        try:
+            return self._mapping_field_copies
+        except AttributeError:
+            return None
+
     def set_field(
         self,
         scope: "Scope | None",
@@ -769,10 +785,10 @@ class PointerAnalysisState:
             self.unknown_effects.field_created(obj, field_access)
         # Publish the slot before callbacks can recursively enumerate it.
         self._known_fields_by_object.setdefault(obj, {})[field] = None
-        manager = getattr(self, "_instance_namespace_views", None)
+        manager = self.peek_instance_namespace_views()
         if manager is not None:
             manager.field_created(scope, obj, field)
-        copies = getattr(self, "_mapping_field_copies", None)
+        copies = self.peek_mapping_field_copies()
         if copies is not None:
             copies.field_created(scope, obj, field)
 

@@ -1,0 +1,48 @@
+{
+  "author": "native_quality/translator",
+  "status": "implementation_done_pending_independent_review",
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "fee7a409c21a2ba23723235532f7acaf473b77eb58d0dc0f79b7fc10e2639229",
+    "pythonstan/analysis/transform/three_address.py": "5858c9402015be86c2321856dca9be30753503061706f3a0ee42cdaad8dc0370",
+    "pythonstan/utils/temp_var_generator.py": "7ef3f1259679d2cd4e1965f652ceca1725a7ec1c4f4919da9339d75d1c47e508",
+    "tests/regression/audit3/test_tac_dispatch_contracts.py": "37bc0b1518180064f2b00c35bd4c2977012eb362359db735c82054209a87cf08"
+  },
+  "actual_consumers": [
+    "Native IR translator constraint builders consume typed IR/AST outputs and preserve lexical scope labels.",
+    "TAC expression/statement handlers are fully annotated; stdlib NodeTransformer visit results are decoded at their actual host boundary, not treated as Any or hidden behind fake solver protocols.",
+    "TempVarGenerator keeps context-specific cache identity, mutable builders and generation sequence."
+  ],
+  "checks": {
+    "ordinary_mypy": {
+      "own_records": 0,
+      "imported_records": 783,
+      "normal_imports": true,
+      "whole_command_clean": false
+    },
+    "ruff_format": "clean",
+    "runtime": "55 passed in 0.63s",
+    "module_ast_differential": {
+      "cases": 30,
+      "equal": 30,
+      "baseline": "c4275e3 pre-edit three_address bytes",
+      "canonicalization": "Only missing optional type_params fields become empty lists in both trees; source coordinates and every other AST field retained."
+    },
+    "strong_exploration": {
+      "own_records": 24,
+      "qualification": false,
+      "note": "Earlier exploratory Any-expression scan retained stdlib AST dispatch/get_ir/metadata provenance. No strong qualification inferred; this slice ordinary-scoped."
+    }
+  },
+  "explicit_deltas": [
+    "Module-only source profile remains supported. Preexisting visit_Expression passed ast.expr to visit_Expr and attempted Expression(body=list[stmt]); it never formed valid executable expression-root output. It now raises explicit TypeError at this unsupported root. Parent/root authorized this diagnostic change.",
+    "First overwritten visit_BoolOp definition removed; the last runtime binding is preserved.",
+    "AST constructors now initialize required Python3.12 type_params fields to empty, matching the old omitted/default profile. Extra ctx metadata formerly passed as unsupported constructor keywords remains attached via the AST host boundary.",
+    "Malformed unnormalized subscript/yield/expression metadata may receive explicit validation errors; no supported source Module path discarded."
+  ],
+  "raw_evidence": "artifacts/next/evidence/translator-tac-*; translator_tac_comparison.json",
+  "qualifications": {
+    "type_01_verified": false,
+    "whole_tree_strict": false,
+    "strong_any_expr": false
+  }
+}

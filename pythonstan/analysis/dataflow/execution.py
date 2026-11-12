@@ -31,7 +31,7 @@ def _is_fact_map(value: object) -> TypeGuard[Mapping[BaseBlock, object]]:
     return all(isinstance(node, BaseBlock) for node in entries)
 
 
-def solve_with_custom_solver(solver: object, analysis: DataflowExecution) -> ScopeFactViews:
+def solve_with_custom_solver(solver: object, analysis: object) -> ScopeFactViews:
     """Call one actual plugin service without claiming its erased fact type."""
     service: object = getattr(solver, "solve", None)
     if not callable(service):

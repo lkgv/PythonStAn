@@ -3,6 +3,7 @@
 Atomic replacement provides visibility, not power-loss durability. A receipt
 describes last observed evidence; it is never a snapshot or a proof of liveness.
 """
+
 import hashlib
 import json
 import math
@@ -26,8 +27,9 @@ CHECKPOINT_WORK_ITEMS = 1024
 
 
 def json_bytes(value):
-    return json.dumps(value, ensure_ascii=True, sort_keys=True,
-                      separators=(",", ":"), allow_nan=False).encode("ascii")
+    return json.dumps(
+        value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("ascii")
 
 
 def bounded_tree(
@@ -53,7 +55,7 @@ def bounded_tree(
                 raise InspectorError("incident string limit exceeded")
             item.encode("utf-8", errors="strict")
         elif type(item) is int:
-            if not -(2 ** 63) <= item < 2 ** 63:
+            if not -(2**63) <= item < 2**63:
                 raise InspectorError("incident integer limit exceeded")
         elif type(item) is float:
             if not math.isfinite(item):
@@ -90,9 +92,12 @@ def read_fixed(path, limit):
             raise InspectorError("artifact exceeds read byte limit")
         payload = stream.read(limit + 1)
         after = os.fstat(stream.fileno())
-        if (len(payload) > limit or before.st_size != len(payload)
-                or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
-                != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
+        if (
+            len(payload) > limit
+            or before.st_size != len(payload)
+            or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+        ):
             raise InspectorError("artifact changed during bounded read")
     return payload
 
@@ -107,9 +112,11 @@ def _unique_object(pairs):
 
 
 def decode_object(payload):
-    result = json.loads(payload.decode("utf-8", errors="strict"),
-                        object_pairs_hook=_unique_object,
-                        parse_constant=lambda _: (_ for _ in ()).throw(InspectorError("nonfinite JSON")))
+    result = json.loads(
+        payload.decode("utf-8", errors="strict"),
+        object_pairs_hook=_unique_object,
+        parse_constant=lambda _: (_ for _ in ()).throw(InspectorError("nonfinite JSON")),
+    )
     if type(result) is not dict:
         raise InspectorError("incident JSON must be an object")
     bounded_tree(result)
@@ -124,13 +131,26 @@ def read_receipt(path, run_id, request_sha256):
 
 
 def validate_receipt(receipt, run_id, request_sha256):
-    if (receipt.get("protocol") != INCIDENT_PROTOCOL or receipt.get("run_id") != run_id
-            or receipt.get("request_sha256") != request_sha256):
+    if (
+        receipt.get("protocol") != INCIDENT_PROTOCOL
+        or receipt.get("run_id") != run_id
+        or receipt.get("request_sha256") != request_sha256
+    ):
         raise InspectorError("incident schema or run/request binding mismatch")
     if receipt.get("actor") not in {"worker", "supervisor"}:
         raise InspectorError("invalid incident actor")
-    for field in ("identity", "process", "native", "capture", "transport", "check",
-                  "phase", "counters", "observation", "artifacts"):
+    for field in (
+        "identity",
+        "process",
+        "native",
+        "capture",
+        "transport",
+        "check",
+        "phase",
+        "counters",
+        "observation",
+        "artifacts",
+    ):
         if type(receipt.get(field)) is not dict:
             raise InspectorError("invalid incident structured field")
     if type(receipt["capture"].get("status")) is not str:
@@ -139,10 +159,15 @@ def validate_receipt(receipt, run_id, request_sha256):
         raise InspectorError("invalid incident artifact descriptor")
     for descriptor in receipt["artifacts"].values():
         checksum = descriptor.get("sha256")
-        if checksum is not None and (type(checksum) is not str or len(checksum) != 64
-                or any(character not in "0123456789abcdef" for character in checksum)):
+        if checksum is not None and (
+            type(checksum) is not str
+            or len(checksum) != 64
+            or any(character not in "0123456789abcdef" for character in checksum)
+        ):
             raise InspectorError("invalid incident artifact hash")
-        if "bytes" in descriptor and (type(descriptor["bytes"]) is not int or descriptor["bytes"] < 0):
+        if "bytes" in descriptor and (
+            type(descriptor["bytes"]) is not int or descriptor["bytes"] < 0
+        ):
             raise InspectorError("invalid incident artifact byte count")
 
 
@@ -156,10 +181,14 @@ def write_receipt(path, receipt):
     write_started = time.perf_counter()
     atomic_bytes(path, payload)
     write_seconds = time.perf_counter() - write_started
-    return {"path": Path(path).name, "bytes": len(payload),
-            "sha256": hashlib.sha256(payload).hexdigest(), "visibility": "atomic_replace_not_power_loss_durable",
-            "validation_encode_seconds": encode_seconds,
-            "write_replace_seconds": write_seconds}
+    return {
+        "path": Path(path).name,
+        "bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "visibility": "atomic_replace_not_power_loss_durable",
+        "validation_encode_seconds": encode_seconds,
+        "write_replace_seconds": write_seconds,
+    }
 
 
 def read_trace(path, run_id, request_sha256):
@@ -179,15 +208,20 @@ def read_trace(path, run_id, request_sha256):
             if not line.endswith(b"\n"):
                 raise InspectorError("unterminated_frame")
             event = decode_object(line)
-            if (event.get("trace_protocol") != TRACE_PROTOCOL
-                    or event.get("run_id") != run_id or event.get("request_sha256") != request_sha256):
+            if (
+                event.get("trace_protocol") != TRACE_PROTOCOL
+                or event.get("run_id") != run_id
+                or event.get("request_sha256") != request_sha256
+            ):
                 raise InspectorError("unbound_trace_frame")
             sequence = event.get("sequence")
             if type(sequence) is not int or sequence < 1:
                 raise InspectorError("invalid_trace_sequence")
             if sequence != (previous + 1 if previous is not None else 1):
                 raise InspectorError("noncontinuous_trace_prefix")
-            if type(event.get("stream_id")) is not str or (stream_id is not None and event["stream_id"] != stream_id):
+            if type(event.get("stream_id")) is not str or (
+                stream_id is not None and event["stream_id"] != stream_id
+            ):
                 raise InspectorError("changed_trace_stream")
             stream_id = event["stream_id"]
             previous = sequence
@@ -195,55 +229,93 @@ def read_trace(path, run_id, request_sha256):
         except (InspectorError, ValueError, UnicodeError, RecursionError) as exc:
             first_rejection = {"line": number, "reason": type(exc).__name__}
             break
-    return {"protocol": TRACE_PROTOCOL, "events": events, "stream_id": stream_id,
-            "first_sequence": events[0]["sequence"] if events else None,
-            "last_sequence": previous, "first_rejection": first_rejection,
-            "recovery_policy": "continuous_last_complete_record_prefix",
-            "history_claim": "observed_only_no_replay_or_snapshot_identity"}
+    return {
+        "protocol": TRACE_PROTOCOL,
+        "events": events,
+        "stream_id": stream_id,
+        "first_sequence": events[0]["sequence"] if events else None,
+        "last_sequence": previous,
+        "first_rejection": first_rejection,
+        "recovery_policy": "continuous_last_complete_record_prefix",
+        "history_claim": "observed_only_no_replay_or_snapshot_identity",
+    }
 
 
 class IncidentRecorder:
     """One analysis thread owns phase/counter receipt state and cold writes."""
 
-    def __init__(self, directory, run_id, request_sha256, adapter_sha256,
-                 configuration, mode):
+    def __init__(self, directory, run_id, request_sha256, adapter_sha256, configuration, mode):
         self.path = Path(directory) / "incident.json"
         self.started = time.monotonic()
         self.last_checkpoint = -CHECKPOINT_SECONDS
         self.last_attempt = -CHECKPOINT_SECONDS
         self.last_checkpoint_work = 0
         self.write_failures = 0
-        self.persistence = {"version": 1,
+        self.persistence = {
+            "version": 1,
             "scope": "completed operations before this receipt encoding; current attempt start is explicit",
             "clock": "worker_perf_counter_durations_monotonic_elapsed",
-            "attempts_started": 0, "attempts_completed": 0, "successful_writes": 0,
-            "forced_attempts": 0, "routine_attempts": 0,
-            "failed_attempts": 0, "cadence_skips": 0, "successful_bytes": 0,
-            "validation_encode_seconds": 0.0, "write_replace_seconds": 0.0,
+            "attempts_started": 0,
+            "attempts_completed": 0,
+            "successful_writes": 0,
+            "forced_attempts": 0,
+            "routine_attempts": 0,
+            "failed_attempts": 0,
+            "cadence_skips": 0,
+            "successful_bytes": 0,
+            "validation_encode_seconds": 0.0,
+            "write_replace_seconds": 0.0,
             "failed_attempt_seconds": 0.0,
             "last_attempt_worker_elapsed_seconds": None,
-            "last_successful_write_worker_elapsed_seconds": None}
-        self.data = {"protocol": INCIDENT_PROTOCOL, "actor": "worker",
-            "run_id": run_id, "request_sha256": request_sha256,
-            "identity": {"adapter_sha256": adapter_sha256, "adapter_verification": "start_only",
-                "implementation_sha256": None, "implementation_verification": "unverified",
-                "configuration_sha256": None, "configuration_verification": "unverified",
-                "source_verification": "unverified", "source_binding": "not_yet_observed"},
+            "last_successful_write_worker_elapsed_seconds": None,
+        }
+        self.data = {
+            "protocol": INCIDENT_PROTOCOL,
+            "actor": "worker",
+            "run_id": run_id,
+            "request_sha256": request_sha256,
+            "identity": {
+                "adapter_sha256": adapter_sha256,
+                "adapter_verification": "start_only",
+                "implementation_sha256": None,
+                "implementation_verification": "unverified",
+                "configuration_sha256": None,
+                "configuration_verification": "unverified",
+                "source_verification": "unverified",
+                "source_binding": "not_yet_observed",
+            },
             "process": {"status": "running", "completion": "not_observed"},
             "native": {"status": "not_observed", "stop_reason": None},
-            "capture": {"status": "not_requested" if mode in ("off", "counters") else "not_observed"},
-            "transport": {"status": "not_observed"}, "check": {"status": "not_run"},
-            "phase": {"last_entered": "worker_bootstrap", "last_completed": None,
-                "action": "bounded bootstrap and native import", "last_progress_sequence": None},
+            "capture": {
+                "status": "not_requested" if mode in ("off", "counters") else "not_observed"
+            },
+            "transport": {"status": "not_observed"},
+            "check": {"status": "not_run"},
+            "phase": {
+                "last_entered": "worker_bootstrap",
+                "last_completed": None,
+                "action": "bounded bootstrap and native import",
+                "last_progress_sequence": None,
+            },
             "counters": {"status": "unavailable", "reason": "solver_not_yet_constructed"},
-            "observation": {"mode": mode, "requested_bootstrap_policy": configuration.get("builtin_bootstrap_policy", "queued"),
-                "actual_bootstrap_behavior": "not_observed", "heartbeat": "cooperative_cold_boundaries",
-                "heartbeat_preemption": False, "counter_sampling": "not_yet_observed"},
+            "observation": {
+                "mode": mode,
+                "requested_bootstrap_policy": configuration.get(
+                    "builtin_bootstrap_policy", "queued"
+                ),
+                "actual_bootstrap_behavior": "not_observed",
+                "heartbeat": "cooperative_cold_boundaries",
+                "heartbeat_preemption": False,
+                "counter_sampling": "not_yet_observed",
+            },
             "health": {"receipt_write_failures": 0, "trace_write_failures": 0},
-            "artifacts": {"snapshot": {"status": "missing", "reason": "not_captured"},
+            "artifacts": {
+                "snapshot": {"status": "missing", "reason": "not_captured"},
                 "native_report": {"status": "missing", "reason": "not_exported"},
-                "runtime_trace": {"status": "missing", "reason": "not_recorded"}},
-            "evidence_kind": "diagnostic_last_observation_not_semantic_snapshot"}
+                "runtime_trace": {"status": "missing", "reason": "not_recorded"},
+            },
+            "evidence_kind": "diagnostic_last_observation_not_semantic_snapshot",
+        }
         self.data["receipt_persistence"] = self.persistence
 
     def phase(self, event):
@@ -262,12 +334,17 @@ class IncidentRecorder:
             if type(event.get(key)) is str:
                 current[key] = event[key][:512]
         identity = self.data["identity"]
-        for source, destination in (("implementation_sha256_before", "implementation_sha256"),
-                                    ("configuration_sha256", "configuration_sha256")):
+        for source, destination in (
+            ("implementation_sha256_before", "implementation_sha256"),
+            ("configuration_sha256", "configuration_sha256"),
+        ):
             if type(event.get(source)) is str and len(event[source]) == 64:
                 identity[destination] = event[source]
-                identity["configuration_verification" if destination.startswith("configuration")
-                         else "implementation_verification"] = "start_only"
+                identity[
+                    "configuration_verification"
+                    if destination.startswith("configuration")
+                    else "implementation_verification"
+                ] = "start_only"
         row = event.get("module_record")
         if type(row) is dict and "consumed_sha256" in row:
             identity["source_binding"] = "consumed_hashes_observed_not_finally_verified"
@@ -306,5 +383,7 @@ class IncidentRecorder:
         self.persistence["validation_encode_seconds"] += descriptor["validation_encode_seconds"]
         self.persistence["write_replace_seconds"] += descriptor["write_replace_seconds"]
         self.last_checkpoint = time.monotonic()
-        self.persistence["last_successful_write_worker_elapsed_seconds"] = self.last_checkpoint - self.started
+        self.persistence["last_successful_write_worker_elapsed_seconds"] = (
+            self.last_checkpoint - self.started
+        )
         return True

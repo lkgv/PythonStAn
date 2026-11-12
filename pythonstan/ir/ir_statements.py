@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     from pythonstan.analysis.contracts.identity import SourceModule
     from pythonstan.analysis.pointer.kcfa.variable import Variable
 
+    from .semantic_residuals import FrontendResidual
+
 
 def _name_bases(bases: list[ast.expr]) -> TypeGuard[list[ast.Name]]:
     return all(isinstance(base, ast.Name) for base in bases)
@@ -88,7 +90,7 @@ class IRStatement(ABC):
     def get_ast(self) -> ast.AST:
         """Exposes the backing AST node produced by ``IRTransformer``."""
 
-    def get_semantic_residuals(self):
+    def get_semantic_residuals(self) -> tuple["FrontendResidual", ...]:
         """Obligations retained on this statement's original lowered AST."""
         from .semantic_residuals import get_frontend_residuals
 
@@ -282,7 +284,7 @@ class IRCatchException(IRAbstractStmt):
     #: Label covering the handler dispatch region.
     goto_label: Label
     #: Label executed when this handler is selected.
-    exception_ast: Optional[ast.ExceptHandler]
+    exception_ast: ast.ExceptHandler | None
     #: Original AST handler, retained for diagnostics.
 
     def __init__(
@@ -291,7 +293,7 @@ class IRCatchException(IRAbstractStmt):
         from_label: Label,
         to_label: Label,
         goto_label: Label,
-        exception_ast: Optional[ast.ExceptHandler] = None,
+        exception_ast: ast.ExceptHandler | None = None,
     ) -> None:
         """Captures the structural relationship between try/except blocks."""
         self.exception = exception
@@ -446,20 +448,20 @@ class JumpIfTrue(IRAbstractStmt):
 class IRYield(IRAbstractStmt):
     """Represents ``yield`` lowered from generator bodies."""
 
-    stmt: Statement
+    stmt: ast.Expr | ast.Assign
     #: Either ``ast.Expr`` or ``ast.Assign`` containing the yield.
-    value: Optional[ast.Name]
+    value: ast.Name | None
     #: The yielded symbol, normalised by ``ThreeAddressTransformer``.
     load_collector: VarCollector
     #: Records reads pulled in by the awaitable/value expression.
     store_collector: VarCollector
     #: Records names bound by ``target = yield`` forms.
-    target: Optional[ast.expr]
+    target: ast.expr | None
     #: Assignment target when the yield appears on RHS.
     _is_yield_from: bool
     #: Flag indicating ``yield from`` semantics.
 
-    def __init__(self, stmt: Statement):
+    def __init__(self, stmt: ast.Expr | ast.Assign) -> None:
         """Captures generator semantics for downstream CFG consumers."""
         self.stmt = stmt
         assert isinstance(stmt.value, (ast.Yield, ast.YieldFrom))
@@ -504,7 +506,8 @@ class IRYield(IRAbstractStmt):
         renamer = RenameTransformer(old_name, new_name, ctxs)
         self.value = renamer.visit(self.value)
 
-    def get_ast(self):
+    @override
+    def get_ast(self) -> ast.Expr | ast.Assign:
         """Exposes the normalised AST statement for this yield."""
         return self.stmt
 
@@ -567,9 +570,9 @@ class IRRaise(IRAbstractStmt):
 
     saved_exception_var: str | None
 
-    exc: Optional[ast.expr]
+    exc: ast.expr | None
     #: Exception instance being raised.
-    cause: Optional[ast.expr]
+    cause: ast.expr | None
     #: Optional ``from`` cause to preserve chaining semantics.
     stmt: ast.Raise
     #: Original AST node tracked for location/diagnostics.
@@ -748,6 +751,7 @@ class IRImport(IRAbstractStmt):
     """Represents ``import``/``from`` statements with alias tracking."""
 
     _import_base_name: str | None
+    _resolved_import_name: str | None
     stmt: ast.Import | ast.ImportFrom
     #: Backing AST import node in normalised form.
     module: str | None

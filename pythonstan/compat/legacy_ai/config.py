@@ -57,12 +57,18 @@ class Config:
     type: str = "ai analysis"
 
     @classmethod
-    def from_dict(cls, config_dict: Mapping[str, object]) -> "Config":
+    def from_dict(cls, config_dict: Mapping[str, object] | Mapping[object, object]) -> "Config":
         if type(config_dict) is not dict:
             raise ValueError("AI configuration must be a dictionary")
         unknown = set(config_dict) - {f.name for f in fields(cls)}
         if unknown:
             raise ValueError(f"Unknown AI options: {sorted(unknown)}")
+        validated_config: dict[str, object] = {}
+        for name, value in config_dict.items():
+            if not isinstance(name, str):
+                raise ValueError("AI option names must be strings")
+            validated_config[name] = value
+        config_dict = validated_config
         budget_names = AnalysisBudget().to_dict().keys()
         budget = AnalysisBudget.from_options(
             {name: value for name, value in config_dict.items() if name in budget_names}

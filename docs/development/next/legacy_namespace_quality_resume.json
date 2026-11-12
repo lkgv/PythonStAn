@@ -1,0 +1,103 @@
+{
+  "author": "legacy_quality",
+  "status": "whole_legacy_driver_actual_capability_migration_ready_for_global_freeze",
+  "source_sha256": {
+    "pythonstan/compat/legacy_ai/analysis.py": "0ebe8cfa9c47d914957444162dec4a51f62d0fc25a931eceb4d847b1b1225c9d",
+    "pythonstan/compat/legacy_ai/upstream.py": "7fa75cf2930dfc36273b4846b94708d853db9867726eedb68a29375f762903b1",
+    "pythonstan/compat/legacy_ai/config.py": "b98fadeff1368953273279f39c80348b4f5dd452b8d5f10ac35ba19507c11002",
+    "pythonstan/world/namespace.py": "2772e54b08f5be031320aaf7b5452d5861f5caf7262edeb0d4076ace1c8715f9",
+    "pythonstan/analysis/pointer/kcfa/protocol_context.py": "8faabb6b0fb2c72d4519f22f2dab3d094240454b11abe0da725792633a51f15d",
+    "tests/regression/audit3/test_legacy_upstream_contracts.py": "56298817722838c97311e1541f7abd624e001d1ecead53e749013ba5e356db58"
+  },
+  "changes": [
+    "LegacyAnalysisDriver has zero ordinary and Any-expression diagnostics across its real execution body; deprecated typing imports use actual builtins.",
+    "Actual LegacyProvider raw boundary observes exactly two predecessor services, preserves descriptor access order, checks consumed Native-state payload and constructs QueryState with the identical state object. No raw user-shape TypeGuard, unchecked cast or fictional typed StateSource protocol is used.",
+    "The default result factory always wraps real raw inputs. Trusted internal Provider|QueryState annotations model the helper contract; type-invalid monkeypatched return values continue to execute the legacy runtime path without being represented as verified third-party inputs.",
+    "Optional World analysis-manager and internal-scope reads preserve one getter lookup through typed try/except AttributeError. Scope subscriptions and metadata remain actual run-local objects.",
+    "Parameter names retain original list-comprehension evaluation, optional-argument truth checks, missing-field defaults and second getter reads only for truthy vararg/kwarg. This preserves valid falsy ast.arg subclasses.",
+    "Finite typed Native ProtocolKeyContext.to_string/is_empty producer contracts are now consumed by legacy context users; their bodies are unchanged.",
+    "Namespace and the validated configuration boundary remain as in the preceding bounded slice."
+  ],
+  "checks": {
+    "strong_mypy": {
+      "command": "python -m mypy --no-incremental --disallow-any-expr --output=json pythonstan/compat/legacy_ai/analysis.py pythonstan/compat/legacy_ai/upstream.py pythonstan/world/namespace.py tests/regression/audit3/test_legacy_upstream_contracts.py",
+      "all_imported_records": 2288,
+      "owned_module_diagnostics": 0,
+      "whole_tree_clean": false,
+      "scope_note": "Normal imports retain unrelated diagnostics; the surrounding shell printed counts after mypy, so root final gate supplies authoritative process exit receipts."
+    },
+    "ruff": {
+      "four_owned_runtime_modules": "pass",
+      "new_provider_tests": "pass",
+      "five_runtime_module_format": "pass"
+    },
+    "runtime_current": "62 passed in 1.27s",
+    "config_differential": {
+      "baseline": "c4275e3",
+      "cases": 334,
+      "accepted": 46,
+      "differences": [],
+      "profile": "Declared string-key options, malformed unknown scalar keys, exact dictionary validation, nested legacy solver menus; no analyzed source executed."
+    },
+    "provider_differential": {
+      "cases": 15,
+      "differences": [],
+      "scope": "Consumed convergence value, underlying Native-state identity, raw service/field access order, falsy callable invocation and sampled malformed/missing service errors. Query/result wrappers are foreign classes."
+    },
+    "historical_not_green": {
+      "configuration_cases": {
+        "failed": 6,
+        "all_reproduced": "clean c4275e3"
+      },
+      "legacy_pattern_cases": {
+        "failed": 2,
+        "all_reproduced": "clean c4275e3; conditions lack terminal state"
+      },
+      "limits": "Eight old failures are not counted passed, skipped or relabelled."
+    }
+  },
+  "cross_review": {
+    "reviewers": [
+      "quality_review",
+      "native_quality"
+    ],
+    "accepted_read": "Normal Provider path preserves raw2lookups+1call for statistics/query, one statistics.get and one raw query._state read; state identity retained.",
+    "discovered_repaired": [
+      "NativeState subclass internal-scope getter was doubled; restored exactly one read and independently green.",
+      "Falsy ast.arg subclass vararg/kwarg was previously included; original truth and getter semantics restored and independently checked."
+    ]
+  },
+  "limits": [
+    "Actual raw state payload must satisfy the already declared canonical PointerAnalysisState contract; arbitrary structural StateProxy objects outside that contract are not accepted by the new checked boundary. Query/result wrappers themselves remain structural and nonnominal.",
+    "Invalid DI monkeypatch returns that violate the trusted helper union remain behavioral tests; they do not prove raw third-party input validation.",
+    "Configuration differential covers declared string-key inputs and sampled malformed keys; exotic nonstr objects equal/hash-compatible with a valid field are not promised acceptance equivalence.",
+    "Config retains8 strong Any-expression rows from preexisting field reflection/solver projection; ProtocolKeyContext.append remains a separately tracked old variadic method.",
+    "No final TYPE-01 or whole-tree qualification is asserted; root frozen integration/quality gate is required."
+  ],
+  "earlier_bounded_receipt": {
+    "prior_status": "bounded_changed_body_repairs_ready_for_global_freeze",
+    "prior_runtime_green": {
+      "passed": 51,
+      "seconds": 2.61,
+      "scope": "Namespace source controls, stdlib mock imports, project/relative imports and independent AI boundary tests."
+    },
+    "prior_broader_runtime": {
+      "passed": 74,
+      "failed": 6,
+      "baseline": "c4275e3",
+      "baseline_reproduced_failed_nodes": 6,
+      "failure_categories": [
+        "Three preexisting legacy CLI budget/profile failures",
+        "One preexisting mixed unknown/literal scalar projection failure",
+        "Two missing benchmark.empirical imports"
+      ],
+      "scope_note": "The six failures remain failures and were not skipped or counted green."
+    }
+  },
+  "evidence": "artifacts/next/evidence/legacy-quality-resume",
+  "qualifications": {
+    "type_01_verified": false,
+    "whole_tree_strict": false,
+    "live_llm_requests": 0
+  }
+}

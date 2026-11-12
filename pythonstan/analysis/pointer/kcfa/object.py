@@ -67,6 +67,7 @@ type AllocationSource = (
     | AbstractObject
     | Scope
     | Field
+    | Variable
     | tuple[AllocationSource, ...]
 )
 

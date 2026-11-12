@@ -36,11 +36,11 @@ class ClassHierarchyManager:
         self._mro_cache: dict[AbstractObject, list[AbstractObject]] = {}
         self._computing_mro: set[AbstractObject] = set()
         # Map: class name -> class objects (for lookup by name)
-        self._classes_by_name: dict[str, set[AbstractObject]] = {}
+        self._classes_by_name: dict[object, set[AbstractObject]] = {}
 
     def add_class(
         self, class_obj: "AbstractObject", base_objects: list["AbstractObject"] | None = None
-    ):
+    ) -> None:
         """Add class to hierarchy.
 
         Args:
@@ -56,7 +56,7 @@ class ClassHierarchyManager:
             self._bases[class_obj] = list(base_objects or [])
 
             # Register by name for lookup
-            class_name = getattr(class_obj.alloc_site.stmt, "name", None)
+            class_name = _source_name(class_obj)
             if class_name:
                 if class_name not in self._classes_by_name:
                     self._classes_by_name[class_name] = set()
@@ -73,7 +73,9 @@ class ClassHierarchyManager:
         # Invalidate MRO cache for this class and its subclasses
         self._invalidate_mro_cache(class_obj)
 
-    def update_bases(self, class_obj: "AbstractObject", base_objects: list["AbstractObject"]):
+    def update_bases(
+        self, class_obj: "AbstractObject", base_objects: list["AbstractObject"]
+    ) -> None:
         """Update base classes for a class (called when bases are resolved).
 
         Args:
@@ -87,16 +89,15 @@ class ClassHierarchyManager:
             old_bases = self._bases[class_obj]
             # Remove from old bases' subclasses
             for old_base in old_bases:
-                if old_base in self._subclasses:
-                    if class_obj in self._subclasses[old_base]:
-                        self._subclasses[old_base].remove(class_obj)
+                if old_base in self._subclasses and class_obj in self._subclasses[old_base]:
+                    self._subclasses[old_base].remove(class_obj)
 
         # Replace the relation before rebuilding reverse links and invalidating
         # this class and every descendant whose C3 order can have changed.
         self._bases[class_obj] = list(base_objects)
         self.add_class(class_obj, base_objects)
 
-    def _invalidate_mro_cache(self, class_obj: "AbstractObject"):
+    def _invalidate_mro_cache(self, class_obj: "AbstractObject") -> None:
         """Invalidate MRO cache for a class and all its subclasses."""
         to_invalidate = [class_obj]
         invalidated = set()
@@ -187,6 +188,13 @@ class ClassHierarchyManager:
         return self._classes_by_name.get(class_name, set())
 
 
+def _source_name(obj: "AbstractObject") -> object:
+    """Read a legacy allocation-source label without promising its representation."""
+    attribute = "name"
+    name: object = getattr(obj.alloc_site.stmt, attribute, None)
+    return name
+
+
 def compute_c3_mro(
     class_obj: "AbstractObject", hierarchy: ClassHierarchyManager
 ) -> list["AbstractObject"]:
@@ -248,7 +256,7 @@ def _c3_merge(sequences: list[list["AbstractObject"]]) -> list["AbstractObject"]
     Raises:
         MROError: If no valid merge exists (inconsistent hierarchy)
     """
-    result = []
+    result: list[AbstractObject] = []
 
     # Make mutable copies
     seqs = [list(seq) for seq in sequences]
@@ -278,10 +286,7 @@ def _c3_merge(sequences: list[list["AbstractObject"]]) -> list["AbstractObject"]
         if candidate is None:
             # No valid candidate - inconsistent hierarchy
             # Format error message with class names
-            class_names = [
-                [getattr(obj.alloc_site.stmt, "name", None) or str(obj) for obj in seq]
-                for seq in seqs
-            ]
+            class_names = [[_source_name(obj) or str(obj) for obj in seq] for seq in seqs]
             raise MROError(f"Cannot create consistent MRO: no valid candidate in {class_names}")
 
         result.append(candidate)
@@ -290,5 +295,3 @@ def _c3_merge(sequences: list[list["AbstractObject"]]) -> list["AbstractObject"]
         for seq in seqs:
             if seq and seq[0] == candidate:
                 seq.pop(0)
-
-    return result

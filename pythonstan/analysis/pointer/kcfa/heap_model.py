@@ -8,15 +8,24 @@ from collections.abc import ValuesView
 from dataclasses import dataclass
 from enum import Enum
 from types import EllipsisType
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, override
 
 from pythonstan.analysis.state.keys import FieldKey as SourceFieldKey
+
 from .variable import VariableKind
 
 if TYPE_CHECKING:
     from pythonstan.ir.ir_statements import IRScope
+
     from .context import Ctx, NativeContext, Scope
-    from .object import AbstractObject, AllocationSource, AllocKind, AllocSite, ClassObject, FunctionObject
+    from .object import (
+        AbstractObject,
+        AllocationSource,
+        AllocKind,
+        AllocSite,
+        ClassObject,
+        FunctionObject,
+    )
     from .variable import FieldAccess, Variable
 
 __all__ = [
@@ -92,10 +101,10 @@ class Field:
             FieldKind.UNKNOWN,
             FieldKind.WILDCARD_KEY,
             FieldKind.OWN_UNKNOWN,
-        ]:
-            if self.name is not None or self.index is not None:
-                raise ValueError(f"{_field_kind_value(self.kind)} field should not have name or index")
+        ] and (self.name is not None or self.index is not None):
+            raise ValueError(f"{_field_kind_value(self.kind)} field should not have name or index")
 
+    @override
     def __str__(self) -> str:
         """String representation for debugging."""
         if self.kind == FieldKind.ATTRIBUTE:
@@ -106,7 +115,8 @@ class Field:
             return f"[{self.index}]"
         if self.kind == FieldKind.KEY:
             return f"['{self.name}']"
-        return f".{self.kind.value}"
+        value: object = self.kind.value
+        return f".{value}"
 
 
 type NativeLiteralKey = (

@@ -20,6 +20,7 @@ class NativeQueueStatistics(TypedDict):
 
 class NativeSolverStatistics(TypedDict, total=False):
     iterations: int
+    input_publications: int
     constraints_applied: int
     converged: int
     iteration_limit_reached: int

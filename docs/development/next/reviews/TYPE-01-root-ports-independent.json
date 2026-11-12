@@ -1,0 +1,111 @@
+{
+  "reviewer": "inspector_quality",
+  "author": "root plus state producer integration",
+  "baseline_commit": "c4275e37ef13cf3f1fb9529a5ff9ad05fbcc117c",
+  "source_sha256": {
+    "scripts/quality/policy.py": "28487bd542aff8ce1c871a0dbc0022dd1d6b3de88c5c728a9406aa9528739302",
+    "pythonstan/compat/host_iteration.py": "90715ed8413860acf4fe2565bfbddd07e382262527cb058adea26baf8a035230",
+    "pythonstan/compat/host_paths.py": "560e703dfd2a9fcff4b804cf918eaa2122d8d3d625a6c93ce7d6a07da92878f8",
+    "pythonstan/world/module_exports.py": "83aaf660af35330abdb90ceaa6975ae6aca5ac8b0033c1f91bb37374833495cc",
+    "pythonstan/analysis/pointer/kcfa/processor/heap_mapping.py": "1e36cfbec8b15a7782c42d161442870dd5b246ebc0e5441c3a97fe7c21938d5d",
+    "pythonstan/analysis/pointer/kcfa/state.py": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+    "pythonstan/graph/call_graph/call_graph.py": "175280714d14caa54f1f3e91208b89a045ea3907a83ad60747d1da18f509d97f",
+    "pythonstan/analysis/pointer/kcfa/object.py": "faf5c93c3a328c9320400ef3d32fa579b582e9ab8535e384a69e2fa59c80dcc8",
+    "tests/regression/audit3/test_host_metadata_membership_independent.py": "4214a028712ab4cadbc7573068e9381a0fd240da650b3365585d597a05069078"
+  },
+  "status": "accepted bounded host and manager compatibility after reproduced fixes; quality-anchor guard repair reviewed separately",
+  "findings_repaired": [
+    {
+      "location": "world/module_exports._source_path",
+      "issue": "Direct value.__fspath__ invoked an ordinary instance shadow instead of the filesystem type slot, selecting different source code than original pathlib.Path.",
+      "witness": "Foreign path returns actual.py from its class slot and shadow.py from an instance attribute; baseline exported actual_export, pre-fix candidate exported shadow_export.",
+      "fix_review": "Captured fixed os.fspath primitive accepts erased host input, preserves the special-method slot protocol and validates its real string/bytes result; no arbitrary analyzer callback gets this capability.",
+      "green_control": "test_actual_module_source_uses_the_filesystem_type_slot"
+    },
+    {
+      "location": "processor/heap_mapping namespace/copy service lookup",
+      "issue": "Nominal runtime protocol check of an entire manager rejected previously valid dynamic get/add services.",
+      "witness": "Actual FieldCreatedObserver managers implement service lookup through __getattr__; two independent tests were2failed7passed before correction.",
+      "fix_review": "Each actual service is looked up once and invoked through a finite callable port; namespace output is checked as actual DictObject; add result stays ignored as before. Manager, view, owner and excluded-set identities are preserved.",
+      "green_controls": [
+        "test_actual_namespace_view_accepts_the_existing_dynamic_get_service",
+        "test_actual_mapping_copy_accepts_the_existing_dynamic_add_service"
+      ]
+    }
+  ],
+  "other_review_observations": [
+    "contains_object captures operator.contains and invokes actual membership, including legacy __getitem__ fallback, without ABC filtering or enumeration/copy of the opaque export cache.",
+    "source_export_names returns an existing non-None cache by identity; malformed source retains the existing AST fallback and successful extraction cache.",
+    "State manager getters preserve absent storage and do not activate listeners; field index is published before recursive Subscriber callbacks.",
+    "State extra-export query distinguishes missing metadata from a present falsy set, retaining membership semantics.",
+    "AllocationSource Variable extension is type-only; call graph constructor/add_edge executable bodies are unchanged, while edges_in_to now correctly names the Method key type.",
+    "Production suppression guard is strengthened for nonfrontier sources and still tokenizes comments, so string-literal examples are not treated as waivers. No baseline or scan exclusion is changed."
+  ],
+  "checks": {
+    "host_cache_managers": {
+      "passed": 9,
+      "evidence": "artifacts/next/evidence/inspector-quality-resume/host-manager-green.txt"
+    },
+    "existing_index_recursive_subscriber": {
+      "passed": 3,
+      "separate_inherited_workcount_cases": 8,
+      "scope_note": "The8 deselected cases are separately executed and baseline-classified, not counted green or removed."
+    },
+    "independent_new_test_types": {
+      "own_diagnostics": 0,
+      "whole_import_command_exit": 1,
+      "scope_note": "Imported legacy diagnostics retained; no whole-tree strict claim."
+    },
+    "known_fields_baseline_runs": [
+      {
+        "log": "artifacts/next/evidence/inspector-quality-resume/known-fields-c427.txt",
+        "failures": [
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-False-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-False-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-False-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-True]"
+        ],
+        "summary": "7 failed, 4 passed in 1.34s"
+      },
+      {
+        "log": "artifacts/next/evidence/inspector-quality-resume/known-fields-c427-repeat1.txt",
+        "failures": [
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-False-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-True]"
+        ],
+        "summary": "5 failed, 6 passed in 1.38s"
+      },
+      {
+        "log": "artifacts/next/evidence/inspector-quality-resume/known-fields-c427-repeat2.txt",
+        "failures": [
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-False-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-False-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[fifo-True-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-False-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-False-True]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-False]",
+          "tests/round9_solver/test_known_fields_index.py::test_mapping_copy_update_items_fixpoint_matches_global_scan[lifo-True-True]"
+        ],
+        "summary": "8 failed, 3 passed in 1.32s"
+      }
+    ],
+    "policy_controls": {
+      "passed": 16,
+      "failed": 1,
+      "failure": "New parameter-reformat anchor invariant under quality_review ownership; captured red, not accepted green.",
+      "evidence": "artifacts/next/evidence/inspector-quality-resume/policy-independent.txt"
+    }
+  },
+  "qualification_limits": [
+    "No Python semantic soundness or final TYPE-01 qualification is inferred.",
+    "This review does not qualify arbitrary malformed service outputs or unknown extensions as supported.",
+    "Final full-tree quality and core/scale/live gates remain separate."
+  ]
+}

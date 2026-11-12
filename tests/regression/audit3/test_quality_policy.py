@@ -10,7 +10,11 @@ from pathlib import Path
 import pytest
 
 from scripts.quality.debt import Diagnostic, JsonValue, SourceIndex, changed_unit_diagnostics
-from scripts.quality.policy import compare_reviewed_policy, configured_contracts
+from scripts.quality.policy import (
+    compare_reviewed_policy,
+    configured_contracts,
+    reject_source_suppressions,
+)
 
 
 def _reviewed_repository(root: Path) -> tuple[dict[str, JsonValue], dict[str, JsonValue]]:
@@ -126,5 +130,63 @@ def test_duplicate_qualname_cannot_conceal_first_definition_edit(tmp_path: Path)
     symbol, anchor = after.anchor(1)
     row = Diagnostic("mypy", "sample.py", symbol, "no-untyped-def", anchor, "Missing annotation", 1)
     assert before.ast_digest != after.ast_digest
+    assert before.unit_digests() != after.unit_digests()
+    assert changed_unit_diagnostics(baseline, {"sample.py": after}, [row]) == [row]
+
+
+@pytest.mark.parametrize("waiver", ["# type: ignore[assignment]", "# noqa: ANN201"])
+def test_nonfrontier_source_cannot_hide_new_debt_with_an_inline_waiver(
+    tmp_path: Path, waiver: str
+) -> None:
+    relative = "pythonstan/native_legacy.py"
+    source = tmp_path / relative
+    source.parent.mkdir()
+    source.write_text(f'value: int = "wrong"  {waiver}\n', encoding="utf-8")
+
+    # The module deliberately has no frontier membership. Its legacy status
+    # must not grant permission to introduce a new diagnostic suppression.
+    assert reject_source_suppressions(tmp_path, set(), (relative,))
+
+
+def test_suppression_text_in_a_string_is_not_a_source_waiver(tmp_path: Path) -> None:
+    relative = "pythonstan/native_legacy.py"
+    source = tmp_path / relative
+    source.parent.mkdir()
+    source.write_text('example = "# type: ignore[assignment] # noqa: ANN201"\n', encoding="utf-8")
+
+    assert reject_source_suppressions(tmp_path, set(), (relative,)) == []
+
+
+def test_reformatting_function_parameters_does_not_change_the_diagnostic_anchor(
+    tmp_path: Path,
+) -> None:
+    file = tmp_path / "sample.py"
+    file.write_text("def f(first, last):\n    return first\n", encoding="utf-8")
+    compact = SourceIndex.read(tmp_path, "sample.py")
+    file.write_text("def f(\n    first,\n    last,\n):\n    return first\n", encoding="utf-8")
+    expanded = SourceIndex.read(tmp_path, "sample.py")
+
+    assert compact.ast_digest == expanded.ast_digest
+    assert compact.unit_digests() == expanded.unit_digests()
+    assert compact.anchor(1) == expanded.anchor(3)
+
+
+def test_same_signature_diagnostic_remains_forbidden_after_a_real_body_edit(
+    tmp_path: Path,
+) -> None:
+    file = tmp_path / "sample.py"
+    file.write_text("def f(first, last):\n    return first\n", encoding="utf-8")
+    before = SourceIndex.read(tmp_path, "sample.py")
+    baseline: dict[str, JsonValue] = {
+        "modules": [{"path": "sample.py", "unit_digests": dict(before.unit_digests())}]
+    }
+    file.write_text("def f(first, last):\n    return first + 1\n", encoding="utf-8")
+    after = SourceIndex.read(tmp_path, "sample.py")
+    symbol, anchor = after.anchor(1)
+    row = Diagnostic(
+        "ruff", "sample.py", symbol, "ANN001", anchor, "Missing annotation for first", 1
+    )
+
+    assert before.anchor(1) == after.anchor(1)
     assert before.unit_digests() != after.unit_digests()
     assert changed_unit_diagnostics(baseline, {"sample.py": after}, [row]) == [row]

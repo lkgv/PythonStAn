@@ -80,10 +80,12 @@ class ProtocolKeyContext(AbstractContext[ProtocolItemT]):
             )
         super().__post_init__()
 
-    def to_string(self):
+    @override
+    def to_string(self) -> str:
         return f"K[{self.inner.to_string()};{self.partition.key_kind}]"
 
-    def is_empty(self):
+    @override
+    def is_empty(self) -> bool:
         return False
 
     def append(self, *args, **kwargs):

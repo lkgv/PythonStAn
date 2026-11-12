@@ -93,9 +93,10 @@ enable_error_code = [
 [[tool.mypy.overrides]]
 module = [
   "pythonstan.analysis.domains.*",
+  "pythonstan.analysis.state.*",
 ]
 disallow_any_expr = true
-# State override is added when its canonical package actually exists.
+# Canonical state and domain implementations keep expression-level Any checking.
 # The quality runner verifies all configured override patterns match modules.
 
 [tool.importlinter]

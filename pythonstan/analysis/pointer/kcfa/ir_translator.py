@@ -3,11 +3,13 @@
 This module translates IR events to pointer constraints for analysis.
 """
 
+from __future__ import annotations
+
 import ast
 import logging
 from collections import defaultdict
 from collections.abc import Callable
-from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+from typing import override
 
 from pythonstan.frontend.source import source_constant
 from pythonstan.ir.ir_statements import (
@@ -118,8 +120,8 @@ class IRTranslator:
         self.scope_manager = self.world.scope_manager
         self.namespace_manager = self.world.namespace_manager
 
-    def translate_function(self, func: IRFunc) -> List["Constraint"]:
-        constraints = []
+    def translate_function(self, func: IRFunc) -> list[Constraint]:
+        constraints: list[Constraint] = []
 
         # avoid infinite recursion
         if func in self._scope_constraints:
@@ -158,7 +160,7 @@ class IRTranslator:
 
         return constraints
 
-    def translate_class(self, cls_stmt: IRClass) -> List["Constraint"]:
+    def translate_class(self, cls_stmt: IRClass) -> list[Constraint]:
         """Translate class definition: allocate class object and bind methods."""
         assert isinstance(cls_stmt, IRClass), f"Class is not an IRClass: {type(cls_stmt)}"
 
@@ -166,7 +168,7 @@ class IRTranslator:
             self.used_variables = list(self._class_variables[cls_stmt])
             return self._scope_constraints[cls_stmt]
 
-        constraints = []
+        constraints: list[Constraint] = []
         self.used_variables = []
         irs = self.scope_manager.get_ir(cls_stmt, "ir")
 
@@ -187,7 +189,7 @@ class IRTranslator:
 
         return constraints
 
-    def _make_variable(self, name: str) -> "Variable":
+    def _make_variable(self, name: str) -> Variable:
         if self._current_scope is None:
             raise RuntimeError("No active scope for variable creation")
 
@@ -208,11 +210,8 @@ class IRTranslator:
                 kind = VariableKind.LOCAL
             else:
                 enclosing_kind = self._resolve_enclosing_variable_kind(name)
-                if enclosing_kind is not None:
-                    kind = enclosing_kind
-                else:
-                    # Treat unresolved names as globals (module-level)
-                    kind = VariableKind.GLOBAL
+                # Treat unresolved names as globals (module-level).
+                kind = enclosing_kind if enclosing_kind is not None else VariableKind.GLOBAL
         elif isinstance(self._current_scope, IRClass):
             locals_in_scope = self._local_vars.get(self._current_scope, set())
             if name in self._current_scope.get_global_vars():
@@ -223,10 +222,7 @@ class IRTranslator:
                 kind = VariableKind.LOCAL
             else:
                 enclosing_kind = self._resolve_enclosing_variable_kind(name)
-                if enclosing_kind is not None:
-                    kind = enclosing_kind
-                else:
-                    kind = VariableKind.GLOBAL
+                kind = enclosing_kind if enclosing_kind is not None else VariableKind.GLOBAL
         elif name in self._current_scope.get_nonlocal_vars():
             kind = VariableKind.NONLOCAL
         elif name in self._current_scope.get_global_vars():
@@ -249,7 +245,7 @@ class IRTranslator:
 
         return self._var_factory.make_variable(name=name, kind=kind)
 
-    def _register_local_var(self, name_or_var: Optional[Union[str, "Variable"]]) -> None:
+    def _register_local_var(self, name_or_var: str | Variable | None) -> None:
         if not name_or_var:
             return
         if not isinstance(self._current_scope, (IRFunc, IRClass)):
@@ -267,7 +263,7 @@ class IRTranslator:
         locals_set = self._local_vars.setdefault(self._current_scope, set())
         locals_set.add(name)
 
-    def _process_stmt(self, stmt: IRStatement) -> List["Constraint"]:
+    def _process_stmt(self, stmt: IRStatement) -> list[Constraint]:
         ret = []
 
         if isinstance(stmt, IRContextEnter):
@@ -323,7 +319,7 @@ class IRTranslator:
                 ret.append(
                     TruthTestConstraint(
                         self._make_variable(stmt.test.id),
-                        CallSite(stmt, self._current_scope.get_qualname()),
+                        CallSite(stmt, self._current_scope_label()),
                     )
                 )
 
@@ -341,9 +337,9 @@ class IRTranslator:
 
         return ret
 
-    def _translate_copy(self, stmt: IRCopy) -> List["Constraint"]:
+    def _translate_copy(self, stmt: IRCopy) -> list[Constraint]:
         """Translate IRCopy: target = source"""
-        constraints = []
+        constraints: list[Constraint] = []
 
         lval = stmt.get_lval().id
         rval = stmt.get_rval().id
@@ -389,7 +385,10 @@ class IRTranslator:
         generator_var = self._make_variable("$generator")
 
         if stmt.is_yield_from():
-            delegated = self._make_variable(stmt.value.id)
+            value = stmt.value
+            if value is None:
+                raise AttributeError("yield-from IR has no delegated value")
+            delegated = self._make_variable(value.id)
             yielded = self._make_variable(f"$delegated_yield@{id(stmt)}")
             sent = self._make_variable(f"$delegated_sent@{id(stmt)}")
             completion = None
@@ -512,7 +511,7 @@ class IRTranslator:
             AwaitConstraint(
                 awaitable_var,
                 target_var,
-                CallSite(statement=stmt, scope_name=self._current_scope.get_qualname()),
+                CallSite(statement=stmt, scope_name=self._current_scope_label()),
                 suspension_target=suspension,
                 sent_value=sent,
             )
@@ -694,7 +693,7 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_load_attr(self, stmt: IRLoadAttr) -> List["Constraint"]:
+    def _translate_load_attr(self, stmt: IRLoadAttr) -> list[Constraint]:
         """Translate IRLoadAttr: target = base.attr"""
         lval = stmt.get_lval().id
         obj_name = stmt.get_obj().id
@@ -719,7 +718,7 @@ class IRTranslator:
             )
         ]
 
-    def _translate_store_attr(self, stmt: IRStoreAttr) -> List["Constraint"]:
+    def _translate_store_attr(self, stmt: IRStoreAttr) -> list[Constraint]:
         """Translate IRStoreAttr: base.attr = source"""
         obj_name = stmt.get_obj().id
         attr_name = stmt.get_attr()
@@ -736,7 +735,7 @@ class IRTranslator:
             )
         ]
 
-    def _translate_call(self, stmt: IRCall) -> List["Constraint"]:
+    def _translate_call(self, stmt: IRCall) -> list[Constraint]:
         """Translate IRCall: target = callee(args...)"""
         # Only trusted frontend lowering attaches this in-memory AST marker.
         # Implicit async iteration performs type-level protocol lookup, without
@@ -765,14 +764,14 @@ class IRTranslator:
                 )
             ]
         # TODO all conditions of arguments should be translated to constraints
-        constraints = []
+        constraints: list[Constraint] = []
 
         lval = stmt.get_target()
         callee_expr = stmt.get_func_name()
         args = stmt.get_args()
 
         callee_var = self._make_variable(callee_expr)
-        arg_vars = []
+        arg_values: list[Variable] = []
         for idx, (arg, _) in enumerate(args):
             if arg.startswith("<Constant: ") and arg.endswith(">"):
                 value_str = arg[len("<Constant: ") : -1]
@@ -790,10 +789,10 @@ class IRTranslator:
                 )
                 const_alloc = AllocSite.from_ir_node(const_assign, AllocKind.CONSTANT)
                 constraints.append(AllocConstraint(target=const_var, alloc_site=const_alloc))
-                arg_vars.append(const_var)
+                arg_values.append(const_var)
             else:
-                arg_vars.append(self._make_variable(arg))
-        arg_vars = tuple(arg_vars)
+                arg_values.append(self._make_variable(arg))
+        arg_vars = tuple(arg_values)
 
         target_var = None
         if lval:
@@ -828,6 +827,11 @@ class IRTranslator:
 
         return constraints
 
+    def _current_scope_label(self) -> str:
+        if self._current_scope is None:
+            raise RuntimeError("No active scope for constraint translation")
+        return self._current_scope.get_qualname()
+
     def _get_current_scope_label(self) -> str:
         """Return a stable string label for the current scope.
 
@@ -850,26 +854,20 @@ class IRTranslator:
                 return "__main__"
             return self._current_scope.get_qualname()
 
-        if hasattr(self._current_scope, "get_qualname"):
-            return self._current_scope.get_qualname()
+        return self._current_scope.get_qualname()
 
-        if hasattr(self._current_scope, "name"):
-            return self._current_scope.name
-
-        return str(self._current_scope)
-
-    def _resolve_enclosing_variable_kind(self, name: str) -> Optional[VariableKind]:
+    def _resolve_enclosing_variable_kind(self, name: str) -> VariableKind | None:
         """Infer variable kind from enclosing scopes when closure metadata is missing."""
         if self._current_scope is None:
             return None
 
-        father_map = getattr(self.scope_manager, "father", {})
+        father_map = self.scope_manager.father
         parent = father_map.get(self._current_scope)
 
         while parent is not None:
             locals_in_parent = self._local_vars.get(parent, set())
             if isinstance(parent, IRFunc):
-                arg_names = getattr(parent, "arg_names", set())
+                arg_names = parent.arg_names
                 if name in parent.get_global_vars():
                     return VariableKind.GLOBAL
                 if name in parent.get_nonlocal_vars():
@@ -879,14 +877,17 @@ class IRTranslator:
             # Enclosing class namespaces are not lexical closure scopes for
             # nested class or function bodies. Bases/decorators are translated
             # in their actual surrounding scope separately.
-            elif isinstance(parent, IRModule):
-                if hasattr(parent, "global_vars") and name in parent.get_global_vars():
-                    return VariableKind.GLOBAL
+            elif (
+                isinstance(parent, IRModule)
+                and hasattr(parent, "global_vars")
+                and name in parent.get_global_vars()
+            ):
+                return VariableKind.GLOBAL
             parent = father_map.get(parent)
 
         return None
 
-    def _translate_return(self, stmt: IRReturn) -> List["Constraint"]:
+    def _translate_return(self, stmt: IRReturn) -> list[Constraint]:
         """Translate IRReturn: return value.
 
         For regular functions: stores to $return variable.
@@ -899,7 +900,7 @@ class IRTranslator:
             return []
 
         source_var = self._make_variable(rval)
-        constraints = []
+        constraints: list[Constraint] = []
 
         # Check if we're in an async function
         is_async = isinstance(self._current_scope, IRFunc) and self._current_scope.is_async
@@ -917,17 +918,20 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_load_subscr(self, stmt: IRLoadSubscr) -> List["Constraint"]:
+    def _translate_load_subscr(self, stmt: IRLoadSubscr) -> list[Constraint]:
         """Translate IRLoadSubscr: target = container[index]"""
         lval = stmt.get_lval().id
-        container_name = stmt.get_obj().id
+        container = stmt.get_obj()
+        if not isinstance(container, ast.Name):
+            raise TypeError("Native subscript base must be a normalized name")
+        container_name = container.id
 
         subslice = stmt.get_slice()
         self._register_local_var(lval)
         container_var = self._make_variable(container_name)
         target_var = self._make_variable(lval)
 
-        constraints = []
+        constraints: list[Constraint] = []
 
         # Extract index variable for dynamic field resolution
         if hasattr(subslice, "id"):
@@ -997,15 +1001,18 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_store_subscr(self, stmt: IRStoreSubscr) -> List["Constraint"]:
+    def _translate_store_subscr(self, stmt: IRStoreSubscr) -> list[Constraint]:
         """Translate IRStoreSubscr: container[index] = value"""
-        container_name = stmt.get_obj().id
+        container = stmt.get_obj()
+        if not isinstance(container, ast.Name):
+            raise TypeError("Native subscript base must be a normalized name")
+        container_name = container.id
         value_name = stmt.get_rval().id
 
         container_var = self._make_variable(container_name)
         value_var = self._make_variable(value_name)
 
-        constraints = []
+        constraints: list[Constraint] = []
 
         # Extract index variable for dynamic field resolution
         index_expr = stmt.get_slice()
@@ -1072,7 +1079,9 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_expression(self, expression, owner, index=0):
+    def _translate_expression(
+        self, expression: ast.expr, owner: IRStatement, index: int = 0
+    ) -> tuple[Variable, list[Constraint]]:
         """Normalize direct-IR callers through the shared TAC expression path.
 
         In the normal source pipeline decorators are already names. This
@@ -1081,7 +1090,10 @@ class IRTranslator:
         if isinstance(expression, ast.Name):
             return self._make_variable(expression.id), []
         from pythonstan.analysis.transform.ir import IRTransformer
-        from pythonstan.analysis.transform.three_address import ThreeAddressTransformer
+        from pythonstan.analysis.transform.three_address import (
+            ThreeAddressTransformer,
+            make_constant,
+        )
         from pythonstan.utils import TempVarGenerator
 
         prefix = f"$expr_{id(owner)}_{index}_"
@@ -1094,7 +1106,8 @@ class IRTranslator:
         }
 
         class RenameConstants(ast.NodeTransformer):
-            def visit_Name(self, node):
+            @override
+            def visit_Name(self, node: ast.Name) -> ast.Name:
                 if node.id in constant_names:
                     return ast.copy_location(
                         ast.Name(id=constant_names[node.id], ctx=node.ctx), node
@@ -1107,13 +1120,16 @@ class IRTranslator:
         constant_stmts = [
             ast.Assign(
                 targets=[ast.Name(id=constant_names[name], ctx=ast.Store())],
-                value=ast.Constant(value=constant),
+                value=make_constant(constant),
             )
             for name, constant in constants
         ]
-        ir = IRTransformer(self._current_scope)
+        scope = self._current_scope
+        if scope is None:
+            raise RuntimeError("No active scope for expression translation")
+        ir = IRTransformer(scope)
         ir.process_stmts(constant_stmts + statements)
-        constraints = []
+        constraints: list[Constraint] = []
         for statement in ir.get_stmts():
             constraints.extend(self._process_stmt(statement))
         if not isinstance(value, ast.Name):
@@ -1131,14 +1147,14 @@ class IRTranslator:
         location = f"{self._get_current_scope_label()}:{line}:{type(stmt).__name__}"
         return ResidualEffectConstraint(location, reason, tuple(effects))
 
-    def _context_variables(self, entry):
+    def _context_variables(self, entry: IRContextEnter) -> dict[str, Variable]:
         prefix = f"$context_{id(entry)}_"
         return {
             name: self._make_variable(prefix + name)
             for name in ("manager", "enter", "exit", "entered", "exit_result", "exception")
         }
 
-    def _translate_context_enter(self, stmt):
+    def _translate_context_enter(self, stmt: IRContextEnter) -> list[Constraint]:
         variables = self._context_variables(stmt)
         manager, constraints = self._translate_expression(stmt.item.context_expr, stmt)
         constraints.append(CopyConstraint(manager, variables["manager"]))
@@ -1203,7 +1219,7 @@ class IRTranslator:
             )
         return constraints
 
-    def _translate_context_exit(self, stmt):
+    def _translate_context_exit(self, stmt: IRContextExit) -> list[Constraint]:
         entry = stmt.entry
         variables = self._context_variables(entry)
         # Union normal None with an unknown exceptional triple. This is a
@@ -1214,7 +1230,7 @@ class IRTranslator:
                 value=ast.Constant(value=None),
             )
         )
-        constraints = [
+        constraints: list[Constraint] = [
             AllocConstraint(
                 variables["exception"], AllocSite.from_ir_node(none_stmt, AllocKind.CONSTANT)
             ),
@@ -1245,9 +1261,9 @@ class IRTranslator:
             constraints.extend(self._translate_await(awaited))
         return constraints
 
-    def _translate_function_def(self, stmt: IRFunc) -> Tuple[Variable, List["Constraint"]]:
+    def _translate_function_def(self, stmt: IRFunc) -> tuple[Variable, list[Constraint]]:
         """Allocate raw function, then apply fully evaluated decorators."""
-        constraints = []
+        constraints: list[Constraint] = []
         self._register_local_var(stmt.name)
         self._local_vars.setdefault(stmt, set()).update(stmt.get_arg_names())
         decorators = []
@@ -1286,9 +1302,9 @@ class IRTranslator:
             constraints = self.function_constraint_transform(stmt, constraints)
         return func_var, constraints
 
-    def _translate_class_def(self, ir_cls: IRClass) -> Tuple[Variable, List["Constraint"]]:
+    def _translate_class_def(self, ir_cls: IRClass) -> tuple[Variable, list[Constraint]]:
         """Translate class definition: allocate class object and bind methods."""
-        constraints = []
+        constraints: list[Constraint] = []
         self._register_local_var(ir_cls.name)
         # Base expressions are evaluated in the surrounding lexical scope.
         # Preserve the resolved kinds before entering the class scope.
@@ -1458,13 +1474,13 @@ class IRTranslator:
         return constraints
 
     def _translate_with_enter(
-        self, context_manager_var: "Variable", target_var: "Variable"
-    ) -> List["Constraint"]:
+        self, context_manager_var: Variable, target_var: Variable
+    ) -> list[Constraint]:
         """Generate constraints for context manager __enter__.
         Used for: with obj as target: ...
         Generates: temp = obj.__enter__; target = temp()
         """
-        constraints = []
+        constraints: list[Constraint] = []
 
         enter_method_var = self._make_variable(f"$enter_{id(context_manager_var)}")
         constraints.append(
@@ -1473,7 +1489,10 @@ class IRTranslator:
             )
         )
 
-        call_stmt = IRCall(ast.parse(f"[{target_var}] = {context_manager_var}.__enter__()").body[0])
+        parsed = ast.parse(f"[{target_var}] = {context_manager_var}.__enter__()").body[0]
+        if not isinstance(parsed, ast.Assign):
+            raise TypeError("Generated enter call must be an assignment")
+        call_stmt = IRCall(parsed)
         call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(
             CallConstraint(
@@ -1487,21 +1506,22 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_with_exit(self, context_manager_var: "Variable") -> List["Constraint"]:
+    def _translate_with_exit(self, context_manager_var: Variable) -> list[Constraint]:
         """Generate constraints for context manager __exit__.
         Used for: with obj: ... (at exit)
         Generates: temp = obj.__exit__; temp(None, None, None)
         """
-        constraints = []
+        constraints: list[Constraint] = []
 
         exit_method_var = self._make_variable(f"$exit_{id(context_manager_var)}")
         constraints.append(
             LoadConstraint(base=context_manager_var, field=attr("__exit__"), target=exit_method_var)
         )
 
-        call_stmt = IRCall(
-            ast.parse(f"{context_manager_var}.__exit__(None, None, None)").body[0].value
-        )
+        parsed = ast.parse(f"{context_manager_var}.__exit__(None, None, None)").body[0]
+        if not isinstance(parsed, ast.Expr) or not isinstance(parsed.value, ast.Call):
+            raise TypeError("Generated exit call must be a call expression")
+        call_stmt = IRCall(parsed.value)
         call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(
             CallConstraint(
@@ -1515,21 +1535,22 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_iter(
-        self, iterable_var: "Variable", target_var: "Variable"
-    ) -> List["Constraint"]:
+    def _translate_iter(self, iterable_var: Variable, target_var: Variable) -> list[Constraint]:
         """Generate constraints for iterator creation.
         Used for: for item in obj: ...
         Generates: iter_temp = obj.__iter__; target = iter_temp()
         """
-        constraints = []
+        constraints: list[Constraint] = []
 
         iter_method_var = self._make_variable(f"$iter_{id(iterable_var)}")
         constraints.append(
             LoadConstraint(base=iterable_var, field=attr("__iter__"), target=iter_method_var)
         )
 
-        call_stmt = IRCall(ast.parse(f"[{target_var}] = {iterable_var}.__iter__()").body[0])
+        parsed = ast.parse(f"[{target_var}] = {iterable_var}.__iter__()").body[0]
+        if not isinstance(parsed, ast.Assign):
+            raise TypeError("Generated iter call must be an assignment")
+        call_stmt = IRCall(parsed)
         call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(
             CallConstraint(
@@ -1543,18 +1564,19 @@ class IRTranslator:
 
         return constraints
 
-    def _translate_next(
-        self, iterator_var: "Variable", target_var: "Variable"
-    ) -> List["Constraint"]:
+    def _translate_next(self, iterator_var: Variable, target_var: Variable) -> list[Constraint]:
         """Generate constraints for iterator next."""
-        constraints = []
+        constraints: list[Constraint] = []
 
         next_method_var = self._make_variable(f"$next_{id(iterator_var)}")
         constraints.append(
             LoadConstraint(base=iterator_var, field=attr("__next__"), target=next_method_var)
         )
 
-        call_stmt = IRCall(ast.parse(f"[{target_var}] = {iterator_var}.__next__()").body[0])
+        parsed = ast.parse(f"[{target_var}] = {iterator_var}.__next__()").body[0]
+        if not isinstance(parsed, ast.Assign):
+            raise TypeError("Generated next call must be an assignment")
+        call_stmt = IRCall(parsed)
         call_site = CallSite(statement=call_stmt, scope_name=self._get_current_scope_label())
         constraints.append(
             CallConstraint(
@@ -1570,13 +1592,13 @@ class IRTranslator:
 
     def _translate_binary_op(
         self,
-        left_var: "Variable",
-        right_var: "Variable",
-        target_var: "Variable",
+        left_var: Variable,
+        right_var: Variable,
+        target_var: Variable,
         op: ast.operator,
         stmt: IRStatement,
-    ) -> List["Constraint"]:
-        constraints = []
+    ) -> list[Constraint]:
+        constraints: list[Constraint] = []
 
         op_name = BINOP_TABLE.get(type(op))
         if not op_name:
@@ -1615,12 +1637,12 @@ class IRTranslator:
 
     def _translate_unary_op(
         self,
-        operand_var: "Variable",
-        target_var: "Variable",
+        operand_var: Variable,
+        target_var: Variable,
         op: ast.unaryop,
         stmt: IRStatement,
-    ) -> List["Constraint"]:
-        constraints = []
+    ) -> list[Constraint]:
+        constraints: list[Constraint] = []
 
         op_name = UNARYOP_TABLE.get(type(op))
         if not op_name:
