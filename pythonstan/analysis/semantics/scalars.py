@@ -1,26 +1,46 @@
 """Trusted builtin operations on already evaluated finite scalar operands."""
+
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from functools import cmp_to_key
 
 from pythonstan.analysis.contracts.json_data import JsonScalar
 
 
-def scalar_conversion(name: str, arguments: Sequence[JsonScalar], keywords: Mapping[str, JsonScalar]) -> JsonScalar:
+def scalar_conversion(
+    name: str, arguments: Sequence[JsonScalar], keywords: Mapping[str, JsonScalar]
+) -> JsonScalar:
     if name == "str":
-        if len(arguments) > 3 or any(key not in {"object", "encoding", "errors"} for key in keywords):
+        if len(arguments) > 3 or any(
+            key not in {"object", "encoding", "errors"} for key in keywords
+        ):
             raise TypeError("Invalid str arguments")
         if arguments and "object" in keywords:
             raise TypeError("Multiple values for str object")
         value = arguments[0] if arguments else keywords.get("object", "")
         encoding = arguments[1] if len(arguments) > 1 else keywords.get("encoding")
         errors = arguments[2] if len(arguments) > 2 else keywords.get("errors")
-        if len(arguments) > 1 and "encoding" in keywords or len(arguments) > 2 and "errors" in keywords:
+        if (
+            len(arguments) > 1
+            and "encoding" in keywords
+            or len(arguments) > 2
+            and "errors" in keywords
+        ):
             raise TypeError("Multiple string decoding options")
-        if (len(arguments) > 1 or "encoding" in keywords) and not isinstance(encoding, str) or (len(arguments) > 2 or "errors" in keywords) and not isinstance(errors, str):
+        if (
+            (len(arguments) > 1 or "encoding" in keywords)
+            and not isinstance(encoding, str)
+            or (len(arguments) > 2 or "errors" in keywords)
+            and not isinstance(errors, str)
+        ):
             raise TypeError("String decoding options must be strings")
-        if (len(arguments) > 1 or "encoding" in keywords or len(arguments) > 2 or "errors" in keywords) and (arguments or "object" in keywords):
+        if (
+            len(arguments) > 1
+            or "encoding" in keywords
+            or len(arguments) > 2
+            or "errors" in keywords
+        ) and (arguments or "object" in keywords):
             raise TypeError("Decoding a scalar requires a bytes buffer")
         return str(value)
     if name == "int":
@@ -36,7 +56,11 @@ def scalar_conversion(name: str, arguments: Sequence[JsonScalar], keywords: Mapp
         value = arguments[0]
         if has_base:
             base = arguments[1] if len(arguments) > 1 else keywords["base"]
-            if not isinstance(value, str) or not isinstance(base, int):
+            if not isinstance(base, int):
+                raise TypeError("An explicit integer base requires text and an integer base")
+            if base != 0 and not 2 <= base <= 36:
+                raise ValueError("int base must be 0 or between 2 and 36")
+            if not isinstance(value, str):
                 raise TypeError("An explicit integer base requires text and an integer base")
             return int(value, base)
         if isinstance(value, (int, float, str)):
@@ -98,20 +122,26 @@ def scalar_sort(values: Sequence[JsonScalar]) -> list[JsonScalar]:
     return sorted(values, key=cmp_to_key(_compare))
 
 
-def scalar_aggregate(name: str, values: Sequence[JsonScalar], initial: JsonScalar = 0) -> JsonScalar:
+def scalar_aggregate(
+    name: str, values: Sequence[JsonScalar], initial: JsonScalar = 0
+) -> JsonScalar:
     if name == "all":
         return all(values)
     if name == "any":
         return any(values)
     if name == "sum":
+        if initial is None and not values:
+            return None
         if not isinstance(initial, (int, float)):
             raise TypeError("sum requires a numeric initial value")
-        numbers: list[int | float] = []
-        for value in values:
-            if not isinstance(value, (int, float)):
-                raise TypeError("sum requires numeric elements")
-            numbers.append(value)
-        return sum(numbers, initial)
+
+        def numbers() -> Iterator[int | float]:
+            for value in values:
+                if not isinstance(value, (int, float)):
+                    raise TypeError("sum requires numeric elements")
+                yield value
+
+        return sum(numbers(), initial)
     if name not in {"min", "max"}:
         raise ValueError("Unknown scalar aggregate: " + name)
     if not values:

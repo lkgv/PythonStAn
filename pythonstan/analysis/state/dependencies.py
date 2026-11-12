@@ -1,4 +1,5 @@
 """Observed summary versions used by real caller invalidation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -11,10 +11,12 @@ from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pythonstan.ir.ir_statements import *
-    from .context import AbstractContext, Scope, Ctx
+    from .context import AbstractContext, Scope, Ctx, CallSite, NativeContext
+    from .heap_model import Field
     from .variable import Variable
 
 __all__ = [
+    "AllocationSource",
     "AllocKind",
     "AllocSite",
     "AbstractObject",
@@ -44,6 +46,20 @@ __all__ = [
     "summarize_object",
     "is_summary_object",
 ]
+
+
+type AllocationSource = (
+    IRStatement
+    | None
+    | str
+    | int
+    | float
+    | CallSite
+    | AbstractObject
+    | Scope
+    | Field
+    | tuple[AllocationSource, ...]
+)
 
 
 class AllocKind(Enum):
@@ -88,7 +104,7 @@ class AllocSite:
         name: Optional name for named allocations (functions, classes)
     """
 
-    stmt: "IRStatement"
+    stmt: AllocationSource
     kind: AllocKind
 
     def __post_init__(self):
@@ -172,7 +188,7 @@ class AbstractObject:
         alloc_site: Allocation site (static identity)
     """
 
-    context: "AbstractContext"
+    context: "NativeContext | None"
     alloc_site: AllocSite
 
     def __str__(self) -> str:
@@ -258,7 +274,7 @@ class InstanceObject(AbstractObject):
 
 @dataclass(frozen=True)
 class ConstantObject(AbstractObject):
-    value: Union[str, int, float, bool]
+    value: Union[str, int, float, bool, None]
 
 
 @dataclass(frozen=True)

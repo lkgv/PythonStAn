@@ -5,15 +5,22 @@ is selected only by points_work_policy='consumer_fair'. OrderedDict lanes avoid
 scanning or copying the pending queue during selection and promotion.
 """
 
+from __future__ import annotations
 from collections import OrderedDict
 
 from pythonstan.utils.common import Box
 from .pointer_flow_graph import PointerFlowNode, NormalNode
-from .context import Ctx
+from .context import Ctx, Scope
 from .points_to_set import PointsToSet
 
 
+type NativePendingItem = tuple[Scope | None, PointerFlowNode, Box[PointsToSet]]
+
+
 class ConsumerFairWorklist:
+    items_dict: dict[PointerFlowNode, NativePendingItem]
+    _hot: OrderedDict[PointerFlowNode, NativePendingItem]
+    _cold: OrderedDict[PointerFlowNode, NativePendingItem]
     HOT_QUOTA = 3
 
     def __init__(self):
@@ -63,7 +70,7 @@ class ConsumerFairWorklist:
             raise ValueError("seed cold classification must be a boolean")
         return self._add(content, cold=cold)
 
-    def promote(self, node):
+    def promote(self, node: PointerFlowNode) -> bool:
         """Move one pending cold item to the HOT tail once, in constant time."""
         item = self._cold.pop(node, None)
         if item is None:

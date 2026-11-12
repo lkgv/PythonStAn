@@ -11,7 +11,13 @@ from collections.abc import Iterable
 from dataclasses import replace
 from typing import TYPE_CHECKING, assert_never
 
-from pythonstan.analysis.contracts.identity import ContinuationId, ObjectId, ContextId, ProgramPointId, FrameId
+from pythonstan.analysis.contracts.identity import (
+    ContextId,
+    ContinuationId,
+    FrameId,
+    ObjectId,
+    ProgramPointId,
+)
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.semantics.control import resume_pending
 from pythonstan.analysis.state.continuation import (
@@ -29,12 +35,11 @@ from pythonstan.analysis.state.continuation import (
     PendingCompletion,
     ResumeCommand,
     ReturnResume,
-    TryResume,
     TryPhase,
+    TryResume,
     WhileResume,
     WithResume,
 )
-from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.effects import MetadataAspect, MetadataUpdate
 from pythonstan.analysis.state.flow import (
     ExceptionValue,
@@ -43,12 +48,13 @@ from pythonstan.analysis.state.flow import (
     NormalExprFlow,
     RaiseFlow,
     SuspendFlow,
+    flow_payload,
     make_completion,
     replace_flow,
     require_payload,
-    flow_payload,
 )
 from pythonstan.analysis.state.handles import ObjectHandle, StateHandle
+from pythonstan.analysis.state.keys import FieldKey
 
 from .state import Frame, FunctionInfo, Store
 
@@ -457,7 +463,11 @@ class ContinuationEngine:
                     self.t.unknown(store, node, "havoc_dictionary_view_iteration")
                     if obj.havoc
                     else self.t.dictionary_views.iterator(
-                        obj.metadata["owner"], obj.metadata["view_kind"], store.copy(), frame, node
+                        obj.metadata.view_owner(),
+                        obj.metadata["view_kind"],
+                        store.copy(),
+                        frame,
+                        node,
                     )
                 )
                 continue
@@ -498,15 +508,17 @@ class ContinuationEngine:
                         unknown = require_payload(out).top or bool(require_payload(out).top_sorts)
                         for target in require_payload(out).refs:
                             item = out.store.heap.get(target)
-                            if item and item.kind in {"iterator", "generator"}:
-                                valid = True
-                            elif (
+                            if (
                                 item
-                                and item.kind == "instance"
-                                and not self.ops.join_all(
-                                    self.t.lookup_class(c, "__next__", out.store)
-                                    for c in item.class_ids
-                                ).is_bottom()
+                                and item.kind in {"iterator", "generator"}
+                                or (
+                                    item
+                                    and item.kind == "instance"
+                                    and not self.ops.join_all(
+                                        self.t.lookup_class(c, "__next__", out.store)
+                                        for c in item.class_ids
+                                    ).is_bottom()
+                                )
                             ):
                                 valid = True
                             else:
@@ -554,7 +566,7 @@ class ContinuationEngine:
                             frame,
                             "iterator",
                             metadata={
-                                "sequence": tuple((Value.constant(c) for c in text)),
+                                "sequence": tuple(Value.constant(c) for c in text),
                                 "index": 0,
                             },
                         ),
@@ -620,7 +632,7 @@ class ContinuationEngine:
             for current, iterator, values in states:
                 for advanced in self.next_iterator(iterator, current, frame, node):
                     if self.is_stop(advanced):
-                        fields: dict[FieldKey, Value] = {i: v for i, v in enumerate(values)}
+                        fields: dict[FieldKey, Value] = dict(enumerate(values))
                         if kind == "set":
                             known: dict[FieldKey, Value] = {}
                             uncertain = False
@@ -637,7 +649,7 @@ class ContinuationEngine:
                                     )
                                 )
                                 continue
-                            fields = {i: v for i, v in enumerate(known.values())}
+                            fields = dict(enumerate(known.values()))
                         result.append(
                             NormalExprFlow(
                                 StateHandle.capture(advanced.store),

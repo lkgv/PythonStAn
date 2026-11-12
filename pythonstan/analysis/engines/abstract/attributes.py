@@ -10,7 +10,7 @@ import ast
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from itertools import product
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pythonstan.analysis.contracts.identity import CellId, FrameId, ObjectId
 from pythonstan.analysis.contracts.json_data import JsonScalar
@@ -36,6 +36,14 @@ from .state import Frame, HeapObject, Store
 if TYPE_CHECKING:
     from .driver import InterproceduralDriver
     from .transfer import Transfer
+
+
+_NO_BASES: tuple[ObjectId, ...] = ()
+
+
+def _class_references(obj: HeapObject, name: Literal["mro", "bases"]) -> Sequence[ObjectId]:
+    references: Sequence[ObjectId] = obj.metadata.lookup(name, _NO_BASES)
+    return references
 
 
 class AttributeOperations:
@@ -190,7 +198,7 @@ class AttributeOperations:
             return (Value.unknown(), True)
         result = Value.bottom()
         missing = True
-        order = (clsid, *cls.metadata.lookup("mro", ()))
+        order = (clsid, *_class_references(cls, "mro"))
         seen = set()
         for identifier in order:
             if identifier in seen:
@@ -586,7 +594,7 @@ class AttributeOperations:
                         if not cls or cls.havoc:
                             uncertain = True
                             continue
-                        mro = (clsid, *cls.metadata.lookup("mro", ()))
+                        mro = (clsid, *_class_references(cls, "mro"))
                         for owner in owners:
                             if owner in mro:
                                 for candidate_id in mro[mro.index(owner) + 1 :]:
@@ -620,9 +628,9 @@ class AttributeOperations:
                     continue
                 if name in {"__mro__", "__bases__"}:
                     members = (
-                        (ref, *obj.metadata.lookup("mro", ()))
+                        (ref, *_class_references(obj, "mro"))
                         if name == "__mro__"
-                        else obj.metadata.lookup("bases", ())
+                        else _class_references(obj, "bases")
                     )
                     result.append(
                         NormalExprFlow(
@@ -1102,12 +1110,12 @@ class AttributeOperations:
     def c3(self, bases: Sequence[ObjectId], store: Store) -> tuple[ObjectId, ...]:
         if len(set(bases)) != len(bases):
             raise ValueError("duplicate base")
-        sequences = []
+        sequences: list[list[ObjectId]] = []
         for base in bases:
             obj = store.heap.get(base)
             if obj and obj.havoc:
                 raise LookupError("havoc class hierarchy")
-            sequences.append([base, *obj.metadata.lookup("mro", ())] if obj else [base])
+            sequences.append([base, *_class_references(obj, "mro")] if obj else [base])
         sequences.append(list(bases))
         result: list[ObjectId] = []
         while any(sequences):
@@ -1590,7 +1598,7 @@ class AttributeOperations:
                     cls = store.heap.get(clsid)
                     if not cls:
                         continue
-                    for ownerid in (clsid, *cls.metadata.lookup("mro", ())):
+                    for ownerid in (clsid, *_class_references(cls, "mro")):
                         owner = store.heap.get(ownerid)
                         if owner:
                             candidates.update(key for key in owner.fields if type(key) is str)

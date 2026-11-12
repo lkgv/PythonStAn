@@ -25,9 +25,10 @@ from pythonstan.ir.ir_statements import (
     IRAssign,
     IRCopy,
 )
+from pythonstan.analysis.contracts.json_data import JsonObject
 
 if TYPE_CHECKING:
-    from .context import AbstractContext, CallSite, Scope
+    from .context import AbstractContext, CallSite, Ctx, Scope
     from .object import AbstractObject, ClassObject, InstanceObject, MethodObject, FunctionObject
     from .points_to_set import PointsToSet
     from .variable import Variable
@@ -92,7 +93,7 @@ class ISolverQuery(Protocol):
         """Get container element(s) from objects in points-to set."""
         ...
 
-    def call_graph(self) -> "AbstractCallGraph":
+    def call_graph(self) -> "AbstractCallGraph[Ctx[CallSite], Scope]":
         """Get the full call graph."""
         ...
 
@@ -282,7 +283,7 @@ class ISolverQuery(Protocol):
         """Check if a scope is reachable."""
         ...
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> JsonObject:
         """Get analysis statistics (points-to set sizes, constraint counts, etc.)."""
         ...
 
@@ -298,11 +299,15 @@ class ISolverQuery(Protocol):
         """Get detailed report of unknown/unresolved flows."""
         ...
 
-    def get_residual_effects(self) -> List[Dict[str, Any]]:
+    def get_unknown_effect_events(self) -> list[JsonObject]:
+        """Read semantic may-events without changing source coverage claims."""
+        ...
+
+    def get_residual_effects(self) -> list[dict[str, object]]:
         """Get explicit unresolved return/mutation/callback/exception obligations."""
         ...
 
-    def get_semantic_status(self) -> Dict[str, Any]:
+    def get_semantic_status(self) -> JsonObject:
         """Separate constraint convergence from source/effect coverage evidence."""
         ...
 

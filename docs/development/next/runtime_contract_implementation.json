@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "task_id": "N4-TYPE-01",
+  "status": "owned_slice_ready_for_independent_review",
+  "parent_status": "running_not_verified",
+  "recorded_head": "d1725ecbb8d58c4a352b178f2328b60819122a61",
+  "source_scope": [
+    "pythonstan/analysis/state/store.py",
+    "pythonstan/analysis/state/flow.py",
+    "pythonstan/analysis/state/handles.py",
+    "pythonstan/analysis/state/bindings.py",
+    "pythonstan/analysis/state/dependencies.py",
+    "pythonstan/analysis/state/effects.py",
+    "pythonstan/analysis/state/keys.py",
+    "pythonstan/analysis/state/guards.py",
+    "pythonstan/analysis/state/continuation.py",
+    "pythonstan/analysis/semantics/control.py",
+    "pythonstan/analysis/semantics/scalars.py",
+    "pythonstan/analysis/engines/abstract/transfer.py",
+    "pythonstan/analysis/engines/abstract/continuations.py",
+    "pythonstan/analysis/engines/abstract/state.py"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/state/store.py": "66c43394241eae74d522b5df085fd0793efc7064bb9e7da0e1ada96af057b4c4",
+    "pythonstan/analysis/state/flow.py": "d9e880daf25d98f9ef48e0d001bd81655132c08436be33835778ea6db7ec1aea",
+    "pythonstan/analysis/state/handles.py": "808c90e9eb689c9daf2678bb9635a61686225d052f88d9918d988d91e5dfba7e",
+    "pythonstan/analysis/state/bindings.py": "1f703f957cdc4a61122aca783dfac187e30fdc6126562fc6ce330efbbabb7af6",
+    "pythonstan/analysis/state/dependencies.py": "787456fa7be63f143c960f4fd5ab2c7777c6d6f3ddd32467cb99442474c1ac68",
+    "pythonstan/analysis/state/effects.py": "c8e039111a9c3d915ab8caf75d1b09c786b9d86a6874354913a8c108f830e976",
+    "pythonstan/analysis/state/keys.py": "9dccb6bc75ee3a41aead593a73a56b70513baa9312b4d4aae03b432c006cacea",
+    "pythonstan/analysis/state/guards.py": "d33169192ac6dcf09c433c9c2135b71f4bd8909cfd8ad60e35d4d1eaad29778a",
+    "pythonstan/analysis/state/continuation.py": "dae4f80eefaa147fcb601a3ba0599aea59d830c679a6cdad40fd548aeb065f43",
+    "pythonstan/analysis/semantics/control.py": "f48d682c2127c13403605c872f2f7fff8a8792f27ae7aab23e254f64f2760cc4",
+    "pythonstan/analysis/semantics/scalars.py": "fd636dcc02f2b80c12367ee7deace331b98b0b7e7a577e32d37c861b13339e7b",
+    "pythonstan/analysis/engines/abstract/transfer.py": "0854092a6865de6193f591fcdbee93785e0eb08ed8de036a9c17d8465fa85313",
+    "pythonstan/analysis/engines/abstract/continuations.py": "a2dce8a41822f374325f2694b47dfd63c278383314fd4d25d211c7594b0bf6e3",
+    "pythonstan/analysis/engines/abstract/state.py": "45f1c0c806bc36ea5b83d233db838642358af265780b406cfaed1fcd8489080c"
+  },
+  "actual_consumers": {
+    "Flow": "Canonical seven-variant state.flow union. NormalExpr has an explicit full Value; NormalStmt/Break/Continue have no .value. Transfer.statement normalizes statement completion; real cleanup and driver consumers use exhaustive state replacement/payload projection.",
+    "StateHandle": "Physical mutation owner plus observed identity epoch/revision, consumed by real Flow, generator metadata and cloned graph roots. Read checks ownership without normalizing state. ObjectHandle refreshes resumed identities after nested execution.",
+    "BindingRef": "Frame.binding resolves the real canonical CellId and lexical scope; read/write name paths consume its cell.",
+    "Effects": "Actual CellWrite/heap write/delete/default/metadata/Havoc footprints consumed exhaustively by Store.apply. Footprints materialize callee poststate rather than replaying unordered deletes.",
+    "Continuation": "Real typed resume commands and exception contexts replace marker tuples; pending detached completion carries optional payload and is validated by make_completion before resuming.",
+    "SummaryDependency": "Real Unit dependencies store observed producer revision/source/policy/epoch; root-owned request/invalidation methods consume needs_refresh.",
+    "HeapMetadata": "Actual canonical HeapObject stores Metadata backed by finite records; graph visitor/boundary schema belong to semantic_baseline. Generator entry stores StateHandle; legacy mapping view projects the same Store.",
+    "Scalar_operations": "Trusted finite scalar conversion/range/sort/aggregate services consumed by actual builtin paths; finite checked source_constant/source_position frontend APIs and scalar_strings service replace dynamic host callable/AST reads."
+  },
+  "verification": {
+    "owned_source_stable_during_runtime": true,
+    "owned_source_stable_during_quality": true,
+    "runtime_quality_source_match": true,
+    "runtime_cases_passed": 288,
+    "runtime_seconds": 11.394314078999741,
+    "runtime_exit": 0,
+    "mypy_mode": "normal imports, strict, disallow_any_expr; no follows/import suppression added",
+    "mypy_process_exit": 1,
+    "owned_mypy_diagnostics": 0,
+    "imported_mypy_records": 634,
+    "whole_tree_clean": false,
+    "ruff_exit": 0,
+    "format_exit": 0,
+    "actual_production_exhaustiveness": "Unchanged actual with_state passes positive checking; adding an eighth class to the actual Flow union makes its assert_never fail. Copied source only; production is not mutated.",
+    "independent_scalar_witnesses": "Independent reviewer found invalid-base error priority, empty sum None, and lazy overflow-prefix priority defects before service integration: 27 failed/3 passed before fixes; 30 passed after fixes, then 8 actual Source/API controls passed."
+  },
+  "retained_semantics": [
+    "Frozen W0 fixture bytes, exact expected values and registration manifests are unchanged.",
+    "Legacy four-argument Flow construction reset continuation/cleanup/resume target; real setdefault reconstruction explicitly preserves that reset.",
+    "Store cyclic join uses one shared memo and merges detached canonical heap shells in place; input roots and alias facts are retained.",
+    "Scalar string keyword first-projection and existing caller exception policy remain as before; no new unsupported fallback is used to pass supported controls."
+  ],
+  "limits_and_remaining_work": [
+    "This record does not close TYPE-01 or any semantic/state/Native/L2 card.",
+    "Root-owned driver and peer-owned publication, namespace, dictionaries, verifier, Inspector and legacy bridge ports require their own final strict scans and independent review.",
+    "Store.ensure_current normalization and join/leq read purity still belong to the pending state repair acceptance, not this typing receipt.",
+    "Whole-tree quality/mandatory semantic acceptance remains separate and nonzero where recorded; imported diagnostics are preserved.",
+    "Collective source freeze, full old/new regression acceptance and author-independent review are required before parent qualification.",
+    "No live LLM request or credential read is part of this slice."
+  ],
+  "evidence": {
+    "quality": "artifacts/next/evidence/N4-TYPE-01/runtime-contracts/quality.receipt.json",
+    "quality_raw": "artifacts/next/evidence/N4-TYPE-01/runtime-contracts/mypy.stdout.txt",
+    "runtime": "artifacts/next/evidence/N4-TYPE-01/runtime-contracts/runtime.receipt.json",
+    "runtime_stdout": "artifacts/next/evidence/N4-TYPE-01/runtime-contracts/runtime.stdout.txt",
+    "production_mutation": "artifacts/next/evidence/N4-TYPE-01/runtime-contracts/exhaustiveness.receipt.txt",
+    "scalar_red": "artifacts/next/evidence/N4-TYPE-01/recovery/scalars-red.stdout.txt",
+    "scalar_green": "artifacts/next/evidence/N4-TYPE-01/recovery/scalars-green.stdout.txt",
+    "scalar_api": "artifacts/next/evidence/N4-TYPE-01/recovery/scalar-api-current.stdout.txt"
+  }
+}

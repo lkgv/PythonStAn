@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "scope": "Integrated actual TYPE contracts and checked-summary/Native boundary checkpoint; parent TYPE-01 remains unverified",
+  "local_head_before_integration": "a52756d240daf33e0c78949db1ab1602fbd61369",
+  "public_parent": "cd330f71d0332b6ad63a8bffbd9285e1d16ffd89",
+  "source_snapshot_sha256": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
+  "source_stable_during_all_checks": true,
+  "original_stage": {
+    "passed": 1001,
+    "seconds": 63.077,
+    "exit_code": 0
+  },
+  "new_controls": {
+    "passed": 4001,
+    "seconds": 22.818,
+    "exit_code": 0,
+    "excluded_frozen_red_suites": [
+      "test_domain_mandatory.py",
+      "test_native_mandatory.py"
+    ],
+    "exclusion_reason": "Separate unchanged W0 red repair witnesses, not deleted, skipped, relabelled or counted green."
+  },
+  "quality": {
+    "passed": false,
+    "diagnostic_counts": {
+      "format": 156,
+      "ruff": 6741,
+      "mypy": 6027
+    },
+    "added_diagnostics": 431,
+    "modified_unit_diagnostics": 515,
+    "resolved_diagnostics": 10603,
+    "negative_controls_passed": true,
+    "whole_tree_mypy_clean": false
+  },
+  "canonical_core": {
+    "modules": 98,
+    "source_stable": true,
+    "diagnostics": {
+      "ordinary": {
+        "exit_code": 1,
+        "all_errors": 3588,
+        "core_errors": 0
+      },
+      "any_expr": {
+        "exit_code": 1,
+        "all_errors": 10970,
+        "core_errors": 12
+      },
+      "ruff": {
+        "exit_code": 0,
+        "all_errors": 0,
+        "core_errors": 0
+      }
+    },
+    "scope_note": "Own-module filtering with normal imports; imported diagnostics are retained and command exit1 is not called whole-tree success."
+  },
+  "quality_debt_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+  "completed_slices": [
+    "Actual seven-variant Flow/StateHandle/BindingRef/CallArguments/SummaryDependency call-effect-return/query consumers and eighth-variant rejection control",
+    "Strict actual Store/graph visitor/driver/Transfer/continuations and finite scalar/name/attribute/namespace/dictionary services",
+    "Explicit prepared summary provider, narrow immutable host capability, actual handler identity, checked source/candidate/application boundaries",
+    "Oracle preparation generation/arena/source stamps checked before publication, preserving public work and statistics mutation ordering",
+    "Actual Native intrinsic/worker/config/context and legacy bridge/Inspector consumers with validated codecs, cold-import and compatibility controls"
+  ],
+  "independent_reviews": [
+    "reviews/TYPE-01-native-context.md",
+    "reviews/TYPE-01-checker2.md",
+    "reviews/TYPE-01-shared-bridge.md",
+    "domain_native_independent_review.json",
+    "domain_native_legacy_registry_review.json",
+    "reviews/TYPE-01-graph-metadata.md",
+    "reviews/TYPE-01-oracle-preparation-coherence.md"
+  ],
+  "remaining": [
+    "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
+    "Clear12 canonical Any-expression diagnostics in dictionary bytecode boundary and oracle queue construction; extend reviewed whole-module frontier",
+    "Complete independent final integration and mandatory semantic/domain/state/Native repair gates; no later card inferred complete from local controls",
+    "Retain explicit open profiles, graph-memo provenance, unsupported custom contexts and existing frozen red witnesses",
+    "Run real LLM only after offline verification and independent audit; credentials only from environment"
+  ],
+  "local_formatting_history": [
+    "fd8562c7a17ee3422c070434052341612acd5f49",
+    "1b939493868ba5c1b2c7e396bf711970065b8300",
+    "2214c8a23093d584ff55e2d55d729c63f54b3e59",
+    "33a7bb1672da27fb5c592904c6724a9fce140e68",
+    "d1725ecbb8d58c4a352b178f2328b60819122a61",
+    "be4341ce7a108ddb200ed48c973efbeee555d751",
+    "4a05c8d8d09e1c0c2f9c3405d35ae8a5103f2c1e",
+    "a52756d240daf33e0c78949db1ab1602fbd61369"
+  ],
+  "qualifications": {
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "live_llm_requests": 0
+  },
+  "evidence": {
+    "commands": "evidence/type_checkpoint_20261112/commands.json",
+    "source_hashes": "evidence/type_checkpoint_20261112/source_hashes.json",
+    "raw_ignored_root": "artifacts/next/evidence/type-checkpoint-held",
+    "prior_stage_red": "artifacts/next/evidence/type-checkpoint-final/stage.stdout.txt",
+    "timer_intermediate_red": "artifacts/next/evidence/N4-TYPE-01/native-context/benchmark-lifecycle-green.txt"
+  },
+  "publication": "This source snapshot targets dev-cocktail-analysis only. Resolve the commit containing this record and the branch history for publication identity; local and connector commit identities may differ with an identical verified tree."
+}

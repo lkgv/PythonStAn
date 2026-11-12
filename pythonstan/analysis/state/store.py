@@ -27,9 +27,23 @@ from pythonstan.analysis.state.effects import (
     MetadataUpdate,
     WriteEffect,
 )
+from pythonstan.analysis.state.flow import Flow as Flow
+from pythonstan.analysis.state.flow import is_flow as is_flow
 from pythonstan.analysis.state.guards import MembershipGuard
 from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.metadata import Metadata
+
+
+def _merge_events(
+    left: tuple[tuple[str, str], ...], right: tuple[tuple[str, str], ...]
+) -> tuple[tuple[str, str], ...]:
+    merged: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for event in (*left, *right):
+        if event not in seen:
+            seen.add(event)
+            merged.append(event)
+    return tuple(merged)
 
 
 def semantic_payload_equal(
@@ -306,7 +320,7 @@ class Store:
         result.obligations |= other.obligations
         result.havoc_namespaces |= other.havoc_namespaces
         # Events are may-prefix observations, not an order proof.
-        result.events = tuple({event: None for event in (*self.events, *other.events)})
+        result.events = _merge_events(self.events, other.events)
         result.state_revision = StateRevision(max(self.state_revision, other.state_revision) + 1)
         return result
 
@@ -361,18 +375,20 @@ class Store:
                     return False
             if not ops.leq(obj.default, rhs.default):
                 return False
-            for field in (
+            for field_key in (
                 obj.fields.keys() | rhs.fields.keys() | obj.maybe_missing | rhs.maybe_missing
             ):
                 if not ops.leq(
-                    obj.fields.get(field, obj.default), rhs.fields.get(field, rhs.default)
+                    obj.fields.get(field_key, obj.default), rhs.fields.get(field_key, rhs.default)
                 ):
                     return False
                 # A residual/default value does not establish key presence.
                 # read_slot reports untracked keys as possibly absent, while
                 # a havoc object also covers absence of a tracked key.
-                absent = field not in obj.fields or field in obj.maybe_missing
-                covered_absent = rhs.havoc or field not in rhs.fields or field in rhs.maybe_missing
+                absent = field_key not in obj.fields or field_key in obj.maybe_missing
+                covered_absent = (
+                    rhs.havoc or field_key not in rhs.fields or field_key in rhs.maybe_missing
+                )
                 if absent and not covered_absent:
                     return False
         if self.havoc_imports and not other.havoc_imports:
@@ -468,7 +484,7 @@ class Store:
         result.havoc_imports |= callee.havoc_imports
         result.obligations |= callee.obligations
         result.havoc_namespaces |= callee.havoc_namespaces
-        result.events = tuple({event: None for event in (*result.events, *callee.events)})
+        result.events = _merge_events(result.events, callee.events)
         result.state_revision = StateRevision(max(self.state_revision, callee.state_revision) + 1)
         return result
 
@@ -534,7 +550,3 @@ class Unit:
     revision: StateRevision = StateRevision(0)
     visits: int = 0
     is_module: bool = False
-
-
-from .flow import Flow as Flow
-from .flow import is_flow as is_flow

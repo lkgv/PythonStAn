@@ -34,14 +34,14 @@ class AnalysisManager:
     next_analyzers: Dict[str, List[str]]
     analysis_configs: List[AnalysisConfig]
     analyzers: Dict[str, AnalysisDriver]
-    results: Dict[str, Any]
+    results: dict[str, object]
     time_count: bool
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.time_count = False
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self.prev_analyzers = {}
         self.next_analyzers = {}
         self.analysis_configs = []
@@ -122,5 +122,5 @@ class AnalysisManager:
     def get_analyzer(self, name):
         return self.analyzers[name]
 
-    def get_results(self, name: str):
+    def get_results(self, name: str) -> object:
         return self.results[name]

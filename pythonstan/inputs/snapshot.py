@@ -65,16 +65,24 @@ class SourceSnapshot:
         *,
         input_resolution: object | None = None,
     ) -> None:
-        object.__setattr__(self, "modules", tuple(modules))
-        object.__setattr__(self, "scenarios", tuple(scenarios))
+        owned_modules: tuple[SourceModule, ...] = tuple(modules)
+        owned_scenarios: tuple[EntryScenario, ...] = tuple(scenarios)
+        object.__setattr__(self, "modules", owned_modules)
+        object.__setattr__(self, "scenarios", owned_scenarios)
         object.__setattr__(self, "target", freeze_json_object(validate_json_object(target)))
         object.__setattr__(self, "source_digest", source_digest)
+        owned_inventory: tuple[FrozenJsonObject, ...] = tuple(
+            freeze_json_object(validate_json_object(row)) for row in inventory
+        )
         object.__setattr__(
             self,
             "inventory",
-            tuple(freeze_json_object(validate_json_object(row)) for row in inventory),
+            owned_inventory,
         )
-        object.__setattr__(self, "parsed_trees", MappingProxyType(dict(parsed_trees or {})))
+        owned_trees: ParsedTreeCache = MappingProxyType(
+            dict[str, tuple[str, ast.Module]](parsed_trees or {})
+        )
+        object.__setattr__(self, "parsed_trees", owned_trees)
         object.__setattr__(
             self,
             "input_resolution",
@@ -137,6 +145,10 @@ def _read(
         return result
     except (OSError, UnicodeError, SyntaxError) as exc:
         raise InputError(f"{path}: {exc}") from exc
+
+
+def _source_module_name(module: SourceModule) -> str:
+    return module.module
 
 
 def _module_name(path: Path, root: Path) -> str:
@@ -383,10 +395,10 @@ def snapshot_target(
             "encoding": m.encoding,
             "is_package": m.is_package,
         }
-        for m in sorted(modules.values(), key=lambda x: x.module)
+        for m in sorted(modules.values(), key=_source_module_name)
     )
     return SourceSnapshot(
-        tuple(sorted(modules.values(), key=lambda x: x.module)),
+        tuple(sorted(modules.values(), key=_source_module_name)),
         tuple(scenarios),
         target_record,
         source_digest,

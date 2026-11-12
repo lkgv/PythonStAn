@@ -398,15 +398,20 @@ def _decisions(
     return decisions
 
 
+def _component_strategy(decision: RegionDecision) -> str:
+    document: JsonObject = {
+        "engine": decision.engine,
+        "abstract": thaw_json_object(decision.abstract),
+    }
+    return json.dumps(document, sort_keys=True)
+
+
 def _validate_components(
     components: Sequence[Sequence[str]], decisions: Mapping[ProgramPointId, RegionDecision]
 ) -> None:
     for group in components:
         strategies = {
-            json.dumps(
-                {"engine": decision.engine, "abstract": thaw_json_object(decision.abstract)},
-                sort_keys=True,
-            )
+            _component_strategy(decision)
             for name in group
             for decision in decisions.values()
             if decision.source.scope_qualname == name
@@ -434,7 +439,10 @@ class EffectiveRegionPlan:
         object.__setattr__(self, "source_digest", source_digest)
         object.__setattr__(self, "policy_digest", policy_digest)
         object.__setattr__(self, "_data", freeze_json_object(data))
-        object.__setattr__(self, "_decisions", MappingProxyType(dict(decisions)))
+        owned_decisions: Mapping[ProgramPointId, RegionDecision] = MappingProxyType(
+            dict[ProgramPointId, RegionDecision](decisions)
+        )
+        object.__setattr__(self, "_decisions", owned_decisions)
 
     def to_dict(self) -> JsonObject:
         return thaw_json_object(self._data)

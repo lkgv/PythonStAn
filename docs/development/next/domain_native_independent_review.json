@@ -1,0 +1,116 @@
+{
+  "reviewer": "domain_native_baseline",
+  "reviewed_at": "2026-11-12T03:48:06.168818+00:00",
+  "status": "reviewed_bounded_slice_no_new_blocker_found",
+  "production_edits_by_reviewer": false,
+  "test_or_gold_edits_by_reviewer": false,
+  "baseline_commit": "44d13b1",
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/driver.py": "fcc00c0ed09285bfcebd6640276531ed073bc3ef78cc1c06da2e1998c92c18f5",
+    "pythonstan/analysis/composition/region_engine.py": "357fd3a185cfc6595ab740417b4c6407054df95a2f02c82521ed46e7ec2ff3b4",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "3b2510879573558a3a645cafcd202b7e79065de6be4579c5fcc2abcbfb55350a",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "8a049ba7f88655a2c9ebebbeb0f83e593bebdfe6d07f0486fc0181a5d43fcf16",
+    "pythonstan/analysis/verification/guarded_dispatch/checker.py": "580f5c9ccd65269e31d76d5a2467fc12eb6a6e31c3cd361cdd947032ec7c70fb",
+    "pythonstan/analysis/verification/guarded_dispatch/apply.py": "443fe73bf220a2a9853391b30de105e69e4b04bc3066e6d435e3caf81e71355b",
+    "pythonstan/analysis/verification/guarded_dispatch/obligations.py": "15ac6f9af14a898efbece80392000a5284587f4746e7b53a4e30b03258b68a9a"
+  },
+  "stable_across_independent_tests_mypy_and_review": true,
+  "scope": {
+    "actual_driver": "Finite SummaryApplicationContext construction/consumption, explicit candidate/incremental oracle lifecycle and publication ports, two-phase charged reabstraction, SummaryDependency freshness and actual completion consumers",
+    "native_engine": "Actual direct-field/scalar inclusion execution and real API query/effect publication",
+    "provider": "Explicit preparation state machine, read-only live host capability views, typed epoch revocation records, runtime source/table/model validation and actual store/effect construction",
+    "verifier": "Finite candidate codec, source-derived complete obligation vector, host-issued immutable certificate/point evidence, guard entailment, fresh-frame bound and property-specific publication"
+  },
+  "checks": {
+    "selected_runtime_tests": {
+      "receipt": "artifacts/next/evidence/N4-TYPE-01/independent-runtime-review/tests.receipt.json",
+      "result": "115 passed in 1.30s",
+      "exit_code": 0
+    },
+    "strict_normal_import": {
+      "receipt": "artifacts/next/evidence/N4-TYPE-01/independent-runtime-review/mypy.receipt.json",
+      "owned_diagnostics": [],
+      "imported_diagnostic_records": 634,
+      "exit_code": 1,
+      "whole_tree_clean": false
+    },
+    "verifier_behavior_differential": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "artifacts/next/evidence/N4-TYPE-01/recovery-20261112/verification_differential.py"
+      ],
+      "exit_code": 0,
+      "result": {
+        "baseline_commit": "44d13b1",
+        "scope": "Finite four literal payloads x precise/coarse x six proposal variants; reachable calls x three work caps x four requested properties",
+        "candidate_rows": 48,
+        "application_rows": 432,
+        "mismatch_indices": [],
+        "exact_behavior_equal": true,
+        "excluded": [
+          "private randomized authority seals",
+          "wall clock seconds"
+        ],
+        "retained": [
+          "candidate wire",
+          "status",
+          "diagnostics",
+          "coverage",
+          "proof status",
+          "work",
+          "function denominator",
+          "certificate digest",
+          "all application values/effects/residual/frame facts"
+        ]
+      }
+    },
+    "native_api_differential": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "artifacts/next/evidence/N4-TYPE-01/independent-runtime-review/native_differential.py"
+      ],
+      "receipt": "artifacts/next/evidence/N4-TYPE-01/independent-runtime-review/native-differential.json",
+      "cases": 36,
+      "public_projection_equal": true,
+      "independent_expected_constants_all_pass": true
+    },
+    "forbidden_escape_inventory": {
+      "command": "rg -n Any/cast/type-ignore/no-type-check/getattr/hasattr/__dict__ over the seven reviewed files",
+      "result": "No escape; sole __getattr__ text is a modeled protocol-name literal in NativeRegionEngine"
+    }
+  },
+  "observations": [
+    {
+      "area": "proof authority",
+      "result": "Untrusted proposal fields do not issue certificates or point coverage. Application proof status requires checker-issued immutable records, current complete guard evidence and the requested property; adversarial/mutated/partial/budget-exhausted controls pass."
+    },
+    {
+      "area": "host boundary",
+      "result": "Actual provider consumes finite SummaryApplicationContext; read-only live mapping views preserve actual registry identity with constant-size construction. A source-only proposer receives no driver/store authority."
+    },
+    {
+      "area": "work and publication",
+      "result": "Existing work counters and bounded stop results match the finite old/new replay. Reabstraction prepares graph/oracle/provider outputs and validates opaque oracle preparation before publication; budget-failure controls preserve unpublished authoritative state."
+    },
+    {
+      "area": "semantic delta",
+      "result": "No new supported-source result/effect/proof/work delta found in the reviewed diff or finite probes. Native unsupported protocol checks remain explicit."
+    }
+  ],
+  "historical_integer_fixture": {
+    "receipt": "artifacts/next/evidence/N4-TYPE-01/integer-profile-review/receipt.json",
+    "result": "Unchanged current/44d13b1/d1725ec fixture each 1 failed / 12 passed; all 8 mixed-sort negatives pass; exclusive-int factory positive control succeeds in all three",
+    "classification": "historical_non_stage_fixture_model_profile_mismatch",
+    "source_or_fixture_changed": false
+  },
+  "limits": [
+    "This is an independent review of the frozen seven-file slice and finite behaviors, not a whole-tree strict acceptance or full TYPE/COMP/VERIFICATION card closure.",
+    "The finite replay excludes wall clock seconds and private randomized authority seals; the native projection retains actual work counters and phase trace.",
+    "Historical NCOMP/STATE/domain mandatory findings remain governed by their frozen manifests and individual acceptance cards; these positive controls do not downgrade or close them.",
+    "Existing proposal work reporting and full payload parsing/traversal accounting are unchanged from the baseline; this review does not claim a comprehensive cost proof.",
+    "No real LLM call or credentials access occurred."
+  ],
+  "parent_TYPE01_verified": false,
+  "parent_COMP_verified": false,
+  "parent_VERIFICATION_verified": false
+}

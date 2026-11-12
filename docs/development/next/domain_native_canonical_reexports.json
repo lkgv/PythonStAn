@@ -1,0 +1,82 @@
+{
+  "status": "ready_for_independent_review",
+  "source_before": {
+    "pythonstan/analysis/composition/reabstract.py": "47286accd8aad46b823bb81a087aae5ca27fbdafe88ed3cfd02ad9e2810c89c4",
+    "pythonstan/analysis/engines/abstract/state_transform.py": "12ffae748f753b23b829806ab0903ac32247830eda0925e23ac38d30aec1c62a",
+    "pythonstan/analysis/verification/closed_effects/__init__.py": "524cc2d84859c635d811dc6904cad64b3130d33b9112b2e9f71c552a758c01e6",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py": "2336206284d683685d06a85598d15b5a29111109483d52828db72f8dd9ec6416"
+  },
+  "source_after": {
+    "pythonstan/analysis/composition/reabstract.py": "adc3fc675de0dc82c4f683eb0d00db2a335fbe52eff69f30d89871bc1cac229e",
+    "pythonstan/analysis/engines/abstract/state_transform.py": "859346b0b2da1efebe04c29c7cc6a38152e69877fa0afcb2cadff5ab9c256008",
+    "pythonstan/analysis/verification/closed_effects/__init__.py": "c1802bb58c7f7eedd2f10486feeb487b89143a09698290fb080b8987af1ca67a",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py": "b657b90f3d1a221a93a2eeb5e66757ac44acfe8341c1316ea4d102a37f83ebed"
+  },
+  "source_unchanged_since_identity_check": true,
+  "public_names_checked": 59,
+  "exact_previous_public_and_star_name_sets_preserved": true,
+  "canonical_identity_for_every_export": true,
+  "submodule_exports_preserved": [
+    "closed_effects.checker",
+    "guarded_dispatch.language",
+    "guarded_dispatch.obligations",
+    "guarded_dispatch.checker",
+    "guarded_dispatch.apply"
+  ],
+  "imports_only_no_algorithm_or_copy": true,
+  "mypy_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/python",
+    "-m",
+    "mypy",
+    "--strict",
+    "--disallow-any-expr",
+    "--no-incremental",
+    "--output",
+    "json",
+    "pythonstan/analysis/composition/reabstract.py",
+    "pythonstan/analysis/engines/abstract/state_transform.py",
+    "pythonstan/analysis/verification/closed_effects/__init__.py",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py"
+  ],
+  "mypy_exit": 1,
+  "owned_diagnostics": [],
+  "imported_diagnostic_records_retained": 460,
+  "lint_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+    "check",
+    "pythonstan/analysis/composition/reabstract.py",
+    "pythonstan/analysis/engines/abstract/state_transform.py",
+    "pythonstan/analysis/verification/closed_effects/__init__.py",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py"
+  ],
+  "lint_exit": 0,
+  "format_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+    "format",
+    "--check",
+    "pythonstan/analysis/composition/reabstract.py",
+    "pythonstan/analysis/engines/abstract/state_transform.py",
+    "pythonstan/analysis/verification/closed_effects/__init__.py",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py"
+  ],
+  "format_exit": 0,
+  "runtime_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/refactor/contracts/test_architecture.py",
+    "tests/refactor/contracts/test_migration_boundaries.py",
+    "tests/refactor/verification",
+    "tests/refactor/composition/test_dom05_graph_recovery.py"
+  ],
+  "runtime_exit": 0,
+  "runtime_result": "75 passed in1.10s",
+  "new_or_changed_tests": false,
+  "baseline_gold_or_quality_policy_changed": false,
+  "parent_TYPE01_verified": false,
+  "limitations": [
+    "Only these four compatibility export modules are strict+Any-expression clean; the full normal-import process remains nonzero.",
+    "Canonical implementation bodies remain their existing sole owners; no body was copied, wrapped, moved or reimplemented by this cleanup."
+  ]
+}

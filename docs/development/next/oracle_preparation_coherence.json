@@ -1,0 +1,47 @@
+{
+  "status": "ready_for_independent_review",
+  "cards_verified": false,
+  "separate_from": "Previously accepted low-contract and dictionary dependency ports",
+  "finding": "An unused prepared oracle update could erase later live facts/topology/calls/subscriptions; rejecting only at commit could occur after host alias/root publication.",
+  "source_sha256": {
+    "pythonstan/analysis/composition/oracle.py": "8640c5aed5d31f3209c180701185ebbb10248f9a34daee6a3cb5fc1a2f6ef722",
+    "pythonstan/analysis/contracts/oracle.py": "22258ab654bb7da049258d302312a5fd2860827dda4e757b343ef713ab42412c",
+    "tests/regression/audit3/test_oracle_preparation_coherence.py": "5b4fa15798eceaad8363418dc8fd1aec75f90a92f413a8c8c745a8db2071bfa0"
+  },
+  "integration_sha256": {
+    "pythonstan/analysis/engines/abstract/driver.py": "246e8f38890cb6368cb098c8c1c1a6ff395f79a0c58148d821c250f788c47b00",
+    "pythonstan/analysis/domains/reabstract.py": "b85fcfad74905966e8d16f5cb9946bc14e74e9b5efa9592e81ea22373cc9f27d",
+    "pythonstan/analysis/composition/native_snapshot.py": "3978cac6ebc043750d766c37311a02edd701d8f570a1ee976e9d4a47c05f25b1",
+    "tests/refactor/composition/test_epoch_recovery.py": "5f43f0b91edf49b4c7df01118cf61dadd3f786bbef75dfc393ee2c50f470e2b3"
+  },
+  "implementation": [
+    "Capture actual producer/kernel revision, bind/subscription/call generation, semantic identity, policy, operations and arena references/epochs at preparation entry, before charging callbacks.",
+    "Own the requested address mapping and source/normalized-target alias snapshots; charge copy/snapshot visits before cloning.",
+    "Recheck constant-time producer/epoch stamps after every charge callback so mutation during a growing source collection aborts before the next clone or iterator advance.",
+    "Expose real OraclePreparedUpdate.validate and call it in the actual host immediately before arena/root publication.",
+    "Commit rechecks all producer stamps and accepts only unchanged captured source arena or the exact prepared +1 epoch/owned aliases; already committed token replay stays idempotent."
+  ],
+  "verification": {
+    "original_negative_controls": "10 failed before implementation (red.txt)",
+    "late_callback_negative_control": "1 failed with RuntimeError before per-callback recheck (late-callback-red.txt)",
+    "intermediate_host_ordering": "9 component controls passed while actual host test still exposed partial epoch publication (component-green-host-red.txt)",
+    "final_controls": "15 passed; facts/topology/calls/subscriptions/bind/policy/identity, mutation during preparation, wrong arena, actual host ordering, both valid commit branches and replay",
+    "affected_matrix": "93 passed in 0.87s",
+    "strict_owned_diagnostics": 0,
+    "strict_underlying_exit": 1,
+    "strict_imported_diagnostics": 311,
+    "ruff": "All checks passed!",
+    "format": "3 files already formatted",
+    "owned_source_stable": true,
+    "integration_source_stable": true,
+    "raw_receipt": "artifacts/next/evidence/N4-TYPE-01/oracle-preparation-coherence/receipt.json"
+  },
+  "limits": [
+    "The supported host transaction is serialized; this is not a thread synchronization mechanism.",
+    "Generation maintenance covers actual mutating producer services. Deliberate direct mutation of backing dictionaries/private fields outside those services is not an admitted transaction API.",
+    "Arena validation guards object aliases and epoch; this receipt does not claim snapshots of every arena field.",
+    "Ordinary imports retain 311 diagnostics in 6 dependency files; whole-tree typing and quality gate acceptance remain separate.",
+    "Snapshot/clone visits are charged, but this receipt does not qualify the complete cross-engine cost ledger or any parent TYPE/release gate.",
+    "No baseline, frozen quality debt, semantic gold or card status was reset."
+  ]
+}

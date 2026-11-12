@@ -1,0 +1,57 @@
+{
+  "status": "narrow_scope_independently_accepted_parent_integration_pending",
+  "cards_verified": false,
+  "author": "requirements_audit",
+  "independent_review_owner": [
+    "root",
+    "domain_native_baseline"
+  ],
+  "source_sha256": {
+    "pythonstan/compat/legacy_ai/value_domain.py": "abad87c051307b42a3300330333677b217224593cb2ffe60e452d5cb89b9a8cc",
+    "pythonstan/compat/legacy_ai/heap.py": "cd30a871a397c65369d33bbfad2e09d095e02ee8b194b8291cba2a4160b78985",
+    "pythonstan/compat/legacy_ai/domains/type_domain.py": "9f0a32ebb9346a24eb853f8d662699fbd134aa0071432e0b2230d76948325b3f",
+    "pythonstan/compat/legacy_ai/domains/callable.py": "2b3117628b679fb9bbb01870c211ef834189319b2d6f3ed84dc645e6b814f014",
+    "tests/regression/audit3/test_legacy_registry_consumers.py": "614b04bbdb4d3b2d6e7a9642d17d986e262ed08505ddcd8c416e60d8cb90cd0f",
+    "tests/analysis/test_ai_domains.py": "b4333ebe3c14eccc8e2d1f578e6ea32d4b6e1a3c2e5cf87190e0cfe95f176f06"
+  },
+  "mechanical_base": "2214c8a; exact raw and formatter streams captured from1b939493 before typing; heap docstring whitespace-only normalization recorded",
+  "scope": [
+    "Actual registered bool join/meet and integer widen results checked at fixed BoolLattice/IntLattice consumers; no provider-name generic overload, cast, or replacement with builtin operations.",
+    "Heterogeneous components contain object at the actual plugin registry boundary; provider inputs are validated by the real registered adapter and fixed builtin projections perform runtime representation checks.",
+    "Canonical type/callable reduction callbacks accept frozenset[object] and construct tokens only for actual Native AbstractObject instances.",
+    "Real AIAddr projection uses the actual FiniteContextKey provider and precise empty/method/builtin-method tuple variants; actual NativeContext admission includes ProtocolKeyContext.",
+    "Container scalar-key annotations include None/bool/int/float/str to match actual existing producer behavior; key values and identity/equality behavior are preserved.",
+    "Meaningful key-conversion compatibility module attributes retained through explicit one-way reexports."
+  ],
+  "explicit_boundary_changes": [
+    "A fixed Native bool/int projection rejects a registered incompatible representation with LegacyDomainContractError, instead of storing an object under a false concrete lattice annotation.",
+    "Missing required bool provider raises an explicit contract error; optional absent higher-order domains still skip and missing integer length provider retains historical IntDomain fallback.",
+    "Legacy str_const iterable is checked for actual strings before entering the typed lattice.",
+    "Two historical duck-kind mock producer fixtures migrated under root approval to actual Native FunctionObject/ClassObject with original token membership assertions preserved; foreign kind-shaped objects do not create nominal Native tokens."
+  ],
+  "evidence": {
+    "ordinary_builtin_scalar_parity": "scalar-parity.json:1280 exact old-consumer-overlay/current results, zero differences",
+    "historical_private_tac_selection": "broad-differential.json:142cases, same97pass/45retired-private-API failures with identical nodeIDs/messages under old/current consumers; not a formal stage green claim",
+    "last_green_runtime": "226passed22.79s, archived pre-final-producer-declarations; query provider drift prevents final source-binding acceptance",
+    "last_strict": "0 added production diagnostics,0 modified production-unit diagnostics,new controls and changed original2test units0;3913/3831 imported records varied with peer revisions and are retained raw",
+    "failed_coupling_evidence": [
+      "pre-coupled-state-fix/receipt.json and logs: actual residual None regression retained; fixed by actual optional-storage producer without changing assertion",
+      "protocol-context-admission-red.txt: actual missing eighth context family retained; canonical owner fixed admission and explicit runtime hash producer",
+      "pre-fixture-migration-red.txt: original fake address fixtures retained before root-approved producer migration"
+    ],
+    "final_receipt": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-consumers/receipt.json",
+    "independent_runtime": "226 passed22.60s, four consumers and critical providers source-stable for peer run; exact hashes in independent report",
+    "independent_parity": "1288 exact old/current scalar and real token-cap results, including8 independent cap expectations",
+    "independent_cold_imports": "5 fresh import orders pass without preloading",
+    "final_integration_source_binding": "Latest shared_ai/state declarations postdate independent runtime receipt; root final full-stage source-held run must cover them. The author does not promote its earlier drifted receipt."
+  },
+  "limits": [
+    "Two diagnostics in unchanged AbsVal._summarize_addrs_by_alloc_site match frozen debt anchors; method AST remains exactly unchanged.",
+    "Inherited optional max_ho_tokens reflection and the legacy address-adapter body are not claimed Any-expression clean. This is the authorized ordinary-import/no-new-modified-diagnostic slice, not whole-legacy typing completion.",
+    "No semantic finding, mandatory frozen gold, task verification, debt baseline or quality frontier was reset.",
+    "Cold bootstrap/intrinsic import bugs found during review were fixed by their actual owners; latest peer provider declarations still require root final integration validation."
+  ],
+  "readability_review": "Existing large value/heap modules retain their established product/storage responsibilities for this bounded boundary patch; splitting the legacy engines is outside this consumer lease and would expand semantic review risk.",
+  "independent_review": "docs/development/next/domain_native_legacy_registry_review.json",
+  "independent_acceptance_scope": "Root-authorized ordinary-import/no-new-modified-diagnostic slice; not whole legacy Any-expression cleanliness or TYPE parent"
+}

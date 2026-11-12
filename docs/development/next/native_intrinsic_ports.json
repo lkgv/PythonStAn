@@ -1,0 +1,177 @@
+{
+  "status": "ready_for_independent_review",
+  "cards_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/composition/native_intrinsics.py": "8bba6b1df794fe7589a131a2b12214e9c013db8b330db4d47e42554efdd049f9",
+    "pythonstan/compat/intrinsic_boundary.py": "40d3fc3dcf87752def6ad38871c75f2974a5e4f90a71bffcdc1688bdd98f6705",
+    "pythonstan/analysis/contracts/budgets.py": "e578cddd10069e1a779e20efe75860a4d9ec06b89a41e14e3ccd54a7ec39cbae",
+    "pythonstan/analysis/pointer/kcfa/config.py": "8529445e6975f08555d3ace6962093d4a1c8467eb907d87ed99b2747fbce60e4",
+    "tests/regression/audit3/test_native_intrinsic_contracts.py": "21d5950c6f89402d0433d3f712e6b34197b115e5ea0fd9c7efad89299f7310da",
+    "pythonstan/analysis/pointer/kcfa/solver.py": "476d8b94a621dc6239eb805b602fd80d834e46dffcec0e0d3652d245b203fdb0",
+    "pythonstan/analysis/pointer/kcfa/pta_query_adapter.py": "5605881ca46dbe6bd54b0afb80b60246f7f3b3993f55e280f3a2d7840e854de3",
+    "pythonstan/compat/legacy_ai/api.py": "82a2a9baf9b1c076936e7590520c0e36972a169af1ba5e5d7352e6549a6dd8cf",
+    "pythonstan/analysis/pointer/kcfa/diagnostics.py": "9ad646832b8eacbda762b74d947c6795c2bf727e5d60c05aeef11c548f1df70e",
+    "pythonstan/analysis/pointer/kcfa/worklist.py": "aca37cb841fa948752bf3a59a98a31dc598a487ee406ac17609f941707ab57b5"
+  },
+  "dependency_sha256": {
+    "pythonstan/analysis/pointer/kcfa/state.py": "8aa05d384d78e0cf54d2d717b45c8cb2c0892f7f440601fd2f40103a872195d0",
+    "pythonstan/compat/shared_ai.py": "706dd012b15e44c2cf96cd03d16d651b5880b391f7eb3ba0485fc6ced4f07a22",
+    "pythonstan/compat/legacy_ai/value_domain.py": "abad87c051307b42a3300330333677b217224593cb2ffe60e452d5cb89b9a8cc"
+  },
+  "whole_file_scope": [
+    "pythonstan/analysis/composition/native_intrinsics.py",
+    "pythonstan/compat/intrinsic_boundary.py",
+    "pythonstan/analysis/contracts/budgets.py",
+    "pythonstan/analysis/pointer/kcfa/config.py",
+    "tests/regression/audit3/test_native_intrinsic_contracts.py"
+  ],
+  "modified_upstream_function_scope": {
+    "pythonstan/analysis/pointer/kcfa/solver.py": {
+      "_register_builtin_dependencies": [
+        298,
+        338
+      ],
+      "_promote_points_variable": [
+        340,
+        344
+      ],
+      "_watch_builtin_variable": [
+        346,
+        365
+      ],
+      "set_global_work_limit": [
+        1952,
+        1957
+      ],
+      "set_intrinsic_provider": [
+        1959,
+        1968
+      ],
+      "_try_ai_intrinsic": [
+        1970,
+        1987
+      ],
+      "begin_intrinsic": [
+        1989,
+        1992
+      ],
+      "intrinsic_points": [
+        1994,
+        1997
+      ],
+      "make_intrinsic_adapter": [
+        1999,
+        2002
+      ],
+      "intrinsic_budget_options": [
+        2004,
+        2005
+      ],
+      "intrinsic_counter": [
+        2007,
+        2015
+      ],
+      "intrinsic_fallback": [
+        2017,
+        2018
+      ],
+      "watch_intrinsic_read": [
+        2020,
+        2023
+      ],
+      "watch_intrinsic_object": [
+        2025,
+        2028
+      ],
+      "watch_intrinsic_field": [
+        2030,
+        2038
+      ],
+      "publish_intrinsic_return": [
+        2040,
+        2048
+      ],
+      "publish_intrinsic_write": [
+        2050,
+        2059
+      ],
+      "_record_ai_fallback": [
+        2061,
+        2072
+      ]
+    },
+    "pythonstan/analysis/pointer/kcfa/pta_query_adapter.py": {
+      "__init__": [
+        42,
+        60
+      ]
+    },
+    "pythonstan/compat/legacy_ai/api.py": {
+      "__init__": [
+        362,
+        380
+      ],
+      "analyze_intrinsic": [
+        426,
+        456
+      ],
+      "_conservative_summary": [
+        461,
+        502
+      ]
+    },
+    "pythonstan/analysis/pointer/kcfa/diagnostics.py": {
+      "bump": [
+        175,
+        181
+      ]
+    },
+    "pythonstan/analysis/pointer/kcfa/worklist.py": {
+      "promote": [
+        73,
+        80
+      ]
+    }
+  },
+  "implementation": [
+    "Actual LegacyIntrinsicProvider has complete contracts over concrete PointerSolver, Native model records, real work ledger and actual adapter; no broad host facade.",
+    "A narrow IntrinsicEnginePort is consumed by the provider and structurally implemented by the now source-typed AISummaryEngine constructor/intrinsic/fallback methods.",
+    "The explicit backend boundary validates real AISummary or legacy SimpleNamespace returns into the existing AISummary/FieldWrite records, with historical optional defaults and owned JSON statistics. It introduces no parallel summary hierarchy.",
+    "Canonical AnalysisBudget.from_options reuses the existing validator and explicitly constructs all25 fields; no typed kwargs shell or changed defaults.",
+    "Actual solver setters, budget, dependency watches, publication and replay services are source-typed, with genuine diagnostics/promotion/callback field contracts. Persistent Native models and late-fact replay remain active.",
+    "Native Config.from_dict accepts raw object input at the actual parser, checks exact dictionary/string option names, then produces the same typed Config/owned JSON; existing valid controls are preserved."
+  ],
+  "verification": {
+    "affected_matrix": "181 passed in 12.55s",
+    "whole_owned_ordinary_errors": [],
+    "modified_upstream_ordinary_errors": [],
+    "core_and_decoder_any_errors": [],
+    "modified_upstream_any_errors": [],
+    "ordinary_underlying_exit": 1,
+    "ordinary_imported_diagnostics": 3592,
+    "strong_underlying_exit": 1,
+    "strong_imported_diagnostics": 10970,
+    "ruff": "All checks passed!",
+    "format": "10 files already formatted",
+    "source_stable": true,
+    "dependencies_stable": true,
+    "raw_receipt": "artifacts/next/evidence/N4-TYPE-01/native-intrinsics/receipt.json",
+    "cold_imports": "Five fresh subprocess orders pass without preloading: value_domain, Native solver, intrinsic provider, intrinsic boundary itself, shared bridge.",
+    "cold_receipt": "artifacts/next/evidence/N4-TYPE-01/native-intrinsics/cold-all-five-receipt.json",
+    "independent_cold_and_scalar_replay": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/cold-and-parity-green.receipt.json",
+    "config_parity": "69 valid projections equal original2214c8a;12 invalid controls rejected by both"
+  },
+  "explicit_caps_and_limits": [
+    "The complete bit remains a trusted backend claim about its supported transfer, not a source-derived certificate or a new coverage claim. Publication is additional may-facts and declines calls/unknown/exception effects.",
+    "Foreign summaries admit AISummary or the explicit legacy SimpleNamespace record and finite builtin containers; arbitrary reflected attribute objects/unbounded iterators are not admitted by this checked boundary.",
+    "The core intrinsic service admits registered NativeContext variants; an unregistered context declines with an explicit fallback reason rather than being given a fake model.",
+    "Untouched portions of legacy Native/API modules retain diagnostics; only listed actual modified functions and whole-file scope are claimed clean. Whole-tree ordinary/Any checks still exit1.",
+    "No full cost-ledger, parent TYPE, semantic-audit or release qualification is claimed.",
+    "No baseline, frontier, suppression, frozen gold or task status was changed."
+  ],
+  "resolved_review_findings": [
+    "Eager AIState/AbsVal imports introduced a direct value-domain cold cycle; runtime nominal checks now import those real classes locally.",
+    "Eager Native model imports made the new boundary itself cold-cycle through the solver; annotation-only imports and late genuine guards removed that separate cycle.",
+    "The independent original cycle red and boundary-only red are retained; all5 final import orders and independent1288 scalar/token controls pass."
+  ]
+}

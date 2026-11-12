@@ -1,7 +1,12 @@
 """Native query implementation; imported by the legacy solver facade."""
 
 import warnings
-from typing import Any, Dict, List, Set, Tuple, Optional, Union, Iterable
+from pythonstan.analysis.contracts.json_data import (
+    JsonObject,
+    require_object,
+    validate_json_object,
+)
+from typing import Any, Dict, List, Set, Tuple, Optional, Union, Iterable, TYPE_CHECKING, override
 from pythonstan.ir.ir_statements import (
     IRScope,
     IRModule,
@@ -23,8 +28,17 @@ from .heap_model import Field, FieldKind, attr, key, elem, value
 from .points_to_set import PointsToSet
 from .bootstrap import bootstrap_statistics
 
+if TYPE_CHECKING:
+    from .class_hierarchy import ClassHierarchyManager
+    from .solver import PointerSolver
+    from .unknown_tracker import UnknownTracker
+    from pythonstan.graph.call_graph import AbstractCallGraph
+
 
 class SolverQuery(ISolverQuery):
+    _state: PointerAnalysisState
+    _class_hierarchy: Optional["ClassHierarchyManager"]
+
     def __init__(
         self,
         state: "PointerAnalysisState",
@@ -266,7 +280,8 @@ class SolverQuery(ISolverQuery):
             result = result.union(self._field_points_to(obj, field))
         return result
 
-    def call_graph(self) -> "AbstractCallGraph":
+    @override
+    def call_graph(self) -> "AbstractCallGraph[Ctx[CallSite], Scope]":
         return self._state.call_graph
 
     def callees_of(
@@ -544,7 +559,8 @@ class SolverQuery(ISolverQuery):
     ) -> bool:
         return scope in self.get_reachable_scopes()
 
-    def get_statistics(self) -> Dict[str, Any]:
+    @override
+    def get_statistics(self) -> JsonObject:
         state_stats = self._state.get_statistics()
         unknown_stats = self._unknown_tracker.get_summary()
         current_stats = self._solver._stats if self._solver is not None else self._stats
@@ -554,42 +570,46 @@ class SolverQuery(ISolverQuery):
             if self._state.allocation_policy is not None
             else {}
         )
-        ledger = (
+        ledger = validate_json_object(
             self._solver.work_ledger.snapshot()
             if self._solver is not None
             else {"used": 0, "limit": None, "remaining": None, "by_kind": {}, "denials": {}}
         )
+        by_kind = require_object(ledger["by_kind"])
+        residuals = self._state.peek_residual_effects()
         nested = {
             "global_work_used": ledger["used"],
             "global_work_limit": ledger["limit"],
             "global_work_remaining": ledger["remaining"],
             "work_by_kind": ledger["by_kind"],
             "work_budget_denials": ledger["denials"],
-            "ai_intrinsic_work": ledger["by_kind"].get("abstract_transfer", 0),
-            "intrinsic_bridge_work": ledger["by_kind"].get("intrinsic_bridge", 0),
+            "ai_intrinsic_work": by_kind.get("abstract_transfer", 0),
+            "intrinsic_bridge_work": by_kind.get("intrinsic_bridge", 0),
             "ai_intrinsic_seconds": self._solver.intrinsic_seconds
             if self._solver is not None
             else 0.0,
             "ai_intrinsic_seconds_scope": "subset_of_inclusive_native_phase",
-            "native_selected_work": ledger["by_kind"].get("native_selected", 0),
-            "input_publications": ledger["by_kind"].get("input_publication", 0),
+            "native_selected_work": by_kind.get("native_selected", 0),
+            "input_publications": by_kind.get("input_publication", 0),
         }
-        return {
-            **state_stats,
-            **current_stats,
-            **unknown_stats,
-            **bootstrap_stats,
-            **nested,
-            "allocation_policy_decisions": allocations,
-            "heap_context_policy": (
-                self._solver.config.heap_context_policy if self._solver is not None else None
-            ),
-            "heap_context_depth": (
-                self._solver.config.heap_context_depth if self._solver is not None else None
-            ),
-            "synthetic_method_roots": [dict(row) for row in self._state.synthetic_method_roots],
-            "residual_effect_count": len(getattr(self._state, "_residual_effects", {})),
-        }
+        return validate_json_object(
+            {
+                **state_stats,
+                **current_stats,
+                **unknown_stats,
+                **bootstrap_stats,
+                **nested,
+                "allocation_policy_decisions": allocations,
+                "heap_context_policy": (
+                    self._solver.config.heap_context_policy if self._solver is not None else None
+                ),
+                "heap_context_depth": (
+                    self._solver.config.heap_context_depth if self._solver is not None else None
+                ),
+                "synthetic_method_roots": [dict(row) for row in self._state.synthetic_method_roots],
+                "residual_effect_count": len(residuals) if residuals is not None else 0,
+            }
+        )
 
     def get_all_objects(self) -> Iterable["AbstractObject"]:
         return self._state._heap.objects.values()
@@ -600,16 +620,24 @@ class SolverQuery(ISolverQuery):
     def get_unknown_details(self) -> List[Dict[str, Any]]:
         return self._unknown_tracker.get_detailed_report()
 
-    def get_unknown_effect_events(self):
+    @override
+    def get_unknown_effect_events(self) -> list[JsonObject]:
         """Read-only semantic may-events; arbitrary callback coverage stays open."""
         effects = self._state.unknown_effects
-        return list(effects.snapshot()) if effects is not None else []
+        return (
+            [validate_json_object(event) for event in effects.snapshot()]
+            if effects is not None
+            else []
+        )
 
-    def get_residual_effects(self) -> List[Dict[str, Any]]:
+    @override
+    def get_residual_effects(self) -> list[dict[str, object]]:
         """Undischarged obligations, separate from actual unknown-effect events."""
-        return [dict(effect) for effect in getattr(self._state, "_residual_effects", {}).values()]
+        residuals = self._state.peek_residual_effects()
+        return [dict(effect) for effect in residuals.values()] if residuals is not None else []
 
-    def get_semantic_status(self) -> Dict[str, Any]:
+    @override
+    def get_semantic_status(self) -> JsonObject:
         """Report proof boundaries without interpreting a quiet ledger as a proof.
 
         The solver reaches a fixed point of the constraints it received. Neither
@@ -617,13 +645,14 @@ class SolverQuery(ISolverQuery):
         constraints cover all source-language operations. Residual recording is
         mandatory where implemented, but its exhaustiveness is not established.
         """
+        residuals = self._state.peek_residual_effects()
         return {
             "constraint_fixpoint_reached": bool(
                 (self._solver._stats if self._solver is not None else self._stats).get(
                     "converged", False
                 )
             ),
-            "residual_obligation_count": len(getattr(self._state, "_residual_effects", {})),
+            "residual_obligation_count": len(residuals) if residuals is not None else 0,
             "unknown_diagnostics_enabled": self._unknown_tracker.track_unknowns,
             "unknown_diagnostic_count": len(self._unknown_tracker.records),
             "residual_enumeration_exhaustive": False,

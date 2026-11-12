@@ -99,13 +99,14 @@ class CausalEvent:
         payload_truncated: bool = False,
         schema_version: int = OBSERVATION_SCHEMA_VERSION,
     ) -> None:
+        owned_parents: tuple[str, ...] = tuple(parents)
         object.__setattr__(self, "event_id", event_id)
         object.__setattr__(self, "sequence", sequence)
         object.__setattr__(self, "kind", kind)
         object.__setattr__(self, "source", source)
         object.__setattr__(self, "unit", unit)
         object.__setattr__(self, "revision", revision)
-        object.__setattr__(self, "parents", tuple(parents))
+        object.__setattr__(self, "parents", owned_parents)
         object.__setattr__(self, "payload", freeze_json(validate_json(payload)))
         object.__setattr__(self, "payload_truncated", payload_truncated)
         object.__setattr__(self, "schema_version", schema_version)
@@ -342,13 +343,14 @@ class ObservationSink:
             try:
                 if type(incoming) is not dict:
                     raise TypeError("Observation producer must emit a primitive dictionary")
-                schema: object = incoming.get("schema_version", OBSERVATION_SCHEMA_VERSION)
+                raw_event: dict[object, object] = incoming
+                schema: object = raw_event.get("schema_version", OBSERVATION_SCHEMA_VERSION)
                 if type(schema) is not int or schema != OBSERVATION_SCHEMA_VERSION:
                     raise ValueError("Unsupported observation producer schema version")
-                kind: object = incoming.get("kind")
+                kind: object = raw_event.get("kind")
                 if type(kind) is not str or not kind or len(kind) > 128:
                     raise ValueError("Observation kind must be a bounded nonempty string")
-                unit: object = incoming.get("unit")
+                unit: object = raw_event.get("unit")
                 if unit is not None and (
                     type(unit) is not str or len(unit) > self._limits.max_string
                 ):
@@ -359,7 +361,7 @@ class ObservationSink:
                     self._active_unit = None
                 active_unit = unit if kind == "work_dequeue" else self._active_unit
                 unit = unit or active_unit
-                revision: object = incoming.get(
+                revision: object = raw_event.get(
                     "revision", self._unit_revision.get(unit) if unit is not None else None
                 )
                 if revision is not None and (
@@ -368,7 +370,7 @@ class ObservationSink:
                     and len(revision) > self._limits.max_string
                 ):
                     raise TypeError("Observation revision must be a bounded integer or string")
-                point: object = incoming.get("point")
+                point: object = raw_event.get("point")
                 if point is not None and (
                     type(point) is not str or len(point) > self._limits.max_string
                 ):
@@ -379,12 +381,12 @@ class ObservationSink:
                 payload, clipped = self._own_payload(
                     {
                         k: v
-                        for k, v in incoming.items()
+                        for k, v in raw_event.items()
                         if k not in ("schema_version", "kind", "unit", "revision", "parents")
                     }
                 )
                 parents: list[str] = []
-                explicit: object = incoming.get("parents", ())
+                explicit: object = raw_event.get("parents", ())
                 if not (type(explicit) is list or type(explicit) is tuple):
                     raise TypeError("Observation parent references must be a sequence")
                 if len(explicit) > self._limits.max_payload_nodes:
@@ -398,13 +400,15 @@ class ObservationSink:
                 if unit is not None and unit in self._last_unit:
                     parents.append(self._last_unit[unit])
                 if kind == "call_dependency":
-                    caller: object = incoming.get("caller")
-                    callee: object = incoming.get("callee")
+                    caller: object = raw_event.get("caller")
+                    callee: object = raw_event.get("callee")
                     if type(caller) is str and type(callee) is str and callee in self._summaries:
                         parents.append(self._summaries[callee])
                 for callee in self._dependencies.get(unit, ()) if unit is not None else ():
                     if callee in self._summaries:
                         parents.append(self._summaries[callee])
+                parent_keys: dict[str, None] = dict.fromkeys(parents, None)
+                unique_parents: tuple[str, ...] = tuple(parent_keys)
                 record = CausalEvent(
                     f"event:{self._prefix}:{self._sequence:08d}",
                     self._sequence,
@@ -412,7 +416,7 @@ class ObservationSink:
                     self._source_ref(point),
                     unit,
                     revision,
-                    tuple(dict.fromkeys(parents)),
+                    unique_parents,
                     payload,
                     clipped,
                 )
@@ -442,8 +446,8 @@ class ObservationSink:
                     if revision is not None:
                         self._unit_revision[unit] = revision
                 if kind == "call_dependency":
-                    published_caller: object = incoming.get("caller")
-                    published_callee: object = incoming.get("callee")
+                    published_caller: object = raw_event.get("caller")
+                    published_callee: object = raw_event.get("callee")
                     if type(published_caller) is str and type(published_callee) is str:
                         self._dependencies.setdefault(published_caller, set()).add(published_callee)
                 if kind == "summary_update" and unit is not None:

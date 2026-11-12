@@ -9,10 +9,13 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from collections.abc import Callable, Hashable, Iterable, Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Protocol, TypedDict, TypeGuard, overload
 
 from pythonstan.analysis.contracts.identity import (
     CellId,
+    IdentityEpoch,
     ObjectId,
     ProgramPointId,
     UnitId,
@@ -21,7 +24,8 @@ from pythonstan.analysis.contracts.identity import (
 from pythonstan.analysis.contracts.json_data import JsonObject
 from pythonstan.analysis.contracts.oracle import CandidateAnswer as CandidateAnswer
 from pythonstan.analysis.contracts.oracle import OracleHostPort
-from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.domains.reabstract import IdentityArena
+from pythonstan.analysis.domains.values import Value, ValueOperations, ValuePolicy
 
 
 class InclusionTransfer(Protocol):
@@ -107,6 +111,7 @@ def _node(
 class IncrementalInclusionStore:
     def __init__(self, ops: ValueOperations | None = None) -> None:
         self.ops: ValueOperations = ops or ValueOperations()
+        self._revision: int = 0
         self.facts: dict[InclusionNode, Value] = {}
         self.edges: defaultdict[InclusionNode, set[InclusionNode]] = defaultdict(set)
         self.loads: defaultdict[InclusionNode, set[tuple[Hashable, InclusionNode]]] = defaultdict(
@@ -127,7 +132,16 @@ class IncrementalInclusionStore:
         self.origins: defaultdict[InclusionNode, set[str]] = defaultdict(set)
         self.errors: set[str] = set()
 
+    @property
+    def revision(self) -> int:
+        """Private-input generation, distinct from the public fact version."""
+        return self._revision
+
+    def _touch(self) -> None:
+        self._revision += 1
+
     def add_fact(self, node: InclusionNode, value: Value, origin: str = "input") -> bool:
+        self._touch()
         node = _node(node, self.ops)
         value = _payload(value, self.ops)
         old = self.facts.get(node, Value.bottom())
@@ -144,6 +158,7 @@ class IncrementalInclusionStore:
         return True
 
     def add_edge(self, source: InclusionNode, target: InclusionNode) -> bool:
+        self._touch()
         source = _node(source, self.ops)
         target = _node(target, self.ops)
         if target in self.edges[source]:
@@ -154,6 +169,7 @@ class IncrementalInclusionStore:
         return True
 
     def add_load(self, base: InclusionNode, key: Hashable, target: InclusionNode) -> None:
+        self._touch()
         base = _node(base, self.ops)
         key = _payload(key, self.ops)
         target = _node(target, self.ops)
@@ -165,6 +181,7 @@ class IncrementalInclusionStore:
             self.add_edge(("field", ref, key), target)
 
     def add_store(self, base: InclusionNode, key: Hashable, source: InclusionNode) -> None:
+        self._touch()
         base = _node(base, self.ops)
         key = _payload(key, self.ops)
         source = _node(source, self.ops)
@@ -178,6 +195,7 @@ class IncrementalInclusionStore:
     def add_operation(
         self, inputs: Iterable[InclusionNode], target: InclusionNode, function: InclusionTransfer
     ) -> None:
+        self._touch()
         inputs = tuple(_node(source, self.ops) for source in inputs)
         target = _node(target, self.ops)
         rule = (tuple(inputs), target, function)
@@ -186,6 +204,7 @@ class IncrementalInclusionStore:
         self._operation(rule)
 
     def _operation(self, rule: InclusionRule) -> None:
+        self._touch()
         inputs, target, function = rule
         values = [self.facts.get(x, Value.bottom()) for x in inputs]
         if any(x.is_bottom() for x in values):
@@ -195,11 +214,13 @@ class IncrementalInclusionStore:
         self.add_fact(target, value, "scalar_transfer")
 
     def subscribe(self, node: InclusionNode, callback: InclusionListener) -> None:
+        self._touch()
         node = _node(node, self.ops)
         if callback not in self.listeners[node]:
             self.listeners[node].append(callback)
 
     def solve(self, max_work: int | None = None) -> bool:
+        self._touch()
         selected = 0
         while self.queue and (max_work is None or selected < max_work):
             node = self.queue.popleft()
@@ -222,6 +243,7 @@ class IncrementalInclusionStore:
         return not self.queue
 
     def value(self, node: InclusionNode) -> Value:
+        self._touch()
         self.deliveries += 1
         return self.facts.get(_node(node, self.ops), Value.bottom())
 
@@ -312,12 +334,76 @@ class IncrementalInclusionStore:
         }
 
 
-class PreparedOracleUpdate:
-    """An issuer-bound detached update; retrying commit never republishes it."""
+@dataclass(frozen=True)
+class OracleInputStamp:
+    kernel: IncrementalInclusionStore
+    revision: int
+    generation: int
+    identity: tuple[str, str, str, str, str, int]
+    driver: OracleHostPort[ValueOperations] | None
+    operations: ValueOperations
+    policy: ValuePolicy
+    arena: IdentityArena
+    target_operations: ValueOperations
+    target_policy: ValuePolicy
+    target_arena: IdentityArena
+    epoch: IdentityEpoch
+    target_epoch: IdentityEpoch
 
-    def __init__(self, owner: IncrementalCandidateOracle, prepared: PreparedOracle) -> None:
+    def validate(self, owner: IncrementalCandidateOracle, *, check_epochs: bool) -> None:
+        if (
+            owner.kernel is not self.kernel
+            or owner.kernel.revision != self.revision
+            or owner.generation != self.generation
+            or owner.input_identity() != self.identity
+            or owner.driver is not self.driver
+            or owner.kernel.ops is not self.operations
+            or self.operations.policy is not self.policy
+            or self.operations.arena is not self.arena
+            or self.target_operations.policy is not self.target_policy
+            or self.target_operations.arena is not self.target_arena
+            or (check_epochs and self.arena.epoch != self.epoch)
+            or (check_epochs and self.target_arena.epoch != self.target_epoch)
+        ):
+            raise ValueError("stale oracle preparation: producer inputs changed")
+
+
+@dataclass(frozen=True)
+class PreparedArena:
+    arena: IdentityArena
+    epoch: IdentityEpoch
+    source_aliases: Mapping[ObjectId, ObjectId]
+    target_aliases: Mapping[ObjectId, ObjectId]
+
+    def validate(self, *, allow_publication: bool) -> None:
+        unchanged = self.arena.epoch == self.epoch and self.arena.aliases == self.source_aliases
+        published = (
+            allow_publication
+            and self.arena.epoch == self.epoch + 1
+            and self.arena.aliases == self.target_aliases
+        )
+        if not unchanged and not published:
+            raise ValueError("stale oracle preparation: address arena changed")
+
+
+class PreparedOracleUpdate:
+    """Issuer-bound update guarded by the exact source producer generation.
+
+    The host must validate before publishing its roots. Commit permits only the
+    captured arena or the exact prepared quotient published by that transaction.
+    """
+
+    def __init__(
+        self,
+        owner: IncrementalCandidateOracle,
+        prepared: PreparedOracle,
+        stamp: OracleInputStamp,
+        arenas: tuple[PreparedArena, ...],
+    ) -> None:
         self._owner = owner
         self._prepared = prepared
+        self._stamp = stamp
+        self._arenas = arenas
         self._committed = False
 
     @property
@@ -335,9 +421,21 @@ class PreparedOracleUpdate:
     def belongs_to(self, owner: IncrementalCandidateOracle) -> bool:
         return self._owner is owner
 
+    def _validate(self, *, allow_publication: bool) -> None:
+        self._stamp.validate(self._owner, check_epochs=not allow_publication)
+        for arena in self._arenas:
+            arena.validate(allow_publication=allow_publication)
+
+    def validate(self) -> None:
+        """Check every source input before the host publishes any roots."""
+        if self._committed:
+            raise ValueError("stale oracle preparation: update already committed")
+        self._validate(allow_publication=False)
+
     def commit(self) -> None:
         if self._committed:
             return
+        self._validate(allow_publication=True)
         self._owner._publish_prepared(self._prepared)
         self._committed = True
 
@@ -389,6 +487,21 @@ class IncrementalCandidateOracle:
         self.nonempty_consumptions: int = 0
         self.calls: set[CallFact] = set()
         self._subscriptions: set[tuple[CellId, UnitId]] = set()
+        self._generation: int = 0
+
+    @property
+    def generation(self) -> int:
+        return self._generation
+
+    def input_identity(self) -> tuple[str, str, str, str, str, int]:
+        return (
+            self.identity,
+            self.source_digest,
+            self.profile,
+            self.policy_digest,
+            self.model_digest,
+            self.max_work,
+        )
 
     def prepare_reabstract(
         self,
@@ -396,17 +509,71 @@ class IncrementalCandidateOracle:
         ops: ValueOperations | None = None,
         charge: Callable[[int], None] | None = None,
     ) -> PreparedOracleUpdate:
-        prepared = self.kernel.prepare_reabstract(mapping, ops, charge=charge)
-        own_work = 1 + len(self._subscriptions) + len(self.calls)
-        if charge is not None:
-            charge(own_work)
+        target_ops = self.kernel.ops if ops is None else ops
+        # Capture all constant-time source stamps before a charging callback can run.
+        stamp = OracleInputStamp(
+            self.kernel,
+            self.kernel.revision,
+            self.generation,
+            self.input_identity(),
+            self.driver,
+            self.kernel.ops,
+            self.kernel.ops.policy,
+            self.kernel.ops.arena,
+            target_ops,
+            target_ops.policy,
+            target_ops.arena,
+            self.kernel.ops.arena.epoch,
+            target_ops.arena.epoch,
+        )
+        arena_inputs = [(stamp.arena, stamp.epoch)]
+        if target_ops.arena is not stamp.arena:
+            arena_inputs.append((target_ops.arena, stamp.target_epoch))
+        work = 0
+
+        def spend(amount: int) -> None:
+            nonlocal work
+            if charge is not None:
+                charge(amount)
+            # A callback may grow a collection currently being prepared. Abort
+            # before the next clone or iterator advance, not only at return.
+            stamp.validate(self, check_epochs=True)
+            work += amount
+
+        owned_mapping: dict[ObjectId, ObjectId] = {}
+        for old, new in mapping.items():
+            spend(1)
+            owned_mapping[old] = new
+        arenas: list[PreparedArena] = []
+        for arena, epoch in arena_inputs:
+            source_aliases: dict[ObjectId, ObjectId] = {}
+            for old, new in arena.aliases.items():
+                spend(1)
+                source_aliases[old] = new
+            # Charge the quotient snapshot before the domain helper clones it.
+            spend(1 + len(source_aliases) + len(owned_mapping))
+            target_aliases = arena.prepare(owned_mapping)
+            arenas.append(
+                PreparedArena(
+                    arena,
+                    epoch,
+                    MappingProxyType(source_aliases),
+                    MappingProxyType(target_aliases),
+                )
+            )
+        prepared = self.kernel.prepare_reabstract(owned_mapping, target_ops, charge=spend)
+        spend(1 + len(self._subscriptions) + len(self.calls))
         update: PreparedOracle = {
             **prepared,
             "subscriptions": set(self._subscriptions),
             "calls": set(self.calls),
-            "work": prepared["work"] + own_work,
+            "work": work,
+            "work_precharged": charge is not None,
         }
-        return PreparedOracleUpdate(self, update)
+        result = PreparedOracleUpdate(self, update, stamp, tuple(arenas))
+        # Includes callbacks and mutations that happened during the preparation itself.
+        result.validate()
+        return result
 
     def commit_reabstract(self, prepared: PreparedOracleUpdate) -> None:
         """Compatibility entry point; the update itself owns one-time publication."""
@@ -416,6 +583,7 @@ class IncrementalCandidateOracle:
 
     def _publish_prepared(self, prepared: PreparedOracle) -> None:
         """The host has charged and published its address epoch before this."""
+        self._generation += 1
         self.kernel = prepared["kernel"]
         self._subscriptions = prepared["subscriptions"]
         self.calls = prepared["calls"]
@@ -428,6 +596,7 @@ class IncrementalCandidateOracle:
         profile: str | None = None,
         policy_digest: str | None = None,
     ) -> None:
+        self._generation += 1
         actual_source = driver.source_digest
         if source_digest is not None and source_digest != actual_source:
             raise ValueError("oracle source identity override mismatch")
@@ -510,6 +679,7 @@ class IncrementalCandidateOracle:
         if consumer is not None and driver is not None:
             key = (cell, consumer)
             if key not in self._subscriptions:
+                self._generation += 1
                 self._subscriptions.add(key)
 
                 def notify(node: InclusionNode, version: int) -> None:
@@ -531,6 +701,7 @@ class IncrementalCandidateOracle:
         )
 
     def observe_call(self, caller: str, callee: str, site: ProgramPointId) -> None:
+        self._generation += 1
         self.calls.add((caller, callee, site))
 
     def statistics(self) -> JsonObject:

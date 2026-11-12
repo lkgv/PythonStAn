@@ -8,36 +8,139 @@ Unavailable metadata produces explicit obligations.
 from __future__ import annotations
 
 import ast
+import builtins
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import replace
+from enum import Enum
+from typing import TYPE_CHECKING, Protocol, TypeGuard, override, runtime_checkable
+
 from pythonstan.analysis.contracts import SourceModule
-from pythonstan.analysis.domains.values import Value
+from pythonstan.analysis.contracts.budgets import AnalysisBudget
+from pythonstan.analysis.contracts.identity import CellId, ContextId, FrameId, ObjectId, UnitId
+from pythonstan.analysis.contracts.json_data import JsonObject, JsonValue
+from pythonstan.analysis.contracts.observation import ObserverPort
+from pythonstan.analysis.contracts.oracle import CandidateOraclePort
+from pythonstan.analysis.contracts.private_slots import (
+    keyword_default_slot,
+    positional_default_slot,
+)
+from pythonstan.analysis.contracts.work import WorkLedgerPort
 from pythonstan.analysis.domains.ints import IntLattice, Parity
 from pythonstan.analysis.domains.strings import StrLattice
-from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver, BudgetStop
-from pythonstan.analysis.engines.abstract.state import Store, HeapObject, Frame, Flow, FunctionInfo
+from pythonstan.analysis.domains.values import Value
+from pythonstan.analysis.engines.abstract.driver import BudgetStop, InterproceduralDriver
+from pythonstan.analysis.engines.abstract.state import Frame, FunctionInfo, HeapObject, Store
+from pythonstan.analysis.pointer.kcfa.class_hierarchy import ClassHierarchyManager
+from pythonstan.analysis.pointer.kcfa.context import (
+    NativeContext,
+    ObjectContext,
+    Scope,
+    is_native_context,
+)
+from pythonstan.analysis.pointer.kcfa.heap_model import Field
+from pythonstan.analysis.pointer.kcfa.object import AbstractObject, FunctionObject, UnknownValue
+from pythonstan.analysis.pointer.kcfa.state import PointerAnalysisState
 from pythonstan.analysis.semantics.names import classify_bindings
-from pythonstan.analysis.state.flow import flow_payload, require_payload
+from pythonstan.analysis.state.flow import Flow, flow_payload, require_payload
+from pythonstan.analysis.state.keys import FieldKey, LiteralKey
+from pythonstan.analysis.state.metadata import ComponentPayload
+from pythonstan.compat.legacy_ai.api import AISummary, ArgBinding, PtaQuery
+from pythonstan.compat.legacy_ai.heap import AIAddr
+from pythonstan.compat.legacy_ai.state import AIState
+from pythonstan.compat.legacy_ai.value_domain import AbsVal
+from pythonstan.frontend.source import SourceInput, SourceProgram, source_constant, source_position
+from pythonstan.ir.ir_statements import IRClass, IRFunc, IRModule, IRScope
+from pythonstan.world.scope_manager import ScopeManager
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.pointer.ai.solver import SolverConfig
+
+type SourceDefinition = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
+type KeySignatureValue = None | bool | int | float | str | tuple[KeySignature, ...]
+type KeySignature = tuple[str, KeySignatureValue]
+
+
+@runtime_checkable
+class NativeStateProvider(Protocol):
+    @property
+    def _state(self) -> PointerAnalysisState: ...
+
+
+@runtime_checkable
+class NativeHierarchyProvider(Protocol):
+    @property
+    def _class_hierarchy(self) -> ClassHierarchyManager | None: ...
+
+
+_NATIVE_STATE_RUNTIME: type[object] = PointerAnalysisState
+
+
+def _has_native_state(value: object) -> TypeGuard[NativeStateProvider]:
+    return isinstance(value, NativeStateProvider) and isinstance(
+        value._state, _NATIVE_STATE_RUNTIME
+    )
+
+
+def _has_native_hierarchy(value: object) -> TypeGuard[NativeHierarchyProvider]:
+    if not isinstance(value, NativeHierarchyProvider):
+        return False
+    return value._class_hierarchy is None or isinstance(
+        value._class_hierarchy, ClassHierarchyManager
+    )
+
+
+class ResidualKey(Enum):
+    UNKNOWN = "unrepresented_native_key"
+
+
+def _literal_key(value: object) -> LiteralKey:
+    """Decode the actual Native literal-key boundary into the Source key model."""
+    if value is None or isinstance(value, (bool, int, float, str, bytes)):
+        return value
+    if isinstance(value, tuple):
+        return tuple(_literal_key(part) for part in value)
+    raise BoundaryUnavailable("Unrepresented dictionary key")
 
 
 class BoundaryUnavailable(ValueError):
     pass
 
 
-class SharedDriver(InterproceduralDriver):
-    def __init__(self, *args, work_ledger=None, **kwargs):
-        self.work_ledger = work_ledger
-        super().__init__(*args, **kwargs)
+def _checked_context(value: object) -> NativeContext:
+    if not is_native_context(value):
+        raise BoundaryUnavailable("Unsupported custom Native context implementation")
+    return value
 
-    def charge(self, amount, category):
-        # Denied local work is not an executed shared transfer. Preflight both
-        # bounds before mutating either counter whenever the ledger exposes it.
+
+def _capsule_index(item: tuple[int, AbsVal]) -> int:
+    return item[0]
+
+
+class SharedDriver(InterproceduralDriver):
+    def __init__(
+        self,
+        modules: Mapping[str, SourceInput] | Iterable[SourceInput],
+        options: Mapping[str, object] | None = None,
+        oracle: CandidateOraclePort[Value] | None = None,
+        observer: ObserverPort | None = None,
+        program: SourceProgram | None = None,
+        *,
+        work_ledger: WorkLedgerPort | None = None,
+    ) -> None:
+        self.work_ledger: WorkLedgerPort | None = work_ledger
+        super().__init__(modules, options, oracle, observer, program)
+
+    @override
+    def charge(self, amount: int, category: str) -> None:
+        # A denied local transfer never consumes shared work.
         if amount < 0:
             raise ValueError("negative work charge")
         if amount > self.max_work - self.work:
             raise BudgetStop("max_work")
         if self.work_ledger is not None:
-            remaining = getattr(self.work_ledger, "remaining", None)
+            remaining = self.work_ledger.remaining
             if type(remaining) is int and amount > remaining:
                 raise BudgetStop("shared_work_budget")
             for _ in range(amount):
@@ -49,23 +152,66 @@ class SharedDriver(InterproceduralDriver):
 class LegacyStateBridge:
     """One invocation's complete value, alias and outgoing state conversion."""
 
-    def __init__(self, query, budget, context, scope, initial, driver):
-        self.query, self.budget, self.context, self.scope = query, budget, context, scope
-        self.initial, self.driver = initial, driver
-        self.objects, self.reverse, self.addresses = {}, {}, {}
-        self.cells, self.reads, self.reasons = {}, set(), set()
-        self.store = Store()
+    def __init__(
+        self,
+        query: PtaQuery | None,
+        budget: AnalysisBudget,
+        context: NativeContext,
+        scope: Scope | None,
+        initial: AIState,
+        driver: SharedDriver,
+    ) -> None:
+        self.query: PtaQuery | None = query
+        self.budget: AnalysisBudget = budget
+        self.context: NativeContext = _checked_context(context)
+        self.scope: Scope | None = scope
+        self.initial: AIState = initial
+        if initial.registry is None:
+            raise BoundaryUnavailable("Legacy input registry unavailable")
+        self.registry = initial.registry
+        self.driver: SharedDriver = driver
+        self.objects: dict[AbstractObject, ObjectId] = {}
+        self.reverse: dict[ObjectId, AbstractObject] = {}
+        self.addresses: dict[AIAddr, ObjectId] = {}
+        self.reads: set[tuple[AbstractObject, Field]] = set()
+        self.reasons: set[str] = set()
+        self.store: Store = Store()
+        self.native_state: PointerAnalysisState | None = None
+        self.manager: ScopeManager | None = None
+        self.ir_scopes: tuple[IRScope, ...] = ()
+        self.source_index: dict[tuple[str, str], list[SourceDefinition]] = {}
 
-    def value(self, old):
+    def register_function(self, obj: FunctionObject, identifier: ObjectId) -> None:
+        self.reasons.add("bridge_callable_source_unavailable")
+
+    def source_node(self, scope_ir: IRScope) -> SourceDefinition | None:
+        return None
+
+    def source_ir(self, module: str, qualname: str, node: ast.AST | None) -> IRScope | None:
+        return None
+
+    def native_parent(self, prototype: IRScope) -> Scope | None:
+        return None
+
+    @staticmethod
+    def default_slot(index: int) -> FieldKey:
+        return positional_default_slot(index)
+
+    @staticmethod
+    def keyword_slot(name: str) -> FieldKey:
+        return keyword_default_slot(name)
+
+    def value(self, old: AbsVal) -> Value:
         from pythonstan.analysis.pointer.kcfa.object import ConstantObject
 
         if old.is_bottom():
             return Value.bottom()
-        refs, constants = set(), []
+        refs: set[ObjectId] = set()
+        constants: list[Value] = []
         for obj in old.addrs:
             if isinstance(obj, ConstantObject):
                 constants.append(Value.constant(obj.value))
-            elif getattr(obj, "is_top_value", False):
+            elif isinstance(obj, UnknownValue):
                 constants.append(Value.unknown())
             else:
                 refs.add(self.object(obj))
@@ -93,7 +239,7 @@ class LegacyStateBridge:
                     string.prefixes,
                     string.suffixes,
                     string.has_unknown,
-                    getattr(string, "conjunctions", frozenset()),
+                    string.conjunctions,
                 ),
                 bools=frozenset(
                     x
@@ -105,14 +251,18 @@ class LegacyStateBridge:
             )
         return self.driver.ops.join_all([scalar, *constants, Value(refs=frozenset(refs))])
 
-    def field_key(self, field, kind):
+    def field_key(self, field: Field, kind: str) -> FieldKey | ResidualKey:
         from pythonstan.analysis.pointer.kcfa.heap_model import FieldKind
 
         if field.kind in {FieldKind.ATTRIBUTE, FieldKind.OWN_ATTRIBUTE}:
+            if field.name is None:
+                raise BoundaryUnavailable("Attribute field name unavailable")
             return field.name
         if field.kind == FieldKind.POSITION:
             return field.index
         if field.kind == FieldKind.KEY:
+            if field.name is None:
+                raise BoundaryUnavailable("Native key field name unavailable")
             if kind in {"list", "tuple", "range"} and field.key_type is None:
                 try:
                     return int(field.name)
@@ -122,7 +272,8 @@ class LegacyStateBridge:
                 return None
             if field.key_type in {"number", "tuple"}:
                 try:
-                    return ast.literal_eval(field.name)
+                    literal: object = ast.literal_eval(field.name)
+                    return _literal_key(literal)
                 except (ValueError, TypeError, SyntaxError):
                     self.reasons.add("bridge_numeric_key")
                     return _RESIDUAL
@@ -134,18 +285,21 @@ class LegacyStateBridge:
             FieldKind.OWN_UNKNOWN,
             FieldKind.WILDCARD_KEY,
         }:
-            self.reasons.add("bridge_field_metadata:" + field.kind.value)
+            kind_name: object = field.kind.value
+            if not isinstance(kind_name, str):
+                raise BoundaryUnavailable("Unrepresented Native field kind")
+            self.reasons.add("bridge_field_metadata:" + kind_name)
         return _RESIDUAL
 
-    def object(self, obj):
+    def object(self, obj: AbstractObject) -> ObjectId:
         from pythonstan.analysis.pointer.kcfa import object as native
-        from pythonstan.analysis.pointer.ai.heap import AIAddr
         from pythonstan.analysis.pointer.kcfa.heap_model import attr, unknown
+        from pythonstan.compat.legacy_ai.heap import AIAddr
 
         if obj in self.objects:
             return self.objects[obj]
         if isinstance(obj, native.BuiltinMethodObject):
-            identifier = f"compat-object:{len(self.objects)}"
+            identifier = ObjectId(f"compat-object:{len(self.objects)}")
             self.objects[obj] = identifier
             self.reverse[identifier] = obj
             self.store.heap[identifier] = HeapObject(
@@ -157,12 +311,12 @@ class LegacyStateBridge:
             )
             self.addresses[AIAddr.from_kcfa_obj(obj)] = identifier
             return identifier
-        if isinstance(obj, native.MethodObject) and getattr(obj.ir, "is_static_method", False):
-            identifier = f"compat-object:{len(self.objects)}"
+        if isinstance(obj, native.MethodObject) and obj.ir.is_static_method:
+            identifier = ObjectId(f"compat-object:{len(self.objects)}")
             self.objects[obj] = identifier
             self.reverse[identifier] = obj
             self.store.heap[identifier] = HeapObject("staticmethod")
-            unbound = f"compat-unbound:{len(self.objects)}"
+            unbound = ObjectId(f"compat-unbound:{len(self.objects)}")
             prototype = native.FunctionObject(
                 obj.context,
                 native.AllocSite(obj.ir, native.AllocKind.FUNCTION),
@@ -177,9 +331,9 @@ class LegacyStateBridge:
             self.addresses[AIAddr.from_kcfa_obj(obj)] = identifier
             return identifier
         if isinstance(obj, native.MethodObject) and (
-            obj.instance_obj is not None or getattr(obj.ir, "is_class_method", False)
+            obj.instance_obj is not None or obj.ir.is_class_method
         ):
-            identifier = f"compat-object:{len(self.objects)}"
+            identifier = ObjectId(f"compat-object:{len(self.objects)}")
             self.objects[obj] = identifier
             self.reverse[identifier] = obj
             self.store.heap[identifier] = HeapObject("bound_method")
@@ -195,7 +349,7 @@ class LegacyStateBridge:
                 }
                 self.addresses[AIAddr.from_kcfa_obj(obj)] = identifier
                 return identifier
-            unbound = f"compat-unbound:{len(self.objects)}"
+            unbound = ObjectId(f"compat-unbound:{len(self.objects)}")
             prototype = native.FunctionObject(
                 obj.context,
                 native.AllocSite(obj.ir, native.AllocKind.FUNCTION),
@@ -214,14 +368,16 @@ class LegacyStateBridge:
             self.addresses[AIAddr.from_kcfa_obj(obj)] = identifier
             return identifier
         if isinstance(obj, (native.BuiltinFunctionObject, native.BuiltinClassObject)):
-            name = getattr(obj, "builtin_name", None)
-            if name is None:
-                name = getattr(obj, "function_name", None)
-            identifier = "builtin:" + name
+            name = (
+                obj.builtin_name
+                if isinstance(obj, native.BuiltinClassObject)
+                else obj.function_name
+            )
+            identifier = ObjectId("builtin:" + name)
             self.objects[obj] = identifier
             self.reverse[identifier] = obj
             return identifier
-        identifier = f"compat-object:{len(self.objects)}"
+        identifier = ObjectId(f"compat-object:{len(self.objects)}")
         self.objects[obj] = identifier
         self.reverse[identifier] = obj
         self.addresses[AIAddr.from_kcfa_obj(obj)] = identifier
@@ -265,7 +421,7 @@ class LegacyStateBridge:
             target.metadata.update(
                 exception_name=obj.builtin_type, exception_types=(obj.builtin_type,)
             )
-            target.class_ids = frozenset(("builtin:" + obj.builtin_type,))
+            target.class_ids = frozenset((ObjectId("builtin:" + obj.builtin_type),))
         if isinstance(obj, native.InstanceObject):
             target.class_ids = frozenset((self.object(obj.class_obj),))
         if isinstance(obj, native.ClassObject):
@@ -282,7 +438,7 @@ class LegacyStateBridge:
                             for name, value in capsule.items()
                             if name.startswith(category + ":")
                         ),
-                        key=lambda item: item[0],
+                        key=_capsule_index,
                     )
                     values = [self.value(value) for _, value in entries]
                     if all(len(value.refs) == 1 and not value.top for value in values):
@@ -295,17 +451,19 @@ class LegacyStateBridge:
             else:
                 mro = self.query.get_class_mro(obj) if self.query is not None else []
                 target.metadata["mro"] = tuple(self.object(base) for base in mro if base != obj)
-                hierarchy = getattr(self.query, "_class_hierarchy", None)
+                hierarchy = (
+                    self.query._class_hierarchy if _has_native_hierarchy(self.query) else None
+                )
                 bases = (
                     tuple(hierarchy.get_bases(obj))
                     if hierarchy is not None and hierarchy.has_class(obj)
                     else ()
                 )
-                source_node = self.source_node(obj.ir) if hasattr(self, "source_node") else None
+                source_node = self.source_node(obj.ir)
                 if bases:
                     target.metadata["bases"] = tuple(self.object(base) for base in bases)
-                elif source_node is not None and not source_node.bases:
-                    target.metadata["bases"] = ("builtin:object",)
+                elif isinstance(source_node, ast.ClassDef) and not source_node.bases:
+                    target.metadata["bases"] = (ObjectId("builtin:object"),)
                 else:
                     # Missing Native base metadata is a covering havoc class.
                     # Consuming it executes ordinary havoc lookup/call effects;
@@ -313,9 +471,12 @@ class LegacyStateBridge:
                     target.metadata["bases"] = ()
                     target.havoc = True
                 if not target.havoc and "builtin:object" not in target.metadata["mro"]:
-                    target.metadata["mro"] += ("builtin:object",)
+                    target.metadata["mro"] = tuple(target.metadata["mro"]) + (
+                        ObjectId("builtin:object"),
+                    )
+            original_source = obj.ir.get_source_snapshot()
             target.metadata.update(
-                module=obj.ir.get_source_snapshot().module if obj.ir.get_source_snapshot() else "",
+                module=original_source.module if original_source is not None else "",
                 qualname=obj.ir.get_qualname(),
                 name=obj.ir.get_qualname().split(".")[-1],
             )
@@ -328,9 +489,9 @@ class LegacyStateBridge:
                 if owner == f"$namespace:{hash(obj)}"
             }
             for name in ("namespace_kind", "module", "prefix"):
-                constants = capsule[name].get_const_strs() if name in capsule else None
-                if constants is not None and len(constants) == 1:
-                    target.metadata[name] = next(iter(constants))
+                text_constants = capsule[name].get_const_strs() if name in capsule else None
+                if text_constants is not None and len(text_constants) == 1:
+                    target.metadata[name] = next(iter(text_constants))
             if "owner" in capsule:
                 value = self.value(capsule["owner"])
                 if len(value.refs) == 1 and not value.top:
@@ -352,18 +513,17 @@ class LegacyStateBridge:
                 target.havoc = True
                 self.reasons.add("bridge_namespace_capsule_unavailable")
         if isinstance(obj, native.FunctionObject):
-            if hasattr(self, "register_function"):
-                self.register_function(obj, identifier)
-            else:
-                self.reasons.add("bridge_callable_source_unavailable")
+            self.register_function(obj, identifier)
         if AIAddr.from_kcfa_obj(obj) in self.initial.heap:
             # This caller capsule is the actual local AI shape. A fresh Source
             # object has no Native query registration, so querying Native here
             # would turn absent metadata into a spurious host-query failure.
             return identifier
-        state = getattr(self.query, "_state", None)
-        fields = {
-            field for owner, field in tuple(getattr(state, "_field_accesses", ())) if owner == obj
+        state = self.query._state if _has_native_state(self.query) else None
+        fields: set[Field] = {
+            field
+            for owner, field in (() if state is None else tuple(state._field_accesses))
+            if owner == obj
         }
         if kind in {"instance", "class"}:
             fields.update(
@@ -386,6 +546,8 @@ class LegacyStateBridge:
             }:
                 continue
             try:
+                if self.query is None:
+                    raise BoundaryUnavailable("Native field query unavailable")
                 points = frozenset(self.query.field_points_to(obj, field, self.scope, self.context))
             except Exception:
                 self.reasons.add("bridge_field_query_failure")
@@ -394,7 +556,7 @@ class LegacyStateBridge:
             self.reads.add((obj, field))
             if not points:
                 continue
-            from pythonstan.analysis.pointer.ai.value_domain import AbsVal
+            from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
             value = self.value(AbsVal.from_addrs(points))
             key = self.field_key(field, kind)
@@ -422,14 +584,14 @@ class LegacyStateBridge:
             target.havoc = True
         return identifier
 
-    def _value(self, old):
+    def _value(self, old: AbsVal) -> Value:
         return self.value(old)
 
-    def import_state(self, frame):
+    def import_state(self, frame: Frame) -> Store:
         """Import roots first, then effective local slots/overlays and shared cells."""
-        from pythonstan.compat.legacy_ai.heap import AIAddr
         from pythonstan.analysis.pointer.kcfa.object import BuiltinInstanceObject
         from pythonstan.compat.legacy_ai.domains.mapslots import Presence
+        from pythonstan.compat.legacy_ai.heap import AIAddr
 
         # Recover actual owner identities from the whole retained capsule
         # before manufacturing any AI-only allocation. A method's finite
@@ -474,14 +636,14 @@ class LegacyStateBridge:
                     self.reasons.add("bridge_local_owner_identity_unavailable")
         for name, value in self.initial.env.items():
             self.store.cells[frame.cell(name)] = self.value(value)
-        for (owner, name), value in self.initial.shared_bindings.items():
-            if owner == "$namespace-havoc":
+        for (binding_owner, name), value in self.initial.shared_bindings.items():
+            if binding_owner == "$namespace-havoc":
                 self.store.havoc_namespaces |= frozenset((name,))
                 continue
-            if owner == "$imports-havoc":
+            if binding_owner == "$imports-havoc":
                 self.store.havoc_imports = True
                 continue
-            if owner.startswith(
+            if binding_owner.startswith(
                 (
                     "$default:",
                     "$annotation:",
@@ -493,7 +655,7 @@ class LegacyStateBridge:
                 )
             ):
                 continue
-            cell = owner if name == "$cell" else f"global:{owner}:{name}"
+            cell = CellId(binding_owner if name == "$cell" else f"global:{binding_owner}:{name}")
             self.store.cells[cell] = self.value(value)
         for address, obj in self.initial.heap.items():
             target = self.store.heap[self.addresses[address]]
@@ -553,34 +715,45 @@ class LegacyStateBridge:
                 self.reasons.add("bridge_unrepresented_incoming_alias")
         if self.initial.exn is not None:
             exception = self.value(self.initial.exn)
-            self.store.cells["$active_exception"] = exception
-            tags = set()
+            self.store.cells[CellId("$active_exception")] = exception
+            tags: set[str] = set()
             for identifier in exception.refs:
-                obj = self.store.heap.get(identifier)
-                if obj:
-                    tags.update(obj.metadata.lookup("exception_types", ()))
+                exception_object = self.store.heap.get(identifier)
+                if exception_object:
+                    tags.update(exception_object.metadata.lookup("exception_types", ()))
             names = exception.exact_constants()
             if names:
                 tags.update(value for value in names if isinstance(value, str))
             if len(tags) == 1:
-                self.store.cells["$active_exception_type"] = Value.constant(next(iter(tags)))
+                self.store.cells[CellId("$active_exception_type")] = Value.constant(
+                    next(iter(tags))
+                )
             else:
-                self.store.cells["$active_exception_type"] = Value.constant("BaseException")
+                self.store.cells[CellId("$active_exception_type")] = Value.constant("BaseException")
         self.store.writes = set()
         return self.store
 
     @staticmethod
-    def signature_key(signature):
+    def signature_key(signature: tuple[str, builtins.object]) -> FieldKey | ResidualKey:
         kind, value = signature
         if kind in {"str", "int", "float", "bool", "none", "NoneType"}:
-            return None if kind in {"none", "NoneType"} else value
+            return None if kind in {"none", "NoneType"} else _literal_key(value)
         if kind == "tuple":
-            parts = tuple(LegacyStateBridge.signature_key(part) for part in value)
-            return _RESIDUAL if any(part is _RESIDUAL for part in parts) else parts
+            if not isinstance(value, tuple):
+                return _RESIDUAL
+            parts: list[FieldKey] = []
+            for part in value:
+                if not isinstance(part, tuple) or len(part) != 2 or not isinstance(part[0], str):
+                    return _RESIDUAL
+                decoded = LegacyStateBridge.signature_key((part[0], part[1]))
+                if decoded is _RESIDUAL:
+                    return _RESIDUAL
+                parts.append(decoded)
+            return tuple(parts)
         return _RESIDUAL
 
     @staticmethod
-    def key_signature(value):
+    def key_signature(value: FieldKey) -> KeySignature:
         if value is None:
             return ("none", None)
         if type(value) is bool:
@@ -595,19 +768,18 @@ class LegacyStateBridge:
             return ("tuple", tuple(LegacyStateBridge.key_signature(part) for part in value))
         raise BoundaryUnavailable("Unrepresented dictionary key")
 
-    def old_object(self, identifier, store):
+    def old_object(self, identifier: ObjectId, store: Store) -> AbstractObject:
         """Reify a source-backed allocation; no callee body or module is replayed."""
         from pythonstan.analysis.pointer.kcfa import object as native
-        from pythonstan.models.exceptions import EXCEPTION_NAMES
         from pythonstan.models.builtins import CONTAINER_TYPES
+        from pythonstan.models.exceptions import EXCEPTION_NAMES
 
-        if hasattr(self.driver.ops, "arena"):
-            identifier = self.driver.ops.arena.resolve(identifier)
+        identifier = self.driver.ops.arena.resolve(identifier)
         if identifier in self.reverse:
             return self.reverse[identifier]
         if identifier.startswith("builtin:"):
             name = identifier.split(":", 1)[1]
-            cls = (
+            builtin_factory = (
                 native.BuiltinClassObject
                 if name
                 in EXCEPTION_NAMES
@@ -626,14 +798,15 @@ class LegacyStateBridge:
                 }
                 else native.BuiltinFunctionObject
             )
-            obj = cls(
+            builtin = builtin_factory(
                 self.context,
                 native.AllocSite("shared-builtin:" + name, native.AllocKind.BUILTIN),
                 name,
             )
-            self.reverse[identifier] = obj
-            self.objects[obj] = identifier
-            return obj
+            self.reverse[identifier] = builtin
+            self.objects[builtin] = identifier
+            return builtin
+        result: AbstractObject
         obj = store.heap.get(identifier)
         if obj is None:
             self.reasons.add("bridge_missing_outgoing_object")
@@ -647,7 +820,7 @@ class LegacyStateBridge:
                 self.source_ir(info.module, info.qualname, info.node) if info is not None else None
             )
             container = self.native_parent(prototype) if prototype is not None else None
-            if prototype is None or container is None:
+            if not isinstance(prototype, IRFunc) or container is None:
                 self.reasons.add("bridge_outgoing_function_prototype")
                 result = native.UnknownValue(
                     self.context,
@@ -732,7 +905,7 @@ class LegacyStateBridge:
                     if len(matches) == 1:
                         prototype = matches[0]
             container = self.native_parent(prototype) if prototype is not None else None
-            if prototype is not None and container is not None:
+            if isinstance(prototype, IRClass) and container is not None:
                 result = native.ClassObject(
                     self.fresh_context(identifier, prototype),
                     native.AllocSite(prototype, native.AllocKind.CLASS),
@@ -747,20 +920,22 @@ class LegacyStateBridge:
                     "class",
                 )
         elif obj.kind in {"list", "tuple", "dict", "set"}:
-            cls, kind = {
+            container_factory, allocation_kind = {
                 "list": (native.ListObject, native.AllocKind.LIST),
                 "tuple": (native.TupleObject, native.AllocKind.TUPLE),
                 "dict": (native.DictObject, native.AllocKind.DICT),
                 "set": (native.SetObject, native.AllocKind.SET),
             }[obj.kind]
-            result = cls(self.context, native.AllocSite("shared:" + identifier, kind))
+            result = container_factory(
+                self.context, native.AllocSite("shared:" + identifier, allocation_kind)
+            )
         elif obj.kind == "instance" and len(obj.class_ids) == 1:
-            cls = self.old_object(next(iter(obj.class_ids)), store)
-            if isinstance(cls, native.ClassObject):
+            instance_class = self.old_object(next(iter(obj.class_ids)), store)
+            if isinstance(instance_class, native.ClassObject):
                 result = native.InstanceObject(
                     self.context,
                     native.AllocSite("shared:" + identifier, native.AllocKind.INSTANCE),
-                    cls,
+                    instance_class,
                 )
             else:
                 result = native.BuiltinInstanceObject(
@@ -794,7 +969,7 @@ class LegacyStateBridge:
         return result
 
     @staticmethod
-    def fresh_context(identifier, prototype):
+    def fresh_context(identifier: ObjectId, prototype: IRFunc | IRClass) -> ObjectContext:
         """Represent a fresh Source activation with one flat finite atom.
 
         The real IR prototype remains the allocation site and the real lexical
@@ -802,20 +977,20 @@ class LegacyStateBridge:
         this path and retain their original identity. No context embeds an
         object, frame, caller context or recursively expanding history.
         """
-        from pythonstan.analysis.pointer.kcfa.context import ObjectContext, FiniteContextAtom
+        from pythonstan.analysis.pointer.kcfa.context import FiniteContextAtom, ObjectContext
 
         return ObjectContext((FiniteContextAtom("object", prototype, (identifier,)),), depth=1)
 
-    def old_value(self, value, store):
-        from pythonstan.compat.legacy_ai.value_domain import AbsVal
+    def old_value(self, value: Value, store: Store) -> AbsVal:
         from pythonstan.analysis.pointer.kcfa.object import (
-            ConstantObject,
-            AllocSite,
             AllocKind,
+            AllocSite,
+            ConstantObject,
             UnknownValue,
         )
+        from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
-        value = self.driver.ops.normalize(value) if hasattr(self.driver.ops, "normalize") else value
+        value = self.driver.ops.normalize(value)
         if value.top or value.top_sorts - {"str", "int", "bool", "none"}:
             if not value.top:
                 self.reasons.add("bridge_outgoing_unknown_or_unrepresented_sort")
@@ -872,18 +1047,19 @@ class LegacyStateBridge:
         if value.unbound and not value.without_unbound().is_bottom():
             self.reasons.add("bridge_outgoing_maybe_unbound")
             result = result.join(AbsVal.top(self.initial.registry))
-        return result.with_registry(self.initial.registry)
+        return result.with_registry(self.registry)
 
-    def old_state(self, store, frame, extra_roots=()):
-        from pythonstan.compat.legacy_ai.state import AIState
-        from pythonstan.compat.legacy_ai.heap import AIAddr, AbsObj, ObjKind, ContainerSlots
-        from pythonstan.compat.legacy_ai.domains.mapslots import SlotMap, Slot, Presence
-        from pythonstan.analysis.pointer.kcfa.heap_model import key, attr, unknown
+    def old_state(
+        self, store: Store, frame: Frame, extra_roots: Iterable[ObjectId] = ()
+    ) -> AIState:
         from pythonstan.analysis.contracts.private_slots import (
-            is_private_slot,
-            is_function_default_slot,
             function_annotations_slot,
+            is_private_slot,
         )
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr, key, unknown
+        from pythonstan.compat.legacy_ai.domains.mapslots import Presence, Slot, SlotMap
+        from pythonstan.compat.legacy_ai.heap import AbsObj, AIAddr, ContainerSlots, ObjKind
+        from pythonstan.compat.legacy_ai.state import AIState
 
         result = AIState(pta_query=self.query, budget=self.budget, registry=self.initial.registry)
         for name in frame.locals:
@@ -906,9 +1082,9 @@ class LegacyStateBridge:
         pending = [
             identifier for value in store.cells.values() for identifier in value.refs
         ] + list(extra_roots)
-        reachable = set()
+        reachable: set[ObjectId] = set()
 
-        def edges(payload):
+        def edges(payload: ComponentPayload) -> list[ObjectId]:
             if isinstance(payload, Value):
                 return list(payload.refs)
             if isinstance(payload, (tuple, list, set, frozenset)):
@@ -928,7 +1104,9 @@ class LegacyStateBridge:
                 pending.extend(value.refs)
             pending.extend(edges(obj.metadata))
             if obj.kind == "namespace" and obj.metadata.lookup("namespace_kind") == "object":
-                pending.append(obj.metadata.lookup("owner"))
+                namespace_owner = obj.metadata.lookup("owner")
+                if namespace_owner is not None:
+                    pending.append(obj.metadata.namespace_owner())
             if obj.kind == "class":
                 pending.extend((*obj.metadata.lookup("bases", ()), *obj.metadata.lookup("mro", ())))
             for _, cell in obj.metadata.lookup("closure", ()):
@@ -1014,9 +1192,10 @@ class LegacyStateBridge:
             )
             if obj.kind == "bound_method":
                 for name in ("callable", "receiver"):
-                    if isinstance(obj.metadata.lookup(name), Value):
+                    method_value = obj.metadata.lookup(name)
+                    if isinstance(method_value, Value):
                         result.shared_bindings[(f"$method:{hash(native)}", name)] = self.old_value(
-                            obj.metadata[name], store
+                            method_value, store
                         )
             if obj.kind == "class":
                 owner = f"$class:{hash(native)}"
@@ -1031,15 +1210,17 @@ class LegacyStateBridge:
 
                 owner = f"$namespace:{hash(native)}"
                 for name in ("namespace_kind", "module", "prefix"):
-                    if type(obj.metadata.lookup(name)) is str:
-                        result.shared_bindings[(owner, name)] = AbsVal.from_str(obj.metadata[name])
+                    namespace_text = obj.metadata.lookup(name)
+                    if isinstance(namespace_text, str):
+                        result.shared_bindings[(owner, name)] = AbsVal.from_str(namespace_text)
                 if "readonly" in obj.metadata:
                     result.shared_bindings[(owner, "readonly")] = (
                         AbsVal.bool_true() if obj.metadata["readonly"] else AbsVal.bool_false()
                     )
-                if "owner" in obj.metadata:
+                namespace_ref = obj.metadata.lookup("owner")
+                if namespace_ref is not None:
                     result.shared_bindings[(owner, "owner")] = self.old_value(
-                        Value.ref(obj.metadata["owner"]), store
+                        Value.ref(obj.metadata.namespace_owner()), store
                     )
             if obj.kind == "function":
                 info = self.driver.functions.get(identifier)
@@ -1064,9 +1245,7 @@ class LegacyStateBridge:
                     for name, cell in obj.metadata.lookup("closure", info.closure):
                         result.shared_bindings[
                             (f"$closure-id:{info.qualname}@{activation}", name)
-                        ] = __import__(
-                            "pythonstan.compat.legacy_ai.value_domain", fromlist=["AbsVal"]
-                        ).AbsVal.from_str(cell)
+                        ] = AbsVal.from_str(cell)
                         if cell in store.cells:
                             result.shared_bindings[(cell, "$cell")] = self.old_value(
                                 store.cells[cell], store
@@ -1078,26 +1257,28 @@ class LegacyStateBridge:
         if store.havoc_imports:
             result.shared_bindings[("$imports-havoc", "*")] = AbsVal.bool_true()
         if "$active_exception" in store.cells:
-            result.exn = self.old_value(store.cells["$active_exception"], store)
+            result.exn = self.old_value(store.cells[CellId("$active_exception")], store)
         return result
 
-    def summary(self, flows, frame):
+    def summary(self, flows: Sequence[Flow], frame: Frame) -> AISummary:
+        from pythonstan.analysis.contracts.private_slots import is_private_slot
+        from pythonstan.analysis.pointer.kcfa.heap_model import attr, key, unknown
         from pythonstan.compat.legacy_ai.api import AISummary, FieldWrite, UnknownEffect
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
-        from pythonstan.analysis.pointer.kcfa.heap_model import key, attr, unknown
-        from pythonstan.analysis.contracts.private_slots import is_private_slot
 
         normal = [flow for flow in flows if flow.kind in {"normal", "return"}]
         exceptional = [flow for flow in flows if flow.kind == "raise"]
         ret = AbsVal.bottom(self.initial.registry)
-        for flow in normal:
-            payload = flow_payload(flow)
+        for normal_flow in normal:
+            payload = flow_payload(normal_flow)
             if payload is not None:
-                ret = ret.join(self.old_value(payload, flow.store))
-        joined = None
-        for flow in normal:
+                ret = ret.join(self.old_value(payload, normal_flow.store))
+        joined: Store | None = None
+        for normal_flow in normal:
             joined = (
-                flow.store.copy() if joined is None else joined.join(flow.store, self.driver.ops)
+                normal_flow.store.copy()
+                if joined is None
+                else joined.join(normal_flow.store, self.driver.ops)
             )
         exit_state = (
             None
@@ -1107,8 +1288,8 @@ class LegacyStateBridge:
                 frame,
                 (
                     ref
-                    for flow in normal
-                    for payload in (flow_payload(flow),)
+                    for normal_flow in normal
+                    for payload in (flow_payload(normal_flow),)
                     if payload is not None
                     for ref in payload.refs
                 ),
@@ -1116,7 +1297,7 @@ class LegacyStateBridge:
         )
         writes = []
         for flow in flows:
-            from pythonstan.analysis.state.effects import HeapWrite, HeapDelete, HeapDefaultWrite
+            from pythonstan.analysis.state.effects import HeapDefaultWrite, HeapDelete, HeapWrite
 
             for effect in flow.store.writes:
                 if isinstance(effect, (HeapWrite, HeapDelete)):
@@ -1144,7 +1325,7 @@ class LegacyStateBridge:
                 )
                 writes.append(FieldWrite(frozenset((native,)), native_field, value.addrs, value))
 
-        def exception_name(flow):
+        def exception_name(flow: Flow) -> str:
             return "BaseException" if flow.exception in {None, "AnyException"} else flow.exception
 
         exceptional_states = tuple(
@@ -1152,7 +1333,7 @@ class LegacyStateBridge:
             for flow in exceptional
         )
         calls = []
-        for caller, callee, point in self.driver.calls:
+        for _caller, callee, point in self.driver.calls:
             objects = set()
             for identifier, info in self.driver.functions.items():
                 if info.qualname == callee:
@@ -1222,14 +1403,15 @@ class LegacyStateBridge:
         return result
 
 
-_RESIDUAL = object()
+_RESIDUAL = ResidualKey.UNKNOWN
 
 
-def options(budget, solver_config=None):
-    """Project only supported shared controls; inactive old knobs are explicit."""
-    abstract = dict(vars(budget))
+def options(budget: AnalysisBudget, solver_config: SolverConfig | None = None) -> JsonObject:
+    """Project actual supported controls; inactive legacy knobs remain explicit."""
+    values = budget.to_dict()
+    defaults = type(budget)().to_dict()
+    abstract: JsonObject = dict[str, JsonValue](values)
     abstract["int_domain_max_consts"] = 10
-    defaults = type(budget)()
     supported = {
         "max_iterations",
         "max_stmt_visits",
@@ -1241,134 +1423,179 @@ def options(budget, solver_config=None):
         "max_value_partitions",
         "strict_exceptions",
     }
-    for name in vars(budget):
-        if name not in supported and getattr(budget, name) != getattr(defaults, name):
+    for name, value in values.items():
+        if name not in supported and value != defaults[name]:
             raise BoundaryUnavailable("Retired legacy budget control: " + name)
     if solver_config is not None:
-        defaults = type(solver_config)()
-        budget_defaults = type(budget)()
-        overlapping = {
-            "max_iterations": "max_iterations",
-            "max_block_visits": "max_stmt_visits",
-            "enable_narrowing": "enable_narrowing",
-            "narrowing_iterations": "narrowing_iterations",
-            "enable_value_partition": "enable_value_partition",
-            "max_value_partitions": "max_value_partitions",
-            "max_addr_set_size": "max_addr_set_size",
-        }
-        for old, current in overlapping.items():
-            value = getattr(solver_config, old)
-            if value == getattr(defaults, old):
+        solver_defaults = type(solver_config)()
+        overlaps = (
+            (
+                "max_iterations",
+                "max_iterations",
+                solver_config.max_iterations,
+                solver_defaults.max_iterations,
+            ),
+            (
+                "max_block_visits",
+                "max_stmt_visits",
+                solver_config.max_block_visits,
+                solver_defaults.max_block_visits,
+            ),
+            (
+                "enable_narrowing",
+                "enable_narrowing",
+                solver_config.enable_narrowing,
+                solver_defaults.enable_narrowing,
+            ),
+            (
+                "narrowing_iterations",
+                "narrowing_iterations",
+                solver_config.narrowing_iterations,
+                solver_defaults.narrowing_iterations,
+            ),
+            (
+                "enable_value_partition",
+                "enable_value_partition",
+                solver_config.enable_value_partition,
+                solver_defaults.enable_value_partition,
+            ),
+            (
+                "max_value_partitions",
+                "max_value_partitions",
+                solver_config.max_value_partitions,
+                solver_defaults.max_value_partitions,
+            ),
+            (
+                "max_addr_set_size",
+                "max_addr_set_size",
+                solver_config.max_addr_set_size,
+                solver_defaults.max_addr_set_size,
+            ),
+        )
+        for old, current, value, default in overlaps:
+            if value == default:
                 continue
-            if getattr(budget, current) != getattr(budget_defaults, current) and value != getattr(
-                budget, current
-            ):
+            if values[current] != defaults[current] and value != values[current]:
                 raise BoundaryUnavailable("Conflicting legacy budget and solver control: " + old)
             abstract[current] = value
-        if solver_config.value_partition_str_cap != defaults.value_partition_str_cap:
+            values[current] = value
+        if solver_config.value_partition_str_cap != solver_defaults.value_partition_str_cap:
             raise BoundaryUnavailable("Retired private solver control: value_partition_str_cap")
-        for name in (
-            "loop_iters",
-            "enable_trace_partitioning",
-            "infer_merge_points",
-            "merge_points",
-            "max_total_traces",
+        for name, changed in (
+            ("loop_iters", solver_config.loop_iters != solver_defaults.loop_iters),
+            (
+                "enable_trace_partitioning",
+                solver_config.enable_trace_partitioning
+                != solver_defaults.enable_trace_partitioning,
+            ),
+            (
+                "infer_merge_points",
+                solver_config.infer_merge_points != solver_defaults.infer_merge_points,
+            ),
+            ("merge_points", solver_config.merge_points != solver_defaults.merge_points),
+            (
+                "max_total_traces",
+                solver_config.max_total_traces != solver_defaults.max_total_traces,
+            ),
         ):
-            if getattr(solver_config, name) != getattr(defaults, name):
+            if changed:
                 raise BoundaryUnavailable("Retired private solver control: " + name)
         if (
-            solver_config.widen_delay != defaults.widen_delay
-            and solver_config.loop_unroll != defaults.loop_unroll
+            solver_config.widen_delay != solver_defaults.widen_delay
+            and solver_config.loop_unroll != solver_defaults.loop_unroll
             and solver_config.widen_delay != solver_config.loop_unroll
         ):
             raise BoundaryUnavailable(
                 "Conflicting legacy widening controls: widen_delay and loop_unroll"
             )
-        if solver_config.widen_delay != defaults.widen_delay:
+        if solver_config.widen_delay != solver_defaults.widen_delay:
             abstract["widen_delay"] = solver_config.widen_delay
-        if solver_config.loop_unroll != defaults.loop_unroll:
+        if solver_config.loop_unroll != solver_defaults.loop_unroll:
             abstract["widen_delay"] = solver_config.loop_unroll
         abstract["max_traces_per_block"] = solver_config.max_traces_per_block
     abstract["enable_value_partition"] = bool(
-        abstract.get("enable_value_partition") and abstract.get("max_value_partitions", 0) > 0
+        values["enable_value_partition"] and values["max_value_partitions"] > 0
     )
     abstract["refine_booleans"] = abstract["enable_value_partition"]
-    abstract["attribute_name_limit"] = abstract.get("max_const_strings", 10)
+    abstract["attribute_name_limit"] = values.get("max_const_strings", 10)
     return {
         "abstract": abstract,
         "resources": {
-            "max_work": max(0, abstract["max_iterations"] * max(0, abstract["max_stmt_visits"])),
+            "max_work": max(0, values["max_iterations"] * max(0, values["max_stmt_visits"])),
             "max_seconds": 0,
         },
     }
 
 
+def _nested_bodies(node: ast.stmt) -> tuple[list[ast.stmt], ...]:
+    if isinstance(node, (ast.For, ast.AsyncFor, ast.While, ast.If)):
+        return node.body, node.orelse
+    if isinstance(node, (ast.With, ast.AsyncWith)):
+        return (node.body,)
+    if isinstance(node, (ast.Try, ast.TryStar)):
+        return (
+            node.body,
+            node.orelse,
+            node.finalbody,
+            *(handler.body for handler in node.handlers),
+        )
+    return ()
+
+
 class CodeBridge(LegacyStateBridge):
-    def __init__(self, *args, scope_ir=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.scope_ir = scope_ir
-        self.native_state = getattr(self.query, "_state", None)
-        self.manager = getattr(self.native_state, "scope_manager", None)
+    def __init__(
+        self,
+        query: PtaQuery | None,
+        budget: AnalysisBudget,
+        context: NativeContext,
+        scope: Scope | None,
+        initial: AIState,
+        driver: SharedDriver,
+        *,
+        scope_ir: IRScope | None = None,
+    ) -> None:
+        super().__init__(query, budget, context, scope, initial, driver)
+        self.scope_ir: IRScope | None = scope_ir
+        self.native_state = query._state if _has_native_state(query) else None
+        self.manager = self.native_state.scope_manager if self.native_state is not None else None
         self.ir_scopes = (
             tuple(self.manager.get_scopes())
             if self.manager is not None
-            else tuple(x for x in (scope_ir,) if x is not None)
+            else (() if scope_ir is None else (scope_ir,))
         )
-        self.source_index = {}
         for module, tree in self.driver.trees.items():
 
-            def visit(nodes, prefix):
+            def visit(nodes: Iterable[ast.stmt], prefix: str, owner_module: str = module) -> None:
                 for node in nodes:
                     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                         qualname = prefix + "." + node.name
-                        self.source_index.setdefault((module, qualname), []).append(node)
-                        visit(node.body, qualname)
+                        self.source_index.setdefault((owner_module, qualname), []).append(node)
+                        visit(node.body, qualname, owner_module)
                     else:
-                        for field in ("body", "orelse", "finalbody"):
-                            children = getattr(node, field, None)
-                            if isinstance(children, list):
-                                visit(children, prefix)
-                        for handler in getattr(node, "handlers", ()):
-                            visit(handler.body, prefix)
+                        for body in _nested_bodies(node):
+                            visit(body, prefix, owner_module)
 
             visit(tree.body, module)
 
-    @staticmethod
-    def default_slot(index):
-        from pythonstan.analysis.contracts.private_slots import positional_default_slot
-
-        return positional_default_slot(index)
-
-    @staticmethod
-    def keyword_slot(name):
-        from pythonstan.analysis.contracts.private_slots import keyword_default_slot
-
-        return keyword_default_slot(name)
-
-    def source_node(self, scope_ir):
-        source = (
-            scope_ir.get_source_snapshot() if hasattr(scope_ir, "get_source_snapshot") else None
-        )
+    @override
+    def source_node(self, scope_ir: IRScope) -> SourceDefinition | None:
+        source = scope_ir.get_source_snapshot()
         if source is None:
             return None
-        node = (
-            scope_ir.get_ast() if hasattr(scope_ir, "get_ast") else getattr(scope_ir, "stmt", None)
-        )
+        if not isinstance(scope_ir, (IRModule, IRFunc, IRClass)):
+            return None
+        node = scope_ir.get_ast()
         candidates = self.source_index.get((source.module, scope_ir.get_qualname()), ())
-        matches = [
-            item
-            for item in candidates
-            if getattr(item, "lineno", None) == getattr(node, "lineno", None)
-            and getattr(item, "col_offset", None) == getattr(node, "col_offset", None)
-        ]
+        matches = [item for item in candidates if source_position(item) == source_position(node)]
         if len(matches) == 1:
             return matches[0]
         return candidates[0] if len(candidates) == 1 else None
 
-    def source_ir(self, module, qualname, node):
+    @override
+    def source_ir(self, module: str, qualname: str, node: ast.AST | None) -> IRScope | None:
         candidates = []
         for scope in self.ir_scopes:
-            source = scope.get_source_snapshot() if hasattr(scope, "get_source_snapshot") else None
+            source = scope.get_source_snapshot()
             if (
                 source is None
                 or source.module != module
@@ -1380,13 +1607,13 @@ class CodeBridge(LegacyStateBridge):
             if (
                 node is None
                 or original is not None
-                and getattr(node, "lineno", None) == getattr(original, "lineno", None)
-                and getattr(node, "col_offset", None) == getattr(original, "col_offset", None)
+                and source_position(node) == source_position(original)
             ):
                 candidates.append(scope)
         return candidates[0] if len(candidates) == 1 else None
 
-    def native_parent(self, prototype):
+    @override
+    def native_parent(self, prototype: IRScope) -> Scope | None:
         if self.native_state is None:
             return None
         parent = self.manager.father.get(prototype) if self.manager is not None else None
@@ -1397,75 +1624,78 @@ class CodeBridge(LegacyStateBridge):
             parent = self.manager.father.get(parent) if self.manager is not None else None
         return None
 
-    def defining_value(self, node, function_identifier):
+    def defining_value(self, node: ast.expr, function_identifier: ObjectId) -> Value:
         # Literal syntax is a pure declaration and can be imported without
         # replaying definitions/calls. Other expressions need retained facts.
         if isinstance(node, ast.Constant):
-            return Value.constant(node.value)
+            return Value.constant(source_constant(node))
         if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
             values = [self.defining_value(item, function_identifier) for item in node.elts]
-            identifier = f"bridge-default:{function_identifier}:{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}"
+            line, column = source_position(node)
+            identifier = ObjectId(f"bridge-default:{function_identifier}:{line}:{column}")
             self.store.heap.setdefault(
                 identifier,
                 HeapObject(
                     type(node).__name__.lower(),
-                    {i: value for i, value in enumerate(values)},
+                    dict[FieldKey, Value](enumerate(values)),
                     metadata={"length": len(values)},
                 ),
             )
             return Value.ref(identifier)
         if isinstance(node, ast.Dict) and all(isinstance(key, ast.Constant) for key in node.keys):
-            identifier = f"bridge-default:{function_identifier}:{getattr(node, 'lineno', 0)}:{getattr(node, 'col_offset', 0)}"
+            line, column = source_position(node)
+            identifier = ObjectId(f"bridge-default:{function_identifier}:{line}:{column}")
+            fields: dict[FieldKey, Value] = {}
+            for key_node, value_node in zip(node.keys, node.values, strict=False):
+                if not isinstance(key_node, ast.Constant):
+                    raise BoundaryUnavailable("Literal dictionary key unavailable")
+                fields[_literal_key(source_constant(key_node))] = self.defining_value(
+                    value_node, function_identifier
+                )
             self.store.heap.setdefault(
-                identifier,
-                HeapObject(
-                    "dict",
-                    {
-                        key.value: self.defining_value(value, function_identifier)
-                        for key, value in zip(node.keys, node.values)
-                    },
-                    metadata={"length": len(node.keys)},
-                ),
+                identifier, HeapObject("dict", fields, metadata={"length": len(node.keys)})
             )
             return Value.ref(identifier)
         if isinstance(node, ast.Name):
             info = self.driver.functions.get(function_identifier)
-            module = info.module if info is not None else self.scope_ir.get_source_snapshot().module
-            value = self.store.cells.get(f"global:{module}:{node.id}")
-            if value is not None:
-                return value
+            source = self.scope_ir.get_source_snapshot() if self.scope_ir is not None else None
+            module = (
+                info.module if info is not None else source.module if source is not None else None
+            )
+            if module is not None:
+                value = self.store.cells.get(CellId(f"global:{module}:{node.id}"))
+                if value is not None:
+                    return value
         # Merely importing an unused Native callable must not execute or replay
         # its definition. Unavailable defining-time values make that function
         # a havoc callable; consuming it invokes the ordinary unknown transfer.
         self.store.heap[function_identifier].havoc = True
         return Value.unknown()
 
-    def register_function(self, obj, identifier):
+    @override
+    def register_function(self, obj: FunctionObject, identifier: ObjectId) -> None:
         node = self.source_node(obj.ir)
-        if node is None:
+        source = obj.ir.get_source_snapshot()
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or source is None:
             self.reasons.add("bridge_callable_source_unavailable")
             self.store.heap[identifier].havoc = True
             return
-        module = obj.ir.get_source_snapshot().module
+        module = source.module
         qualname = obj.ir.get_qualname()
         local, globals_, nonlocals_, generator = classify_bindings(node)
         activation = str(hash(obj))
-        closure = []
+        closure: list[tuple[str, CellId]] = []
         for (owner, name), old in self.initial.shared_bindings.items():
             if owner == f"$closure-id:{qualname}@{activation}":
                 ids = old.get_const_strs()
                 if ids is not None and len(ids) == 1:
-                    closure.append((name, next(iter(ids))))
+                    closure.append((name, CellId(next(iter(ids)))))
         if not closure:
-            bindings = (
-                self.query.get_function_cell_vars(obj)
-                if hasattr(self.query, "get_function_cell_vars")
-                else {}
-            )
+            bindings = self.query.get_function_cell_vars(obj) if self.query is not None else {}
             from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
             for name, points in bindings.items():
-                cell = f"bridge-closure:{activation}:{name}"
+                cell = CellId(f"bridge-closure:{activation}:{name}")
                 self.store.cells[cell] = self.value(AbsVal.from_addrs(frozenset(points)))
                 closure.append((name, cell))
         # Install the prototype before processing defaults that may recurse.
@@ -1501,8 +1731,10 @@ class CodeBridge(LegacyStateBridge):
             defaults.append(value)
             self.store.heap[identifier].fields[self.default_slot(index)] = value
         kw_defaults = []
-        for parameter, expression in zip(node.args.kwonlyargs, node.args.kw_defaults):
-            if expression is None:
+        for parameter, keyword_expression in zip(
+            node.args.kwonlyargs, node.args.kw_defaults, strict=False
+        ):
+            if keyword_expression is None:
                 continue
             retained = [
                 old
@@ -1512,7 +1744,7 @@ class CodeBridge(LegacyStateBridge):
             value = (
                 self.driver.ops.join_all(self.value(old) for old in retained)
                 if retained
-                else self.defining_value(expression, identifier)
+                else self.defining_value(keyword_expression, identifier)
             )
             kw_defaults.append((parameter.arg, value))
             self.store.heap[identifier].fields[self.keyword_slot(parameter.arg)] = value
@@ -1531,9 +1763,11 @@ class CodeBridge(LegacyStateBridge):
                 self.driver.ops.join_all(self.value(old) for old in annotations)
             )
 
-    def seed_native_globals(self, module):
+    def seed_native_globals(self, module: str) -> None:
         if self.native_state is None:
             return
+        from pythonstan.analysis.pointer.kcfa.context import Ctx
+        from pythonstan.analysis.pointer.kcfa.variable import Variable
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
         from pythonstan.ir import IRModule
 
@@ -1550,32 +1784,36 @@ class CodeBridge(LegacyStateBridge):
             for name, tree in self.driver.trees.items()
         }
         for variable, points in tuple(self.native_state._env.items()):
-            scope = getattr(variable, "scope", None)
-            content = getattr(variable, "content", None)
+            if not isinstance(variable, Ctx):
+                continue
+            scope = variable.scope
+            content = variable.content
             if scope is None or content is None or not isinstance(scope.stmt, IRModule):
+                continue
+            if not isinstance(content, Variable):
                 continue
             name = content.name
             owner = scope.stmt.get_qualname()
             if name not in bindings.get(owner, set()):
                 continue
-            cell = f"global:{owner}:{name}"
+            cell = CellId(f"global:{owner}:{name}")
             if points and cell not in self.store.cells:
                 self.store.cells[cell] = self.value(AbsVal.from_addrs(frozenset(points)))
 
 
-def source_modules(scope_ir, query):
+def source_modules(scope_ir: IRScope, query: PtaQuery | None) -> tuple[SourceModule, ...]:
     """Read producer-captured immutable source, never mutable TAC or disk."""
-    snapshot = scope_ir.get_source_snapshot() if hasattr(scope_ir, "get_source_snapshot") else None
+    snapshot = scope_ir.get_source_snapshot()
     if snapshot is None:
         raise BoundaryUnavailable(
             "source_snapshot_required: private source-less TAC execution is retired"
         )
     modules = {snapshot.module: snapshot}
-    state = getattr(query, "_state", None)
-    manager = getattr(state, "scope_manager", None)
+    state = query._state if _has_native_state(query) else None
+    manager = state.scope_manager if state is not None else None
     if manager is not None:
         for scope in manager.get_scopes():
-            source = scope.get_source_snapshot() if hasattr(scope, "get_source_snapshot") else None
+            source = scope.get_source_snapshot()
             if source is not None:
                 if source.module in modules and source.digest != modules[source.module].digest:
                     raise BoundaryUnavailable("conflicting source module identity")
@@ -1584,29 +1822,35 @@ def source_modules(scope_ir, query):
 
 
 def execute_scope(
-    scope_ir,
-    initial_state,
-    query,
-    budget,
-    caller_scope=None,
-    call_context=None,
-    solver_config=None,
-    work_ledger=None,
-):
+    scope_ir: IRScope,
+    initial_state: AIState,
+    query: PtaQuery | None,
+    budget: AnalysisBudget,
+    caller_scope: Scope | None = None,
+    call_context: NativeContext | None = None,
+    solver_config: SolverConfig | None = None,
+    work_ledger: WorkLedgerPort | None = None,
+) -> tuple[AISummary, SharedDriver, CodeBridge, Frame]:
     """Execute one existing source scope on the sole maintained engine."""
-    from pythonstan.ir import IRModule
     from pythonstan.analysis.pointer.kcfa.context import CallStringContext
+    from pythonstan.ir import IRModule
 
     driver = SharedDriver(
         source_modules(scope_ir, query), options(budget, solver_config), work_ledger=work_ledger
     )
     driver.started = time.monotonic()
     driver.scenario = "legacy-shared"
-    context = call_context or getattr(caller_scope, "context", None) or CallStringContext()
+    context = _checked_context(
+        call_context
+        or (caller_scope.context if caller_scope is not None else None)
+        or CallStringContext()
+    )
     bridge = CodeBridge(
         query, budget, context, caller_scope, initial_state, driver, scope_ir=scope_ir
     )
     source = scope_ir.get_source_snapshot()
+    if source is None:
+        raise BoundaryUnavailable("Source scope snapshot unavailable")
     module = source.module
     qualname = scope_ir.get_qualname()
     is_module = isinstance(scope_ir, IRModule)
@@ -1617,8 +1861,8 @@ def execute_scope(
     frame = Frame(
         module,
         qualname,
-        (),
-        "legacy-entry:" + qualname,
+        ContextId(()),
+        FrameId("legacy-entry:" + qualname),
         local,
         (),
         globals_,
@@ -1647,13 +1891,13 @@ def execute_scope(
             store.cells.setdefault(frame.cell(name), Value(unbound=True))
         for name in nonlocals_:
             if name not in dict(closure):
-                cell = f"bridge-nonlocal:{qualname}:{name}"
+                cell = CellId(f"bridge-nonlocal:{qualname}:{name}")
                 store.cells[cell] = Value.unknown()
                 closure.append((name, cell))
                 bridge.reasons.add("bridge_nonlocal_unavailable")
         frame = replace(frame, closure=tuple(closure))
     store.initialized[module] = "initializing" if is_module else "initialized"
-    if not is_module and getattr(node, "type_params", ()):
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.type_params:
         return (
             bridge.summary(
                 driver.transfer.unknown(store, node, "bridge_pep695_type_parameters"), frame
@@ -1662,14 +1906,14 @@ def execute_scope(
             bridge,
             frame,
         )
-    driver._request(frame.identity, frame, tuple(node.body), store, is_module, None)
+    driver._request(UnitId(frame.identity), frame, tuple(node.body), store, is_module, None)
     try:
         driver._solve()
     except BudgetStop as exc:
         driver.solver_status = "budget_exhausted"
         driver.open("budget:" + str(exc))
         bridge.reasons.add("bridge_budget")
-    flows = list(driver.units[frame.identity].outcomes)
+    flows = list(driver.units[UnitId(frame.identity)].outcomes)
     if driver.solver_status != "converged":
         flows.extend(driver.transfer.unknown(store, node, "bridge_incomplete_execution"))
     result = bridge.summary(flows, frame)
@@ -1677,35 +1921,44 @@ def execute_scope(
 
 
 def execute_intrinsic(
-    name,
-    bindings,
-    query,
-    budget,
-    caller_scope=None,
-    call_context=None,
-    solver_config=None,
-    work_ledger=None,
-):
-    from pythonstan.compat.legacy_ai.state import AIState
+    name: str,
+    bindings: Sequence[ArgBinding],
+    query: PtaQuery | None,
+    budget: AnalysisBudget,
+    caller_scope: Scope | None = None,
+    call_context: NativeContext | None = None,
+    solver_config: SolverConfig | None = None,
+    work_ledger: WorkLedgerPort | None = None,
+) -> AISummary:
     from pythonstan.analysis.pointer.kcfa.context import CallStringContext
+    from pythonstan.compat.legacy_ai.state import AIState
 
     source = SourceModule("intrinsic", "intrinsic.py", "")
     driver = SharedDriver((source,), options(budget, solver_config), work_ledger=work_ledger)
     driver.started = time.monotonic()
     driver.scenario = "legacy-intrinsic"
-    initial = AIState.from_arg_bindings(bindings, query, budget)
+    initial = AIState.from_arg_bindings(list(bindings), query, budget)
     bridge = CodeBridge(
         query,
         budget,
-        call_context or getattr(caller_scope, "context", None) or CallStringContext(),
+        _checked_context(
+            call_context
+            or (caller_scope.context if caller_scope is not None else None)
+            or CallStringContext()
+        ),
         caller_scope,
         initial,
         driver,
     )
-    frame = Frame("intrinsic", "intrinsic", (), "legacy-intrinsic", frozenset(initial.env))
+    frame = Frame(
+        "intrinsic", "intrinsic", ContextId(()), FrameId("legacy-intrinsic"), frozenset(initial.env)
+    )
     store = bridge.import_state(frame)
     arguments = [bridge.value(initial.env[binding.param_name]) for binding in bindings]
-    node = ast.parse("intrinsic()").body[0].value
+    expression = ast.parse("intrinsic()").body[0]
+    if not isinstance(expression, ast.Expr):
+        raise BoundaryUnavailable("Intrinsic source expression unavailable")
+    node = expression.value
     try:
         driver.tick(node)
         flows = driver.transfer.builtin(name, arguments, (), store, frame, node)

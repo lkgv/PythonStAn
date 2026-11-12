@@ -2,6 +2,12 @@
 
 from dataclasses import fields
 from collections import defaultdict, deque, OrderedDict, Counter
+from typing import TYPE_CHECKING
+
+from pythonstan.analysis.contracts.json_data import JsonObject
+
+if TYPE_CHECKING:
+    from .solver import PointerSolver
 
 from . import points_to_set
 from .config import Config
@@ -455,13 +461,13 @@ def try_publish_builtin_seed(solver, scope, variable, points):
     return True
 
 
-def bootstrap_statistics(solver):
+def bootstrap_statistics(solver: "PointerSolver") -> JsonObject:
     selected = solver._iteration
-    publications = getattr(solver, "_bootstrap_publications", 0)
+    publications = solver._bootstrap_publications
     return {
         "builtin_bootstrap_policy": solver.config.builtin_bootstrap_policy,
         "bootstrap_publications": publications,
         "selected_work_items": selected,
         "logical_work_items": selected + publications,
-        "bootstrap_contract_invalid": getattr(solver, "_bootstrap_invalid", False),
+        "bootstrap_contract_invalid": solver._bootstrap_invalid,
     }

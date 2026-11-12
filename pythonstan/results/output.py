@@ -68,7 +68,8 @@ class OutputSpec:
             raise ConfigurationError(f"Unknown output views: {sorted(unknown_views)}")
         if not isinstance(max_items, int) or isinstance(max_items, bool) or max_items < 0:
             raise ConfigurationError("max_items must be nonnegative")
-        object.__setattr__(self, "views", tuple(parse_view(view) for view in validated_views))
+        owned_views: tuple[ViewKind, ...] = tuple(parse_view(view) for view in validated_views)
+        object.__setattr__(self, "views", owned_views)
         object.__setattr__(self, "modules", _strings(modules, "modules"))
         object.__setattr__(self, "functions", _strings(functions, "functions"))
         object.__setattr__(self, "regions", _strings(regions, "regions"))

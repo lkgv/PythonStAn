@@ -12,37 +12,31 @@ Exception Handling:
   and a conservative summary is returned.
 """
 
+from __future__ import annotations
+
 import logging
-from abc import ABC, abstractmethod
+from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
-    Any,
-    Dict,
-    FrozenSet,
-    List,
-    Optional,
     Protocol,
-    Set,
-    Tuple,
-    Union,
     runtime_checkable,
 )
 
 from pythonstan.analysis.contracts.budgets import AnalysisBudget
+from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.analysis.contracts.work import WorkLedgerPort
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pythonstan.ir.ir_statements import IRFunc, IRScope
-    from pythonstan.analysis.pointer.kcfa.object import AbstractObject
-    from pythonstan.analysis.pointer.kcfa.context import AbstractContext, Scope
-    from pythonstan.analysis.pointer.kcfa.variable import Variable
-    from pythonstan.analysis.pointer.kcfa.heap_model import Field
-    from pythonstan.analysis.pointer.kcfa.points_to_set import PointsToSet
-    from pythonstan.compat.legacy_ai.heap import AIAddr
-    from pythonstan.compat.legacy_ai.state import AbsVal
     from pythonstan.analysis.pointer.ai.solver import SolverConfig
+    from pythonstan.analysis.pointer.kcfa.context import AbstractContext, NativeContext, Scope
+    from pythonstan.analysis.pointer.kcfa.heap_model import Field
+    from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+    from pythonstan.analysis.pointer.kcfa.points_to_set import PointsToSet
+    from pythonstan.analysis.pointer.kcfa.variable import Variable
+    from pythonstan.compat.legacy_ai.state import AbsVal, AIState
 
 __all__ = [
     "PtaQuery",
@@ -68,9 +62,7 @@ class PtaQuery(Protocol):
     attribute access, subscript operations, and call resolution.
     """
 
-    def points_to(
-        self, var: "Variable", scope: "Scope", context: "AbstractContext"
-    ) -> "PointsToSet":
+    def points_to(self, var: Variable, scope: Scope, context: AbstractContext) -> PointsToSet:
         """Get points-to set for a variable in given scope/context.
 
         Args:
@@ -85,11 +77,11 @@ class PtaQuery(Protocol):
 
     def field_points_to(
         self,
-        obj: "AbstractObject",
-        field: "Field",
-        scope: "Scope",
-        context: "AbstractContext",
-    ) -> "PointsToSet":
+        obj: AbstractObject,
+        field: Field,
+        scope: Scope | None,
+        context: AbstractContext,
+    ) -> PointsToSet:
         """Get points-to set for an object's field.
 
         Args:
@@ -103,7 +95,7 @@ class PtaQuery(Protocol):
         """
         ...
 
-    def get_class_mro(self, cls_obj: "AbstractObject") -> List["AbstractObject"]:
+    def get_class_mro(self, cls_obj: AbstractObject) -> list[AbstractObject]:
         """Get MRO (method resolution order) for a class object.
 
         Args:
@@ -116,10 +108,10 @@ class PtaQuery(Protocol):
 
     def may_have_attr(
         self,
-        obj: "AbstractObject",
+        obj: AbstractObject,
         attr_name: str,
-        scope: "Scope",
-        context: "AbstractContext",
+        scope: Scope,
+        context: AbstractContext,
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
 
@@ -138,10 +130,10 @@ class PtaQuery(Protocol):
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: "AbstractContext",
-        receiver_obj: Optional["AbstractObject"],
-        params: Optional[Tuple["AbstractObject", ...]] = None,
-    ) -> Optional["AbstractContext"]:
+        caller_ctx: AbstractContext,
+        receiver_obj: AbstractObject | None,
+        params: tuple[AbstractObject, ...] | None = None,
+    ) -> AbstractContext | None:
         """Select context for a call site (kcfa policy aware).
 
         Returns None if context selection is not available.
@@ -150,8 +142,8 @@ class PtaQuery(Protocol):
 
     def get_function_cell_vars(
         self,
-        func_obj: "AbstractObject",
-    ) -> Dict[str, FrozenSet["AbstractObject"]]:
+        func_obj: AbstractObject,
+    ) -> dict[str, frozenset[AbstractObject]]:
         """Get cell variable bindings captured by a function object.
 
         Cell variables are variables from enclosing scopes that are captured
@@ -167,8 +159,8 @@ class PtaQuery(Protocol):
 
     def get_function_global_vars(
         self,
-        func_obj: "AbstractObject",
-    ) -> Dict[str, FrozenSet["AbstractObject"]]:
+        func_obj: AbstractObject,
+    ) -> dict[str, frozenset[AbstractObject]]:
         """Get global variable bindings accessible by a function object.
 
         Global variables are module-level names that the function may read/write.
@@ -199,10 +191,10 @@ class FieldWrite:
         value_addrs: Set of abstract objects being written
     """
 
-    obj_addrs: FrozenSet["AbstractObject"]
-    field_key: "Field"
-    value_addrs: FrozenSet["AbstractObject"]
-    value: Optional["AbsVal"] = None
+    obj_addrs: frozenset[AbstractObject]
+    field_key: Field
+    value_addrs: frozenset[AbstractObject]
+    value: AbsVal | None = None
 
     def __str__(self) -> str:
         objs = ", ".join(str(o) for o in self.obj_addrs)
@@ -224,8 +216,8 @@ class UnknownEffect:
     """
 
     kind: str  # "may_write", "may_read", "may_call"
-    target_addrs: FrozenSet["AbstractObject"]
-    field_key: Optional["Field"] = None
+    target_addrs: frozenset[AbstractObject]
+    field_key: Field | None = None
 
     def __str__(self) -> str:
         targets = ", ".join(str(t) for t in self.target_addrs)
@@ -252,19 +244,20 @@ class AISummary:
         incomplete_reasons: Why the observed facts may omit further effects.
     """
 
-    ret: FrozenSet["AbstractObject"] = field(default_factory=frozenset)
-    ret_value: Optional["AbsVal"] = None
+    ret: frozenset[AbstractObject] = field(default_factory=frozenset)
+    ret_value: AbsVal | None = None
     normal_exit: bool = False
-    exit_state: Optional["AIState"] = None
-    prefix_exceptions: FrozenSet[str] = field(default_factory=frozenset)
-    exceptional_exit_states: Tuple[Tuple[str, "AIState"], ...] = ()
-    writes: Tuple[FieldWrite, ...] = field(default_factory=tuple)
-    reads: Tuple[Tuple[FrozenSet["AbstractObject"], "Field"], ...] = field(default_factory=tuple)
-    calls: Tuple[Tuple[str, FrozenSet["AbstractObject"]], ...] = field(default_factory=tuple)
-    unknown_effects: Tuple[UnknownEffect, ...] = field(default_factory=tuple)
-    may_raise: FrozenSet[str] = field(default_factory=frozenset)
+    exit_state: AIState | None = None
+    prefix_exceptions: frozenset[str] = field(default_factory=frozenset)
+    exceptional_exit_states: tuple[tuple[str, AIState], ...] = ()
+    writes: tuple[FieldWrite, ...] = field(default_factory=tuple)
+    reads: tuple[tuple[frozenset[AbstractObject], Field], ...] = field(default_factory=tuple)
+    calls: tuple[tuple[str, frozenset[AbstractObject]], ...] = field(default_factory=tuple)
+    unknown_effects: tuple[UnknownEffect, ...] = field(default_factory=tuple)
+    may_raise: frozenset[str] = field(default_factory=frozenset)
     is_complete: bool = True
-    incomplete_reasons: Tuple[str, ...] = field(default_factory=tuple)
+    incomplete_reasons: tuple[str, ...] = field(default_factory=tuple)
+    core_statistics: JsonObject = field(default_factory=dict, init=False, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         # Compatibility constructors may still provide only a nonempty Native
@@ -287,7 +280,7 @@ class AISummary:
             and self.is_complete
         )
 
-    def merge(self, other: "AISummary") -> "AISummary":
+    def merge(self, other: AISummary) -> AISummary:
         """Merge two summaries (join)."""
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
@@ -349,8 +342,8 @@ class ArgBinding:
     """
 
     param_name: str
-    points_to: FrozenSet["AbstractObject"]
-    value: Optional["AbsVal"] = None  # When set, used instead of just points_to
+    points_to: frozenset[AbstractObject]
+    value: AbsVal | None = None  # When set, used instead of just points_to
 
 
 # =============================================================================
@@ -366,7 +359,13 @@ class AISummaryEngine:
     reused without a complete dependency protocol.
     """
 
-    def __init__(self, pta_query, budget=None, solver_config=None, work_ledger=None):
+    def __init__(
+        self,
+        pta_query: PtaQuery | None,
+        budget: AnalysisBudget | None = None,
+        solver_config: SolverConfig | None = None,
+        work_ledger: WorkLedgerPort | None = None,
+    ) -> None:
         from copy import deepcopy
 
         self.pta_query = pta_query
@@ -378,7 +377,7 @@ class AISummaryEngine:
         # of the host runtime exception fallback policy.
         options(self.budget, self.solver_config)
         self.work_ledger = work_ledger
-        self._summary_cache = {}
+        self._summary_cache: dict[Hashable, AISummary] = {}
 
     def analyze_callee(
         self,
@@ -425,10 +424,15 @@ class AISummaryEngine:
             )
 
     def analyze_intrinsic(
-        self, builtin_name, call_context, arg_bindings, caller_scope=None, target_name=None
-    ):
-        from pythonstan.compat.shared_ai import execute_intrinsic
+        self,
+        builtin_name: str,
+        call_context: NativeContext | None,
+        arg_bindings: Sequence[ArgBinding],
+        caller_scope: Scope | None = None,
+        target_name: str | None = None,
+    ) -> AISummary:
         from pythonstan.compat.legacy_ai.state import AIState
+        from pythonstan.compat.shared_ai import execute_intrinsic
 
         try:
             return execute_intrinsic(
@@ -446,7 +450,7 @@ class AISummaryEngine:
                 raise
             logger.warning("Shared intrinsic failed for %s: %s", builtin_name, error, exc_info=True)
             return self._conservative_summary(
-                AIState.from_arg_bindings(arg_bindings, self.pta_query, self.budget),
+                AIState.from_arg_bindings(list(arg_bindings), self.pta_query, self.budget),
                 call_context,
                 reason=type(error).__name__ + ":" + str(error),
             )
@@ -454,11 +458,16 @@ class AISummaryEngine:
     def invalidate_cache(self):
         self._summary_cache.clear()
 
-    def _conservative_summary(self, initial=None, context=None, reason="analysis_error"):
+    def _conservative_summary(
+        self,
+        initial: AIState | None = None,
+        context: NativeContext | None = None,
+        reason: str = "analysis_error",
+    ) -> AISummary:
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext
+        from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite, UnknownValue
         from pythonstan.compat.legacy_ai.state import AIState
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
-        from pythonstan.analysis.pointer.kcfa.object import UnknownValue, AllocSite, AllocKind
-        from pythonstan.analysis.pointer.kcfa.context import CallStringContext
 
         initial = (initial or AIState(pta_query=self.pta_query, budget=self.budget)).copy()
         targets = set(initial.overlay_havoc)

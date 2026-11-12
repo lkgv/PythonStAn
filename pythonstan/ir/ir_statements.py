@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Set, Union, List, Optional, Tuple, Type
+from typing import Set, Union, List, Optional, Tuple, Type, TYPE_CHECKING
 import ast
 from ast import stmt as Statement
 from ast import Module, ClassDef, Name
 
 from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.contracts.identity import SourceModule
 
 
 __all__ = [
@@ -1303,6 +1306,7 @@ class IRPhi(AbstractIRAssign):
 class IRScope(ABC):
     """Base scope metadata shared by modules, classes, and functions."""
 
+    source_module: "IRModule | None"
     qualname: str
     #: Dotted path identifying the scope (e.g. ``pkg.mod.Class.fn``).
     global_vars: Set[str]
@@ -1313,7 +1317,7 @@ class IRScope(ABC):
     #: Names lifted into closure cells for nested functions.
 
     @abstractmethod
-    def __init__(self, qualname: str):
+    def __init__(self, qualname: str) -> None:
         """Initialises bookkeeping sets shared by scope implementations."""
         self.qualname = qualname
         self.global_vars = set()
@@ -1323,9 +1327,9 @@ class IRScope(ABC):
         # the producer's immutable module snapshot rather than this AST.
         self.source_module = None
 
-    def get_source_snapshot(self):
+    def get_source_snapshot(self) -> "SourceModule | None":
         """Return original source when a trusted producer supplied it."""
-        return getattr(self.source_module, "source_snapshot", None)
+        return self.source_module.source_snapshot if self.source_module is not None else None
 
     def get_qualname(self) -> str:
         """Returns the fully-qualified scope name."""
@@ -1371,10 +1375,10 @@ class IRModule(IRScope, IRStatement):
         qualname: str,
         module: Module,
         name: str = "",
-        filename: Optional[str] = None,
+        filename: str | None = None,
         *,
-        source_snapshot=None,
-    ):
+        source_snapshot: "SourceModule | None" = None,
+    ) -> None:
         """Stores parsed module metadata for later IR passes."""
         super().__init__(qualname)
         self.name = name
@@ -1392,7 +1396,7 @@ class IRModule(IRScope, IRStatement):
         self.source_module = self
 
     @property
-    def source_snapshot(self):
+    def source_snapshot(self) -> "SourceModule | None":
         """Immutable original source; absent for AST-only synthetic modules."""
         return self._source_snapshot
 

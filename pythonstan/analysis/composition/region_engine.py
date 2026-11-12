@@ -9,17 +9,25 @@ Opaque identities and complete boundary state are supplied by adapters.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterable
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
-from pythonstan.analysis.composition.oracle import IncrementalInclusionStore
+from pythonstan.analysis.composition.oracle import (
+    InclusionNode,
+    IncrementalInclusionStore,
+)
 from pythonstan.analysis.composition.state_adapter import BoundaryObject, FullStateAdapter
-from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.analysis.contracts.identity import CellId, ObjectId
+from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.engines.abstract.state import Frame
+from pythonstan.analysis.state.continuation import CompletionKind
 from pythonstan.analysis.state.effects import CellWrite, HeapWrite
 from pythonstan.analysis.state.flow import Flow
+from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.config import ConfigurationError
+from pythonstan.frontend.source import source_constant
 from pythonstan.models.builtin_attributes import known_builtin_attribute
 from pythonstan.models.builtins import PYTHON312_BUILTIN_NAMES
 
@@ -51,7 +59,7 @@ _ALLOWED_STATEMENTS = (
 )
 
 
-def validate_native_statement(node):
+def validate_native_statement(node: ast.stmt) -> Literal[True]:
     if isinstance(node, ast.Assign) and len(node.targets) > 1:
         raise ConfigurationError(
             "native-straightline-v1 excludes multi-target assignment prefix effects"
@@ -100,13 +108,13 @@ class NativeRegionEngine:
         boundary = self.adapter.encode(flow)
         kernel = IncrementalInclusionStore(driver.ops)
         temporaries = 0
-        allocations = {}
-        cell_outputs = {}
-        field_writes = []
-        loads = []
-        exceptions = set()
-        completion = "normal"
-        result_node = None
+        allocations: dict[ObjectId, BoundaryObject] = {}
+        cell_outputs: dict[CellId, InclusionNode] = {}
+        field_writes: list[tuple[ObjectId, FieldKey, InclusionNode, bool]] = []
+        loads: list[tuple[ObjectId, FieldKey]] = []
+        exceptions: set[str] = set()
+        completion: CompletionKind = "normal"
+        result_node: InclusionNode | None = None
         normal_possible = True
         for cell, value in boundary.cells.items():
             kernel.add_fact(("entry", cell), value, "ai_boundary_cell")
@@ -115,12 +123,12 @@ class NativeRegionEngine:
                 kernel.add_fact(("field", objid, key), value, "ai_boundary_heap")
             kernel.add_fact(("default", objid), obj.default, "ai_boundary_default")
 
-        def temp():
+        def temp() -> tuple[Literal["temporary"], int]:
             nonlocal temporaries
             temporaries += 1
             return ("temporary", temporaries)
 
-        def settle():
+        def settle() -> None:
             remaining = max(0, driver.max_work - driver.work)
             before = kernel.work
             try:
@@ -132,11 +140,11 @@ class NativeRegionEngine:
 
                 raise BudgetStop("native_region_global_work")
 
-        def known(node_id):
+        def known(node_id: InclusionNode) -> Value:
             settle()
             return kernel.value(node_id)
 
-        def direct(ref, key, write=False):
+        def direct(ref: ObjectId, key: FieldKey, write: bool = False) -> BoundaryObject:
             obj = boundary.heap.get(ref) or allocations.get(ref)
             if obj is None:
                 raise ConfigurationError("Native region boundary has no object declaration")
@@ -151,7 +159,7 @@ class NativeRegionEngine:
                     "Native region does not support " + obj.kind + " object protocol"
                 )
             if obj.class_ids:
-                visited = set()
+                visited: set[ObjectId] = set()
                 classes = list(obj.class_ids)
                 while classes:
                     clsid = classes.pop()
@@ -185,10 +193,10 @@ class NativeRegionEngine:
                     classes.extend(cls.metadata.lookup("mro", cls.metadata.lookup("bases", ())))
             return obj
 
-        def compile_expression(expr):
+        def compile_expression(expr: ast.expr) -> InclusionNode:
             target = temp()
             if isinstance(expr, ast.Constant):
-                kernel.add_fact(target, Value.constant(expr.value), "literal")
+                kernel.add_fact(target, Value.constant(source_constant(expr)), "literal")
                 return target
             if isinstance(expr, ast.Name):
                 source = ("entry", frame.cell(expr.id))
@@ -222,7 +230,7 @@ class NativeRegionEngine:
                         value = driver.ops.join(value.without_unbound(), Value.constant(item))
                     elif expr.id in PYTHON312_BUILTIN_NAMES:
                         value = driver.ops.join(
-                            value.without_unbound(), Value.ref("builtin:" + expr.id)
+                            value.without_unbound(), Value.ref(ObjectId("builtin:" + expr.id))
                         )
                     if not value.unbound:
                         kernel.add_fact(target, value, "builtin_name_lookup")
@@ -233,26 +241,30 @@ class NativeRegionEngine:
                 return target
             if isinstance(expr, (ast.List, ast.Tuple, ast.Dict)):
                 kind = type(expr).__name__.lower()
-                objid = f"{kind}:{driver.point(expr)}@{'|'.join(frame.context)}"
+                objid = ObjectId(f"{kind}:{driver.point(expr)}@{'|'.join(frame.context)}")
                 old = boundary.heap.get(objid)
                 obj = BoundaryObject(
                     kind, {}, Value.bottom(), set(), old is None, frozenset(), {}, False
                 )
                 if isinstance(expr, ast.Dict):
-                    for keyexpr, valueexpr in zip(expr.keys, expr.values):
+                    for keyexpr, valueexpr in zip(expr.keys, expr.values, strict=True):
+                        if keyexpr is None:
+                            raise ConfigurationError(
+                                "native-straightline-v1 rejects **mapping literals"
+                            )
                         keynode = compile_expression(keyexpr)
                         valuenode = compile_expression(valueexpr)
-                        keys = known(keynode).exact_constants()
-                        if keys is None:
+                        literal_keys = known(keynode).exact_constants()
+                        if literal_keys is None:
                             raise ConfigurationError(
                                 "Native region literal requires finite builtin keys"
                             )
-                        for key in keys:
+                        for key in literal_keys:
                             kernel.add_edge(valuenode, ("field", objid, key))
                             obj.fields[key] = Value.bottom()
                 else:
-                    for index, item in enumerate(expr.elts):
-                        kernel.add_edge(compile_expression(item), ("field", objid, index))
+                    for index, element in enumerate(expr.elts):
+                        kernel.add_edge(compile_expression(element), ("field", objid, index))
                         obj.fields[index] = Value.bottom()
                 obj.metadata["length"] = len(obj.fields)
                 allocations[objid] = obj
@@ -265,7 +277,7 @@ class NativeRegionEngine:
                     raise ConfigurationError(
                         "Native region load needs a closed finite receiver set"
                     )
-                keys = (
+                keys: list[JsonScalar] | None = (
                     [expr.attr]
                     if isinstance(expr, ast.Attribute)
                     else known(compile_expression(expr.slice)).exact_constants()
@@ -294,6 +306,10 @@ class NativeRegionEngine:
                         for concrete in concrete_bases:
                             for key in keys:
                                 try:
+                                    if not isinstance(concrete, str) or not isinstance(key, int):
+                                        raise TypeError(
+                                            "Scalar subscript requires a string and an integer index"
+                                        )
                                     values.append(Value.constant(concrete[key]))
                                 except (TypeError, IndexError, KeyError) as error:
                                     exceptions.add(type(error).__name__)
@@ -304,12 +320,19 @@ class NativeRegionEngine:
                     return target
                 for key in keys:
                     for ref in base.refs:
-                        if isinstance(expr, ast.Attribute) and (
-                            boundary.heap.get(ref) or allocations.get(ref)
-                        ).kind in {"dict", "list", "tuple", "set", "range"}:
-                            if known_builtin_attribute(
-                                (boundary.heap.get(ref) or allocations.get(ref)).kind, key
-                            ):
+                        receiver = boundary.heap.get(ref) or allocations.get(ref)
+                        if receiver is None:
+                            raise ConfigurationError(
+                                "Native region boundary has no object declaration"
+                            )
+                        if isinstance(expr, ast.Attribute) and receiver.kind in {
+                            "dict",
+                            "list",
+                            "tuple",
+                            "set",
+                            "range",
+                        }:
+                            if known_builtin_attribute(receiver.kind, expr.attr):
                                 raise ConfigurationError(
                                     "Native builtin attribute protocol is outside the direct-field profile"
                                 )
@@ -322,7 +345,7 @@ class NativeRegionEngine:
                                 exceptions.add("TypeError")
                                 continue
                             if obj.kind in {"list", "tuple"}:
-                                if type(actual) not in {int, bool}:
+                                if not isinstance(actual, int):
                                     exceptions.add("TypeError")
                                     continue
                                 length = obj.metadata.lookup("length")
@@ -351,7 +374,10 @@ class NativeRegionEngine:
                 left = compile_expression(expr.left)
                 right = compile_expression(expr.right)
 
-                def operation(a, b):
+                def operation(*values: Value) -> tuple[Value, Iterable[str]]:
+                    if len(values) != 2:
+                        raise TypeError("Binary inclusion rule requires two values")
+                    a, b = values
                     if a.refs or b.refs or a.top or b.top:
                         raise ConfigurationError(
                             "Native scalar region cannot bypass user operators"
@@ -364,7 +390,10 @@ class NativeRegionEngine:
                 operand = compile_expression(expr.operand)
                 if isinstance(expr.op, ast.Not):
 
-                    def negation(value):
+                    def negation(*values: Value) -> tuple[Value, Iterable[str]]:
+                        if len(values) != 1:
+                            raise TypeError("Truth inclusion rule requires one value")
+                        value = values[0]
                         if value.refs or value.top:
                             raise ConfigurationError(
                                 "Native region cannot bypass object truth protocols"
@@ -379,24 +408,28 @@ class NativeRegionEngine:
                         Value.constant(-1 if isinstance(expr.op, ast.Invert) else 0),
                         "unary_constant",
                     )
-                    if isinstance(expr.op, ast.Invert):
-                        kernel.add_operation(
-                            (operand, zero),
-                            target,
-                            lambda a, b: driver.ops.scalar_binary(ast.BitXor(), a, b),
-                        )
-                    else:
-                        kernel.add_operation(
-                            (zero, operand),
-                            target,
-                            lambda a, b: driver.ops.scalar_binary(
-                                ast.Sub() if isinstance(expr.op, ast.USub) else ast.Add(), a, b
-                            ),
-                        )
+                    operator: ast.operator = (
+                        ast.BitXor()
+                        if isinstance(expr.op, ast.Invert)
+                        else ast.Sub()
+                        if isinstance(expr.op, ast.USub)
+                        else ast.Add()
+                    )
+
+                    def unary_rule(*values: Value) -> tuple[Value, Iterable[str]]:
+                        if len(values) != 2:
+                            raise TypeError("Unary arithmetic rule requires two values")
+                        return driver.ops.scalar_binary(operator, values[0], values[1])
+
+                    kernel.add_operation(
+                        (operand, zero) if isinstance(expr.op, ast.Invert) else (zero, operand),
+                        target,
+                        unary_rule,
+                    )
                 return target
             raise ConfigurationError("Unsupported Native region expression")
 
-        def assign(target, source):
+        def assign(target: ast.expr, source: InclusionNode) -> None:
             nonlocal normal_possible
             if isinstance(target, ast.Name):
                 output = ("exit", frame.cell(target.id))
@@ -407,7 +440,7 @@ class NativeRegionEngine:
                 base = known(basenode)
                 if base.top or base.top_sorts:
                     raise ConfigurationError("Native region write requires a closed receiver set")
-                keys = (
+                keys: list[JsonScalar] | None = (
                     [target.attr]
                     if isinstance(target, ast.Attribute)
                     else known(compile_expression(target.slice)).exact_constants()
@@ -432,7 +465,7 @@ class NativeRegionEngine:
                             continue
                         actual = key
                         if isinstance(target, ast.Subscript) and obj.kind == "list":
-                            if type(actual) not in {int, bool}:
+                            if not isinstance(actual, int):
                                 exceptions.add("TypeError")
                                 continue
                             length = obj.metadata.lookup("length")
@@ -474,17 +507,21 @@ class NativeRegionEngine:
 
         if isinstance(node, (ast.Assign, ast.AnnAssign)):
             if node.value is not None:
-                value = compile_expression(node.value)
+                compiled_value = compile_expression(node.value)
                 for target in node.targets if isinstance(node, ast.Assign) else (node.target,):
-                    assign(target, value)
+                    assign(target, compiled_value)
         elif isinstance(node, ast.AugAssign):
             a = compile_expression(node.target)
             b = compile_expression(node.value)
-            value = temp()
-            kernel.add_operation(
-                (a, b), value, lambda x, y: driver.ops.scalar_binary(node.op, x, y)
-            )
-            assign(node.target, value)
+            compiled_value = temp()
+
+            def augmented_rule(*values: Value) -> tuple[Value, Iterable[str]]:
+                if len(values) != 2:
+                    raise TypeError("Augmented arithmetic rule requires two values")
+                return driver.ops.scalar_binary(node.op, values[0], values[1])
+
+            kernel.add_operation((a, b), compiled_value, augmented_rule)
+            assign(node.target, compiled_value)
         elif isinstance(node, (ast.Expr, ast.Return)):
             result_node = compile_expression(node.value) if node.value is not None else temp()
             if node.value is None:
@@ -500,11 +537,10 @@ class NativeRegionEngine:
             for key in obj.fields:
                 obj.fields[key] = kernel.value(("field", objid, key))
             boundary.heap[objid] = obj
-        for cell, target in cell_outputs.items():
-            boundary.cells[cell] = kernel.value(target).without_unbound()
+        for cell, output_node in cell_outputs.items():
+            boundary.cells[cell] = kernel.value(output_node).without_unbound()
             boundary.record_write(CellWrite(cell))
-            if driver.oracle is not None and hasattr(driver.oracle, "publish_cell"):
-                driver.oracle.publish_cell(cell, boundary.cells[cell], "native_region_output")
+            driver.publish_oracle_cell(cell, boundary.cells[cell], "native_region_output")
         for ref, key, source, one_target in field_writes:
             obj = boundary.heap[ref]
             value = kernel.value(source)
@@ -515,8 +551,7 @@ class NativeRegionEngine:
                 obj.fields[key] = driver.ops.join(obj.fields.get(key, obj.default), value)
             obj.maybe_missing.discard(key)
             boundary.record_write(HeapWrite(ref, key))
-            if driver.oracle is not None and hasattr(driver.oracle, "publish_field"):
-                driver.oracle.publish_field(ref, key, obj.fields[key], "native_region_output")
+            driver.publish_oracle_field(ref, key, obj.fields[key], "native_region_output")
         boundary.completion = completion
         boundary.value = (
             kernel.value(result_node) if result_node is not None else Value.constant(None)
@@ -529,7 +564,7 @@ class NativeRegionEngine:
             driver.writes.add((ref, str(key), driver.point(node)))
         self.runs += 1
         self.work += kernel.work
-        trace = {
+        trace: JsonObject = {
             "engine": "native",
             "phase": "bounded_region_inclusion",
             "region": driver.point(node),
@@ -540,7 +575,7 @@ class NativeRegionEngine:
         }
         self.trace.append(trace)
         driver.phase_trace.append(trace)
-        driver.stats["native_region_runs"] += 1
+        driver.increment_stat("native_region_runs")
         output = []
         if (
             normal_possible

@@ -21,6 +21,7 @@ from pythonstan.analysis.contracts.identity import (
     CellId,
     ContextId,
     FrameId,
+    IdentityEpoch,
     ObjectId,
     PolicyId,
     ProgramPointId,
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
     from pythonstan.analysis.composition.plan import EffectiveRegionPlan
     from pythonstan.analysis.composition.region_scheduler import RegionScheduler
+    from pythonstan.analysis.composition.summary_context import SummaryApplicationContext
 
 from pythonstan.analysis.state.boundary import HostStateBoundary
 from pythonstan.analysis.state.dependencies import SummaryDependency
@@ -107,6 +109,10 @@ class RootActivation(NamedTuple):
     key: UnitId
     qualname: str | None
     entry: EntryScenario
+
+
+def _completion_sort_key(flow: Flow) -> tuple[str, str]:
+    return flow.kind, flow.exception or ""
 
 
 class BudgetStop(Exception):
@@ -194,6 +200,7 @@ class InterproceduralDriver:
         self.region_plan: EffectiveRegionPlan | None = None
         self.region_scheduler: RegionScheduler | None = None
         self.summary_provider: GuardedDispatchProvider | None = None
+        self._summary_host_marker = object()
         from .transfer import Transfer
 
         self.transfer = Transfer(self)
@@ -247,6 +254,31 @@ class InterproceduralDriver:
             False
             if self._incremental_oracle is None
             else self._incremental_oracle.publish_field(objid, key, value, origin)
+        )
+
+    def _summary_context(self) -> SummaryApplicationContext:
+        """Expose only the real checked-summary capabilities for this host."""
+        from pythonstan.analysis.composition.summary_context import (
+            SummaryApplicationContext,
+            SummaryHostId,
+        )
+
+        return SummaryApplicationContext(
+            host_token=SummaryHostId(self._summary_host_marker),
+            functions=self.functions,
+            modules=self.modules,
+            trees=self.trees,
+            policy_digest=self.policy_digest,
+            model_digest=self.model_digest,
+            scenario=self.scenario,
+            current_epoch=lambda: self.ops.arena.epoch,
+            point=self.point,
+            remaining_work=lambda: self.max_work - self.work,
+            charge=self.charge,
+            record_call=lambda caller, callee, point: self.calls.add((caller, callee, point)),
+            record_read=lambda owner, key, point: self.reads.add((owner, key, point)),
+            record_write=lambda owner, key, point: self.writes.add((owner, key, point)),
+            record_exception=self.exceptions.add,
         )
 
     @property
@@ -333,7 +365,7 @@ class InterproceduralDriver:
             return remap_payload(
                 tuple(extra_payloads), prepared_aliases, self.ops, epoch=self.ops.arena.epoch
             )
-        epoch = self.ops.arena.epoch + 1
+        epoch = IdentityEpoch(self.ops.arena.epoch + 1)
         self._in_reabstract = True
         try:
             transform = PayloadTransformer(
@@ -375,13 +407,11 @@ class InterproceduralDriver:
                 if not oracle_prepared.work_precharged:
                     self.charge(oracle_prepared.work, "reabstract_oracle_work")
             if self.summary_provider is not None:
-                if not hasattr(self.summary_provider, "prepare_state_epoch"):
-                    raise ValueError("Summary provider lacks state-epoch invalidation")
                 provider_prepared = self.summary_provider.prepare_state_epoch(
                     epoch, charge=lambda amount: self.charge(amount, "reabstract_summary_work")
                 )
-                if not provider_prepared.get("work_precharged"):
-                    self.charge(provider_prepared.get("work", 0), "reabstract_summary_work")
+                if not provider_prepared.work_precharged:
+                    self.charge(provider_prepared.work, "reabstract_summary_work")
             self.charge(len(prepared_aliases), "reabstract_prepare_work")
             prepared_summaries = self.ops.arena.summaries | set(prepared_aliases.values())
             reads: set[tuple[str, str, ProgramPointId]] = set()
@@ -402,6 +432,8 @@ class InterproceduralDriver:
             self._check_limits(force=True)
             # Publication consists solely of assignments to already prepared
             # objects. External service commit hooks have the same contract.
+            if oracle_prepared is not None:
+                oracle_prepared.validate()
             self.ops.arena.publish(prepared_aliases, summaries=prepared_summaries)
             self.units = payload.units
             self.functions = functions
@@ -595,7 +627,7 @@ class InterproceduralDriver:
         keywords: Sequence[tuple[str, Value]],
         store: Store,
         caller_frame: Frame,
-        site: ast.AST,
+        site: ast.AST | None,
     ) -> list[Flow]:
         store.ensure_current(self.ops)
         identifier = self.ops.arena.resolve(identifier)
@@ -638,7 +670,13 @@ class InterproceduralDriver:
         if self.summary_provider is not None:
             try:
                 application = self.summary_provider.try_apply(
-                    self, identifier, args, keywords, store.copy(), caller_frame, site
+                    self._summary_context(),
+                    identifier,
+                    args,
+                    keywords,
+                    store.copy(),
+                    caller_frame,
+                    site,
                 )
             except BudgetStop:
                 raise
@@ -652,11 +690,11 @@ class InterproceduralDriver:
                     "checked_summary_application", callee=info.qualname, point=self.point(site)
                 )
                 return application
-        context = ContextId(
-            (*caller_frame.context, self.point(site))[-self.context_depth :]
-            if self.context_depth
-            else ()
-        )
+        if self.context_depth:
+            context_points: tuple[ProgramPointId, ...] = (*caller_frame.context, self.point(site))
+            context = ContextId(context_points[-self.context_depth :])
+        else:
+            context = ContextId(())
         heap_partition = self.semantic_input_partition(info, args, keywords, defaults, store)
         key = UnitId(f"{self.scenario}:call:{identifier}@{'|'.join(context)}:heap={heap_partition}")
         closure = (
@@ -944,8 +982,8 @@ class InterproceduralDriver:
         if len(left) != len(right):
             return False
         for a, b in zip(
-            sorted(left, key=lambda f: (f.kind, f.exception or "")),
-            sorted(right, key=lambda f: (f.kind, f.exception or "")),
+            sorted(left, key=_completion_sort_key),
+            sorted(right, key=_completion_sort_key),
             strict=True,
         ):
             if not semantic_payload_equal(
@@ -999,15 +1037,18 @@ class InterproceduralDriver:
         }
         if any(not isinstance(entry, EntryScenario) for entry in entries):
             raise TypeError("The driver consumes resolved EntryScenario records")
-        ordered_entries = sorted(
-            enumerate(entries), key=lambda pair: (pair[1].root_module not in query_modules, pair[0])
-        )
+
+        def demand_priority(pair: tuple[int, EntryScenario]) -> tuple[bool, int]:
+            index, entry = pair
+            return entry.root_module not in query_modules, index
+
+        ordered_entries = sorted(enumerate(entries), key=demand_priority)
         try:
             self._check_limits(force=True)
             if self.incremental_oracle is not None:
                 self.incremental_oracle.bind(self)
-            if self.summary_provider is not None and hasattr(self.summary_provider, "charge_setup"):
-                self.summary_provider.charge_setup(self)
+            if self.summary_provider is not None:
+                self.summary_provider.charge_setup(self._summary_context())
             for index, entry in ordered_entries:
                 module, qualname = entry.root_module, entry.entry_qualname
                 self.scenario = entry.scenario_id or f"root-{index}-{module}"

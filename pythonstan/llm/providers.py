@@ -35,6 +35,10 @@ def _ast_digest(node: ast.AST) -> str:
     return hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
 
 
+def _dependency_key(item: VersionedDependency) -> tuple[str, str]:
+    return item.kind, item.identity
+
+
 def _literal_table(node: ast.Assign) -> tuple[str, tuple[tuple[str, str], ...]]:
     """Recognize the proposer's finite string-table syntax without trusting it."""
     if not isinstance(node.value, ast.Dict) or not node.targets:
@@ -160,7 +164,7 @@ class OfflineDispatchProposer:
                             VersionedDependency("table", table_name, _ast_digest(table_node)),
                             VersionedDependency("model", PROFILE, MODEL_DIGEST),
                         ],
-                        key=lambda item: (item.kind, item.identity),
+                        key=_dependency_key,
                     )
                 )
                 identity = SemanticIdentity(
@@ -263,4 +267,6 @@ def make_summary_provider(
         )
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
 
-    return GuardedDispatchProvider(snapshot, options, proposer, remaining_work=remaining_work)
+    provider = GuardedDispatchProvider(snapshot, options, proposer, remaining_work=remaining_work)
+    provider.prepare()
+    return provider

@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     List,
     Callable,
+    override,
 )
 from enum import Enum
 from abc import ABC, abstractmethod
@@ -17,6 +18,7 @@ from abc import ABC, abstractmethod
 from .context import Ctx
 from .object import InstanceObject, ClassObject
 from .points_to_set import PointsToSet
+from .variable import FieldAccess, Variable
 
 if TYPE_CHECKING:
     from .object import AbstractObject, AllocSite
@@ -55,28 +57,37 @@ class PointerFlowEdge:
     target: "PointerFlowNode"
     kind: PointerFlowKind
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert isinstance(self.source, PointerFlowNode)
         assert isinstance(self.target, PointerFlowNode)
         assert self.source != self.target, (
             f"source and target cannot be the same: {self.source} -> {self.target}"
         )
         if self.kind == PointerFlowKind.INHERIT:
-            assert isinstance(self.target, NormalNode) and isinstance(
-                self.target.var.content.obj, ClassObject
-            )
+            self._class_receiver()
         if self.kind == PointerFlowKind.INSTANCE:
-            assert isinstance(self.target, NormalNode) and isinstance(
-                self.target.var.content.obj, InstanceObject
-            )
+            self._instance_receiver()
+
+    def _class_receiver(self) -> ClassObject:
+        assert isinstance(self.target, NormalNode)
+        access = self.target.var.content
+        assert isinstance(access, FieldAccess)
+        assert isinstance(access.obj, ClassObject)
+        return access.obj
+
+    def _instance_receiver(self) -> InstanceObject:
+        assert isinstance(self.target, NormalNode)
+        access = self.target.var.content
+        assert isinstance(access, FieldAccess)
+        assert isinstance(access.obj, InstanceObject)
+        return access.obj
 
     def flow_through(self, pts: "PointsToSet") -> "PointsToSet":
         if self.kind == PointerFlowKind.INHERIT:
-            return pts.inherit_to(self.target.var.content.obj)
-        elif self.kind == PointerFlowKind.INSTANCE:
-            return pts.deliver_into(self.target.var.content.obj)
-        else:
-            return pts
+            return pts.inherit_to(self._class_receiver())
+        if self.kind == PointerFlowKind.INSTANCE:
+            return pts.deliver_into(self._instance_receiver())
+        return pts
 
 
 class PointerFlowNode(ABC):
@@ -89,14 +100,15 @@ class PointerFlowNode(ABC):
 class NormalNode(PointerFlowNode):
     """
     Normal node in pointer flow graph, just make all objects flowed through.
-    var: Ctx[Any] - the variable of the node.
+    var: A variable or field access with its actual Native context.
     """
 
-    var: Ctx[Any]
+    var: Ctx[Variable | FieldAccess]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert isinstance(self.var, Ctx), f"var must be a Ctx, but got {type(self.var)}"
 
+    @override
     def flow_through(self, edge: PointerFlowEdge, pts: "PointsToSet") -> "PointsToSet":
         return pts
 

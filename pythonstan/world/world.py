@@ -4,6 +4,7 @@ from pythonstan.utils.common import Singleton
 from pythonstan.ir import IRModule, IRScope, IRImport
 
 if TYPE_CHECKING:
+    from .analysis_manager import AnalysisManager
     from .namespace import Namespace, NamespaceManager
     from .scope_manager import ScopeManager
     from .config import Config
@@ -12,14 +13,16 @@ if TYPE_CHECKING:
 
 
 class World(Singleton):
+    scope_manager: "ScopeManager"
+    analysis_manager: "AnalysisManager"
     namespace_manager: "NamespaceManager"
-    entry_module: IRModule
+    entry_module: IRModule | None
     class_hierarchy: "ClassHierarchy"
     import_manager: "ImportManager"
     module2ns: Dict[IRModule, "Namespace"]
 
     @classmethod
-    def setup(cls):
+    def setup(cls) -> None:
         from .scope_manager import ScopeManager
         from .class_hierarchy import ClassHierarchy
         from .import_manager import ImportManager
@@ -49,5 +52,5 @@ class World(Singleton):
     def set_entry_module(self, module: IRModule):
         self.entry_module = module
 
-    def get_entry_module(self) -> IRModule:
+    def get_entry_module(self) -> IRModule | None:
         return self.entry_module

@@ -1,0 +1,129 @@
+{
+  "reviewer": "domain_native_baseline",
+  "role": "independent reviewer of requirements_audit-authored registry consumers",
+  "reviewed_at": "2026-11-12T04:16:59.003957+00:00",
+  "status": "accepted_narrow_authored_registry_boundary_slice",
+  "production_files": [
+    "pythonstan/compat/legacy_ai/value_domain.py",
+    "pythonstan/compat/legacy_ai/heap.py",
+    "pythonstan/compat/legacy_ai/domains/type_domain.py",
+    "pythonstan/compat/legacy_ai/domains/callable.py"
+  ],
+  "source_sha256": {
+    "pythonstan/compat/legacy_ai/value_domain.py": "abad87c051307b42a3300330333677b217224593cb2ffe60e452d5cb89b9a8cc",
+    "pythonstan/compat/legacy_ai/heap.py": "cd30a871a397c65369d33bbfad2e09d095e02ee8b194b8291cba2a4160b78985",
+    "pythonstan/compat/legacy_ai/domains/type_domain.py": "9f0a32ebb9346a24eb853f8d662699fbd134aa0071432e0b2230d76948325b3f",
+    "pythonstan/compat/legacy_ai/domains/callable.py": "2b3117628b679fb9bbb01870c211ef834189319b2d6f3ed84dc645e6b814f014"
+  },
+  "source_four_stable_across_runtime_static_review_and_cold_parity": true,
+  "reviewer_source_test_gold_edits": false,
+  "scope": [
+    "Actual heterogeneous registry component values use object only at the registered representation boundary; operations execute the installed provider and fixed projections validate actual returned elements.",
+    "BoolLattice/IntLattice-compatible custom middle variants retain payloads; declared incompatible variants fail explicitly rather than being cast, cached by domain name or silently widened to Top.",
+    "Missing bool provider remains explicit; historical missing-int container fallback is preserved.",
+    "Callable/type reduction constructs tokens only from real Native AbstractObject addresses; AIAddr stores real admitted Native/ProtocolKeyContext identities.",
+    "Heap retains historical one-way key conversion module attributes.",
+    "Two root-approved old mock producers now construct real FunctionObject/ClassObject; all original assertions remain unchanged."
+  ],
+  "runtime": {
+    "receipt": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/runtime.receipt.json",
+    "result": "226 passed in22.60s",
+    "source_and_provider_stable_during_run": true
+  },
+  "ordinary_strict": {
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "mypy",
+      "--strict",
+      "--explicit-package-bases",
+      "--no-incremental",
+      "--output",
+      "json",
+      "pythonstan/compat/legacy_ai/value_domain.py",
+      "pythonstan/compat/legacy_ai/heap.py",
+      "pythonstan/compat/legacy_ai/domains/type_domain.py",
+      "pythonstan/compat/legacy_ai/domains/callable.py",
+      "tests/regression/audit3/test_legacy_registry_consumers.py",
+      "tests/analysis/test_ai_domains.py"
+    ],
+    "exit": 1,
+    "owned_diagnostics": [
+      {
+        "file": "pythonstan/compat/legacy_ai/value_domain.py",
+        "line": 721,
+        "column": 8,
+        "end_line": 721,
+        "end_column": 20,
+        "message": "Need type annotation for \"legacy_sites\" (hint: \"legacy_sites: set[<type>] = ...\")",
+        "hint": null,
+        "code": "var-annotated",
+        "severity": "error"
+      },
+      {
+        "file": "pythonstan/compat/legacy_ai/value_domain.py",
+        "line": 729,
+        "column": 16,
+        "end_line": 729,
+        "end_column": 55,
+        "message": "Statement is unreachable",
+        "hint": null,
+        "code": "unreachable",
+        "severity": "error"
+      }
+    ],
+    "classification": "Exactly two frozen, unchanged AbsVal._summarize_addrs_by_alloc_site diagnostics; no new or modified authored unit diagnostic",
+    "new_test_errors": [],
+    "all_records_retained": 3889,
+    "raw": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/mypy.stdout.jsonl"
+  },
+  "finite_differential": {
+    "receipt": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/scalar-token-parity.receipt.json",
+    "cases": 1288,
+    "mismatches": [],
+    "scope": "16 scalar products x16 x5; two real Native token domains x4 cap values, with eight independent top/set assertions",
+    "baseline_identity": "Four overlay source files independently verified byte-identical to44d13b1; old-overlay-baseline-identity.json",
+    "heap_loaded_by_scalar_probe": false,
+    "heap_validation": "Covered by actual runtime container/heap/address controls, not claimed as scalar differential coverage"
+  },
+  "coupled_regressions": {
+    "residual_attribute_presence": {
+      "owner": "input_typing",
+      "finding": "New optional None initializer broke an unchanged no-fact-mutation observer test",
+      "resolution": "True historical absence retained via class-only annotation plus actual peek accessor; unchanged test passes in226 controls",
+      "source_hash": "98af3edcded76fb224dfb490676a9efc636a17a4ed380502eb4ffcedb2465b05"
+    },
+    "cold_import_cycle": {
+      "owner": "quality_tools",
+      "finding": "New eager intrinsic boundary imports broke cold AbsVal import; full isolated44d13b1 succeeded. A second direct-boundary entry cycle was also independently found.",
+      "red_evidence": [
+        "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/cold-import-red.receipt.json",
+        "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/cold-import-44d.receipt.json",
+        "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/cold-and-parity-final.receipt.json"
+      ],
+      "resolution": "Actual nominal decoder imports moved to real runtime local check sites; five fresh isolated import orders now exit0 without preloading",
+      "green": "artifacts/next/evidence/N4-TYPE-01/legacy-registry-independent/cold-and-parity-green.receipt.json",
+      "snapshot": {
+        "pythonstan/compat/legacy_ai/value_domain.py": "abad87c051307b42a3300330333677b217224593cb2ffe60e452d5cb89b9a8cc",
+        "pythonstan/compat/legacy_ai/heap.py": "cd30a871a397c65369d33bbfad2e09d095e02ee8b194b8291cba2a4160b78985",
+        "pythonstan/compat/legacy_ai/domains/type_domain.py": "9f0a32ebb9346a24eb853f8d662699fbd134aa0071432e0b2230d76948325b3f",
+        "pythonstan/compat/legacy_ai/domains/callable.py": "2b3117628b679fb9bbb01870c211ef834189319b2d6f3ed84dc645e6b814f014",
+        "pythonstan/compat/intrinsic_boundary.py": "5ac6bbde79ba036dc6b69e574bb5e9c77c40fcda3cca472d90582d15537ae218",
+        "pythonstan/analysis/pointer/kcfa/solver.py": "421c5a266b99c62b9c70d747d65b8a419d9988611a0ad56e0330005c0b4f653a"
+      }
+    }
+  },
+  "lint_and_format": {
+    "ruff_exit": 0,
+    "format_exit": 0
+  },
+  "limits": [
+    "This accepts the root-authorized ordinary/no-new-diagnostic registry boundary slice; it does not claim whole legacy modules strict+Any-expression clean.",
+    "Inherited optional max_ho_tokens hasattr/getattr code and other unchanged reflection remain real stronger-typing debt. Eight independent token-cap controls establish preserved behavior, not typed completeness.",
+    "The frozen address-summary compatibility helper still has two ordinary strict errors; no debt baseline was changed.",
+    "Author-retained old private TAC broad differential has45 identical old/new failures and remains outside original stage suite; it is not a green result.",
+    "The initial independent token probe used an invalid CLASS allocation string; both versions rejected it. The corrected probe uses actual IRStatement sites; no SUT/test/gold was weakened.",
+    "TYPE/COMP/domain semantic acceptance cards and mandatory gold remain independently governed; no parent card is closed here."
+  ],
+  "parent_TYPE01_verified": false
+}

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import deque
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Dict, Any, Type, Literal, List
 
 from pythonstan.ir import IRScope
@@ -20,27 +20,38 @@ class AnalysisConfig:
     ]
     inter_procedure: bool
     prev_analysis: List[str]  # previous analysis name
-    options: Dict[str, Any]
+    options: dict[object, object]
 
     def __init__(
-        self, name, id, description="", prev_analysis=None, inter_procedure=False, options=None
-    ):
+        self,
+        name: str,
+        id: str,
+        description: str = "",
+        prev_analysis: list[str] | tuple[str, ...] | None = None,
+        inter_procedure: bool = False,
+        options: Mapping[object, object] | None = None,
+    ) -> None:
         if not isinstance(name, str) or not name or not isinstance(id, str) or not id:
             raise ValueError("analysis name and id must be nonempty strings")
         if options is None:
             options = {}
         if not isinstance(options, Mapping):
             raise ValueError("analysis options must be a mapping")
-        supported = {
-            "dataflow analysis",
-            "transform",
-            "pointer analysis",
-            "closure analysis",
-            "ai analysis",
-            "certified analysis",
-        }
-        if not isinstance(options.get("type"), str) or options["type"] not in supported:
+        raw_kind = options.get("type")
+        if not isinstance(raw_kind, str):
             raise ValueError("options.type must name a supported analysis type")
+        match raw_kind:
+            case (
+                "dataflow analysis"
+                | "transform"
+                | "pointer analysis"
+                | "closure analysis"
+                | "ai analysis"
+                | "certified analysis"
+            ) as kind:
+                pass
+            case _:
+                raise ValueError("options.type must name a supported analysis type")
         if not isinstance(description, str) or type(inter_procedure) is not bool:
             raise ValueError("description must be text and inter_procedure must be boolean")
         dependencies = [] if prev_analysis is None else prev_analysis
@@ -53,7 +64,7 @@ class AnalysisConfig:
         self.name = name
         self.id = id
         self.description = description
-        self.type = options["type"]
+        self.type = kind
         self.inter_procedure = inter_procedure
         self.options = dict(options)
         self.prev_analysis = list(dependencies)
@@ -75,14 +86,14 @@ AnalysisConfig(
         return self.__str__()
 
 
-def order_analysis_configs(configs):
+def order_analysis_configs(configs: Iterable[AnalysisConfig]) -> list[AnalysisConfig]:
     """Validate and order a complete dependency graph before running any pass."""
     by_name = {}
     for config in configs:
         if config.name in by_name:
             raise ValueError(f"Duplicate analysis name: {config.name}")
         by_name[config.name] = config
-    successors = {name: [] for name in by_name}
+    successors: dict[str, list[str]] = {name: [] for name in by_name}
     pending = {}
     for name, config in by_name.items():
         if len(set(config.prev_analysis)) != len(config.prev_analysis):

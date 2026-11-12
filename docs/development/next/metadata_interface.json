@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "task": "N4-TYPE-01-metadata",
-  "source_sha256": "acededc375f0a3828239106d7ad0c927234ede92375145e6833124333709df64",
-  "status": "wired_schema_and_actual_graph_regressions_passed_parent_TYPE01_pending",
+  "source_sha256": "85240d477f0c81545d2642172c1c4cc4cda10c6de03dd22f1dbe5ac456fca5a1",
+  "status": "recovered_committed_44d13b1_graph_review_accepted_parent_TYPE_STATE_unverified",
   "semantic_field_keys": [
     "bases",
     "body",
@@ -68,6 +68,7 @@
     "ValueField",
     "FrameField",
     "StoreField",
+    "StateHandleField",
     "ContinuationField",
     "StatementsField",
     "ExceptionField",
@@ -91,8 +92,8 @@
     "replace_entries": "Fillmemoizedfacade from transformedtypedfields afterthe graph traversal prepareschildren.",
     "reclassify": "Mutateowned detachedfacade tootherkind afterpreparation, retaining metadata self/rootaliases. Sourceinputs mustnotbemutated."
   },
-  "typed_access": "Exactfinite __getitem__/lookup overloads; inherited Mapping.get remains broadcompatibility; namespace_owner/view_owner distinguish roles.",
-  "runtime_records": "Generator.entry usesactualStore; closure usesactualCellId bindingpairs. Future StateHandle/BindingRef migration belongs toTYPEowner and mustreplaceactualconsumers.",
+  "typed_access": "Exact finite __getitem__/lookup overloads; inherited Mapping.get remains compatibility input. entry_handle() is the canonical actual runtime accessor, while mapping entry intentionally preserves the historical Store projection. namespace_owner/view_owner distinguish semantic roles.",
+  "runtime_records": "GeneratorMeta.entry stores the actual StateHandle. entry_handle() returns that existing checkpoint. Legacy mapping entry/get/lookup projects handle.read() Store; no second Store is stored. Closure pairs carry CellId; BindingRef/ObjectHandle/SummaryDependency are admitted finite graph records.",
   "known_component_cases": [
     "entry-only generator graph",
     "shared mutable list and cyclic Metadata attachment",
@@ -106,12 +107,16 @@
     "ruff": "passed",
     "metadata_suite": "20passed",
     "existing_graph_state_generator_suite": "104passed",
-    "summary_self_cycle": "Current20green;isolatedpre-fixcallerreplay19green1red;livefilesandhashesunchanged."
+    "summary_self_cycle": "Current20green;isolatedpre-fixcallerreplay19green1red;livefilesandhashesunchanged.",
+    "recovery_graph_suite": "60 passed after narrow memo poisoning guard; independent peer reran60. Four owned graph modules strict+Any-expression diagnostics0; global imported debt remains nonzero.",
+    "current_evidence": "artifacts/next/evidence/N4-TYPE-01/recovery-20261112/"
   },
   "limitations": [
     "ParentTYPE01 task notverified; Flow/metadata caller/frontend/statefrontier migration continues.",
     "Legacyrawnormalproducer mappings mustgradually move tofrom_record; from_legacy remains explicitcompatibilityboundary duringmigration.",
     "This codec validatesrepresentation and semanticroles, not stateepochs/framecoverage/wholeprogramsoundness.",
     "No W0frozenfixture/gold/mandatorydenominator waschanged."
-  ]
+  ],
+  "literal_profile": "Complex literals are admitted and consistently copied/prepared/compared/signed. Exact committed735b9ff rejected them at admission. The lost dirty candidate mismatch remains source-derived, not fabricated as a committed-baseline copy failure.",
+  "admission": "Only explicitly registered canonical state/Flow/metadata record classes and builtin container shapes are admitted. Unregistered record/facade/container subclasses fail at the codec, including known entry/frame fields and typed metadata record construction."
 }

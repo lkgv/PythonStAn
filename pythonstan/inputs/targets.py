@@ -26,7 +26,8 @@ class Source:
             raise TypeError("Source.module must be text")
         if not self.module:
             raise ValueError("Source.module must be nonempty")
-        object.__setattr__(self, "import_roots", tuple(self.import_roots))
+        import_roots: tuple[SourcePath, ...] = tuple(self.import_roots)
+        object.__setattr__(self, "import_roots", import_roots)
 
     @property
     def config_search_root(self) -> Path | None:
@@ -57,9 +58,12 @@ class Project:
     kind: Literal["project"] = "project"
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "entries", tuple(self.entries))
-        object.__setattr__(self, "source_roots", tuple(self.source_roots))
-        object.__setattr__(self, "exclusions", tuple(self.exclusions))
+        entries: tuple[str, ...] = tuple(self.entries)
+        source_roots: tuple[SourcePath, ...] = tuple(self.source_roots)
+        exclusions: tuple[str, ...] = tuple(self.exclusions)
+        object.__setattr__(self, "entries", entries)
+        object.__setattr__(self, "source_roots", source_roots)
+        object.__setattr__(self, "exclusions", exclusions)
 
     @property
     def config_search_root(self) -> Path:

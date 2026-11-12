@@ -19,17 +19,31 @@ class PartitionToken:
     key_repr: str
     handler: ObjectId
     partitioned: bool = True
+    display_name: str | None = None
 
     @classmethod
     def make(
-        cls, point: ProgramPointId, key: object, handler: ObjectId, partitioned: bool = True
+        cls,
+        point: ProgramPointId,
+        key: object,
+        handler: ObjectId,
+        partitioned: bool = True,
+        *,
+        display_name: str | None = None,
     ) -> PartitionToken:
-        return cls(point, type(key).__name__, repr(key), handler, partitioned)
+        return cls(point, type(key).__name__, repr(key), handler, partitioned, display_name)
 
     @property
     def identity(self) -> str:
         return stable_digest(
-            (self.point, self.key_type, self.key_repr, self.handler, self.partitioned)
+            (
+                self.point,
+                self.key_type,
+                self.key_repr,
+                self.handler,
+                self.partitioned,
+                self.display_name,
+            )
         )
 
     def export(self) -> JsonObject:
@@ -38,7 +52,7 @@ class PartitionToken:
             "point": self.point,
             "key_type": self.key_type,
             "key": self.key_repr,
-            "handler": self.handler,
+            "handler": self.handler if self.display_name is None else self.display_name,
             "partitioned": self.partitioned,
         }
 
@@ -62,8 +76,12 @@ class KeyValueRelation:
         for point in points:
             group = [token for token in self.tokens if token.point == point]
             for key_type, key_repr in {(token.key_type, token.key_repr) for token in group}:
-                for handler in {token.handler for token in group}:
-                    result.add(PartitionToken(point, key_type, key_repr, handler, False))
+                for handler, display_name in {
+                    (token.handler, token.display_name) for token in group
+                }:
+                    result.add(
+                        PartitionToken(point, key_type, key_repr, handler, False, display_name)
+                    )
         return KeyValueRelation(frozenset(result))
 
     def export(self) -> list[JsonValue]:

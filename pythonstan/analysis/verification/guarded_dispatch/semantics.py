@@ -22,7 +22,12 @@ class SymbolicTop:
     """Any modeled return; existing user heap still obeys the frame contract."""
 
 
-def interpret_relation(relation, parameter="payload", allocation="fresh-template"):
+type SymbolicRelation = SymbolicInput | SymbolicFreshBox | SymbolicTop
+
+
+def interpret_relation(
+    relation: str, parameter: str = "payload", allocation: str = "fresh-template"
+) -> SymbolicRelation:
     if relation == "input":
         return SymbolicInput(parameter)
     if relation == "fresh_box":
@@ -32,5 +37,7 @@ def interpret_relation(relation, parameter="payload", allocation="fresh-template
     raise ValueError("not a guarded-dispatch relation")
 
 
-def relation_covers(candidate, concrete_symbolic_relation):
+def relation_covers(
+    candidate: SymbolicRelation, concrete_symbolic_relation: SymbolicRelation
+) -> bool:
     return isinstance(candidate, SymbolicTop) or candidate == concrete_symbolic_relation

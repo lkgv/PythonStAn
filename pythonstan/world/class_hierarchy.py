@@ -7,7 +7,7 @@ class ClassHierarchy:
     subclasses: Dict[IRClass, List[IRClass]]
     classes: Dict[str, IRClass]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.bases = {}
         self.subclasses = {}
         self.classes = {}

@@ -1,0 +1,121 @@
+{
+  "status": "owned_five_file_strong_boundary_cleanup_ready_for_independent_review",
+  "files": [
+    "pythonstan/analysis/contracts/arguments.py",
+    "pythonstan/analysis/contracts/observation.py",
+    "pythonstan/analysis/engines/abstract/attributes.py",
+    "pythonstan/inputs/snapshot.py",
+    "pythonstan/inputs/targets.py"
+  ],
+  "source_before": {
+    "pythonstan/analysis/contracts/arguments.py": "38e6ec7d93cd5eeec60fd8c25474830f6d18d7a62b3a015cb2bba6e78c622aba",
+    "pythonstan/analysis/contracts/observation.py": "022e8df1ba3b68a39c8077abc5064fa0b18c42b191849542e9e2673ba4db5400",
+    "pythonstan/analysis/engines/abstract/attributes.py": "7bd3c1d9e8d7857760a3d8c86fd9fe5c9d494a33f7bcd2b0894fa2010e72482c",
+    "pythonstan/inputs/snapshot.py": "8e1da83ef0bb964fea69bae5b6ce46a6d3623e56d175caa6141585b2c620d3f6",
+    "pythonstan/inputs/targets.py": "1257e2c669d61d96eff81c64eca1ad039123cf1068e6b6e5666e285dc5d022ef"
+  },
+  "source_after": {
+    "pythonstan/analysis/contracts/arguments.py": "a9cb0c3608e8c13b38a541c35122afb761b9758c0b37cb271087745746b17e3a",
+    "pythonstan/analysis/contracts/observation.py": "80899980ee0727cb96224bbddc0f39a7a8b8da251ac3ada3735ea758c1e53113",
+    "pythonstan/analysis/engines/abstract/attributes.py": "32fc49587a11b99556366f11278854381a767eff5691d6ef27dcf1b13ce3a130",
+    "pythonstan/inputs/snapshot.py": "699175a8c8f00e1b7e73b4932516721da27a519c4d718d39164d70a5ffa80d26",
+    "pythonstan/inputs/targets.py": "5ac9223cfe99b3b1e7f153bb67c0c1054e40bbb4df0f50d65cf4e4bdcf431b4c"
+  },
+  "strict_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/python",
+    "-m",
+    "mypy",
+    "--strict",
+    "--disallow-any-expr",
+    "--no-incremental",
+    "--output",
+    "json",
+    "pythonstan/analysis/contracts/arguments.py",
+    "pythonstan/analysis/contracts/observation.py",
+    "pythonstan/analysis/engines/abstract/attributes.py",
+    "pythonstan/inputs/snapshot.py",
+    "pythonstan/inputs/targets.py"
+  ],
+  "strict_exit": 1,
+  "before_own_diagnostics": 71,
+  "after_own_diagnostics": [],
+  "imported_diagnostics_retained": 563,
+  "mypy_raw": "artifacts/next/evidence/N4-TYPE-01/strong-boundaries/final.mypy.jsonl",
+  "runtime": {
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/regression/audit3/test_binding_contracts.py",
+      "tests/regression/audit3/test_attribute_contracts.py",
+      "tests/regression/audit3/test_input_contracts.py",
+      "tests/refactor/observation/test_observation.py",
+      "tests/refactor/contracts/test_legacy_source_snapshot.py",
+      "tests/refactor/semantics/test_private_names_recovery.py",
+      "tests/refactor/api/test_public_contract.py",
+      "tests/refactor/api/test_independent_contract.py"
+    ],
+    "exit_code": 0,
+    "elapsed": 4.154557926999587,
+    "source_before": {
+      "pythonstan/analysis/contracts/arguments.py": "a9cb0c3608e8c13b38a541c35122afb761b9758c0b37cb271087745746b17e3a",
+      "pythonstan/analysis/contracts/observation.py": "80899980ee0727cb96224bbddc0f39a7a8b8da251ac3ada3735ea758c1e53113",
+      "pythonstan/analysis/engines/abstract/attributes.py": "32fc49587a11b99556366f11278854381a767eff5691d6ef27dcf1b13ce3a130",
+      "pythonstan/inputs/snapshot.py": "699175a8c8f00e1b7e73b4932516721da27a519c4d718d39164d70a5ffa80d26",
+      "pythonstan/inputs/targets.py": "5ac9223cfe99b3b1e7f153bb67c0c1054e40bbb4df0f50d65cf4e4bdcf431b4c"
+    },
+    "source_after": {
+      "pythonstan/analysis/contracts/arguments.py": "a9cb0c3608e8c13b38a541c35122afb761b9758c0b37cb271087745746b17e3a",
+      "pythonstan/analysis/contracts/observation.py": "80899980ee0727cb96224bbddc0f39a7a8b8da251ac3ada3735ea758c1e53113",
+      "pythonstan/analysis/engines/abstract/attributes.py": "32fc49587a11b99556366f11278854381a767eff5691d6ef27dcf1b13ce3a130",
+      "pythonstan/inputs/snapshot.py": "699175a8c8f00e1b7e73b4932516721da27a519c4d718d39164d70a5ffa80d26",
+      "pythonstan/inputs/targets.py": "5ac9223cfe99b3b1e7f153bb67c0c1054e40bbb4df0f50d65cf4e4bdcf431b4c"
+    },
+    "source_unchanged": true
+  },
+  "lint_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+    "check",
+    "pythonstan/analysis/contracts/arguments.py",
+    "pythonstan/analysis/contracts/observation.py",
+    "pythonstan/analysis/engines/abstract/attributes.py",
+    "pythonstan/inputs/snapshot.py",
+    "pythonstan/inputs/targets.py"
+  ],
+  "lint_exit": 0,
+  "format_command": [
+    "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+    "format",
+    "--check",
+    "pythonstan/analysis/contracts/arguments.py",
+    "pythonstan/analysis/contracts/observation.py",
+    "pythonstan/analysis/engines/abstract/attributes.py",
+    "pythonstan/inputs/snapshot.py",
+    "pythonstan/inputs/targets.py"
+  ],
+  "format_exit": 0,
+  "code_changes": [
+    "CallArguments/target/source snapshot publish actual explicitly typed owned tuples/maps through existing frozen-field assignments.",
+    "SourceSnapshot retains existing target/inventory validation order and parser-cache ownership; source/module sorting uses the same field through a typed actual key function.",
+    "ObservationSink binds an exact primitive dict once to dict[object,object], then performs the existing bounded validation/detachment and parent-order deduplication with explicit key/value types.",
+    "AttributeOperations uses a typed finite mro/bases projection with the original absent default; actual lookup, C3, super, __mro__/__bases__ and reflective lookup consume it."
+  ],
+  "preserved": [
+    "Ordered/repeated keyword values",
+    "Published immutable JSON and fresh rerun AST cache",
+    "Original source-byte/input-resolution identities",
+    "Observation passivity, bounded rejection and detached retained records",
+    "Attribute C3/descriptor/protocol behavior and explicit __set_name__ tail reset"
+  ],
+  "new_Any_cast_suppressions": false,
+  "AST_constructor_facade_added": false,
+  "gold_or_test_edits": false,
+  "ordinary_quality_policy_changed": false,
+  "parent_TYPE01_verified": false,
+  "limitations": [
+    "Whole normal-import strict process remains exit 1 for imported dependencies; only these five files are clean.",
+    "No semantic repair of AS call-order/delete/descriptor findings is claimed.",
+    "No real LLM call or credentials access."
+  ]
+}

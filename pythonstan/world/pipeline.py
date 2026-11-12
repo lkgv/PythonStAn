@@ -1,4 +1,5 @@
 from pythonstan.ir import IRModule
+from pythonstan.analysis.contracts.identity import SourceModule
 from pythonstan.analysis import AnalysisConfig, AnalysisDriver
 from .namespace import Namespace
 from .world import World
@@ -8,6 +9,8 @@ from .analysis_manager import AnalysisManager
 
 from typing import List, Tuple, Generator
 from collections import deque
+from collections.abc import Mapping
+from os import PathLike
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,7 +20,13 @@ class Pipeline:
     config: Config
     analysis_manager: AnalysisManager
 
-    def __init__(self, config=None, filename=None, *, source_snapshots=None):
+    def __init__(
+        self,
+        config: Config | Mapping[str, object] | None = None,
+        filename: str | PathLike[str] | None = None,
+        *,
+        source_snapshots: Mapping[str, SourceModule] | None = None,
+    ) -> None:
         if config is not None:
             self.config = config if isinstance(config, Config) else Config.from_dict(config)
         elif filename is not None:
@@ -146,6 +155,6 @@ class Pipeline:
             else:
                 raise ValueError(f"Unsupported pipeline analysis type: {analyzer.config.type}")
 
-    def run(self):
+    def run(self) -> None:
         analyzer_generator = self.analysis_manager.generator()
         self.do_analysis(analyzer_generator)

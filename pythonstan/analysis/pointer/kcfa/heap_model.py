@@ -12,13 +12,17 @@ from typing import Optional, Dict, Tuple, Set, TYPE_CHECKING
 from yaml import NodeEvent
 
 from .variable import VariableKind
+from pythonstan.analysis.state.keys import FieldKey as SourceFieldKey
 
 if TYPE_CHECKING:
+    from pythonstan.ir.ir_statements import IRModule, IRScope
     from .object import AbstractObject, FunctionObject
     from .variable import Variable, FieldAccess
-    from .context import AbstractContext, Ctx, Scope, AllocSite
+    from .context import AbstractContext, Ctx, Scope, AllocSite, NativeContext
 
 __all__ = [
+    "NativeLiteralKey",
+    "NativeFieldKey",
     "FieldKind",
     "Field",
     "attr",
@@ -99,7 +103,12 @@ class Field:
         return f".{self.kind.value}"
 
 
-def key(key_name: str) -> Field:
+type NativeLiteralKey = str | int | float | bool | complex | None | tuple[NativeLiteralKey, ...]
+
+type NativeFieldKey = NativeLiteralKey | SourceFieldKey
+
+
+def key(key_name: NativeFieldKey) -> Field:
     """Create key field for specific key/index access. Used for dictionary and list/tuple elements.
 
     Used for dict["key"] where key is statically known constant.
@@ -113,10 +122,7 @@ def key(key_name: str) -> Field:
     # Python's numeric keys share a hash/equality class: True, 1, and 1.0
     # select the same dictionary entry. Keep that class intact before encoding.
     key_type = None
-    if isinstance(key_name, (bool, int)):
-        key_type = "number"
-        key_name = str(int(key_name))
-    elif isinstance(key_name, float) and key_name.is_integer():
+    if isinstance(key_name, (bool, int)) or (isinstance(key_name, float) and key_name.is_integer()):
         key_type = "number"
         key_name = str(int(key_name))
     elif isinstance(key_name, complex) and key_name.imag == 0:
@@ -193,18 +199,23 @@ def wildcard_key() -> Field:
     return Field(FieldKind.WILDCARD_KEY)
 
 
+type HeapRegisterKey = (
+    tuple[NativeContext, IRScope | AbstractObject] | tuple[IRModule] | tuple[Scope]
+)
+
+
 class HeapModel:
     """Heap model for pointer analysis.
 
     Maintains the heap and field accesses.
     """
 
-    heap: "Dict[Tuple[Scope, AbstractContext], Dict[Tuple[str, VariableKind], Ctx[Variable]]]"
+    heap: "Dict[HeapRegisterKey, Dict[str, Ctx[Variable]]]"
     prev_scope: "Dict[Scope, Scope]"
     objects: "Dict[Tuple[Scope, AbstractContext, AllocSite], AbstractObject]"
-    cell_vars: "Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]"
-    global_vars: "Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]"
-    nonlocal_vars: "Dict[FunctionObject, Dict[str, Set[Ctx[Variable]]]]"
+    cell_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
+    global_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
+    nonlocal_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
 
     def __init__(self):
         self.heap = {}
@@ -267,11 +278,11 @@ class HeapModel:
     ) -> Optional["AbstractObject"]:
         return self.objects.get((context, c.stmt, c.kind), None)
 
-    def get_cell_vars(self, obj: "FunctionObject") -> "Dict[str, Ctx[Variable]]":
+    def get_cell_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
         return self.cell_vars.get(obj, {})
 
-    def get_global_vars(self, obj: "FunctionObject") -> "Dict[str, Ctx[Variable]]":
+    def get_global_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
         return self.global_vars.get(obj, {})
 
-    def get_nonlocal_vars(self, obj: "FunctionObject") -> "Dict[str, Ctx[Variable]]":
+    def get_nonlocal_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
         return self.nonlocal_vars.get(obj, {})

@@ -1,0 +1,98 @@
+{
+  "reviewer": "requirements_audit",
+  "role": "independent read-only reviewer; no production/test/gold edits",
+  "status": "accepted_narrow_checker_typing_and_codec_refactor",
+  "parent_type_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/verification/closed_effects/checker.py": "04ef598e16af3109ae5e529b69dd2454001f281f71dfa5e7828770a471c98cd3",
+    "pythonstan/analysis/verification/guarded_dispatch/semantics.py": "843abf4e0953fa7db803efce2e16c769f8700a611e5fa491bd898fe6076b07df"
+  },
+  "source_stable_against_differential": true,
+  "findings": [],
+  "scope": [
+    "Finite object/Mapping input is validated into concrete source-bound certificate records; ordinary JSON output is fully typed and detached.",
+    "AST shape checks reinforce already-validated source profiles; _unsupported NoReturn describes its real always-raising behavior.",
+    "Explicit normal/return/break/continue/exception binding fields preserve pending-finally restoration and handler-target deletion ordering. No tick/postfixpoint/coverage alphabet/proof or certificate denominator rule was changed.",
+    "Symbolic DSL relation records and covers operations preserve their actual denotations; annotations do not grant verification authority."
+  ],
+  "runtime": {
+    "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/certified/test_checker.py tests/certified/test_checker_adversarial_ai.py tests/certified/test_checker_exceptions.py",
+    "result": "163 passed in0.44s"
+  },
+  "strict": {
+    "ordinary_imports": true,
+    "disallow_any_expr": true,
+    "owned_diagnostics": [],
+    "imported_diagnostic_records_retained": 460,
+    "ruff_diagnostics": []
+  },
+  "differential": {
+    "baseline_commit": "44d13b1",
+    "source_rows": 150,
+    "accepted_source_rows": 91,
+    "unsupported_source_rows": 59,
+    "candidate_checks": 7304,
+    "budget_checks": 1050,
+    "stale_source_checks": 150,
+    "schema_rows": 5,
+    "symbolic_interpretations": 45,
+    "symbolic_cover_pairs": 729,
+    "differences": [],
+    "exact_equal": true,
+    "retained_fields": [
+      "entire certificate wire",
+      "status",
+      "diagnostics",
+      "certified property",
+      "source_sha256",
+      "checked_functions denominator",
+      "obligations_checked actual work",
+      "source_coverage",
+      "entire JSON schemas",
+      "all symbolic DTO fields and cover relations"
+    ],
+    "excluded_fields": []
+  },
+  "raw_mapping_probe": {
+    "legal_compatibility_shapes": [
+      "UserDict",
+      "MappingProxyType",
+      "nested MappingProxyType",
+      "tuple fact arrays"
+    ],
+    "legal_shapes_exact_equal": true,
+    "explicit_invalid_input_diagnostic_delta": {
+      "name": "non-string-top-key",
+      "old": {
+        "status": "rejected",
+        "diagnostics": [
+          "malformed certificate: certificate: expected exactly ['schema_version', 'semantics_version', 'source_sha256', 'summaries']"
+        ],
+        "digest": "c73b67a007a40c1fd16136cb9627f14bd73d2654d00c5c56f69b3b359b264fde",
+        "functions": [],
+        "work": 0,
+        "coverage": false,
+        "certificate": null
+      },
+      "current": {
+        "status": "rejected",
+        "diagnostics": [
+          "malformed certificate: certificate must be an object"
+        ],
+        "digest": "c73b67a007a40c1fd16136cb9627f14bd73d2654d00c5c56f69b3b359b264fde",
+        "functions": [],
+        "work": 0,
+        "coverage": false,
+        "certificate": null
+      },
+      "equal": false
+    }
+  },
+  "limits": [
+    "The differential is finite bug-finding evidence, not a proof of the original semantic fragment.",
+    "Non-string top-level keys are outside JSON/string-key Mapping input; they remain rejected with no work/coverage/certificate, but exact diagnostic wording changed and is retained verbatim.",
+    "The broader tests/certified directory cannot collect test_benchmarks.py because benchmark.certified is absent; its failed collection is retained separately, not reported as a checker2 failure or a163-test pass.",
+    "No real LLM or analyzed target source was executed by the differential. Existing163 checker tests include authored concrete fixtures; no client-project query or credentialed provider was run."
+  ],
+  "raw_evidence": "artifacts/next/evidence/reviewer-W1/checker2/"
+}

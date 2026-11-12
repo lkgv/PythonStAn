@@ -123,6 +123,9 @@ def validate_selector(selector):
 class NativeDiagnostics:
     """Exact native implementation; its scalar-only mode has an eager audit."""
 
+    _counts: dict[str, int]
+    _window_counts: dict[str, int]
+
     def __init__(
         self, mode, run_id, selector=None, *, max_events=256, max_bytes=262144, max_refs=512
     ):
@@ -169,7 +172,7 @@ class NativeDiagnostics:
         self._epoch_changes = 0
         self._window_end = None
 
-    def bump(self, name, amount=1):
+    def bump(self, name: str, amount: int = 1) -> None:
         try:
             self._counts[name] = min(_MAX, self._counts[name] + amount)
             self._window_counts[name] = min(_MAX, self._window_counts[name] + amount)

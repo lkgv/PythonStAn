@@ -13,5 +13,7 @@ class CallArguments[T]:
     keywords: tuple[tuple[str, T], ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "positional", tuple(self.positional))
-        object.__setattr__(self, "keywords", tuple((name, value) for name, value in self.keywords))
+        positional: tuple[T, ...] = tuple(self.positional)
+        keywords: tuple[tuple[str, T], ...] = tuple((name, value) for name, value in self.keywords)
+        object.__setattr__(self, "positional", positional)
+        object.__setattr__(self, "keywords", keywords)

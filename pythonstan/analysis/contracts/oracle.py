@@ -76,6 +76,10 @@ class OraclePreparedUpdate(Protocol):
     @property
     def work_precharged(self) -> bool: ...
 
+    def validate(self) -> None:
+        """Reject changed source inputs before the host publishes any state."""
+        ...
+
     def commit(self) -> None: ...
 
 

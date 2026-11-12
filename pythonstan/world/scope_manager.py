@@ -1,10 +1,12 @@
 import ast
 import os
+from collections.abc import Mapping
 from typing import Set, List, Dict, Tuple, Any, Optional, FrozenSet
 
 from .namespace import Namespace
 from pythonstan.ir import IRScope, IRFunc, IRClass, IRModule, IRImport
 from pythonstan.utils.persistent_rb_tree import PersistentMap
+from pythonstan.analysis.contracts.identity import SourceModule
 
 
 _MISSING = object()
@@ -153,10 +155,8 @@ class ScopeManager:
         self.file2mod = {}
         self._source_snapshots = {}
 
-    def install_source_snapshots(self, snapshots):
+    def install_source_snapshots(self, snapshots: Mapping[str, SourceModule]) -> None:
         """Fix immutable decoded source identity before any module is lowered."""
-        from pythonstan.analysis.contracts import SourceModule
-
         if self.scopes or self.file2mod:
             raise ValueError("Source snapshots must be installed before building scopes")
         copied = dict(snapshots)

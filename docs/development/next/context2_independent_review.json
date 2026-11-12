@@ -1,0 +1,94 @@
+{
+  "reviewer": "requirements_audit",
+  "role": "independent read-only reviewer of semantic_baseline-authored producers; no producer/test/gold edits",
+  "status": "accepted_narrow_finite_context_and_actual_wrapper_contract",
+  "parent_type_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/context.py": "c794b98ef46fb409c5664e8e7bdd401319310e6450d6af3aff9fb20de6eb73da",
+    "pythonstan/analysis/pointer/kcfa/protocol_context.py": "787ba364225d4e185993d73c73f85a8fc1d6db398f7c87fa67d07455f2b3e5fc"
+  },
+  "source_matches_stable_runtime": true,
+  "runtime": {
+    "result": "191 passed in11.24s",
+    "receipt": "artifacts/next/evidence/reviewer-W1/native-context/runtime-receipt.json"
+  },
+  "independent_frozen_old_differential": {
+    "status": "exact",
+    "atom_outcomes": 35,
+    "source_projections": 210,
+    "origin_projections": 24,
+    "binding_projections": 24,
+    "equality_pairs": 784
+  },
+  "independent_compatibility_replay": {
+    "source_sha256": {
+      "pythonstan/analysis/pointer/kcfa/context.py": "c794b98ef46fb409c5664e8e7bdd401319310e6450d6af3aff9fb20de6eb73da",
+      "pythonstan/analysis/pointer/kcfa/protocol_context.py": "787ba364225d4e185993d73c73f85a8fc1d6db398f7c87fa67d07455f2b3e5fc"
+    },
+    "legacy_hybrid_depth_receiver_cases": 32,
+    "canonical_tuple_wrapper_forwarding_cases": 128,
+    "dynamic_source_origin_field_variable_keyword_old_current_exact": true,
+    "differences": []
+  },
+  "strong_scoped_diagnostics": {
+    "scoped_diagnostics": [],
+    "full_owned_module_records_retained": 142,
+    "dependency_records_retained": 10828,
+    "scope_names": {
+      "context.py": [
+        "AbstractContext.append",
+        "FiniteContextAtom.__post_init__",
+        "HybridContext.append",
+        "OrderedBindingToken.__post_init__",
+        "Scope.new",
+        "SummaryContext.append",
+        "_binding_atom",
+        "_context_record",
+        "_decode_native_metadata",
+        "_origin_items",
+        "_origin_sources",
+        "_source_identity",
+        "_source_payload",
+        "_valid_source_identity",
+        "finite_context_atom",
+        "is_native_context",
+        "ordered_binding_token"
+      ],
+      "protocol_context.py": [
+        "ProtocolKeyContext.__hash__"
+      ]
+    }
+  },
+  "resolved_findings": [
+    {
+      "finding": "New Generic native wrapper qualification exposed known Hybrid2arg/base1tuple LSP gap",
+      "red": "SummaryContext(HybridContext()).append((site,None)) passed admission then raised missing alloc_site on held d8b source",
+      "resolution": "Actual Hybrid.append adds validated arity dispatch for the canonical pair, preserving valid legacy2arg suffix;32old/current depth/receiver cases and128base/Summary/Protocol/nested forwarding cases pass independently."
+    },
+    {
+      "finding": "Runtime Protocol-only checks dropped valid dynamic public metadata carriers",
+      "red": "Old public finite_context_atom accepted stable __getattr__ allocation/context metadata; d8b rejected it and lost source identity",
+      "resolution": "One fixed-field checked external metadata decoder restores allocation, origin/wrapper, variable, field and keyword metadata, including finite indexed sequence fallback; final old/current independent replay is exact."
+    }
+  ],
+  "scope": [
+    "Actual finite-key producer algorithms, bounded source fallback, finite validators and compatibility decoder; no generic engine facade or unchecked return-type assertion.",
+    "Invariant unbounded AbstractContext itemT and frozen covariant Ctx contentT describe actual read/append capabilities; Native admission follows known concrete bases through Summary/Protocol wrappers and rejects custom underlying/cyclic graphs.",
+    "Actual Scope.obj AbstractObject and nullable Scope/Ctx fields describe existing producers; annotation changes do not alter constructors/equality.",
+    "Protocol explicit hash matches prior frozen dataclass hash; valid legacy Hybrid hash/repr/key outcomes are preserved."
+  ],
+  "explicit_changes": [
+    "Native bridge rejects wrapper profiles with custom unregistered underlying contexts; standalone generic wrapper APIs remain operational.",
+    "Canonical Hybrid1tuple append is a real compatibility extension; it was not previously a qualified operation.",
+    "Cyclic origin metadata and nonfinite malformed private descriptors now reject explicitly; no blanket parity over malformed/unstable/infinite metadata is claimed."
+  ],
+  "limits": [
+    "Whole context/protocol modules remain unqualified: independent strong scan retains142records in the two owned modules and10828dependency records outside the scoped methods. They are not all imported errors.",
+    "Inherited scheduler bodies/deprecated annotations and old private constructor contracts remain outside this narrow acceptance.",
+    "Stable readonly metadata fields and finite origin/entry sequences are the compatibility preconditions; no universal arbitrary-object termination or semantic soundness proof is claimed.",
+    "The old broader framework3precision reds/9optional skips remain recorded by author;191 is the explicit five-path positive selection, not mandatory semantic closure.",
+    "Parent TYPE/STATE, semantic gold, denominator and quality baseline statuses remain unchanged."
+  ],
+  "initial_red_evidence": "artifacts/next/evidence/reviewer-W1/native-context/initial-findings.json",
+  "mechanical_format_provenance": "Author whole-format-proof.json records c996\u2192c794 executable AST equality with eight docstring whitespace-only changes; independent191runtime is itself bound to finalc794 bytes."
+}

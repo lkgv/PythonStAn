@@ -7,11 +7,10 @@ imports, descriptors and cleanup run through the abstract driver and store.
 from __future__ import annotations
 
 import ast
-import operator
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from itertools import product
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, assert_never
 
 from pythonstan.analysis.contracts.identity import CellId, ContinuationId, FrameId, ObjectId
 from pythonstan.analysis.contracts.json_data import JsonScalar
@@ -22,7 +21,16 @@ from pythonstan.analysis.contracts.private_slots import (
 )
 from pythonstan.analysis.domains.values import Value, ValueOperations
 from pythonstan.analysis.semantics.names import classify_bindings
-from pythonstan.analysis.semantics.scalar_strings import apply_string_method, UnsupportedStringMethod
+from pythonstan.analysis.semantics.scalar_strings import (
+    UnsupportedStringMethod,
+    apply_string_method,
+)
+from pythonstan.analysis.semantics.scalars import (
+    scalar_aggregate,
+    scalar_conversion,
+    scalar_range,
+    scalar_sort,
+)
 from pythonstan.analysis.state.continuation import (
     AssignResume,
     Continuation,
@@ -45,16 +53,17 @@ from pythonstan.analysis.state.flow import (
     RaiseFlow,
     SuspendFlow,
     as_statement,
+    flow_payload,
     make_completion,
     replace_flow,
+    require_payload,
 )
 from pythonstan.analysis.state.guards import MembershipGuard
+from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.metadata import Metadata
-from pythonstan.analysis.state.flow import flow_payload, require_payload
-from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.frontend.private_names import source_annotation_text, source_declared_name
-from pythonstan.frontend.source import source_position
+from pythonstan.frontend.source import source_constant, source_position
 from pythonstan.models.builtins import ABSTRACT_BUILTINS as _BUILTINS
 from pythonstan.models.builtins import PYTHON312_BUILTIN_NAMES
 from pythonstan.models.exceptions import (
@@ -99,6 +108,50 @@ def _first_keyword_constants(keywords: Sequence[tuple[str, Value]]) -> dict[str,
             raise TypeError("Abstract scalar keyword has no finite projection")
         result[key] = constants[0]
     return result
+
+
+@dataclass(frozen=True, slots=True)
+class _NameLocation:
+    target: ast.Name
+
+
+@dataclass(frozen=True, slots=True)
+class _AttributeLocation:
+    receiver: Value
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class _ItemLocation:
+    container: Value
+    key: Value
+
+
+type _AugmentedLocation = _NameLocation | _AttributeLocation | _ItemLocation
+type _CallItem = (
+    tuple[Literal["arg"], ast.expr, bool] | tuple[Literal["keyword"], ast.expr, str | None]
+)
+type _CallPath = tuple[Store, list[Value], list[tuple[str, Value]], bool]
+
+
+def _call_position(item: _CallItem) -> tuple[int, int]:
+    return source_position(item[1])
+
+
+def _unary_scalar(operation: ast.unaryop, value: JsonScalar) -> JsonScalar:
+    if isinstance(operation, ast.USub) and isinstance(value, (int, float)):
+        return -value
+    if isinstance(operation, ast.UAdd) and isinstance(value, (int, float)):
+        return +value
+    if isinstance(operation, ast.Invert) and isinstance(value, int):
+        return ~value
+    raise TypeError("Unsupported scalar unary operand")
+
+
+def _scalar_length(value: JsonScalar) -> int:
+    if isinstance(value, str):
+        return len(value)
+    raise TypeError("Scalar has no length")
 
 
 class Transfer:
@@ -150,7 +203,12 @@ class Transfer:
             cell = frame.cell("__annotations__")
             if cell not in flow.store.cells or flow.store.cells[cell].unbound:
                 value = self.alloc(
-                    commands[0] if commands and isinstance(commands[0], ast.AST) else None, flow.store, frame, "dict", {}, {"length": 0}
+                    commands[0] if commands and isinstance(commands[0], ast.AST) else None,
+                    flow.store,
+                    frame,
+                    "dict",
+                    {},
+                    {"length": 0},
                 )
                 flow.store.write_cell(cell, value)
 
@@ -197,7 +255,7 @@ class Transfer:
                     result.write_cell(cell, Value(top=True, unbound=True))
                     havoced_cells.add(cell)
             result.havoc_namespaces |= frozenset(self.d.modules)
-            result.initialized = {module: "maybe" for module in result.initialized}
+            result.initialized = dict.fromkeys(result.initialized, "maybe")
             result.havoc_imports = True
             result.record_write(
                 Havoc(
@@ -230,14 +288,11 @@ class Transfer:
             cell = CellId("local:" + frame.identity + ":" + name)
         self.d.reads.add((frame.qualname, name, self.d.point(node)))
         value = store.effective_cell(cell)
-        if (
-            self.d.oracle is not None
-            and (value.top or value.unbound or value.is_bottom())
-        ):
+        if self.d.oracle is not None and (value.top or value.unbound or value.is_bottom()):
             candidate = self.d.oracle.candidates(cell, self.d.current)
             if not candidate.values.is_bottom():
                 value = self.ops.join(value, candidate.values)
-                self.d.increment_stat('oracle_values_consumed', 1)
+                self.d.increment_stat("oracle_values_consumed", 1)
         if (
             cell not in store.cells
             and frame.module not in store.havoc_namespaces
@@ -348,7 +403,7 @@ class Transfer:
         store.heap[objid] = obj
         for key, value in obj.fields.items():
             self.d.publish_oracle_field(objid, key, value, "ai_allocation")
-        self.d.increment_stat('allocations', 1)
+        self.d.increment_stat("allocations", 1)
         return Value.ref(objid)
 
     def eval_nodes(
@@ -396,7 +451,11 @@ class Transfer:
         if node is None:
             return [self.normal(store.copy())]
         if isinstance(node, ast.Constant):
-            return [NormalExprFlow(StateHandle.capture(store.copy()), Value.constant(node.value))]
+            return [
+                NormalExprFlow(
+                    StateHandle.capture(store.copy()), Value.constant(source_constant(node))
+                )
+            ]
         if isinstance(node, ast.Name):
             return self.read_name(node.id, store, frame, node)
         if isinstance(node, ast.NamedExpr):
@@ -434,7 +493,7 @@ class Transfer:
                             current,
                             frame,
                             kind,
-                            {i: v for i, v in enumerate(values)},
+                            dict(enumerate(values)),
                             {"length": len(values)},
                         ),
                     )
@@ -465,7 +524,7 @@ class Transfer:
             return errors + [
                 NormalExprFlow(
                     StateHandle.capture(s),
-                    self.alloc(node, s, frame, "slice", {i: v for i, v in enumerate(vals)}),
+                    self.alloc(node, s, frame, "slice", dict(enumerate(vals))),
                 )
                 for s, vals in states
             ]
@@ -496,33 +555,27 @@ class Transfer:
                             NormalExprFlow(
                                 StateHandle.capture(tested.store),
                                 Value(
-                                    bools=frozenset((not x for x in require_payload(tested).bools))
+                                    bools=frozenset(not x for x in require_payload(tested).bools)
                                 ),
                             )
                             if tested.kind == "normal"
                             else tested
                         )
                     continue
+                if require_payload(flow).refs or require_payload(flow).top:
+                    result.extend(self.unknown(flow.store, node, "unknown_unary_operator"))
+                    continue
+                constants = require_payload(flow).exact_constants()
+                if constants is None or not isinstance(node.op, (ast.USub, ast.UAdd, ast.Invert)):
+                    value = Value.unknown()
                 else:
-                    if require_payload(flow).refs or require_payload(flow).top:
-                        result.extend(self.unknown(flow.store, node, "unknown_unary_operator"))
-                        continue
-                    constants = require_payload(flow).exact_constants()
-                    func = {
-                        ast.USub: operator.neg,
-                        ast.UAdd: operator.pos,
-                        ast.Invert: operator.invert,
-                    }.get(type(node.op))
-                    if constants is None or func is None:
-                        value = Value.unknown()
-                    else:
-                        values = []
-                        for c in constants:
-                            try:
-                                values.append(Value.constant(func(c)))
-                            except (TypeError, ValueError):
-                                result.append(self.error(flow.store.copy(), "TypeError"))
-                        value = self.ops.join_all(values)
+                    unary_values: list[Value] = []
+                    for constant in constants:
+                        try:
+                            unary_values.append(Value.constant(_unary_scalar(node.op, constant)))
+                        except (TypeError, ValueError):
+                            result.append(self.error(flow.store.copy(), "TypeError"))
+                    value = self.ops.join_all(unary_values)
                 if not value.is_bottom():
                     result.append(NormalExprFlow(StateHandle.capture(flow.store), value))
             return result
@@ -603,10 +656,10 @@ class Transfer:
         return self.unknown(store, node, "unsupported_expression:" + type(node).__name__)
 
     def formatted_string(self, node: ast.JoinedStr, store: Store, frame: Frame) -> list[Flow]:
-        states = [(store.copy(), Value.constant(""))]
-        errors = []
+        states: list[tuple[Store, Value]] = [(store.copy(), Value.constant(""))]
+        errors: list[Flow] = []
         for part in node.values:
-            following = []
+            following: list[tuple[Store, Value]] = []
             for current, prefix in states:
                 expression = part.value if isinstance(part, ast.FormattedValue) else part
                 for value in self.expr(expression, current, frame):
@@ -667,18 +720,20 @@ class Transfer:
                                 errors.append(self.error(spec.store.copy(), "ValueError"))
                             continue
                         count = len(prefixes) * len(constants) * len(specs)
-                        if count > int(self.d.abstract.get("max_scalar_pairs", 256)):
+                        if count > self.ops.policy.max_scalar_pairs:
                             self.d.open("scalar_format_product_budget", spec.store, node)
                             following.append((spec.store, Value(strings=self.ops.string.top())))
                             continue
                         self.d.charge(count, "scalar_format_work")
                         for before, constant, format_spec in product(prefixes, constants, specs):
-                            if type(format_spec) is not str:
+                            if not isinstance(format_spec, str) or not isinstance(before, str):
                                 errors.append(self.error(spec.store.copy(), "TypeError"))
                                 continue
                             import re
 
-                            widths = re.findall(r"[0-9]+", format_spec)
+                            widths = [
+                                match.group(0) for match in re.finditer(r"[0-9]+", format_spec)
+                            ]
                             if (
                                 len(format_spec) > 4096
                                 or any(len(width) > 5 or int(width) > 100000 for width in widths)
@@ -693,13 +748,18 @@ class Transfer:
                                 continue
                             try:
                                 if isinstance(part, ast.FormattedValue):
-                                    conversion = {115: str, 114: repr, 97: ascii}.get(
-                                        part.conversion
-                                    )
-                                    if conversion is not None:
-                                        constant = conversion(constant)
-                                    text = format(constant, format_spec)
+                                    if part.conversion == 115:
+                                        operand: JsonScalar = str(constant)
+                                    elif part.conversion == 114:
+                                        operand = repr(constant)
+                                    elif part.conversion == 97:
+                                        operand = ascii(constant)
+                                    else:
+                                        operand = constant
+                                    text = format(operand, format_spec)
                                 else:
+                                    if not isinstance(constant, str):
+                                        raise TypeError("A literal f-string part must be text")
                                     text = constant
                                 if len(before) + len(text) > 100000:
                                     self.d.open("scalar_format_size_budget", spec.store, node)
@@ -1010,10 +1070,8 @@ class Transfer:
     def refine_test(self, node: ast.expr, store: Store, frame: Frame, truth: bool) -> Store | None:
         if not self.d.abstract.get("refine_booleans", True):
             return store
-        guard = (
-            store.guards.get(
-                frame.cell(node.id) if isinstance(node, ast.Name) else "point:" + self.d.point(node)
-            )
+        guard = store.guards.get(
+            frame.cell(node.id) if isinstance(node, ast.Name) else "point:" + self.d.point(node)
         )
         if guard is not None:
             owner, key, polarity = guard
@@ -1044,7 +1102,7 @@ class Transfer:
         ):
             cell = frame.cell(node.left.id)
             old = store.cells.get(cell, Value(unbound=True))
-            new = self.ops.refine(old, node.ops[0], node.comparators[0].value, truth)
+            new = self.ops.refine(old, node.ops[0], source_constant(node.comparators[0]), truth)
             if new.is_bottom():
                 return None
             store.cells[cell] = new
@@ -1094,7 +1152,7 @@ class Transfer:
                 s = store.copy()
                 pairs: list[tuple[ast.expr, Value]] = []
                 if star is None:
-                    pairs = list(zip(target.elts, sequence))
+                    pairs = list(zip(target.elts, sequence, strict=False))
                 else:
                     tail = len(target.elts) - star - 1
                     middle = sequence[star : len(sequence) - tail if tail else None]
@@ -1103,22 +1161,23 @@ class Transfer:
                         s,
                         frame,
                         "list",
-                        {i: v for i, v in enumerate(middle)},
+                        dict(enumerate(middle)),
                         {"length": len(middle)},
                     )
                     starred_target = target.elts[star]
                     assert isinstance(starred_target, ast.Starred)
                     pairs = (
-                        list(zip(target.elts[:star], sequence[:star]))
+                        list(zip(target.elts[:star], sequence[:star], strict=False))
                         + [(starred_target.value, rest_value)]
                         + list(
                             zip(
                                 target.elts[star + 1 :],
                                 sequence[len(sequence) - tail :] if tail else [],
+                                strict=False,
                             )
                         )
                     )
-                flows = [self.normal(s)]
+                flows: list[Flow] = [self.normal(s)]
                 for item, v in pairs:
                     flows = [
                         out
@@ -1205,10 +1264,7 @@ class Transfer:
                                 out.store.guards[frame.cell(target.id)] = saved_guard
                     incremental = self.d.incremental_oracle
                     if incremental is not None:
-                        if (
-                            isinstance(target, ast.Name)
-                            and isinstance(node.value, ast.Name)
-                        ):
+                        if isinstance(target, ast.Name) and isinstance(node.value, ast.Name):
                             incremental.register_copy(
                                 frame.cell(node.value.id), frame.cell(target.id)
                             )
@@ -1220,14 +1276,17 @@ class Transfer:
                         ):
                             incremental.register_load(
                                 frame.cell(node.value.value.id),
-                                node.value.slice.value,
+                                source_constant(node.value.slice),
                                 frame.cell(target.id),
                             )
                 result.extend(pending)
             return result
         if isinstance(node, ast.AugAssign):
             return self.augmented_assignment(node, store, frame)
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.type_params:
+        if (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and node.type_params
+        ):
             result = self.unknown(store, node, "pep695_type_parameters")
             for out in result:
                 if out.kind == "normal":
@@ -1286,7 +1345,10 @@ class Transfer:
                 if not kinds:
                     return [self.error(store.copy(), "RuntimeError")]
                 return [
-                    RaiseFlow(StateHandle.capture(store.copy()), ExceptionValue(value, kind))
+                    RaiseFlow(
+                        StateHandle.capture(store.copy()),
+                        ExceptionValue(value, kind if isinstance(kind, str) else "AnyException"),
+                    )
                     for kind in kinds
                 ]
             result = []
@@ -1384,29 +1446,29 @@ class Transfer:
 
     def augmented_assignment(self, node: ast.AugAssign, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
-        locations = []
+        locations: list[tuple[Store, Value, _AugmentedLocation]] = []
         result = []
         target = node.target
         if isinstance(target, ast.Name):
             for out in self.read_name(target.id, store, frame, node):
                 if out.kind == "normal":
-                    locations.append((out.store, require_payload(out), ("name", target)))
+                    locations.append((out.store, require_payload(out), _NameLocation(target)))
                 else:
                     result.append(out)
         elif isinstance(target, ast.Attribute):
-            for base in self.expr(target.value, store, frame):
-                if base.kind != "normal":
-                    result.append(base)
+            for base_flow in self.expr(target.value, store, frame):
+                if base_flow.kind != "normal":
+                    result.append(base_flow)
                     continue
                 for out in self.getattr(
-                    require_payload(base), target.attr, base.store, frame, node
+                    require_payload(base_flow), target.attr, base_flow.store, frame, node
                 ):
                     if out.kind == "normal":
                         locations.append(
                             (
                                 out.store,
                                 require_payload(out),
-                                ("attribute", require_payload(base), target.attr),
+                                _AttributeLocation(require_payload(base_flow), target.attr),
                             )
                         )
                     else:
@@ -1417,28 +1479,34 @@ class Transfer:
             for current, (base, key) in evaluated:
                 for out in self.getitem(base, key, current, frame, node):
                     if out.kind == "normal":
-                        locations.append((out.store, require_payload(out), ("item", base, key)))
+                        locations.append(
+                            (out.store, require_payload(out), _ItemLocation(base, key))
+                        )
                     else:
                         result.append(out)
         else:
-            return self.unknown(store, node, "unmodeled_augmented_target")
+            assert_never(target)
 
-        def write(current, value, location):
-            if location[0] == "name":
-                return self.assign(location[1], value, current, frame, node)
-            if location[0] == "attribute":
-                return self.setattr(location[1], location[2], value, current, frame, node)
-            return self.setitem(location[1], location[2], value, current, frame, node)
+        def write(current: Store, value: Value, location: _AugmentedLocation) -> list[Flow]:
+            match location:
+                case _NameLocation(target):
+                    return self.assign(target, value, current, frame, node)
+                case _AttributeLocation(receiver, name):
+                    return self.setattr(receiver, name, value, current, frame, node)
+                case _ItemLocation(container, key):
+                    return self.setitem(container, key, value, current, frame, node)
+                case _:
+                    assert_never(location)
 
         for current, old, location in locations:
             for right in self.expr(node.value, current, frame):
                 if right.kind != "normal":
                     result.append(right)
                     continue
-                value, errors = self.ops.scalar_binary(node.op, old, require_payload(right))
+                value, scalar_errors = self.ops.scalar_binary(node.op, old, require_payload(right))
                 if not value.is_bottom():
                     result.extend(write(right.store.copy(), value, location))
-                for error in errors:
+                for error in scalar_errors:
                     if error.startswith(("unknown_", "resource_")):
                         for opaque in self.unknown(right.store, node, error):
                             if opaque.kind == "normal":
@@ -1476,7 +1544,7 @@ class Transfer:
         elif isinstance(node.target, (ast.Attribute, ast.Subscript)):
             initial = self.expr(node.target.value, store, frame)
         else:
-            initial = self.unknown(store, node, "unmodeled_annotation_target")
+            assert_never(node.target)
         for current in initial:
             if current.kind != "normal":
                 result.append(current)
@@ -1533,7 +1601,9 @@ class Transfer:
         name: str,
     ) -> list[Flow]:
         result: list[Flow]
-        decorators = node.decorator_list if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else ()
+        decorators = (
+            node.decorator_list if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else ()
+        )
         decstates, errors = self.eval_nodes(decorators, store, frame)
         result = list(errors)
         for ds, decvalues in decstates:
@@ -1546,7 +1616,10 @@ class Transfer:
                 annotations.append((node.args.vararg.arg, node.args.vararg.annotation))
             if node.args.kwarg and node.args.kwarg.annotation is not None:
                 annotations.append((node.args.kwarg.arg, node.args.kwarg.annotation))
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.returns is not None:
+            if (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.returns is not None
+            ):
                 annotations.append(("return", node.returns))
             defaults_count = len(node.args.defaults) + sum(
                 x is not None for x in node.args.kw_defaults
@@ -1560,7 +1633,7 @@ class Transfer:
                 count = len(node.args.defaults)
                 kw_defaults = []
                 index = count
-                for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults):
+                for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults, strict=False):
                     if default is not None:
                         kw_defaults.append((arg.arg, defaults[index]))
                         index += 1
@@ -1603,14 +1676,16 @@ class Transfer:
                 annotation_fields: dict[FieldKey, Value] = (
                     {
                         key: Value.constant(
-                            (source_annotation_text(annotation) or ast.unparse(annotation))
+                            source_annotation_text(annotation) or ast.unparse(annotation)
                         )
                         for key, annotation in annotations
                     }
                     if frame.module in self.d.future_annotations
                     else {
                         key: value
-                        for (key, _), value in zip(annotations, defaults[defaults_count:])
+                        for (key, _), value in zip(
+                            annotations, defaults[defaults_count:], strict=False
+                        )
                     }
                 )
                 function_fields[function_annotations_slot()] = self.alloc(
@@ -1639,7 +1714,7 @@ class Transfer:
                     created = s.heap[identifier].join(created, self.ops)
                     created.singleton = False
                 s.heap[identifier] = created
-                flows = [NormalExprFlow(StateHandle.capture(s), Value.ref(identifier))]
+                flows: list[Flow] = [NormalExprFlow(StateHandle.capture(s), Value.ref(identifier))]
                 for decorator in reversed(decvalues):
                     flows = [
                         out
@@ -1801,7 +1876,6 @@ class Transfer:
                     if obj.class_ids
                     else set()
                 )
-                names = obj.metadata.lookup("exception_types", ())
                 if obj.kind == "exception" or "builtin:BaseException" in tags:
                     name = obj.metadata.lookup("exception_name")
                     if name is None:
@@ -1921,7 +1995,7 @@ class Transfer:
         exits: list[Flow] = []
         escapes: list[Flow] = []
         for iteration in range(limit):
-            self.d.increment_stat('loop_iterations', 1)
+            self.d.increment_stat("loop_iterations", 1)
             back, exits, escapes = step(invariant)
             candidate = initial.copy()
             for s in back:
@@ -1947,9 +2021,9 @@ class Transfer:
                     check = check.join(s, self.ops)
                 if check.leq(candidate, self.ops):
                     invariant = candidate
-                    self.d.increment_stat('narrowing_checks_passed', 1)
+                    self.d.increment_stat("narrowing_checks_passed", 1)
                 else:
-                    self.d.increment_stat('narrowing_checks_failed', 1)
+                    self.d.increment_stat("narrowing_checks_failed", 1)
                     break
         _, exits, escapes = step(invariant)
         return self.d.compact(exits + escapes)
@@ -2004,7 +2078,7 @@ class Transfer:
             if called.kind != "normal":
                 result.append(called)
                 continue
-            items = [
+            items: list[_CallItem] = [
                 (
                     "arg",
                     arg.value if isinstance(arg, ast.Starred) else arg,
@@ -2013,12 +2087,10 @@ class Transfer:
                 for arg in node.args
             ]
             items += [("keyword", kw.value, kw.arg) for kw in node.keywords]
-            items.sort(
-                key=lambda item: (getattr(item[1], "lineno", 0), getattr(item[1], "col_offset", 0))
-            )
-            paths = [(called.store, [], [], False)]
+            items.sort(key=_call_position)
+            paths: list[_CallPath] = [(called.store, [], [], False)]
             for kind, expr, flag in items:
-                next_paths = []
+                next_paths: list[_CallPath] = []
                 for s, args, keywords, uncertain in paths:
                     for flow in self.expr(expr, s, frame):
                         if flow.kind != "normal":
@@ -2049,7 +2121,11 @@ class Transfer:
                                     if any(type(key) is not str for key in obj.fields):
                                         result.append(self.error(flow.store.copy(), "TypeError"))
                                     else:
-                                        k.extend(obj.fields.items())
+                                        k.extend(
+                                            (key, value)
+                                            for key, value in obj.fields.items()
+                                            if isinstance(key, str)
+                                        )
                                         expanded = True
                                     if not obj.default.is_bottom() or obj.havoc:
                                         unknown = True
@@ -2058,6 +2134,7 @@ class Transfer:
                             if unknown:
                                 self.d.open("unknown_keyword_arguments", flow.store, node)
                         else:
+                            assert isinstance(flag, str)
                             k.append((flag, require_payload(flow)))
                         next_paths.append((flow.store, a, k, unknown))
                 paths = next_paths
@@ -2301,15 +2378,15 @@ class Transfer:
             module = ".".join(x for x in (prefix, node.module or "") if x)
         else:
             module = node.module or ""
-        imported = self.d.request_module(module, store, self.d.current, node)
+        imported_flows = self.d.request_module(module, store, self.d.current, node)
         result = []
-        for flow in imported:
+        for flow in imported_flows:
             if flow.kind != "normal":
                 result.append(flow)
                 continue
-            paths = [flow]
+            paths: list[Flow] = [flow]
             for alias in node.names:
-                next_paths = []
+                next_paths: list[Flow] = []
                 for p in paths:
                     if p.kind != "normal":
                         next_paths.append(p)
@@ -2321,7 +2398,9 @@ class Transfer:
                                 self.write_name(cell[len(prefix) :], value, p.store, frame, node)
                         next_paths.append(p)
                         continue
-                    value = p.store.cells.get(f"global:{module}:{alias.name}", Value.bottom())
+                    value = p.store.cells.get(
+                        CellId(f"global:{module}:{alias.name}"), Value.bottom()
+                    )
                     submodule = module + "." + alias.name
                     if value.is_bottom() and submodule in self.d.modules:
                         candidates = self.d.request_module(submodule, p.store, self.d.current, node)
@@ -2372,7 +2451,8 @@ class Transfer:
                 try:
                     result.append(
                         NormalExprFlow(
-                            StateHandle.capture(store.copy()), Value.constant(len(constant))
+                            StateHandle.capture(store.copy()),
+                            Value.constant(_scalar_length(constant)),
                         )
                     )
                 except TypeError:
@@ -2508,7 +2588,7 @@ class Transfer:
         result = []
         source = args[0]
 
-        def abstract_result(current, reason, havoc=True):
+        def abstract_result(current: Store, reason: str, havoc: bool = True) -> list[Flow]:
             sort = "str" if name in {"str", "repr"} else "float" if name == "float" else "int"
             return [
                 replace_flow(
@@ -2667,13 +2747,13 @@ class Transfer:
             }
             if any(key not in allowed.get(name, set()) for key, _ in keywords):
                 return [self.error(store, "TypeError")]
-            fields = dict(keywords)
+            fields: dict[FieldKey, Value] = dict(keywords)
             argtuple = self.alloc(
                 node,
                 store,
                 frame,
                 "tuple",
-                {i: value for i, value in enumerate(args)},
+                dict(enumerate(args)),
                 {"length": len(args)},
             )
             fields["args"] = argtuple
@@ -2697,7 +2777,7 @@ class Transfer:
             ]
         if name == "print":
             self.d.events.append(("call", "print"))
-            flows = [self.normal(store)]
+            flows: list[Flow] = [self.normal(store)]
             if any(key not in {"sep", "end", "file", "flush"} for key, _ in keywords):
                 return [self.error(store, "TypeError")]
             for key, value in keywords:
@@ -2756,7 +2836,7 @@ class Transfer:
                 key not in names or key in names[: len(args)] for key, _ in keywords
             ):
                 return [self.error(store, "TypeError")]
-            fields = {key: value for key, value in zip(names, args)}
+            fields = dict(zip(names, args, strict=False))
             fields.update(dict(keywords))
             return [
                 NormalExprFlow(
@@ -2812,7 +2892,7 @@ class Transfer:
                             state,
                             frame,
                             name,
-                            {i: v for i, v in enumerate(sequence)},
+                            dict(enumerate(sequence)),
                             {"length": len(sequence)},
                         ),
                     )
@@ -2823,15 +2903,15 @@ class Transfer:
         if name == "range":
             if keywords:
                 return [self.error(store, "TypeError")]
-            constants = [x.exact_constants() for x in args]
+            range_options = _constant_options(args)
             result = []
             if not args or len(args) > 3:
                 return [self.error(store, "TypeError")]
-            if all(x is not None for x in constants):
-                for combo in product(*constants):
+            if range_options is not None:
+                for range_arguments in product(*range_options):
                     try:
-                        seq = range(*combo)
-                        if len(seq) > self.d.abstract.get("max_range_size", 1000):
+                        seq = scalar_range(range_arguments)
+                        if len(seq) > self.d.abstract_integer("max_range_size", 1000):
                             return self.unknown(
                                 store, node, "range_enumeration_budget", havoc=False
                             )
@@ -2909,41 +2989,41 @@ class Transfer:
             ):
                 return [NormalExprFlow(StateHandle.capture(store), args[0])]
             constants = args[0].exact_constants()
-            function = {"str": str, "int": int, "float": float, "repr": repr, "abs": abs}[name]
-            values = []
+            converted_values: list[Value] = []
             result = []
             if constants is not None:
-                arguments = [value.exact_constants() for value in args]
-                keyword_values = [(key, value.exact_constants()) for key, value in keywords]
-                if any(value is None for value in arguments) or any(
-                    value is None for _, value in keyword_values
-                ):
+                arguments = _constant_options(args)
+                keyword_options = _constant_options([value for _, value in keywords])
+                if arguments is None or keyword_options is None:
                     return self.unknown(store, node, "dynamic_conversion_arguments")
-                groups = arguments + [value for _, value in keyword_values]
+                groups = arguments + keyword_options
                 size = 1
                 for group in groups:
                     size *= len(group)
-                if size > int(self.d.abstract.get("max_scalar_pairs", 256)):
+                if size > self.ops.policy.max_scalar_pairs:
                     return self.unknown(store, node, "conversion_enumeration_budget", havoc=False)
                 self.d.charge(size, "scalar_conversion_work")
                 for combo in product(*groups):
                     try:
-                        values.append(
+                        converted_values.append(
                             Value.constant(
-                                function(
-                                    *combo[: len(arguments)],
-                                    **{
+                                scalar_conversion(
+                                    name,
+                                    combo[: len(arguments)],
+                                    {
                                         key: combo[len(arguments) + index]
-                                        for index, (key, _) in enumerate(keyword_values)
+                                        for index, (key, _) in enumerate(keywords)
                                     },
                                 )
                             )
                         )
                     except (TypeError, ValueError, OverflowError) as exc:
                         result.append(self.error(store.copy(), type(exc).__name__))
-                if values:
+                if converted_values:
                     result.append(
-                        NormalExprFlow(StateHandle.capture(store), self.ops.join_all(values))
+                        NormalExprFlow(
+                            StateHandle.capture(store), self.ops.join_all(converted_values)
+                        )
                     )
                 return result
             if name in {"str", "repr"} and len(args) == 1 and not keywords:
@@ -3127,22 +3207,26 @@ class Transfer:
         if views:
             result = []
             for ref in views:
-                obj = store.heap[ref]
+                view_object = store.heap[ref]
                 current = store.copy()
-                if obj.havoc:
+                if view_object.havoc:
                     result.extend(self.unknown(current, node, "havoc_dictionary_view"))
                     continue
                 if name == "__iter__" and not args and not keywords:
                     result.extend(
                         self.dictionary_views.iterator(
-                            obj.metadata["owner"], obj.metadata["view_kind"], current, frame, node
+                            view_object.metadata.view_owner(),
+                            view_object.metadata["view_kind"],
+                            current,
+                            frame,
+                            node,
                         )
                     )
                 elif name == "__len__" and not args and not keywords:
-                    result.extend(self.dictionary_views.length(obj, current, frame, node))
+                    result.extend(self.dictionary_views.length(view_object, current, frame, node))
                 elif name == "__contains__" and len(args) == 1 and not keywords:
                     result.extend(
-                        self.dictionary_views.contains(obj, args[0], current, frame, node)
+                        self.dictionary_views.contains(view_object, args[0], current, frame, node)
                     )
                 else:
                     result.append(self.error(current, "TypeError"))
@@ -3179,9 +3263,9 @@ class Transfer:
                         or target
                         and target.kind == "class"
                     ):
-                        sequences = []
+                        throw_sequences: list[tuple[Value, ...]] = []
                         if args[1].exact_constants() == [None]:
-                            sequences = [()]
+                            throw_sequences = [()]
                         for value_ref in args[1].refs:
                             packed = store.heap.get(value_ref)
                             if (
@@ -3189,17 +3273,17 @@ class Transfer:
                                 and packed.kind == "tuple"
                                 and type(packed.metadata.lookup("length")) is int
                             ):
-                                sequences.append(
+                                throw_sequences.append(
                                     tuple(
                                         packed.fields.get(index, packed.default)
                                         for index in range(packed.metadata["length"])
                                     )
                                 )
-                        if not sequences:
-                            sequences = [(args[1],)]
-                        for sequence in sequences:
+                        if not throw_sequences:
+                            throw_sequences = [(args[1],)]
+                        for throw_sequence in throw_sequences:
                             for made in self.invoke(
-                                Value.ref(ref), list(sequence), (), store.copy(), frame, node
+                                Value.ref(ref), list(throw_sequence), (), store.copy(), frame, node
                             ):
                                 if made.kind == "normal":
                                     result.extend(
@@ -3307,7 +3391,9 @@ class Transfer:
                                     make_completion(
                                         StateHandle.capture(stored.store),
                                         stored.kind,
-                                        default if stored.kind == "normal" else flow_payload(stored),
+                                        default
+                                        if stored.kind == "normal"
+                                        else flow_payload(stored),
                                         stored.exception,
                                         FlowTail(),
                                     )
@@ -3337,7 +3423,17 @@ class Transfer:
                     result.append(
                         NormalExprFlow(
                             StateHandle.capture(s),
-                            self.dictionary_views.create(ref, name, s, frame, node),
+                            self.dictionary_views.create(
+                                ref,
+                                "keys"
+                                if name == "keys"
+                                else "values"
+                                if name == "values"
+                                else "items",
+                                s,
+                                frame,
+                                node,
+                            ),
                         )
                     )
                     continue
@@ -3388,12 +3484,14 @@ class Transfer:
         constants = receiver.exact_constants()
         arg_constants = _constant_options(args)
         if constants is not None and arg_constants is not None:
-            for value in constants:
-                if not isinstance(value, str):
+            for scalar_receiver in constants:
+                if not isinstance(scalar_receiver, str):
                     continue
                 for combo in product(*arg_constants):
                     try:
-                        concrete = apply_string_method(value, name, combo, _first_keyword_constants(keywords))
+                        concrete = apply_string_method(
+                            scalar_receiver, name, combo, _first_keyword_constants(keywords)
+                        )
                         if isinstance(concrete, UnsupportedStringMethod):
                             continue
                         if isinstance(concrete, list):
@@ -3437,14 +3535,19 @@ class Transfer:
         sequences, unknown = self.iterable_values(args[0], store)
         result = []
         if name in {"min", "max"} and len(args) > 1:
-            sequences = [args]
+            sequences = [list(args)]
             unknown = False
         for sequence in sequences:
             if name == "enumerate":
                 start = 0
                 if len(args) > 1:
-                    constants = args[1].exact_constants()
-                    start = constants[0] if constants else 0
+                    start_constants = args[1].exact_constants()
+                    if start_constants:
+                        first_start = start_constants[0]
+                        if not isinstance(first_start, int):
+                            result.append(self.error(store.copy(), "TypeError"))
+                            continue
+                        start = first_start
                 s = store.copy()
                 values = [
                     self.alloc(
@@ -3460,66 +3563,45 @@ class Transfer:
                             s,
                             frame,
                             "list",
-                            {i: v for i, v in enumerate(values)},
+                            dict(enumerate(values)),
                             {"length": len(values)},
                         ),
                     )
                 )
                 continue
-            if name in {"sorted", "reversed"}:
-                constants = [v.exact_constants() for v in sequence]
-                if all(x is not None and len(x) == 1 for x in constants):
-                    scalars = [x[0] for x in constants]
-                    try:
-                        values = [
-                            Value.constant(x)
-                            for x in (
-                                sorted(scalars) if name == "sorted" else list(reversed(scalars))
-                            )
-                        ]
-                    except TypeError:
-                        result.append(self.error(store.copy(), "TypeError"))
-                        continue
-                    s = store.copy()
-                    result.append(
-                        NormalExprFlow(
-                            StateHandle.capture(s),
-                            self.alloc(
-                                node,
-                                s,
-                                frame,
-                                "list",
-                                {i: v for i, v in enumerate(values)},
-                                {"length": len(values)},
-                            ),
-                        )
-                    )
-                    continue
-            constants = [v.exact_constants() for v in sequence]
-            if all(x is not None and len(x) == 1 for x in constants):
-                scalars = [x[0] for x in constants]
+            exact = _single_constants(sequence)
+            if exact is not None:
                 try:
-                    function = {"sum": sum, "all": all, "any": any, "min": min, "max": max}.get(
-                        name
-                    )
-                    if function:
-                        if name == "sum" and len(args) > 1:
-                            start = args[1].exact_constants()
-                            if start is None:
-                                result.extend(self.unknown(store, node, "aggregate_sum_start"))
-                                continue
-                            for initial in start:
-                                result.append(
-                                    NormalExprFlow(
-                                        StateHandle.capture(store.copy()),
-                                        Value.constant(sum(scalars, initial)),
-                                    )
-                                )
-                        else:
+                    if name in {"sorted", "reversed"}:
+                        ordered = scalar_sort(exact) if name == "sorted" else list(reversed(exact))
+                        ordered_values = [Value.constant(item) for item in ordered]
+                        current = store.copy()
+                        result.append(
+                            NormalExprFlow(
+                                StateHandle.capture(current),
+                                self.alloc(
+                                    node,
+                                    current,
+                                    frame,
+                                    "list",
+                                    dict(enumerate(ordered_values)),
+                                    {"length": len(ordered_values)},
+                                ),
+                            )
+                        )
+                        continue
+                    if name in {"sum", "all", "any", "min", "max"}:
+                        starts = (
+                            args[1].exact_constants() if name == "sum" and len(args) > 1 else [0]
+                        )
+                        if starts is None:
+                            result.extend(self.unknown(store, node, "aggregate_sum_start"))
+                            continue
+                        for initial in starts:
                             result.append(
                                 NormalExprFlow(
                                     StateHandle.capture(store.copy()),
-                                    Value.constant(function(scalars)),
+                                    Value.constant(scalar_aggregate(name, exact, initial)),
                                 )
                             )
                         continue
@@ -3539,7 +3621,7 @@ class Transfer:
     def comprehension(
         self, node: ast.ListComp | ast.SetComp | ast.DictComp, store: Store, frame: Frame
     ) -> list[Flow]:
-        paths = [self.normal(store.copy())]
+        paths: list[Flow] = [self.normal(store.copy())]
         # Comprehension variables have a distinct lexical environment.
         local = frozenset(
             n.id
@@ -3603,7 +3685,7 @@ class Transfer:
                                 possible = next_possible
                             expanded.extend(possible)
             paths = expanded
-        errors = []
+        errors: list[Flow] = []
         values = []
         fields: dict[FieldKey, Value] = {}
         last = store.copy()
@@ -3639,6 +3721,6 @@ class Transfer:
             else "list"
         )
         if not isinstance(node, ast.DictComp):
-            fields = {i: v for i, v in enumerate(values)}
+            fields = dict(enumerate(values))
         ref = self.alloc(node, last, frame, kind, fields, {"length": len(fields)})
         return errors + [NormalExprFlow(StateHandle.capture(last), ref)]

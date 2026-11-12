@@ -6,6 +6,7 @@ the environment (variable points-to sets) and heap (object field points-to sets)
 
 from calendar import c
 from dataclasses import dataclass
+from enum import Enum
 from typing import (
     Dict,
     FrozenSet,
@@ -20,12 +21,14 @@ from typing import (
     Deque,
 )
 from collections import defaultdict, deque
+from collections.abc import Hashable
 from queue import Queue
 
 from pythonstan.utils.common import Box
 from pythonstan.ir.ir_statements import IRModule, IRStatement, IRScope
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
 from .object import *
+from .object import FunctionObject
 from .variable import VariableFactory, VariableKind, FieldAccess, Variable
 from .context import CallSite, Ctx, AbstractContext, Scope
 from .constraints import ConstraintManager, Constraint, InheritanceConstraint
@@ -44,10 +47,19 @@ from .points_to_set import PointsToSet
 
 if TYPE_CHECKING:
     from pythonstan.world.scope_manager import ScopeManager
+    from .unknown_effects import UnknownEffects
+    from .worklist import ConsumerFairWorklist
 
 __all__ = ["PointerAnalysisState"]
 
-_WORKLIST_MISSING = object()
+
+class _MissingWorkItem(Enum):
+    TOKEN = "missing_work_item"
+
+
+_WORKLIST_MISSING = _MissingWorkItem.TOKEN
+
+type NativePendingItem = tuple[Scope | None, PointerFlowNode, Box[PointsToSet]]
 
 
 # TODO to be done
@@ -80,15 +92,15 @@ class Worklist:
     Items are processed in FIFO order for better determinism.
     """
 
-    items_list: Deque[Dict[str, Any]]
-    items_dict: Dict[PointerFlowNode, Dict[str, Any]]  # Maps node to index in list
+    items_list: deque[NativePendingItem]
+    items_dict: dict[PointerFlowNode, NativePendingItem]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.items_list = deque()
         self.items_dict = {}
         self._next_index = 0
 
-    def add(self, content: Tuple[Scope, PointerFlowNode, PointsToSet]):
+    def add(self, content: tuple[Scope | None, PointerFlowNode, PointsToSet]) -> None:
         scope, node, pts = content
         assert isinstance(node, PointerFlowNode), f"node must be a PFNode, but got {type(node)}"
         if isinstance(node, NormalNode):
@@ -107,7 +119,7 @@ class Worklist:
             return
 
         # Custom stores retain the former allocation and callback sequence.
-        worklist_item: Tuple[Scope, PointerFlowNode, Box[PointsToSet]] = (scope, node, Box(pts))
+        worklist_item: NativePendingItem = (scope, node, Box(pts))
 
         # Check if node already in worklist
         if node in self.items_dict:
@@ -119,7 +131,7 @@ class Worklist:
             self.items_list.append(worklist_item)
             self.items_dict[node] = worklist_item
 
-    def pop(self) -> Tuple[Scope, PointerFlowNode, PointsToSet]:
+    def pop(self) -> tuple[Scope | None, PointerFlowNode, PointsToSet]:
         """Pop from the front (FIFO) for deterministic processing."""
         if not self.items_list:
             raise IndexError("pop from empty worklist")
@@ -143,6 +155,9 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
 
+    _residual_effects: dict[Hashable, dict[str, object]]
+    _consumer_worklist: "ConsumerFairWorklist | None"
+
     def __init__(self, debug_monitor=None):
         """Initialize empty analysis state.
 
@@ -154,8 +169,8 @@ class PointerAnalysisState:
         self.input_bindings = {}
         self._input_seeded = set()
         self.synthetic_method_roots = []
-        self.unknown_effects = None
-        self._env: Dict["Variable", PointsToSet] = {}
+        self.unknown_effects: UnknownEffects | None = None
+        self._env: Dict[Ctx[Variable | FieldAccess] | PointerFlowNode, PointsToSet] = {}
         self._heap = HeapModel()
         self._call_graph: "PointerCallGraph" = PointerCallGraph()
         self._constraints: ConstraintManager = ConstraintManager()
@@ -181,6 +196,13 @@ class PointerAnalysisState:
         # Note: scope_manager is set lazily when needed
         self._scope_manager = None
         self.entry_module = None
+
+    def peek_residual_effects(self) -> dict[Hashable, dict[str, object]] | None:
+        """Observe optional solver-owned diagnostics without activating storage."""
+        try:
+            return self._residual_effects
+        except AttributeError:
+            return None
 
     def select_allocation_context(self, context, site, alloc_type=None, *, identity="fresh"):
         """Run-local allocation boundary, injected by the native solver."""
@@ -324,7 +346,11 @@ class PointerAnalysisState:
         return field_access
 
     def get_field(
-        self, scope: "Scope", context: "AbstractContext", obj: "AbstractObject", field: "Field"
+        self,
+        scope: "Scope | None",
+        context: "AbstractContext",
+        obj: "AbstractObject",
+        field: "Field",
     ) -> "Ctx[FieldAccess]":
         """Get field access for object field.
 
@@ -523,7 +549,13 @@ class PointerAnalysisState:
 
         return cfield
 
-    def get_write_field(self, scope, context, obj, field):
+    def get_write_field(
+        self,
+        scope: "Scope | None",
+        context: "AbstractContext",
+        obj: "AbstractObject",
+        field: "Field",
+    ) -> "Ctx[FieldAccess]":
         """Own storage for instance writes, logical storage for other objects."""
         if isinstance(obj, InstanceObject):
             if field.kind == FieldKind.ATTRIBUTE:
@@ -665,7 +697,7 @@ class PointerAnalysisState:
 
     def set_field(
         self,
-        scope: "Scope",
+        scope: "Scope | None",
         context: "AbstractContext",
         obj: "AbstractObject",
         field: "Field",
@@ -834,17 +866,17 @@ class PointerAnalysisState:
     def get_global_vars(self, obj: FunctionObject) -> Dict[str, Ctx["Variable"]]:
         return self._heap.get_global_vars(obj)
 
-    def set_cell_vars(self, obj: FunctionObject, vars):
+    def set_cell_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
         self._heap.cell_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
 
-    def set_nonlocal_vars(self, obj: FunctionObject, vars):
+    def set_nonlocal_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
         self._heap.nonlocal_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
 
-    def set_global_vars(self, obj: FunctionObject, vars):
+    def set_global_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
         self._heap.global_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
@@ -857,7 +889,9 @@ class PointerAnalysisState:
         var = self._variable_factory.make_variable(var_name, var_kind)
         return self._heap.get_variable(scope, context, var)
 
-    def _add_var_points_flow(self, src: Ctx[Any], tgt: Ctx[Any]):
+    def _add_var_points_flow(
+        self, src: Ctx[Variable | FieldAccess], tgt: Ctx[Variable | FieldAccess]
+    ) -> None:
         assert isinstance(src, Ctx), f"src must be a Ctx, but got {type(src)}"
         assert isinstance(tgt, Ctx), f"tgt must be a Ctx, but got {type(tgt)}"
         if src != tgt:
@@ -865,10 +899,11 @@ class PointerAnalysisState:
                 PointerFlowEdge(NormalNode(src), NormalNode(tgt), PointerFlowKind.NORMAL)
             )
 
-    def _add_points_flow_edge(self, edge: PointerFlowEdge):
+    def _add_points_flow_edge(self, edge: PointerFlowEdge) -> None:
         if self.pointer_flow_graph.add_edge(edge):
-            if getattr(self, "_consumer_worklist", None) is not None:
-                self._consumer_worklist.promote(edge.source)
+            consumer_worklist = self._consumer_worklist
+            if consumer_worklist is not None:
+                consumer_worklist.promote(edge.source)
             src = edge.source
             tgt = edge.target
             pts = self.pointer_flow_graph.flow_through_edge(

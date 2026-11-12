@@ -4,22 +4,23 @@ Defines AbsVal (reduced product of pluggable domains) and common
 bridge operations used by the interpreter and heap model.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Optional, Set, Tuple
+from typing import Optional, override
 
-from pythonstan.compat.legacy_ai.domains.base import DomainRegistry, create_default_registry
-from pythonstan.analysis.domains.strings import StrLattice
+from pythonstan.analysis.domains.base import DomainRegistry, RegisteredDomain
 from pythonstan.analysis.domains.bool import BoolLattice
-from pythonstan.analysis.domains.none import NoneLattice
 from pythonstan.analysis.domains.ints import IntLattice
+from pythonstan.analysis.domains.none import NoneLattice
+from pythonstan.analysis.domains.strings import StrLattice
 from pythonstan.analysis.pointer.kcfa.object import AbstractObject, summarize_object
-
-if TYPE_CHECKING:
-    from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+from pythonstan.compat.legacy_ai.domains.base import create_default_registry
+from pythonstan.compat.legacy_ai.domains.binding import bind_descriptor, to_callable_targets
 
 __all__ = [
     "AbsVal",
     "Value",
+    "LegacyDomainContractError",
     "AddrSet",
     "CallableTarget",
     "DomainRegistry",
@@ -45,11 +46,43 @@ CALLABLE_DOMAIN = "callable"
 TYPE_DOMAIN = "type"
 DESCRIPTOR_DOMAIN = "descriptor"
 
-AddrSet = FrozenSet["AbstractObject"]
+AddrSet = frozenset["AbstractObject"]
 
-_DEFAULT_REGISTRY: Optional[DomainRegistry] = None
+_DEFAULT_REGISTRY: DomainRegistry | None = None
 
 _UNSET = object()
+
+
+class LegacyDomainContractError(TypeError):
+    """A fixed Native projection cannot consume a registered representation."""
+
+
+def _boolean_domain(registry: DomainRegistry) -> RegisteredDomain:
+    """Resolve the actual provider without inferring its element type from its name."""
+    domain = registry.get(BOOL_DOMAIN)
+    if domain is None:
+        raise LegacyDomainContractError("Native boolean projection requires a bool provider")
+    return domain
+
+
+def _boolean_element(value: object) -> BoolLattice:
+    """Validate each provider result at the actual fixed-representation consumer."""
+    if not isinstance(value, BoolLattice):
+        raise LegacyDomainContractError("Native boolean projection requires BoolLattice")
+    return value
+
+
+def _legacy_string_constants(value: object) -> frozenset[str]:
+    """Decode the legacy iterable argument without leaking unchecked elements."""
+    if not isinstance(value, Iterable):
+        raise TypeError("str_const must be an iterable of strings or None")
+    constants: set[str] = set()
+    items: Iterable[object] = value
+    for item in items:
+        if not isinstance(item, str):
+            raise TypeError("str_const elements must be strings")
+        constants.add(item)
+    return frozenset(constants)
 
 
 def get_default_registry() -> DomainRegistry:
@@ -92,38 +125,44 @@ class AbsVal:
     """
 
     addrs: AddrSet = field(default_factory=frozenset)
-    components: Dict[str, Any] = field(default_factory=dict)
+    # This is the actual heterogeneous registry boundary: each provider checks
+    # its own representation before an operation; builtin projections check too.
+    components: dict[str, object] = field(default_factory=dict)
     addr_top: bool = False
-    registry: DomainRegistry = field(default=None, compare=False, repr=False)
+    registry: DomainRegistry = field(
+        default_factory=get_default_registry, compare=False, repr=False
+    )
     # None is the conservative compatibility projection of an untagged legacy
     # constraint product. Exact factories track actual scalar alternatives.
-    scalar_kinds: Optional[FrozenSet[str]] = None
-    boolean_values: Optional[BoolLattice] = None
+    scalar_kinds: frozenset[str] | None = None
+    boolean_values: BoolLattice | None = None
 
     def __init__(
         self,
-        addrs: Optional[AddrSet] = None,
-        components: Optional[Dict[str, Any]] = None,
+        addrs: AddrSet | None = None,
+        components: dict[str, object] | None = None,
         *,
         addr_top: bool = False,
-        registry: Optional[DomainRegistry] = None,
-        scalar_kinds: Optional[FrozenSet[str]] = None,
-        boolean_values: Optional[BoolLattice] = None,
-        str_const: Any = _UNSET,
-        bool_val: Any = _UNSET,
-        may_be_none: Any = _UNSET,
+        registry: DomainRegistry | None = None,
+        scalar_kinds: frozenset[str] | None = None,
+        boolean_values: BoolLattice | None = None,
+        str_const: object = _UNSET,
+        bool_val: object = _UNSET,
+        may_be_none: object = _UNSET,
     ) -> None:
         """Initialize AbsVal with optional legacy fields."""
         if type(addr_top) is not bool:
             raise TypeError("addr_top must be a bool")
         addr_set = frozenset(addrs or ())
-        comp_map: Dict[str, Any] = dict(components or {})
+        comp_map: dict[str, object] = dict(components or {})
 
         if str_const is not _UNSET:
             if str_const is None:
                 comp_map[STRING_DOMAIN] = StrLattice.top()
             else:
-                comp_map[STRING_DOMAIN] = StrLattice.from_consts(frozenset(str_const))
+                comp_map[STRING_DOMAIN] = StrLattice.from_consts(
+                    _legacy_string_constants(str_const)
+                )
 
         if bool_val is not _UNSET:
             if bool_val is None:
@@ -151,7 +190,7 @@ class AbsVal:
 
     def __post_init__(self) -> None:
         registry = self.registry
-        normalized: Dict[str, Any] = {}
+        normalized: dict[str, object] = {}
         for domain in registry.domains:
             if domain.name == NONE_DOMAIN:
                 normalized[domain.name] = NoneLattice.not_none()
@@ -162,7 +201,7 @@ class AbsVal:
         object.__setattr__(self, "components", normalized)
 
     @classmethod
-    def bottom(cls, registry=None) -> "AbsVal":
+    def bottom(cls, registry: DomainRegistry | None = None) -> "AbsVal":
         """Create bottom value (unreachable / no information).
 
         NOTE: Bottom is NOT the same as "unknown" - it means "no possible value".
@@ -180,7 +219,7 @@ class AbsVal:
         )
 
     @classmethod
-    def top(cls, registry=None) -> "AbsVal":
+    def top(cls, registry: DomainRegistry | None = None) -> "AbsVal":
         """Create top value (unknown / any possible value)."""
         registry = registry or get_default_registry()
         components = {d.name: d.top() for d in registry.domains}
@@ -229,7 +268,7 @@ class AbsVal:
         )
 
     @classmethod
-    def _scalar(cls, kind, elem, truthiness=None):
+    def _scalar(cls, kind: str, elem: object, truthiness: bool | None = None) -> "AbsVal":
         registry = get_default_registry()
         components = {domain.name: domain.bottom() for domain in registry.domains}
         components[kind] = elem
@@ -241,7 +280,7 @@ class AbsVal:
             components=components,
             scalar_kinds=frozenset({kind}),
             registry=registry,
-            boolean_values=elem if kind == BOOL_DOMAIN else BoolLattice.bottom(),
+            boolean_values=_boolean_element(elem) if kind == BOOL_DOMAIN else BoolLattice.bottom(),
         )
 
     @classmethod
@@ -249,7 +288,7 @@ class AbsVal:
         return cls._scalar(STRING_DOMAIN, StrLattice.const(s), bool(s))
 
     @classmethod
-    def from_strs(cls, strs: FrozenSet[str]) -> "AbsVal":
+    def from_strs(cls, strs: frozenset[str]) -> "AbsVal":
         if not strs:
             return cls.bottom()
         truth = (
@@ -281,7 +320,7 @@ class AbsVal:
         return cls._scalar(INT_DOMAIN, IntLattice.const(n), n != 0)
 
     @classmethod
-    def from_ints(cls, ints: FrozenSet[int]) -> "AbsVal":
+    def from_ints(cls, ints: frozenset[int]) -> "AbsVal":
         if not ints:
             return cls.bottom()
         result = cls._scalar(
@@ -307,9 +346,9 @@ class AbsVal:
             boolean_values=self.boolean_values,
         )
 
-    def with_component(self, name: str, elem: Any) -> "AbsVal":
+    def with_component(self, name: str, elem: object) -> "AbsVal":
         """Return a copy with one component updated."""
-        new_components = dict(self.components)
+        new_components: dict[str, object] = dict(self.components)
         new_components[name] = elem
         kinds = self.scalar_kinds
         if (
@@ -322,13 +361,14 @@ class AbsVal:
                 kinds = frozenset({name})
         booleans = self.boolean_values
         if name == BOOL_DOMAIN and kinds is not None:
-            booleans = (
-                elem
-                if not self.scalar_kinds and BOOL_DOMAIN in kinds
-                else self.registry.get(BOOL_DOMAIN).meet(self.get_bool_values(), elem)
-                if BOOL_DOMAIN in kinds
-                else BoolLattice.bottom()
-            )
+            if not self.scalar_kinds and BOOL_DOMAIN in kinds:
+                booleans = _boolean_element(elem)
+            elif BOOL_DOMAIN in kinds:
+                booleans = _boolean_element(
+                    _boolean_domain(self.registry).meet(self.get_bool_values(), elem)
+                )
+            else:
+                booleans = BoolLattice.bottom()
         return AbsVal(
             addrs=self.addrs,
             components=new_components,
@@ -338,7 +378,7 @@ class AbsVal:
             boolean_values=booleans,
         )
 
-    def with_components(self, components: Dict[str, Any]) -> "AbsVal":
+    def with_components(self, components: dict[str, object]) -> "AbsVal":
         """Return a copy with multiple components updated."""
         new_components = dict(self.components)
         new_components.update(components)
@@ -351,7 +391,7 @@ class AbsVal:
             boolean_values=self.boolean_values,
         )
 
-    def get_component(self, name: str) -> Any:
+    def get_component(self, name: str) -> object:
         """Get a component by domain name."""
         return self.components.get(name)
 
@@ -382,7 +422,7 @@ class AbsVal:
         return self.boolean_values if self.boolean_values is not None else self.get_bool_lattice()
 
     @property
-    def str_const(self) -> Optional[FrozenSet[str]]:
+    def str_const(self) -> frozenset[str] | None:
         """Legacy accessor for constant string sets."""
         str_elem = self.get_string_lattice()
         if str_elem.is_enumerable():
@@ -392,7 +432,7 @@ class AbsVal:
         return None
 
     @property
-    def bool_val(self) -> Optional[bool]:
+    def bool_val(self) -> bool | None:
         """Legacy accessor for boolean lattice (True/False/None)."""
         bool_elem = self.get_bool_lattice()
         if bool_elem.is_true():
@@ -402,7 +442,7 @@ class AbsVal:
         return None
 
     @property
-    def may_be_none(self) -> Optional[bool]:
+    def may_be_none(self) -> bool | None:
         """Legacy accessor for None-ness (True/False/None)."""
         if self.scalar_kinds is not None and NONE_DOMAIN not in self.scalar_kinds:
             return False
@@ -431,11 +471,11 @@ class AbsVal:
                 "top",
             ):
                 return False
-            return all(
-                self.registry.get(name).is_bottom(self.components[name])
-                for name in (CALLABLE_DOMAIN, TYPE_DOMAIN, DESCRIPTOR_DOMAIN)
-                if self.registry.get(name) is not None
-            )
+            for name in (CALLABLE_DOMAIN, TYPE_DOMAIN, DESCRIPTOR_DOMAIN):
+                domain = self.registry.get(name)
+                if domain is not None and not domain.is_bottom(self.components[name]):
+                    return False
+            return True
         # An untagged old constraint product is projected conservatively.
         return all(
             domain.is_bottom(self.components.get(domain.name, domain.top()))
@@ -455,11 +495,11 @@ class AbsVal:
         """Check if string component is bottom (empty set = definitely not a string)."""
         return self.get_string_lattice().is_bottom()
 
-    def get_const_strs(self) -> Optional[FrozenSet[str]]:
+    def get_const_strs(self) -> frozenset[str] | None:
         """Get constant strings if enumerable, else None."""
         return self.get_string_lattice().get_consts()
 
-    def filter_string_candidates(self, candidates: FrozenSet[str]) -> FrozenSet[str]:
+    def filter_string_candidates(self, candidates: frozenset[str]) -> frozenset[str]:
         """Filter candidate strings using the string lattice.
 
         Returns the subset of candidates that may equal this value's string component.
@@ -496,7 +536,7 @@ class AbsVal:
 
         new_addrs = self.addrs | other.addrs
         registry = self.registry
-        new_components: Dict[str, Any] = {}
+        new_components: dict[str, object] = {}
         for domain in registry.domains:
             name = domain.name
             a = self.components.get(name, domain.top())
@@ -511,8 +551,8 @@ class AbsVal:
             scalar_kinds=None
             if self.scalar_kinds is None or other.scalar_kinds is None
             else self.scalar_kinds | other.scalar_kinds,
-            boolean_values=registry.get(BOOL_DOMAIN).join(
-                self.get_bool_values(), other.get_bool_values()
+            boolean_values=_boolean_element(
+                _boolean_domain(registry).join(self.get_bool_values(), other.get_bool_values())
             ),
         )
 
@@ -531,7 +571,7 @@ class AbsVal:
                 obj for obj in self.addrs if self._addr_is_covered(obj, other.addrs)
             ) | frozenset(obj for obj in other.addrs if self._addr_is_covered(obj, self.addrs))
         registry = self.registry
-        new_components: Dict[str, Any] = {}
+        new_components: dict[str, object] = {}
         for domain in registry.domains:
             name = domain.name
             a = self.components.get(name, domain.top())
@@ -550,8 +590,8 @@ class AbsVal:
                 if other.scalar_kinds is None
                 else self.scalar_kinds & other.scalar_kinds
             ),
-            boolean_values=registry.get(BOOL_DOMAIN).meet(
-                self.get_bool_values(), other.get_bool_values()
+            boolean_values=_boolean_element(
+                _boolean_domain(registry).meet(self.get_bool_values(), other.get_bool_values())
             ),
         )
 
@@ -564,14 +604,16 @@ class AbsVal:
             self.scalar_kinds is None or not self.scalar_kinds <= other.scalar_kinds
         ):
             return False
-        if not self.registry.get(BOOL_DOMAIN).leq(self.get_bool_values(), other.get_bool_values()):
+        if not _boolean_domain(self.registry).leq(self.get_bool_values(), other.get_bool_values()):
             return False
-        if not other.addr_top:
-            if self.addr_top or not all(
+        if not other.addr_top and (
+            self.addr_top
+            or not all(
                 self._addr_is_covered(obj, other.addrs) or self._constant_is_covered(obj, other)
                 for obj in self.addrs
-            ):
-                return False
+            )
+        ):
+            return False
         registry = self.registry
         for domain in registry.domains:
             name = domain.name
@@ -582,7 +624,7 @@ class AbsVal:
         return True
 
     @staticmethod
-    def _constant_is_covered(obj, value):
+    def _constant_is_covered(obj: "AbstractObject", value: "AbsVal") -> bool:
         """A builtin scalar facet covers redundant ConstantObject witnesses.
 
         No user object, callable, mutable reference or subclass is discharged by
@@ -593,7 +635,7 @@ class AbsVal:
 
         if not isinstance(obj, ConstantObject):
             return False
-        literal = obj.value
+        literal: object = obj.value
         if literal is None:
             return value.may_be_none is True
         if type(literal) is bool:
@@ -613,8 +655,8 @@ class AbsVal:
         self,
         other: "AbsVal",
         max_addrs: int = 50,
-        max_strs: Optional[int] = None,
-        max_ho_tokens: Optional[int] = None,
+        max_strs: int | None = None,
+        max_ho_tokens: int | None = None,
     ) -> "AbsVal":
         """Widen abstract value (∇).
 
@@ -622,7 +664,7 @@ class AbsVal:
         - Address widening: if too many addresses, summarize by alloc-site.
         """
         registry = self.registry
-        new_components: Dict[str, Any] = {}
+        new_components: dict[str, object] = {}
         for domain in registry.domains:
             name = domain.name
             a = self.components.get(name, domain.top())
@@ -636,6 +678,10 @@ class AbsVal:
             elif max_strs is not None and name == STRING_DOMAIN:
                 from pythonstan.analysis.domains.strings import StringDomain
 
+                if not isinstance(a, StrLattice) or not isinstance(b, StrLattice):
+                    raise LegacyDomainContractError(
+                        "Native string capacity projection requires StrLattice"
+                    )
                 widened = StringDomain(max_consts=max_strs).widen(a, b)
             else:
                 widened = domain.widen(a, b)
@@ -661,8 +707,8 @@ class AbsVal:
             scalar_kinds=None
             if self.scalar_kinds is None or other.scalar_kinds is None
             else self.scalar_kinds | other.scalar_kinds,
-            boolean_values=registry.get(BOOL_DOMAIN).join(
-                self.get_bool_values(), other.get_bool_values()
+            boolean_values=_boolean_element(
+                _boolean_domain(registry).join(self.get_bool_values(), other.get_bool_values())
             ),
         )
 
@@ -688,7 +734,7 @@ class AbsVal:
                     summaries.add(summarize_object(obj))
         return frozenset(summaries)
 
-    def with_addrs(self, addrs: AddrSet, *, addr_top: Optional[bool] = None) -> "AbsVal":
+    def with_addrs(self, addrs: AddrSet, *, addr_top: bool | None = None) -> "AbsVal":
         """Replace finite witnesses, preserving unknown addresses by default.
 
         A trusted transfer may supply addr_top=False when its refinement proof
@@ -704,7 +750,7 @@ class AbsVal:
             boolean_values=self.boolean_values,
         )
 
-    def fingerprint(self) -> Tuple[Any, ...]:
+    def fingerprint(self) -> tuple[object, ...]:
         """Return a hashable fingerprint for caching."""
         component_items = tuple(sorted(self.components.items(), key=lambda x: x[0]))
         return (
@@ -715,6 +761,7 @@ class AbsVal:
             component_items,
         )
 
+    @override
     def __str__(self) -> str:
         parts = []
         if self.addr_top:
@@ -741,11 +788,7 @@ def to_points_to(val: AbsVal) -> AddrSet:
     return val.addrs
 
 
-# Re-export from binding module for backward compatibility
-from pythonstan.compat.legacy_ai.domains.binding import to_callable_targets, bind_descriptor
-
-
-def configure_registry(max_ho_tokens: Optional[int] = None) -> DomainRegistry:
+def configure_registry(max_ho_tokens: int | None = None) -> DomainRegistry:
     """Return isolated compatibility settings; never mutate shared defaults."""
     if max_ho_tokens is None:
         return create_default_registry()

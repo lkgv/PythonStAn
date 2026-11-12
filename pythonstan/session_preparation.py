@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from pythonstan.analysis.contracts.identity import EntryScenario
 from pythonstan.analysis.contracts.json_data import thaw_json_object
 from pythonstan.config.errors import ConfigurationError
 from pythonstan.frontend.source import SourceProgram, parse_sources
@@ -127,9 +128,11 @@ def prepare_request(
         for index, query in enumerate(request.queries)
         if isinstance(query, ValueQuery)
     }
-    scenarios = tuple(
-        sorted(snapshot.scenarios, key=lambda entry: priority.get(entry.root_module, len(priority)))
-    )
+
+    def scenario_priority(entry: EntryScenario) -> int:
+        return priority.get(entry.root_module, len(priority))
+
+    scenarios = tuple(sorted(snapshot.scenarios, key=scenario_priority))
     execution_snapshot = replace(snapshot, scenarios=scenarios)
     preparation_seconds = time.monotonic() - started_at
     return PreparedRun(snapshot, execution_snapshot, program, plan, preparation_seconds)

@@ -1,14 +1,18 @@
 import sys
 from typing import *
+from typing import ClassVar, Self
 
 
 class Singleton(object):
-    _instances = {}
+    _instances: ClassVar[dict[type["Singleton"], "Singleton"]] = {}
 
-    def __new__(class_, *args, **kwargs):
+    def __new__(class_: type[Self], *args: object, **kwargs: object) -> Self:
         if class_ not in class_._instances:
             class_._instances[class_] = super(Singleton, class_).__new__(class_, *args, **kwargs)
-        return class_._instances[class_]
+        instance = class_._instances[class_]
+        if not isinstance(instance, class_):
+            raise TypeError("Singleton cache entry has a different concrete class")
+        return instance
 
 
 T = TypeVar("T")

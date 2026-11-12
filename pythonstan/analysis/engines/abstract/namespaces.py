@@ -6,37 +6,56 @@ and write the current Store. Function locals are explicit fast-locals snapshots.
 
 from __future__ import annotations
 
+import ast
+from collections.abc import Sequence
 from dataclasses import replace
-from itertools import product
+from typing import TYPE_CHECKING
 
-from pythonstan.analysis.domains.values import Value
+from pythonstan.analysis.contracts.identity import CellId, ObjectId
+from pythonstan.analysis.contracts.json_data import JsonScalar
+from pythonstan.analysis.contracts.private_slots import is_private_slot
+from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.state.continuation import Continuation
 from pythonstan.analysis.state.effects import (
     HeapDefaultWrite,
     HeapWrite,
     MetadataAspect,
     MetadataUpdate,
 )
+from pythonstan.analysis.state.flow import (
+    Flow,
+    NormalExprFlow,
+    flow_payload,
+    replace_flow,
+    require_payload,
+)
+from pythonstan.analysis.state.handles import StateHandle
+from pythonstan.analysis.state.keys import FieldKey
+from pythonstan.analysis.state.metadata import NamespaceMeta
+from pythonstan.analysis.state.store import Frame, HeapObject, Store
 
-from .state import Flow, HeapObject
+if TYPE_CHECKING:
+    from .transfer import Transfer
+
+type NamespaceKeyCases = tuple[list[tuple[Store, list[JsonScalar] | None]], list[Flow]]
 
 
 class NamespaceOperations:
-    def __init__(self, transfer):
-        self.t = transfer
+    def __init__(self, transfer: Transfer) -> None:
+        self.t: Transfer = transfer
         self.d = transfer.d
-        self.ops = transfer.ops
+        self.ops: ValueOperations = transfer.ops
 
-    def _private(self, key):
-        from pythonstan.analysis.contracts.private_slots import is_private_slot
-
+    def _private(self, key: FieldKey) -> bool:
         return is_private_slot(key)
 
-    def _current(self, store):
-        if hasattr(store, "ensure_current"):
-            store.ensure_current(self.ops)
+    def _current(self, store: Store) -> None:
+        store.ensure_current(self.ops)
 
-    def _havoc(self, obj, store):
-        owner = store.heap.get(obj.metadata.lookup("owner"))
+    def _havoc(self, obj: HeapObject, store: Store) -> bool:
+        record = obj.metadata.record
+        owner_id = record.owner if isinstance(record, NamespaceMeta) else None
+        owner = None if owner_id is None else store.heap.get(owner_id)
         return (
             obj.havoc
             or bool(owner and owner.havoc)
@@ -46,10 +65,8 @@ class NamespaceOperations:
             )
         )
 
-    def _metadata(self, module):
+    def _metadata(self, module: str) -> dict[str, JsonScalar]:
         source = self.d.modules[module]
-        import ast
-
         tree = self.d.trees[module]
         return {
             "__name__": module,
@@ -58,7 +75,7 @@ class NamespaceOperations:
             "__doc__": ast.get_docstring(tree, clean=False),
         }
 
-    def _seed_module(self, module, store):
+    def _seed_module(self, module: str, store: Store) -> None:
         if module not in self.d.modules or module not in self.d.trees:
             # A dotted external import can have a parent module identity
             # without source. Its namespace is unknown, never a closed empty
@@ -69,13 +86,13 @@ class NamespaceOperations:
         if module in store.havoc_namespaces:
             return
         for name, value in self._metadata(module).items():
-            cell = f"global:{module}:{name}"
+            cell = CellId(f"global:{module}:{name}")
             if cell not in store.cells:
                 store.write_cell(cell, Value.constant(value))
 
-    def global_view(self, module, store):
+    def global_view(self, module: str, store: Store) -> Value:
         self._seed_module(module, store)
-        identity = self.d.allocate_identity("namespace:globals:" + module)
+        identity = self.d.allocate_identity(ObjectId("namespace:globals:" + module))
         if identity not in store.heap:
             store.heap[identity] = HeapObject(
                 "namespace",
@@ -84,11 +101,11 @@ class NamespaceOperations:
             )
         return Value.ref(identity)
 
-    def local_view(self, frame, store):
+    def local_view(self, frame: Frame, store: Store) -> Value:
         if frame.is_module:
             return self.global_view(frame.module, store)
         prefix = "local:" + frame.identity + ":"
-        original = "namespace:locals:" + frame.identity
+        original = ObjectId("namespace:locals:" + frame.identity)
         identity = self.d.allocate_identity(original)
         if frame.is_class:
             if identity not in store.heap:
@@ -130,13 +147,13 @@ class NamespaceOperations:
                 current.singleton = False
             store.heap[identity] = current
             store.writes.add(marker)
-            for name in (set(previous.fields) if previous else set()) | set(fields):
-                store.writes.add(HeapWrite(identity, name))
+            for field_key in (set(previous.fields) if previous else set()) | set(fields):
+                store.writes.add(HeapWrite(identity, field_key))
         return Value.ref(identity)
 
-    def object_view(self, store, owner, readonly=False):
+    def object_view(self, store: Store, owner: ObjectId, readonly: bool = False) -> Value:
         owner = self.ops.arena.resolve(owner)
-        original = "namespace:object:" + owner
+        original = ObjectId("namespace:object:" + owner)
         identity = self.d.allocate_identity(original)
         if identity not in store.heap:
             store.heap[identity] = HeapObject(
@@ -146,7 +163,7 @@ class NamespaceOperations:
             )
         return Value.ref(identity)
 
-    def bindings(self, obj, store):
+    def bindings(self, obj: HeapObject, store: Store) -> dict[FieldKey, Value]:
         mode = obj.metadata.lookup("namespace_kind")
         if mode == "globals":
             module = obj.metadata["module"]
@@ -171,13 +188,13 @@ class NamespaceOperations:
                 },
             }
         if mode == "object":
-            owner = store.heap.get(obj.metadata["owner"])
+            owner = store.heap.get(obj.metadata.namespace_owner())
             if owner is None:
                 return {}
             return {key: value for key, value in owner.fields.items() if not self._private(key)}
         return {key: value for key, value in obj.fields.items() if not self._private(key)}
 
-    def _read(self, obj, key, store):
+    def _read(self, obj: HeapObject, key: FieldKey, store: Store) -> tuple[Value, bool]:
         if self._private(key):
             return Value.bottom(), True
         mode = obj.metadata.lookup("namespace_kind")
@@ -187,39 +204,48 @@ class NamespaceOperations:
                     key, obj.default
                 ), key not in obj.fields or key in obj.maybe_missing
             self._seed_module(obj.metadata["module"], store)
-            value = store.effective_cell("global:" + obj.metadata["module"] + ":" + key)
+            value = store.effective_cell(CellId("global:" + obj.metadata["module"] + ":" + key))
             return value.without_unbound(), value.unbound
         if mode == "class_locals" and type(key) is str:
-            value = store.effective_cell(obj.metadata["prefix"] + key)
+            value = store.effective_cell(CellId(obj.metadata["prefix"] + key))
             return value.without_unbound(), value.unbound
         if mode == "object":
-            owner = obj.metadata["owner"]
+            owner = obj.metadata.namespace_owner()
             target = store.heap.get(owner)
             if target is None:
                 return Value.unknown(), True
             value, missing = store.read_slot(owner, key, self.ops)
             return value, missing
         return store.read_slot(
-            next((ref for ref, current in store.heap.items() if current is obj), ""), key, self.ops
+            next((ref for ref, current in store.heap.items() if current is obj), ObjectId("")),
+            key,
+            self.ops,
         )
 
-    def _write(self, identifier, key, value, store, *, weak=False):
+    def _write(
+        self, identifier: ObjectId, key: FieldKey, value: Value, store: Store, *, weak: bool = False
+    ) -> None:
         obj = store.heap[identifier]
         mode = obj.metadata.lookup("namespace_kind")
         if self._private(key):
             return
         if mode == "globals" and type(key) is str:
             store.write_cell(
-                "global:" + obj.metadata["module"] + ":" + key, value, weak=weak, ops=self.ops
+                CellId("global:" + obj.metadata["module"] + ":" + key),
+                value,
+                weak=weak,
+                ops=self.ops,
             )
         elif mode == "class_locals" and type(key) is str:
-            store.write_cell(obj.metadata["prefix"] + key, value, weak=weak, ops=self.ops)
+            store.write_cell(CellId(obj.metadata["prefix"] + key), value, weak=weak, ops=self.ops)
         elif mode == "object":
-            store.write_slot(obj.metadata["owner"], key, value, self.ops, weak=weak)
+            store.write_slot(obj.metadata.namespace_owner(), key, value, self.ops, weak=weak)
         else:
             store.write_slot(identifier, key, value, self.ops, weak=weak)
 
-    def key_cases(self, key, store, frame, node):
+    def key_cases(
+        self, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> NamespaceKeyCases:
         """Hashable scalar alternatives and effectful custom-key complements.
 
         A None key is a genuine scalar key. ``None`` in the returned key-list position
@@ -228,8 +254,8 @@ class NamespaceOperations:
         self._current(store)
         key = self.ops.normalize(key)
         scalar = replace(key, refs=frozenset())
-        cases = []
-        errors = []
+        cases: list[tuple[Store, list[JsonScalar] | None]] = []
+        errors: list[Flow] = []
         unhashable = scalar.top_sorts & {"list", "dict", "set", "bytearray"}
         if unhashable:
             errors.append(self.t.error(store.copy(), "TypeError"))
@@ -271,8 +297,9 @@ class NamespaceOperations:
                         continue
                     # Equality and hash collisions can invoke further source code.
                     # Until that relation is represented, use actual open effects.
-                    has_integer = not out.value.ints.is_bottom or bool(out.value.bools)
-                    if has_integer or out.value.top or out.value.top_sorts:
+                    payload = require_payload(out)
+                    has_integer = not payload.ints.is_bottom or bool(payload.bools)
+                    if has_integer or payload.top or payload.top_sorts:
                         for unknown in self.t.unknown(
                             out.store, node, "custom_dictionary_key_equality"
                         ):
@@ -280,7 +307,7 @@ class NamespaceOperations:
                                 cases.append((unknown.store, None))
                             else:
                                 errors.append(unknown)
-                    if not has_integer or out.value.top:
+                    if not has_integer or payload.top:
                         errors.append(self.t.error(out.store.copy(), "TypeError"))
             elif not hashes.none:
                 for out in self.t.unknown(store, node, "unmodeled_dictionary_key_hash"):
@@ -290,7 +317,9 @@ class NamespaceOperations:
                         errors.append(out)
         return cases, errors
 
-    def key_alternatives(self, key, store, frame, node):
+    def key_alternatives(
+        self, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> tuple[Value, list[Flow]]:
         """Compatibility hook for scalar-only consumers; protocols stay separate."""
         cases, errors = self.key_cases(key, store, frame, node)
         scalar = replace(
@@ -301,10 +330,12 @@ class NamespaceOperations:
         )
         for state, constants in cases:
             if constants is None and scalar.is_bottom():
-                errors.append(Flow(state, value=Value.unknown()))
+                errors.append(NormalExprFlow(StateHandle.capture(state), Value.unknown()))
         return scalar, errors
 
-    def getitem(self, identifier, key, store, frame, node):
+    def getitem(
+        self, identifier: ObjectId, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> list[Flow]:
         self._current(store)
         cases, result = self.key_cases(key, store, frame, node)
         for state, constants in cases:
@@ -333,18 +364,26 @@ class NamespaceOperations:
                 ):
                     value = self.ops.join(value, Value.unknown())
                 if not value.is_bottom():
-                    result.append(Flow(state.copy(), value=value))
+                    result.append(NormalExprFlow(StateHandle.capture(state.copy()), value))
                 result.append(self.t.error(state.copy(), "KeyError"))
             else:
                 for concrete in constants:
                     value, missing = self._read(obj, concrete, state)
                     if not value.is_bottom():
-                        result.append(Flow(state.copy(), value=value))
+                        result.append(NormalExprFlow(StateHandle.capture(state.copy()), value))
                     if missing:
                         result.append(self.t.error(state.copy(), "KeyError"))
         return result
 
-    def setitem(self, identifier, key, value, store, frame, node):
+    def setitem(
+        self,
+        identifier: ObjectId,
+        key: Value,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         self._current(store)
         obj = store.heap[identifier]
         if self._havoc(obj, store):
@@ -377,62 +416,83 @@ class NamespaceOperations:
                     target = branch.heap[identifier]
                     mode = target.metadata.lookup("namespace_kind")
                     if self.d.oracle is not None:
-                        if (
-                            mode == "globals"
-                            and type(concrete) is str
-                            and hasattr(self.d.oracle, "publish_cell")
-                        ):
-                            cell = "global:" + target.metadata["module"] + ":" + concrete
-                            self.d.oracle.publish_cell(
+                        if mode == "globals" and type(concrete) is str:
+                            cell = CellId("global:" + target.metadata["module"] + ":" + concrete)
+                            self.d.publish_oracle_cell(
                                 cell, branch.effective_cell(cell), "namespace_write"
                             )
-                        elif hasattr(self.d.oracle, "publish_field"):
-                            owner = target.metadata.lookup("owner", identifier)
-                            self.d.oracle.publish_field(owner, concrete, value, "namespace_write")
+                        else:
+                            record = target.metadata.record
+                            owner = (
+                                record.owner
+                                if isinstance(record, NamespaceMeta) and record.owner is not None
+                                else identifier
+                            )
+                            self.d.publish_oracle_field(owner, concrete, value, "namespace_write")
                     result.append(self.t.normal(branch))
                 continue
             self.d.writes.add((frame.qualname, "<namespace:*>", self.d.point(node)))
             result.append(self.t.normal(state))
         return result
 
-    def contains(self, identifier, key, store, frame, node):
-        result = []
+    def contains(
+        self, identifier: ObjectId, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> list[Flow]:
+        result: list[Flow] = []
         for flow in self.getitem(identifier, key, store, frame, node):
             if flow.kind == "normal":
-                result.append(Flow(flow.store, value=Value.constant(True)))
+                result.append(NormalExprFlow(StateHandle.capture(flow.store), Value.constant(True)))
             elif flow.exception == "KeyError":
-                result.append(Flow(flow.store, value=Value.constant(False)))
+                result.append(
+                    NormalExprFlow(StateHandle.capture(flow.store), Value.constant(False))
+                )
             else:
                 result.append(flow)
         return result
 
-    def builtin(self, name, args, keywords, store, frame, node):
+    def builtin(
+        self,
+        name: str,
+        args: Sequence[Value],
+        keywords: Sequence[tuple[str, Value]],
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         if keywords:
             return [self.t.error(store, "TypeError")]
         if name in {"globals", "locals"}:
             if args:
                 return [self.t.error(store, "TypeError")]
             return [
-                Flow(
-                    store,
-                    value=self.global_view(frame.module, store)
+                NormalExprFlow(
+                    StateHandle.capture(store),
+                    self.global_view(frame.module, store)
                     if name == "globals"
                     else self.local_view(frame, store),
                 )
             ]
         if name == "vars":
             if not args:
-                return [Flow(store, value=self.local_view(frame, store))]
+                return [NormalExprFlow(StateHandle.capture(store), self.local_view(frame, store))]
             if len(args) != 1:
                 return [self.t.error(store, "TypeError")]
             return self.t.getattr(args[0], "__dict__", store, frame, node)
         raise ValueError("not a namespace builtin: " + name)
 
-    def method(self, name, receiver, args, keywords, store, frame, node):
+    def method(
+        self,
+        name: str,
+        receiver: Value,
+        args: Sequence[Value],
+        keywords: Sequence[tuple[str, Value]],
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         self._current(store)
-        if hasattr(self.ops, "normalize"):
-            receiver = self.ops.normalize(receiver)
-        result = []
+        receiver = self.ops.normalize(receiver)
+        result: list[Flow] = []
         for ref in receiver.refs:
             obj = store.heap.get(ref)
             if not obj or obj.kind != "namespace":
@@ -444,7 +504,9 @@ class NamespaceOperations:
                 default = args[1] if len(args) > 1 else Value.constant(None)
                 for out in self.getitem(ref, args[0], store.copy(), frame, node):
                     result.append(
-                        Flow(out.store, value=default) if out.exception == "KeyError" else out
+                        NormalExprFlow(StateHandle.capture(out.store), default)
+                        if out.exception == "KeyError"
+                        else out
                     )
             elif name in {"keys", "values", "items", "copy"} and not args:
                 state = store.copy()
@@ -454,7 +516,7 @@ class NamespaceOperations:
                         node, state, frame, "dict", dict(bindings), {"length": len(bindings)}
                     )
                 else:
-                    values = []
+                    values: list[Value] = []
                     for key, value in bindings.items():
                         if name == "keys":
                             values.append(Value.constant(key))
@@ -476,20 +538,22 @@ class NamespaceOperations:
                         state,
                         frame,
                         "list",
-                        {i: value for i, value in enumerate(values)},
+                        dict(enumerate(values)),
                         {"length": len(values)},
                     )
-                result.append(Flow(state, value=value))
+                result.append(NormalExprFlow(StateHandle.capture(state), value))
             elif name == "setdefault" and args:
                 default = args[1] if len(args) > 1 else Value.constant(None)
                 for out in self.getitem(ref, args[0], store.copy(), frame, node):
                     if out.exception == "KeyError":
                         result.extend(
-                            Flow(
-                                saved.store,
-                                saved.kind,
-                                default if saved.kind == "normal" else saved.value,
-                                saved.exception,
+                            replace_flow(
+                                saved,
+                                store=saved.store,
+                                value=default if saved.kind == "normal" else flow_payload(saved),
+                                continuation=Continuation(),
+                                cleanups=Continuation(),
+                                resume_target=None,
                             )
                             for saved in self.setitem(ref, args[0], default, out.store, frame, node)
                         )

@@ -116,6 +116,7 @@ def worker(args):
             proposer = OfflineDispatchProposer(coarse=args.arm == "valid_coarse_top",
                 adversarial="wrong_handler" if args.arm == "malicious_candidate" else None,max_work=args.work)
             provider = GuardedDispatchProvider(SimpleNamespace(modules=(module,)),config,proposer)
+            provider.prepare()
         driver = InterproceduralDriver((module,),options=config)
         driver.summary_provider = provider
         remaining=args.seconds-(time.perf_counter()-started)

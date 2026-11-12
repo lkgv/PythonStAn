@@ -5,20 +5,51 @@ policies including call-string, object, type, receiver, and hybrid contexts.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any, TypeVar, Generic, Union, Literal, TYPE_CHECKING, Dict
+from enum import Enum
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    Literal,
+    Optional,
+    Protocol,
+    Tuple,
+    TypeGuard,
+    TypeVar,
+    Union,
+    overload,
+    override,
+    runtime_checkable,
+)
 
-from pythonstan.analysis.pointer.kcfa.object import FunctionObject, ClassObject, ModuleObject
-from pythonstan.ir.ir_statements import IRScope, IRModule, IRStatement
+from pythonstan.analysis.pointer.kcfa.object import (
+    AbstractObject,
+    AllocSite,
+)
+from pythonstan.analysis.pointer.kcfa.object import (
+    ClassObject as ClassObject,
+)
+from pythonstan.analysis.pointer.kcfa.object import (
+    FunctionObject as FunctionObject,
+)
+from pythonstan.analysis.pointer.kcfa.object import (
+    ModuleObject as ModuleObject,
+)
+from pythonstan.ir.ir_statements import IRModule, IRScope, IRStatement
 
 if TYPE_CHECKING:
-    from .object import AbstractObject, AllocSite
+    from .protocol_context import ProtocolKeyContext
 
 __all__ = [
     "CallSite",
     "Ctx",
     "Scope",
     "AbstractContext",
+    "NativeContext",
+    "is_native_context",
     "CallStringContext",
     "ObjectContext",
     "TypeContext",
@@ -27,6 +58,9 @@ __all__ = [
     "HybridContext",
     "SummaryContext",
     "FiniteContextAtom",
+    "SourceIdentity",
+    "FiniteContextKey",
+    "BindingAtom",
     "OrderedBindingToken",
     "finite_context_atom",
     "ordered_binding_token",
@@ -72,39 +106,171 @@ class CallSite:
         return self.site_id
 
 
-def _valid_source_identity(value, depth=8):
-    """Validate the atom boundary without traversing source IR internals."""
-    from enum import Enum
-    from .object import AllocSite
+type SourceIdentity = (
+    str
+    | int
+    | None
+    | Enum
+    | IRStatement
+    | CallSite
+    | AllocSite
+    | tuple[SourceIdentity, ...]
+    | frozenset[SourceIdentity]
+)
+type FiniteContextKey = (
+    SourceIdentity
+    | FiniteContextAtom
+    | OrderedBindingToken
+    | tuple[FiniteContextKey, ...]
+    | frozenset[FiniteContextKey]
+)
+type BindingAtom = FiniteContextAtom | CallSite | str | int | None
 
-    if isinstance(value, (str, int, bool, type(None), Enum, IRStatement)):
+
+@runtime_checkable
+class _AllocationCarrier(Protocol):
+    @property
+    def alloc_site(self) -> object: ...
+
+
+@runtime_checkable
+class _ContextCarrier(Protocol):
+    @property
+    def context(self) -> object: ...
+
+
+@runtime_checkable
+class _NamedSource(Protocol):
+    @property
+    def name(self) -> object: ...
+    @property
+    def kind(self) -> object: ...
+
+
+@runtime_checkable
+class _IndexedSource(Protocol):
+    @property
+    def index(self) -> object: ...
+
+
+@runtime_checkable
+class _TypedKeySource(Protocol):
+    @property
+    def key_type(self) -> object: ...
+
+
+@runtime_checkable
+class _WrappedContext(Protocol):
+    @property
+    def inner(self) -> object: ...
+
+
+@runtime_checkable
+class _CallOrigins(Protocol):
+    @property
+    def call_sites(self) -> object: ...
+
+
+@runtime_checkable
+class _AllocationOrigins(Protocol):
+    @property
+    def alloc_sites(self) -> object: ...
+
+
+@runtime_checkable
+class _TypeOrigins(Protocol):
+    @property
+    def types(self) -> object: ...
+
+
+@runtime_checkable
+class _ReceiverOrigins(Protocol):
+    @property
+    def receivers(self) -> object: ...
+
+
+@runtime_checkable
+class _ParameterOrigins(Protocol):
+    @property
+    def params(self) -> object: ...
+
+
+@runtime_checkable
+class _FieldCarrier(Protocol):
+    @property
+    def obj(self) -> object: ...
+    @property
+    def field(self) -> object: ...
+
+
+@runtime_checkable
+class _MetadataItems(Protocol):
+    def items(self) -> object: ...
+
+
+@runtime_checkable
+class _MetadataReader(Protocol):
+    def __call__(self) -> object: ...
+
+
+@runtime_checkable
+class _MetadataSequence(Protocol):
+    def __getitem__(self, index: int) -> object: ...
+
+
+@dataclass(frozen=True)
+class _MetadataMissing:
+    """No recognized metadata at the compatibility boundary."""
+
+
+@dataclass(frozen=True)
+class _MetadataOrigins:
+    values: tuple[SourceIdentity, ...]
+
+
+_METADATA_MISSING = _MetadataMissing()
+type _MetadataDecoded = (
+    SourceIdentity | FiniteContextAtom | OrderedBindingToken | _MetadataOrigins | _MetadataMissing
+)
+
+
+def _context_record(value: object) -> "TypeGuard[Ctx[object]]":
+    return isinstance(value, _CTX_RUNTIME)
+
+
+def _valid_source_identity(value: object, depth: int = 8) -> TypeGuard[SourceIdentity]:
+    """Validate finite projected data without traversing source IR internals."""
+    if isinstance(value, (str, int, type(None), Enum, IRStatement)):
         return True
     if isinstance(value, CallSite):
         return isinstance(value.statement, IRStatement)
     if isinstance(value, AllocSite):
-        # A synthetic allocation payload embedding owner objects must have
-        # passed _source_identity, producing a bounded tuple, before this API.
         return isinstance(value.stmt, (str, IRStatement))
     if depth > 0 and isinstance(value, (tuple, frozenset)):
-        return all(_valid_source_identity(item, depth - 1) for item in value)
+        items: tuple[object, ...] | frozenset[object] = value
+        return all(_valid_source_identity(item, depth - 1) for item in items)
     return False
+
+
+def _source_payload(value: object) -> SourceIdentity:
+    if _valid_source_identity(value):
+        return value
+    raise ValueError("FiniteContextAtom requires bounded flat source identities")
+
+
+def _binding_atom(value: object) -> TypeGuard[BindingAtom]:
+    return isinstance(value, (FiniteContextAtom, CallSite, str, int, type(None)))
 
 
 @dataclass(frozen=True)
 class FiniteContextAtom:
-    """A source identity with a bounded *flat* allocation history.
+    """A source identity with a bounded flat allocation-origin history."""
 
-    ``source`` and ``origins`` contain only source sites/variable descriptors,
-    never objects, scopes, or contexts. In particular an origin atom contributes
-    only its source, not its own origins. The token universe is therefore finite
-    for a frozen source/model inventory even under recursive allocation.
-    """
+    kind: Literal["object", "variable", "field", "value"]
+    source: SourceIdentity
+    origins: tuple[SourceIdentity, ...] = ()
 
-    kind: str
-    source: Any
-    origins: Tuple[Any, ...] = ()
-
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if (
             self.kind not in {"object", "variable", "field", "value"}
             or not _valid_source_identity(self.source)
@@ -117,31 +283,24 @@ class FiniteContextAtom:
 
 @dataclass(frozen=True)
 class OrderedBindingToken:
-    """Positional and keyword parameter origins, with multiplicity intact."""
+    """Positional and keyword parameter origins, preserving order/multiplicity."""
 
-    bindings: Tuple[Tuple[str, Any], ...] = ()
+    bindings: tuple[tuple[str, BindingAtom], ...] = ()
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if type(self.bindings) is not tuple or any(
             type(entry) is not tuple
             or len(entry) != 2
             or not isinstance(entry[0], str)
             or not entry[0].startswith(("pos:", "kw:"))
-            or not isinstance(entry[1], (FiniteContextAtom, CallSite, str, int, type(None)))
+            or not _binding_atom(entry[1])
             for entry in self.bindings
         ):
             raise ValueError("OrderedBindingToken requires named finite atoms")
 
 
-def _source_identity(item, depth=3):
-    """Project synthetic sites too: their payloads may contain owner objects.
-
-    Synthetic namespace/collector sites sometimes embed an AbstractObject in a
-    tuple. Keeping that tuple unchanged would reintroduce the original recursive
-    identity through an AllocSite. Bound this source-shape projection as well.
-    """
-    from .object import AllocSite
-
+def _source_identity(item: object, depth: int = 3) -> SourceIdentity:
+    """Project known and historical structural source carriers into finite data."""
     if isinstance(item, (str, int, type(None), CallSite, IRStatement)):
         return item
     if depth <= 0:
@@ -152,107 +311,264 @@ def _source_identity(item, depth=3):
         if isinstance(item.stmt, (str, IRStatement)):
             return item
         return ("allocation", item.kind, _source_identity(item.stmt, depth - 1))
-    if hasattr(item, "alloc_site"):
+    if isinstance(item, _AllocationCarrier):
         return _source_identity(item.alloc_site, depth - 1)
-    if isinstance(item, Ctx):
-        content = item.content
-        return (
-            getattr(item.scope, "stmt", None),
-            getattr(content, "kind", None),
-            getattr(content, "name", "<value>").split("@", 1)[0],
-        )
+    decoded = _decode_native_metadata(item, "allocation_source", depth=depth)
+    if _valid_source_identity(decoded):
+        return decoded
+    if _context_record(item):
+        decoded = _decode_native_metadata(item, "source", depth=depth)
+        return _source_payload(decoded)
     if isinstance(item, (tuple, frozenset)):
-        values = tuple(_source_identity(value, depth - 1) for value in item)
+        items: tuple[object, ...] | frozenset[object] = item
+        values = tuple(_source_identity(value, depth - 1) for value in items)
         return frozenset(values) if isinstance(item, frozenset) else values
-    # Enums and immutable field descriptors are finite model symbols.
-    from enum import Enum
-
     if isinstance(item, Enum):
         return item
-    if hasattr(item, "kind") and hasattr(item, "name"):
-        return (item.kind, item.name, getattr(item, "index", None), getattr(item, "key_type", None))
+    if isinstance(item, _NamedSource):
+        return _source_payload(_decode_native_metadata(item, "source", depth=depth))
+    decoded = _decode_native_metadata(item, "source", depth=depth)
+    if _valid_source_identity(decoded):
+        return decoded
     return ("source_shape_summary", type(item).__name__)
 
 
-def _origin_sources(context, limit=2):
-    # Context wrappers are stripped, never retained inside a token.
-    while hasattr(context, "inner"):
-        context = context.inner
-    items = ()
-    for name in ("call_sites", "alloc_sites", "types", "receivers", "params"):
-        items += tuple(getattr(context, name, ()))
-    sources = []
-    for item in items[-limit:]:
-        if isinstance(item, FiniteContextAtom):
-            sources.append(item.source)
-        elif isinstance(item, OrderedBindingToken):
-            sources.append(
-                tuple(
-                    (key, atom.source if isinstance(atom, FiniteContextAtom) else atom)
-                    for key, atom in item.bindings
-                )
-            )
-        elif isinstance(item, CallSite):
-            sources.append(item)
-        elif isinstance(item, (str, int, type(None))):
-            sources.append(item)
-        elif hasattr(item, "alloc_site"):
-            sources.append(_source_identity(item.alloc_site))
-        else:
-            # AllocSite and IR identities contain source, never analysis state.
-            sources.append(_source_identity(item))
-    return tuple(sources)
+def _origin_items(value: object) -> tuple[object, ...]:
+    if isinstance(value, Iterable):
+        items: Iterable[object] = value
+        return tuple(items)
+    if isinstance(value, _MetadataSequence):
+        result: list[object] = []
+        while True:
+            try:
+                result.append(value[len(result)])
+            except (IndexError, StopIteration):
+                return tuple(result)
+    raise TypeError("Context origins must be iterable")
 
 
-def finite_context_atom(item):
-    """Forget recursive analysis identities while retaining finite origins.
+def _origin_sources(context: object, limit: int = 2) -> tuple[SourceIdentity, ...]:
+    decoded = _decode_native_metadata(context, "origins", limit=limit)
+    if isinstance(decoded, _MetadataOrigins):
+        return decoded.values
+    raise TypeError("Malformed Native origin metadata")
 
-    Parameter sensitivity is explicitly sensitivity to ordered argument source
-    locations. It is not a promise of distinguishing all abstract argument
-    values. ``$`` helper variable identities omit dynamic object-id suffixes.
+
+def _decode_native_metadata(
+    item: object,
+    mode: Literal[
+        "source", "allocation_source", "allocation", "field", "variable", "origins", "keywords"
+    ],
+    *,
+    depth: int = 3,
+    limit: int = 2,
+) -> _MetadataDecoded:
+    """Decode stable readonly native metadata, including dynamic attributes.
+
+    Fixed field reads are an external compatibility boundary. Raw objects never
+    leave it: every result is projected/validated into the finite vocabulary.
     """
+    if mode == "origins":
+        seen: set[int] = set()
+        while True:
+            inner: object = (
+                item.inner
+                if isinstance(item, _WrappedContext)
+                else getattr(item, "inner", _METADATA_MISSING)
+            )
+            if inner is _METADATA_MISSING:
+                break
+            if id(item) in seen:
+                raise ValueError("Cyclic Native origin wrapper")
+            seen.add(id(item))
+            item = inner
+        calls: object = (
+            item.call_sites if isinstance(item, _CallOrigins) else getattr(item, "call_sites", ())
+        )
+        allocations: object = (
+            item.alloc_sites
+            if isinstance(item, _AllocationOrigins)
+            else getattr(item, "alloc_sites", ())
+        )
+        types: object = item.types if isinstance(item, _TypeOrigins) else getattr(item, "types", ())
+        receivers: object = (
+            item.receivers if isinstance(item, _ReceiverOrigins) else getattr(item, "receivers", ())
+        )
+        parameters: object = (
+            item.params if isinstance(item, _ParameterOrigins) else getattr(item, "params", ())
+        )
+        items = (
+            _origin_items(calls)
+            + _origin_items(allocations)
+            + _origin_items(types)
+            + _origin_items(receivers)
+            + _origin_items(parameters)
+        )
+        sources: list[SourceIdentity] = []
+        for origin in items[-limit:]:
+            if isinstance(origin, FiniteContextAtom):
+                source: SourceIdentity = origin.source
+            elif isinstance(origin, OrderedBindingToken):
+                source = tuple(
+                    (key, atom.source if isinstance(atom, FiniteContextAtom) else atom)
+                    for key, atom in origin.bindings
+                )
+            elif isinstance(origin, (CallSite, str, int, type(None))):
+                source = origin
+            elif isinstance(origin, _AllocationCarrier):
+                source = _source_identity(origin.alloc_site)
+            else:
+                source = _source_identity(origin)
+            sources.append(_source_payload(source))
+        return _MetadataOrigins(tuple(sources))
+    if mode == "keywords":
+        if isinstance(item, _MetadataItems):
+            entries: object = item.items()
+        else:
+            reader: object = getattr(item, "items", _METADATA_MISSING)
+            if reader is _METADATA_MISSING:
+                entries = item
+            elif isinstance(reader, _MetadataReader):
+                entries = reader()
+            else:
+                raise TypeError("Keyword metadata items must be callable")
+        bindings: list[tuple[str, BindingAtom]] = []
+        for entry in _origin_items(entries):
+            pair = _origin_items(entry)
+            if len(pair) != 2:
+                raise ValueError("Keyword entries must contain two values")
+            keyword_name, keyword_value = pair
+            atom = finite_context_atom(keyword_value)
+            if not _binding_atom(atom):
+                raise ValueError("OrderedBindingToken requires named finite atoms")
+            bindings.append((f"kw:{keyword_name}", atom))
+        return OrderedBindingToken(tuple(bindings))
+    if mode == "variable":
+        if not _context_record(item):
+            return _METADATA_MISSING
+        variable_name: object = getattr(item.content, "name", _METADATA_MISSING)
+        variable_kind: object = getattr(item.content, "kind", _METADATA_MISSING)
+        if variable_name is _METADATA_MISSING or variable_kind is _METADATA_MISSING:
+            return FiniteContextAtom("value", _source_identity(item.content))
+        if not isinstance(variable_name, str):
+            raise TypeError("Context source name must support string projection")
+        if variable_name.startswith("$"):
+            variable_name = variable_name.split("@", 1)[0]
+        scope = None if item.scope is None else _source_payload(item.scope.stmt)
+        return FiniteContextAtom("variable", (scope, _source_payload(variable_kind), variable_name))
+    allocation: object = getattr(item, "alloc_site", _METADATA_MISSING)
+    if mode == "allocation_source":
+        if allocation is not _METADATA_MISSING:
+            return _source_identity(allocation, depth - 1)
+        return _METADATA_MISSING
+    if mode == "source":
+        if allocation is not _METADATA_MISSING:
+            return _source_identity(allocation, depth - 1)
+        if _context_record(item):
+            context_name: object = getattr(item.content, "name", "<value>")
+            context_kind: object = getattr(item.content, "kind", None)
+            if not isinstance(context_name, str):
+                raise TypeError("Context source name must support string projection")
+            scope = None if item.scope is None else _source_payload(item.scope.stmt)
+            return (scope, _source_payload(context_kind), context_name.split("@", 1)[0])
+        descriptor_kind: object = getattr(item, "kind", _METADATA_MISSING)
+        descriptor_name: object = getattr(item, "name", _METADATA_MISSING)
+        if descriptor_kind is not _METADATA_MISSING and descriptor_name is not _METADATA_MISSING:
+            if isinstance(item, _IndexedSource):
+                index: object = item.index
+            else:
+                dynamic_index: object = getattr(item, "index", None)
+                index = dynamic_index
+            if isinstance(item, _TypedKeySource):
+                key_type: object = item.key_type
+            else:
+                dynamic_key_type: object = getattr(item, "key_type", None)
+                key_type = dynamic_key_type
+            return _source_payload((descriptor_kind, descriptor_name, index, key_type))
+        return _METADATA_MISSING
+    if mode == "allocation":
+        context: object = getattr(item, "context", _METADATA_MISSING)
+        if allocation is not _METADATA_MISSING and context is not _METADATA_MISSING:
+            return FiniteContextAtom(
+                "object", _source_identity(allocation), _origin_sources(context)
+            )
+        return _METADATA_MISSING
+    owner: object = getattr(item, "obj", _METADATA_MISSING)
+    field: object = getattr(item, "field", _METADATA_MISSING)
+    if owner is not _METADATA_MISSING and field is not _METADATA_MISSING:
+        projected = finite_context_atom(owner)
+        owner_source = projected.source if isinstance(projected, FiniteContextAtom) else projected
+        return FiniteContextAtom("field", _source_payload((owner_source, field)))
+    return _METADATA_MISSING
+
+
+def finite_context_atom(item: object) -> FiniteContextKey:
+    """Forget runtime identities while preserving the old finite source key."""
     if isinstance(item, (FiniteContextAtom, CallSite, str, int, type(None))):
         return item
     if isinstance(item, OrderedBindingToken):
-        return OrderedBindingToken(
-            tuple((key, finite_context_atom(value)) for key, value in item.bindings)
-        )
-    if isinstance(item, Ctx):
-        content = item.content
-        if hasattr(content, "name") and hasattr(content, "kind"):
+        pairs: list[tuple[str, BindingAtom]] = []
+        for key, value in item.bindings:
+            atom = finite_context_atom(value)
+            if not _binding_atom(atom):
+                raise ValueError("OrderedBindingToken requires named finite atoms")
+            pairs.append((key, atom))
+        return OrderedBindingToken(tuple(pairs))
+    if _context_record(item):
+        content: object = item.content
+        if isinstance(content, _NamedSource):
             name = content.name
+            if not isinstance(name, str):
+                raise TypeError("Context source name must support string projection")
             if name.startswith("$"):
                 name = name.split("@", 1)[0]
-            source = (getattr(item.scope, "stmt", None), content.kind, name)
-            return FiniteContextAtom("variable", source)
-        return FiniteContextAtom("value", _source_identity(content))
-    if hasattr(item, "alloc_site") and hasattr(item, "context"):
+            scope = None if item.scope is None else _source_payload(item.scope.stmt)
+            return FiniteContextAtom("variable", (scope, _source_payload(content.kind), name))
+        decoded = _decode_native_metadata(item, "variable")
+        if isinstance(decoded, FiniteContextAtom):
+            return decoded
+        raise TypeError("Malformed context variable metadata")
+    if isinstance(item, _AllocationCarrier) and isinstance(item, _ContextCarrier):
         return FiniteContextAtom(
             "object", _source_identity(item.alloc_site), _origin_sources(item.context)
         )
+    decoded = _decode_native_metadata(item, "allocation")
+    if isinstance(decoded, FiniteContextAtom):
+        return decoded
     if isinstance(item, tuple):
-        return tuple(finite_context_atom(value) for value in item)
+        items: tuple[object, ...] = item
+        return tuple(finite_context_atom(value) for value in items)
     if isinstance(item, frozenset):
-        # Compatibility for direct old API callers only. Engine callers pass
-        # OrderedBindingToken, so call argument order is not discarded here.
-        return frozenset(finite_context_atom(value) for value in item)
-    if hasattr(item, "obj") and hasattr(item, "field"):
+        members: frozenset[object] = item
+        return frozenset(finite_context_atom(value) for value in members)
+    if isinstance(item, _FieldCarrier):
         obj = finite_context_atom(item.obj)
-        return FiniteContextAtom("field", (getattr(obj, "source", obj), item.field))
+        source = obj.source if isinstance(obj, FiniteContextAtom) else obj
+        return FiniteContextAtom("field", _source_payload((source, item.field)))
+    decoded = _decode_native_metadata(item, "field")
+    if isinstance(decoded, FiniteContextAtom):
+        return decoded
     if isinstance(item, AbstractContext):
         raise ValueError("A context is not a finite context atom")
-    from .object import AllocSite
-
     if isinstance(item, (AllocSite, IRStatement)):
         return _source_identity(item)
     raise TypeError(f"Unsupported context atom: {type(item).__name__}")
 
 
-def ordered_binding_token(args=(), kwargs=()):
-    """Canonical token preserving source evaluation position and keyword name."""
-    pairs = [(f"pos:{index}", finite_context_atom(value)) for index, value in enumerate(args)]
-    entries = kwargs.items() if hasattr(kwargs, "items") else kwargs
-    pairs.extend((f"kw:{name}", finite_context_atom(value)) for name, value in entries)
+def ordered_binding_token(
+    args: Iterable[object] = (),
+    kwargs: object = (),
+) -> OrderedBindingToken:
+    pairs: list[tuple[str, BindingAtom]] = []
+    for index, value in enumerate(args):
+        atom = finite_context_atom(value)
+        if not _binding_atom(atom):
+            raise ValueError("OrderedBindingToken requires named finite atoms")
+        pairs.append((f"pos:{index}", atom))
+    decoded = _decode_native_metadata(kwargs, "keywords")
+    if not isinstance(decoded, OrderedBindingToken):
+        raise TypeError("Malformed keyword metadata")
+    pairs.extend(decoded.bindings)
     return OrderedBindingToken(tuple(pairs))
 
 
@@ -260,7 +576,7 @@ max_idx: int = 0
 context_pool: Dict["AbstractContext", int] = {}
 
 
-T = TypeVar("T", "CallSite", "AbstractObject", "AllocSite")
+T = TypeVar("T")
 
 
 class AbstractContext(ABC, Generic[T]):
@@ -283,7 +599,7 @@ class AbstractContext(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def append(self, call_site: T) -> "AbstractContext":
+    def append(self, call_site: T) -> "AbstractContext[T]":
         """Append a call site to the context."""
         pass
 
@@ -346,7 +662,7 @@ class CallStringContext(AbstractContext["CallSite"]):
 
 
 @dataclass(frozen=True)
-class ObjectContext(AbstractContext[Union["CallSite", "AbstractObject"]]):
+class ObjectContext(AbstractContext[Union["CallSite", "AbstractObject", FiniteContextAtom]]):
     """Object sensitivity: allocation site chain.
 
     Attributes:
@@ -354,7 +670,7 @@ class ObjectContext(AbstractContext[Union["CallSite", "AbstractObject"]]):
         depth: Maximum depth for object context
     """
 
-    alloc_sites: Tuple[Union["CallSite", "AbstractObject"], ...] = ()
+    alloc_sites: Tuple[Union["CallSite", "AbstractObject", FiniteContextAtom], ...] = ()
     depth: int = 2
 
     def __post_init__(self):
@@ -531,8 +847,15 @@ class ParamContext(AbstractContext[Tuple["AbstractObject", ...]]):
         return self.params == other.params and self.depth == other.depth
 
 
+class _MissingHybridReceiver(Enum):
+    TOKEN = "missing_hybrid_receiver"
+
+
+type HybridContextInput = tuple[CallSite, AbstractObject | None]
+
+
 @dataclass(frozen=True)
-class HybridContext(AbstractContext[Tuple["CallSite", Optional["AbstractObject"]]]):
+class HybridContext(AbstractContext[HybridContextInput]):
     """Hybrid: Combine call-string + object sensitivity.
 
     Attributes:
@@ -543,7 +866,7 @@ class HybridContext(AbstractContext[Tuple["CallSite", Optional["AbstractObject"]
     """
 
     call_sites: Tuple["CallSite", ...] = ()
-    alloc_sites: Tuple["AbstractObject", ...] = ()
+    alloc_sites: tuple[AbstractObject | FiniteContextKey, ...] = ()
     call_k: int = 1
     obj_depth: int = 1
 
@@ -582,9 +905,26 @@ class HybridContext(AbstractContext[Tuple["CallSite", Optional["AbstractObject"]
         new_allocs = (self.alloc_sites + (finite_context_atom(alloc_site),))[-self.obj_depth :]
         return HybridContext(self.call_sites, new_allocs, self.call_k, self.obj_depth)
 
+    @overload
+    def append(self, call_site: HybridContextInput) -> "HybridContext": ...
+
+    @overload
+    def append(self, call_site: CallSite, alloc_site: AbstractObject | None) -> "HybridContext": ...
+
+    @override
     def append(
-        self, call_site: "CallSite", alloc_site: Optional["AbstractObject"]
+        self,
+        call_site: CallSite | HybridContextInput,
+        alloc_site: AbstractObject | None | _MissingHybridReceiver = _MissingHybridReceiver.TOKEN,
     ) -> "HybridContext":
+        if isinstance(alloc_site, _MissingHybridReceiver):
+            if not isinstance(call_site, tuple) or len(call_site) != 2:
+                raise TypeError(
+                    "HybridContext.append() missing 1 required positional argument: 'alloc_site'"
+                )
+            call_site, alloc_site = call_site
+        elif isinstance(call_site, tuple):
+            raise TypeError("HybridContext.append() requires a CallSite for the two-argument form")
         new_calls = (self.call_sites + (call_site,))[-self.call_k :] if self.call_k else ()
         new_allocs = (
             (self.alloc_sites + (finite_context_atom(alloc_site),))[-self.obj_depth :]
@@ -608,10 +948,10 @@ class HybridContext(AbstractContext[Tuple["CallSite", Optional["AbstractObject"]
 
 
 @dataclass(frozen=True)
-class SummaryContext(AbstractContext[Any]):
+class SummaryContext(AbstractContext[T]):
     """Explicit marker for summary objects produced by widening."""
 
-    inner: AbstractContext[Any]
+    inner: AbstractContext[T]
 
     def to_string(self) -> str:
         return f"S[{self.inner.to_string()}]"
@@ -619,7 +959,8 @@ class SummaryContext(AbstractContext[Any]):
     def is_empty(self) -> bool:
         return self.inner.is_empty()
 
-    def append(self, call_site: Any) -> "SummaryContext":
+    @override
+    def append(self, call_site: T) -> "SummaryContext[T]":
         return SummaryContext(self.inner.append(call_site))
 
     def __hash__(self) -> int:
@@ -631,21 +972,21 @@ class SummaryContext(AbstractContext[Any]):
         return self.inner == other.inner
 
 
-T = TypeVar("T")
+CtxContentT = TypeVar("CtxContentT", covariant=True)
 
 
 @dataclass(frozen=True)
-class Ctx(Generic[T]):
+class Ctx(Generic[CtxContentT]):
     """Content with context.
 
     Attributes:
-        context: AbstractContext[Any]
-        content: T
+        context: NativeContext | None
+        content: CtxContentT
     """
 
-    context: "AbstractContext[Any]"
-    scope: "Scope"
-    content: T
+    context: "NativeContext | None"
+    scope: "Scope | None"
+    content: CtxContentT
 
     def __hash__(self) -> int:
         return hash((self.content, self.scope, self.context))
@@ -663,6 +1004,11 @@ class Ctx(Generic[T]):
         return f"{self.context}:{self.content}"
 
 
+# Runtime class validation erases only the generic parameter at this boundary;
+# the TypeGuard above exposes a frozen Ctx[object] for validated content reads.
+_CTX_RUNTIME: type[object] = Ctx
+
+
 @dataclass(frozen=True)
 class Scope:
     """Function or module scope for variables.
@@ -675,8 +1021,8 @@ class Scope:
     """
 
     stmt: IRScope
-    obj: Union["FunctionObject", "ClassObject", "ModuleObject"]
-    context: "AbstractContext"
+    obj: "AbstractObject"
+    context: "NativeContext"
     _parent: Optional["Scope"]
     _module: Optional["Scope"]
 
@@ -703,8 +1049,8 @@ class Scope:
     def new(
         cls,
         obj: "AbstractObject",
-        module: "Scope",
-        context: "AbstractContext",
+        module: "Scope | None",
+        context: "NativeContext",
         stmt: IRScope,
         parent: Optional["Scope"] = None,
     ) -> "Scope":
@@ -737,7 +1083,7 @@ class Scope:
     def kind(
         self,
     ) -> Literal["function", "instance_method", "class_method", "static_method", "module", "class"]:
-        from pythonstan.ir.ir_statements import IRFunc, IRClass, IRModule
+        from pythonstan.ir.ir_statements import IRClass, IRFunc, IRModule
 
         if isinstance(self.stmt, IRFunc):
             if self.stmt.is_instance_method:
@@ -752,3 +1098,64 @@ class Scope:
             return "class"
         elif isinstance(self.stmt, IRModule):
             return "module"
+
+
+# Actual policy families admitted at the Native boundary. No custom root context
+# is silently treated as one of these implementations.
+type NativeSummaryContext = (
+    SummaryContext[CallSite]
+    | SummaryContext[CallSite | AbstractObject | FiniteContextAtom]
+    | SummaryContext[CallSite | AbstractObject]
+    | SummaryContext[CallSite | AllocSite]
+    | SummaryContext[tuple[AbstractObject, ...]]
+    | SummaryContext[tuple[CallSite, AbstractObject | None]]
+)
+type NativeProtocolContext = (
+    ProtocolKeyContext[CallSite]
+    | ProtocolKeyContext[CallSite | AbstractObject | FiniteContextAtom]
+    | ProtocolKeyContext[CallSite | AbstractObject]
+    | ProtocolKeyContext[CallSite | AllocSite]
+    | ProtocolKeyContext[tuple[AbstractObject, ...]]
+    | ProtocolKeyContext[tuple[CallSite, AbstractObject | None]]
+)
+type NativeContext = (
+    CallStringContext
+    | ObjectContext
+    | TypeContext
+    | ReceiverContext
+    | ParamContext
+    | HybridContext
+    | NativeSummaryContext
+    | NativeProtocolContext
+)
+
+
+def is_native_context(value: object) -> TypeGuard[NativeContext]:
+    # The optional family imports the base records, so resolve it only after
+    # ordinary module initialization rather than creating a runtime cycle.
+    from .protocol_context import ProtocolKeyContext
+
+    # Generic wrappers remain general-purpose APIs. The Native profile admits
+    # only wrappers whose eventual base is one of the six registered families.
+    # Runtime class tokens and a readonly capability avoid inventing an erased
+    # wrapper type argument while validating the actual object graph.
+    wrappers: tuple[type[object], type[object]] = (SummaryContext, ProtocolKeyContext)
+    current: object = value
+    seen: set[int] = set()
+    while isinstance(current, wrappers):
+        identity = id(current)
+        if identity in seen or not isinstance(current, _WrappedContext):
+            return False
+        seen.add(identity)
+        current = current.inner
+    return isinstance(
+        current,
+        (
+            CallStringContext,
+            ObjectContext,
+            TypeContext,
+            ReceiverContext,
+            ParamContext,
+            HybridContext,
+        ),
+    )

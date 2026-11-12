@@ -86,7 +86,7 @@ def test_actual_l2_authority_is_revoked_and_retired_fresh_id_is_not_reapplied():
     assert fresh in provider._retired_allocation_ids and not provider.programs
     assert all(record['status']=='unknown' for record in provider.proof_records)
     unit=driver.units[unit.key];driver.current=unit.key;driver.scenario=driver.unit_scenarios[unit.key]
-    assert provider.try_apply(driver,dispatch,[table,Value.constant('write'),Value.constant('before')],(),store,unit.frame,site) is None
+    assert provider.try_apply(driver._summary_context(),dispatch,[table,Value.constant('write'),Value.constant('before')],(),store,unit.frame,site) is None
     assert provider.statistics['applications']==applied
     current=next(flow.store for flow in unit.outcomes if flow.kind=='normal')
     assert fresh not in current.heap and not current.heap['summary:fresh'].singleton

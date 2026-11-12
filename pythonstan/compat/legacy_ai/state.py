@@ -113,7 +113,7 @@ class AIState:
     # Shared cell/global slots are state, not mutable interpreter services.
     shared_bindings: Dict[Tuple[str, str], AbsVal] = field(default_factory=dict)
     # Persistent canonicalization makes future accesses through old aliases work.
-    address_remaps: Dict[Any, Any] = field(default_factory=dict)
+    address_remaps: Dict["AbstractObject", "AbstractObject"] = field(default_factory=dict)
     remap_generation: int = 0
 
     def __post_init__(self):

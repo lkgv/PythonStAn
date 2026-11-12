@@ -1,0 +1,49 @@
+{
+  "status": "ready_for_independent_review",
+  "cards": [
+    "N4-TYPE-01",
+    "N4-TYPE-02"
+  ],
+  "cards_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/dictionaries.py": "bf97b88c6ab91c97836d43395c34e6c9567e547633d2bbeee73157900f24f115",
+    "pythonstan/analysis/engines/abstract/dictionary_views.py": "6938f9540e240b15f7966e492c80a1c8b0d5591fd38244417266cacc79aaf5f7",
+    "tests/regression/audit3/test_dictionary_ports.py": "c5b29321c1dab8760369b2874ee5d95fac054984e3fa3e24c316290434e32e17"
+  },
+  "provider_sha256": {
+    "pythonstan/analysis/engines/abstract/namespaces.py": "e541bbef487faf4928f3f72ae2e956b480b2f6fd16e28cbaffda34c470047bd2",
+    "pythonstan/analysis/domains/relations.py": "35644d0f77988d53d43a2f43fa89e2383f23930d05b7e8c02f44531772121f66"
+  },
+  "mechanical_base": "27ade6b; dictionaries.py already formatter-identical; dictionary_views.py separate AST-identical formatting checkpoint",
+  "scope": [
+    "Complete actual DictionaryOperations and DictionaryViews implementations use canonical Value, Store, Frame, Flow, StateHandle, metadata records and real Transfer providers.",
+    "Dictionary construction plans remain finite tagged tuples with the exact historical tuple shape and CPython 3.12 compiler grouping/cache behavior.",
+    "Actual dict, dictionary-view and iterator metadata producers construct ContainerMeta, DictViewMeta and DictionaryIteratorMeta; consumers use validated canonical records.",
+    "Actual field publication goes through the explicit driver oracle channel; state writes use canonical write effects and revision accounting.",
+    "Dictionary relation producers carry real function ObjectId values, with existing qualified display names passed separately to the canonical relation contract."
+  ],
+  "behavioral_compatibility": [
+    "Preserved historical exact scalar-key and integer-index guards, boolean/numeric control interpretation, exception paths, dynamic/open complements and evaluation/hash insertion order.",
+    "Existing plan tuple equality and cache invalidation assertions remain unchanged.",
+    "Relation handler display strings remain unchanged; semantic peer owns the explicit identity digest delta caused by using true runtime identities."
+  ],
+  "verification": {
+    "runtime": "342 passed in 20.59s",
+    "strict_owned_diagnostics": 0,
+    "strict_underlying_exit": 1,
+    "strict_imported_diagnostics": 652,
+    "ruff": "All checks passed!",
+    "format": "3 files already formatted",
+    "owned_source_stable": true,
+    "provider_source_stable": true,
+    "raw_receipt": "artifacts/next/evidence/N4-TYPE-01/dictionary-ports/receipt.json"
+  },
+  "new_integration_control": "A real module constructs a function table and reads one handler; chosen.refs and every relation handler equal the actual driver.functions identity, while exported relation handler remains the prior qualified display name.",
+  "limits": [
+    "Ordinary imports expose 652 diagnostics in 14 dependency files; whole-tree mypy and the quality gate are not clean.",
+    "This accepts no parent TYPE card, semantic audit red, complete cost contract, Native region qualification, or release qualification.",
+    "Namespaces and relation identity/display implementations are peer-owned real providers and require their own reviews.",
+    "The reviewer-discovered stale unused oracle preparation issue is a separate follow-on finding; this dictionary receipt does not resolve it.",
+    "No baseline, frozen quality debt, semantic gold or task status was reset."
+  ]
+}

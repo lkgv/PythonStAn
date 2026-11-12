@@ -9,41 +9,36 @@ This module defines:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    FrozenSet,
-    Generic,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Literal, override
 
-from pythonstan.compat.legacy_ai.value_domain import AbsVal
-from pythonstan.analysis.domains.ints import IntLattice, IntDomain
+from pythonstan.analysis.domains.ints import IntDomain, IntLattice
+from pythonstan.analysis.pointer.kcfa.context import FiniteContextKey
+from pythonstan.compat.legacy_ai.value_domain import AbsVal, LegacyDomainContractError
 
 if TYPE_CHECKING:
-    from pythonstan.analysis.pointer.kcfa.object import AbstractObject, AllocSite
-    from pythonstan.analysis.pointer.kcfa.context import AbstractContext
+    from pythonstan.analysis.pointer.kcfa.context import NativeContext
     from pythonstan.analysis.pointer.kcfa.heap_model import Field
+    from pythonstan.analysis.pointer.kcfa.object import AbstractObject, AllocSite
 
 # Import unified SlotMap from domains
 from pythonstan.compat.legacy_ai.domains.mapslots import (
-    SlotMap,
-    Slot,
+    KeySig as KeySig,
+)
+from pythonstan.compat.legacy_ai.domains.mapslots import (
     Presence,
-    KeySig,
-    make_str_keysig,
-    keysig_to_field,
-    field_to_keysig,
+    Slot,
+    SlotMap,
     slotmap_from_fieldstore,
     slotmap_to_fieldstore,
+)
+from pythonstan.compat.legacy_ai.domains.mapslots import (
+    field_to_keysig as field_to_keysig,
+)
+from pythonstan.compat.legacy_ai.domains.mapslots import (
+    keysig_to_field as keysig_to_field,
+)
+from pythonstan.compat.legacy_ai.domains.mapslots import (
+    make_str_keysig as make_str_keysig,
 )
 
 __all__ = [
@@ -59,7 +54,13 @@ __all__ = [
 ]
 
 # Type for address sets used by summaries and low-level compatibility.
-AddrSet = FrozenSet["AbstractObject"]
+AddrSet = frozenset["AbstractObject"]
+type TrackedKey = None | bool | int | float | str
+type AIAddrProjection = (
+    tuple[()]
+    | tuple[Literal["method"], FiniteContextKey, FiniteContextKey | None]
+    | tuple[Literal["builtin_method"], str, FiniteContextKey]
+)
 
 
 # =============================================================================
@@ -80,22 +81,23 @@ class AIAddr:
     """
 
     alloc_site: "AllocSite"
-    context: "AbstractContext"
+    context: "NativeContext"
     # Bound and unbound Native method objects can have the same allocation and
     # context while denoting different receiver-bearing representations. The
     # optional flat token preserves them without embedding contextual objects.
-    projection: tuple = ()
+    projection: AIAddrProjection = ()
 
+    @override
     def __str__(self) -> str:
         return f"{self.alloc_site}@{self.context}"
 
     @classmethod
     def from_kcfa_obj(cls, obj: "AbstractObject") -> "AIAddr":
         """Create AIAddr from kcfa AbstractObject."""
-        from pythonstan.analysis.pointer.kcfa.object import MethodObject, BuiltinMethodObject
-        from pythonstan.analysis.pointer.kcfa.context import finite_context_atom
+        from pythonstan.analysis.pointer.kcfa.context import finite_context_atom, is_native_context
+        from pythonstan.analysis.pointer.kcfa.object import BuiltinMethodObject, MethodObject
 
-        projection = ()
+        projection: AIAddrProjection = ()
         if isinstance(obj, MethodObject):
             projection = (
                 "method",
@@ -104,7 +106,10 @@ class AIAddr:
             )
         elif isinstance(obj, BuiltinMethodObject):
             projection = ("builtin_method", obj.method_name, finite_context_atom(obj.receiver))
-        return cls(obj.alloc_site, obj.context, projection)
+        context = obj.context
+        if not is_native_context(context):
+            raise LegacyDomainContractError("Native heap addresses require a registered context")
+        return cls(obj.alloc_site, context, projection)
 
 
 # =============================================================================
@@ -162,7 +167,7 @@ class FieldStore:
         max_keys: Maximum number of tracked keys before spilling
     """
 
-    precise_map: Dict["Field", AbsVal] = field(default_factory=dict)
+    precise_map: dict["Field", AbsVal] = field(default_factory=dict)
     default_bucket: AbsVal = field(default_factory=AbsVal.bottom)
     max_keys: int = 20
 
@@ -187,7 +192,7 @@ class FieldStore:
             return self.precise_map[key].join(self.default_bucket)
         return self.default_bucket
 
-    def get_keys(self, keys: FrozenSet["Field"]) -> AbsVal:
+    def get_keys(self, keys: frozenset["Field"]) -> AbsVal:
         """Get value for a set of constant field keys."""
         result = AbsVal.bottom()
         for k in keys:
@@ -220,7 +225,7 @@ class FieldStore:
             new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
-    def weak_set_keys(self, keys: FrozenSet["Field"], value: AbsVal) -> "FieldStore":
+    def weak_set_keys(self, keys: frozenset["Field"], value: AbsVal) -> "FieldStore":
         """Weak update for a set of constant keys."""
         new_fs = self.copy()
         for k in keys:
@@ -256,7 +261,7 @@ class FieldStore:
 
     def join(self, other: "FieldStore") -> "FieldStore":
         """Join two field stores (⊔)."""
-        new_map: Dict["Field", AbsVal] = {}
+        new_map: dict[Field, AbsVal] = {}
         all_keys = set(self.precise_map.keys()) | set(other.precise_map.keys())
 
         for k in all_keys:
@@ -295,7 +300,7 @@ class FieldStore:
             to_spill = len(joined.precise_map) - joined.max_keys
 
             spilled_values = AbsVal.bottom()
-            new_map: Dict["Field", AbsVal] = {}
+            new_map: dict[Field, AbsVal] = {}
 
             for i, (k, v) in enumerate(items):
                 if i < to_spill:
@@ -319,7 +324,7 @@ class FieldStore:
         A previously spilled value may be precise in ``other``. Intersecting
         only matching stored keys/defaults would drop that reachable value.
         """
-        new_map: Dict["Field", AbsVal] = {}
+        new_map: dict[Field, AbsVal] = {}
         for k in self.precise_map.keys() | other.precise_map.keys():
             new_map[k] = self.get_const(k).meet(other.get_const(k))
 
@@ -345,6 +350,7 @@ class FieldStore:
         """Create top field store (unknown value for all keys)."""
         return cls(default_bucket=AbsVal.top(), max_keys=max_keys)
 
+    @override
     def __str__(self) -> str:
         parts = []
         for k, v in sorted(self.precise_map.items(), key=lambda x: str(x[0])):
@@ -384,7 +390,7 @@ class ContainerSlots:
     elem_bucket: AbsVal = field(default_factory=AbsVal.bottom)
 
     # Tracked indices/keys (optional precision)
-    tracked_indices: Dict[Union[int, str], AbsVal] = field(default_factory=dict)
+    tracked_indices: dict[TrackedKey, AbsVal] = field(default_factory=dict)
 
     # Length abstraction (simplified: just may-be-empty flag for now)
     may_be_empty: bool = True
@@ -425,7 +431,7 @@ class ContainerSlots:
             result = result.join(v)
         return result
 
-    def get_index(self, idx: Union[int, str]) -> AbsVal:
+    def get_index(self, idx: TrackedKey) -> AbsVal:
         """Get element at specific index."""
         if idx in self.tracked_indices:
             return self.tracked_indices[idx].join(self.elem_bucket)
@@ -438,7 +444,7 @@ class ContainerSlots:
         new_slots.may_be_empty = False
         return new_slots
 
-    def set_index(self, idx: Union[int, str], value: AbsVal) -> "ContainerSlots":
+    def set_index(self, idx: TrackedKey, value: AbsVal) -> "ContainerSlots":
         """Set element at specific index."""
         new_slots = self.copy()
         if idx in new_slots.tracked_indices:
@@ -452,7 +458,7 @@ class ContainerSlots:
 
     def join(self, other: "ContainerSlots") -> "ContainerSlots":
         """Join two container slots."""
-        new_tracked: Dict[Union[int, str], AbsVal] = {}
+        new_tracked: dict[TrackedKey, AbsVal] = {}
         all_keys = set(self.tracked_indices.keys()) | set(other.tracked_indices.keys())
 
         for k in all_keys:
@@ -489,7 +495,10 @@ class ContainerSlots:
         """Widen container slots (spill tracked to elem bucket)."""
         joined = self.join(other)
         integer = self.elem_bucket.registry.get("int") or IntDomain()
-        joined.length = integer.widen(self.length, other.length)
+        length = integer.widen(self.length, other.length)
+        if not isinstance(length, IntLattice):
+            raise LegacyDomainContractError("Native container length requires IntLattice")
+        joined.length = length
         joined.elem_bucket = self.elem_bucket.widen(other.elem_bucket)
         joined.tracked_indices = {
             key: self.get_index(key).widen(other.get_index(key)) for key in joined.tracked_indices
@@ -514,7 +523,7 @@ class ContainerSlots:
 
         Meet effective index values, recovering any prior spill when needed.
         """
-        new_tracked: Dict[Union[int, str], AbsVal] = {}
+        new_tracked: dict[TrackedKey, AbsVal] = {}
         for k in self.tracked_indices.keys() | other.tracked_indices.keys():
             new_tracked[k] = self.get_index(k).meet(other.get_index(k))
 
@@ -562,7 +571,7 @@ class AbsObj:
     kind: ObjKind
     cls_addrs: AddrSet = field(default_factory=frozenset)
     slots: SlotMap = field(default_factory=_default_slotmap)
-    container_slots: Optional[ContainerSlots] = None
+    container_slots: ContainerSlots | None = None
 
     def copy(self) -> "AbsObj":
         """Create a shallow copy."""
@@ -693,5 +702,6 @@ class AbsObj:
         """Check if this is a container object."""
         return self.kind in (ObjKind.LIST, ObjKind.DICT, ObjKind.SET, ObjKind.TUPLE)
 
+    @override
     def __str__(self) -> str:
         return f"AbsObj({self.addr}, {self.kind.value})"

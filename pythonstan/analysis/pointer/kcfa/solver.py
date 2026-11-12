@@ -4,11 +4,15 @@ This module implements the core solver for pointer analysis using
 constraint-based propagation.
 """
 
+from __future__ import annotations
+
 import ast
 import logging
 import warnings
 import time
 from collections import deque
+from collections.abc import Iterable as ObjectIterable
+from typing import Literal
 from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple, Iterable, Union
 
 from pythonstan.ir.ir_statements import (
@@ -33,7 +37,7 @@ from .heap_model import Field, FieldKind, attr, key, elem, value, wildcard_key
 from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge, CallKind
 from .ir_translator import IRTranslator
 from .context_selector import ContextSelector, AbstractContext
-from .context import Ctx, Scope, CallSite, ordered_binding_token
+from .context import Ctx, Scope, CallSite, NativeContext, is_native_context, ordered_binding_token
 from .class_hierarchy import ClassHierarchyManager
 from .builtin_api_handler import BuiltinSummaryManager
 from .unknown_tracker import UnknownTracker, UnknownKind
@@ -58,6 +62,9 @@ from .bootstrap import (
 from .diagnostics import NativeDiagnostics
 from .scheduler import NativeScheduler
 from pythonstan.world import World
+from pythonstan.analysis.contracts.work import WorkLedgerPort
+from pythonstan.compat.intrinsic_boundary import IntrinsicProviderPort
+from .pta_query_adapter import PtaQueryAdapter
 
 if TYPE_CHECKING:
     from .debug_monitor import DebugMonitor
@@ -67,7 +74,20 @@ __all__ = ["PointerSolver", "SolverQuery"]
 logger = logging.getLogger(__name__)
 
 
+type NativeBuiltinInvocation = tuple[Scope, CallConstraint, AbstractObject]
+type NativeWatchedVariable = Ctx[Variable] | Ctx[FieldAccess]
+
+
 class PointerSolver:
+    intrinsic_provider: IntrinsicProviderPort | None
+    _diagnostics: NativeDiagnostics | None
+    _builtin_dependencies: dict[NativeWatchedVariable, set[NativeBuiltinInvocation]]
+    _builtin_object_dependencies: dict[AbstractObject, set[NativeBuiltinInvocation]]
+    _builtin_invocations: dict[
+        NativeBuiltinInvocation, tuple[Scope, NativeContext, CallConstraint, AbstractObject]
+    ]
+    _builtin_replays: deque[NativeBuiltinInvocation]
+    _queued_builtin_replays: set[NativeBuiltinInvocation]
     _WORK_KIND_ORDER = NativeScheduler.KIND_ORDER
 
     def __init__(
@@ -275,7 +295,13 @@ class PointerSolver:
             if not existing.is_empty():
                 self._constraint_replays.append((scope, trigger, constraint, existing))
 
-    def _register_builtin_dependencies(self, scope, context, call, builtin_obj):
+    def _register_builtin_dependencies(
+        self,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        builtin_obj: AbstractObject,
+    ) -> NativeBuiltinInvocation:
         """Re-evaluate snapshot-based builtin models when their inputs grow."""
         invocation = (scope, call, builtin_obj)
         if self._diagnostics is not None and invocation not in self._builtin_invocations:
@@ -311,13 +337,15 @@ class PointerSolver:
             )
         return invocation
 
-    def _promote_points_variable(self, variable):
-        queue = getattr(self.state, "_consumer_worklist", None)
+    def _promote_points_variable(self, variable: NativeWatchedVariable | PointerFlowNode) -> None:
+        queue = self.state._consumer_worklist
         if queue is not None:
             node = variable if isinstance(variable, PointerFlowNode) else NormalNode(variable)
             queue.promote(node)
 
-    def _watch_builtin_variable(self, variable, invocation):
+    def _watch_builtin_variable(
+        self, variable: NativeWatchedVariable, invocation: NativeBuiltinInvocation
+    ) -> None:
         dependencies = self._builtin_dependencies.setdefault(variable, set())
         new_dependency = invocation not in dependencies
         dependencies.add(invocation)
@@ -1921,24 +1949,27 @@ class PointerSolver:
             pass
         return False
 
-    def set_global_work_limit(self, limit):
+    def set_global_work_limit(self, limit: int | None) -> None:
         if self.work_ledger.used or self._work_iteration_started:
             raise ValueError("Global work budget must be fixed before execution")
         from pythonstan.analysis.contracts.work import SharedWorkLedger
 
         self.work_ledger = SharedWorkLedger(limit)
 
-    def set_intrinsic_provider(self, provider):
+    def set_intrinsic_provider(self, provider: IntrinsicProviderPort | None) -> None:
         if self._work_iteration_started or self.work_ledger.used:
             raise ValueError("Intrinsic provider must be injected before execution")
         if provider is not None and (
-            not callable(getattr(provider, "supports", None))
-            or not callable(getattr(provider, "apply", None))
+            not isinstance(provider, IntrinsicProviderPort)
+            or not callable(provider.supports)
+            or not callable(provider.apply)
         ):
             raise TypeError("Intrinsic provider requires supports/apply")
         self.intrinsic_provider = provider
 
-    def _try_ai_intrinsic(self, scope, context, call, builtin_obj):
+    def _try_ai_intrinsic(
+        self, scope: Scope, context: object, call: CallConstraint, builtin_obj: AbstractObject
+    ) -> bool:
         provider = self.intrinsic_provider
         if (
             not self.config.enable_ai_intrinsics
@@ -1946,53 +1977,93 @@ class PointerSolver:
             or not provider.supports(builtin_obj)
         ):
             return False
+        if not is_native_context(context):
+            self.intrinsic_fallback(scope, call, "unregistered_native_context")
+            return False
         started = time.perf_counter()
         try:
             return provider.apply(self, scope, context, call, builtin_obj, self.work_ledger)
         finally:
             self.intrinsic_seconds += time.perf_counter() - started
 
-    def begin_intrinsic(self, scope, context, call, builtin):
+    def begin_intrinsic(
+        self, scope: Scope, context: NativeContext, call: CallConstraint, builtin: AbstractObject
+    ) -> NativeBuiltinInvocation:
         return self._register_builtin_dependencies(scope, context, call, builtin)
 
-    def intrinsic_points(self, scope, context, variable):
+    def intrinsic_points(
+        self, scope: Scope, context: NativeContext, variable: Variable
+    ) -> PointsToSet:
         return self.state.get_points_to(self.state.get_variable(scope, context, variable))
 
-    def make_intrinsic_adapter(self):
+    def make_intrinsic_adapter(self) -> PtaQueryAdapter:
         from .pta_query_adapter import PtaQueryAdapter
 
         return PtaQueryAdapter(self.state, self.class_hierarchy, self.context_selector)
 
-    def intrinsic_budget_options(self):
+    def intrinsic_budget_options(self) -> dict[str, int | bool]:
         return dict(self.config.ai_budget)
 
-    def intrinsic_counter(self, event):
+    def intrinsic_counter(self, event: Literal["attempts", "applied", "deferred"]) -> None:
         if event not in {"attempts", "applied", "deferred"}:
             raise ValueError("Unknown intrinsic counter")
-        self._stats["ai_intrinsic_" + event] += 1
+        key = "ai_intrinsic_" + event
+        statistics: dict[str, object] = self._stats
+        previous = statistics[key]
+        if type(previous) is not int:
+            raise TypeError("Intrinsic counters require integer storage")
+        statistics[key] = previous + 1
 
-    def intrinsic_fallback(self, scope, call, reason):
+    def intrinsic_fallback(self, scope: Scope, call: CallConstraint, reason: str) -> None:
         self._record_ai_fallback(scope, call, reason)
 
-    def watch_intrinsic_read(self, invocation, variable):
+    def watch_intrinsic_read(
+        self, invocation: NativeBuiltinInvocation, variable: NativeWatchedVariable
+    ) -> None:
         self._watch_builtin_variable(variable, invocation)
 
-    def watch_intrinsic_object(self, invocation, obj):
+    def watch_intrinsic_object(
+        self, invocation: NativeBuiltinInvocation, obj: AbstractObject
+    ) -> None:
         self._builtin_object_dependencies.setdefault(obj, set()).add(invocation)
 
-    def watch_intrinsic_field(self, invocation, scope, context, obj, field):
+    def watch_intrinsic_field(
+        self,
+        invocation: NativeBuiltinInvocation,
+        scope: Scope,
+        context: NativeContext,
+        obj: AbstractObject,
+        field: Field,
+    ) -> None:
         self._watch_builtin_variable(self.state.get_field(scope, context, obj, field), invocation)
 
-    def publish_intrinsic_return(self, scope, context, target, objects):
+    def publish_intrinsic_return(
+        self,
+        scope: Scope,
+        context: NativeContext,
+        target: Variable,
+        objects: ObjectIterable[AbstractObject],
+    ) -> None:
         variable = self.state.get_variable(scope, context, target)
         self.handle_new_points_to(variable, scope, PointsToSet.from_objects(objects))
 
-    def publish_intrinsic_write(self, scope, context, obj, field, objects):
+    def publish_intrinsic_write(
+        self,
+        scope: Scope,
+        context: NativeContext,
+        obj: AbstractObject,
+        field: Field,
+        objects: ObjectIterable[AbstractObject],
+    ) -> None:
         variable = self.state.get_write_field(scope, context, obj, field)
         self.handle_new_points_to(variable, scope, PointsToSet.from_objects(objects))
 
-    def _record_ai_fallback(self, scope, call, reason):
-        self._stats["ai_intrinsic_fallbacks"] += 1
+    def _record_ai_fallback(self, scope: Scope, call: CallConstraint, reason: str) -> None:
+        statistics: dict[str, object] = self._stats
+        previous = statistics["ai_intrinsic_fallbacks"]
+        if type(previous) is not int:
+            raise TypeError("Intrinsic counters require integer storage")
+        statistics["ai_intrinsic_fallbacks"] = previous + 1
         self._unknown_tracker.record(
             UnknownKind.AI_FALLBACK,
             str(call.call_site),

@@ -1,9 +1,27 @@
 """Explicit runtime service injection for the retained legacy Pipeline."""
 
+from __future__ import annotations
 
-def configure_native_services(manager, *, max_work=None, source_metadata=None, input_bindings=None):
-    configured = []
-    metadata = None
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
+from pythonstan.analysis.contracts.json_data import JsonValue
+
+if TYPE_CHECKING:
+    from pythonstan.world.analysis_manager import AnalysisManager
+
+
+def configure_native_services(
+    manager: AnalysisManager,
+    *,
+    max_work: int | None = None,
+    source_metadata: dict[str, dict[str, str]] | None = None,
+    input_bindings: Mapping[str, JsonValue] | None = None,
+) -> tuple[str, ...]:
+    from pythonstan.analysis.pointer.kcfa.analysis import PointerAnalysis
+
+    configured: list[str] = []
+    metadata: dict[str, dict[str, str]] | None = None
     if source_metadata is not None:
         if type(source_metadata) is not dict or any(
             type(name) is not str
@@ -15,10 +33,9 @@ def configure_native_services(manager, *, max_work=None, source_metadata=None, i
             raise ValueError("Source metadata must map modules to explicit string metadata")
         metadata = {name: dict(values) for name, values in source_metadata.items()}
     for name, analyzer in manager.analyzers.items():
-        driver = getattr(analyzer, "driver", analyzer)
-        solver = getattr(driver, "solver", None)
-        if solver is None or not hasattr(solver, "set_intrinsic_provider"):
+        if not isinstance(analyzer, PointerAnalysis):
             continue
+        solver = analyzer.solver
         if metadata is not None:
             if solver._work_iteration_started or solver.work_ledger.used:
                 raise ValueError("Source metadata must be fixed before execution")

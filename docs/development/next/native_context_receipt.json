@@ -1,0 +1,182 @@
+{
+  "status": "interface_ready_scoped_methods_qualified_not_parent_verified",
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/context.py": "c794b98ef46fb409c5664e8e7bdd401319310e6450d6af3aff9fb20de6eb73da",
+    "pythonstan/analysis/pointer/kcfa/protocol_context.py": "787ba364225d4e185993d73c73f85a8fc1d6db398f7c87fa67d07455f2b3e5fc"
+  },
+  "test_sha256": "a340d9e43e35d581f7f0067986beb245a2fb2b60aafe6c293e989d3fda3ba845",
+  "validation": {
+    "integration": "Independent191pass binds final formatted c794/787 source; parent/fullmodule not qualified",
+    "new_controls": "44 passed in 0.21s",
+    "helper_differential": {
+      "status": "exact",
+      "atom_outcomes": 35,
+      "source_projections": 210,
+      "origin_projections": 24,
+      "binding_projections": 24,
+      "equality_pairs": 784
+    },
+    "changed_actual_method_strict_anyexpr": 0,
+    "new_method_and_test_lint": 0,
+    "whole_imported_mypy_diagnostics": 10954,
+    "mypy_exit": 1,
+    "retained_module_lint": 59,
+    "ruff_module_exit": 1,
+    "retained_exact_abstract_body_lint": 1
+  },
+  "explicit_changes": [
+    {
+      "finding": "Native wrapper admission incorrectly accepted custom underlying contexts outside registered profile",
+      "before": "wrapper-admission-red.txt:1 failed expected rejection on actual SummaryContext(CustomIntContext)",
+      "after": "ordinary19base/wrapper positives + custom underlying/cycle negatives pass",
+      "scope": "Native bridge admission only; standalone general wrapper operations preserved"
+    },
+    {
+      "finding": "Hybrid two-argument override violated canonical one-tuple append used by Summary/Protocol wrappers",
+      "before": "Independent reviewer initial-findings.json retains actual Summary(Hybrid).append(pair) missing-receiver TypeError on d8b candidate.",
+      "after": "Valid legacy2arg results/hash/repr equal new1tuple across16depth pairs\u00d72receiver forms, includingBase/Summary/Protocol/nested forwarding; legacy wrong arities stillTypeError.",
+      "scope": "Explicit base-contract compatibility extension; old algorithm suffix unchanged."
+    }
+  ],
+  "restored_compatibility": {
+    "finding": "Initial runtime-Protocol checks dropped valid stable __getattr__ metadata",
+    "before": "Independent reviewer initial-findings.json retains actual DynamicCarrier allocation/source red.",
+    "after": "One fixed-field metadata decoder emits only validated finite sources/atoms/origins/bindings; dynamicallocation,field,variable,origin/wrapper,keywordentry positives and malformed negatives pass; frozen-old differential exact.",
+    "preconditions": "Readonly stable fields and finite sequence/entry values."
+  },
+  "baseline_source_sha256": "7bc61d6aa6ab9d722c1e25e0d522414e69a07889e2ae5778f694939840080346",
+  "source_body_parity": "All unaffected methods unchanged (existing import-name order normalization only); Hybrid append adds typed argument dispatch before exact old algorithm suffix.",
+  "commands": [
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m pytest -q tests/regression/audit3/test_finite_context_keys.py tests/pointer/kcfa/test_context.py tests/pointer/kcfa/test_context_selector.py tests/refactor/engines/test_native_context.py tests/round14_formal/test_key_context_model.py",
+      "exit": 0
+    },
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m pytest -q tests/regression/audit3/test_finite_context_keys.py",
+      "exit": 0
+    },
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m mypy --strict --disallow-any-expr --show-column-numbers --no-error-summary pythonstan/analysis/pointer/kcfa/context.py pythonstan/analysis/pointer/kcfa/protocol_context.py",
+      "exit": 1
+    },
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/ruff check --output-format json pythonstan/analysis/pointer/kcfa/context.py pythonstan/analysis/pointer/kcfa/protocol_context.py tests/regression/audit3/test_finite_context_keys.py",
+      "exit": 1
+    },
+    {
+      "command": "PYTHONPATH=. /workspace/scratch/8d3426210943/quality-env/bin/python artifacts/next/evidence/N4-TYPE-01/native-context/differential.py",
+      "exit": 0
+    },
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python artifacts/next/evidence/N4-TYPE-01/native-context/method_body_parity.py",
+      "exit": 0
+    },
+    {
+      "command": "PYTHONPATH=. /workspace/scratch/8d3426210943/quality-env/bin/python artifacts/next/evidence/N4-TYPE-01/native-context/replay_old_helpers.py",
+      "exit": 1
+    },
+    {
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m pytest -q tests/refactor/benchmark/test_family_integrity.py tests/regression/audit3/test_summary_provider_context.py",
+      "exit": 0
+    }
+  ],
+  "raw_receipt_path": "artifacts/next/evidence/N4-TYPE-01/native-context/receipts.json",
+  "profile": {
+    "selector_policies": 19,
+    "runtime_context_families": 8,
+    "gold_and_acceptance_denominator_unchanged": true,
+    "real_llm_calls": 0
+  },
+  "limitations": [
+    "Whole legacy scheduler strict/lint debt remains. Native19+Protocol8-family helper scope qualified only.",
+    "Finite differential covers listed cases and is not a proof over arbitrary runtime objects.",
+    "Private malformed descriptor projection now rejects before returning a nonfinite source; public finite atom construction already rejected those data.",
+    "Expanded framework suite3red/9optional skips remain separately recorded; not used to claim mandatory semantic acceptance.",
+    "Hybrid tuple supplied as the call-site of the legacy two-argument signature is outside its declared CallSite API and rejects TypeError; valid legacy CallSite/receiver cases are preserved."
+  ],
+  "review": {
+    "status": "independent bounded acceptance",
+    "report": "docs/development/next/context2_independent_review.json",
+    "narrative": "docs/development/next/reviews/TYPE-01-native-context.md",
+    "source_binding": "c794b98ef46fb409c5664e8e7bdd401319310e6450d6af3aff9fb20de6eb73da/787ba364225d4e185993d73c73f85a8fc1d6db398f7c87fa67d07455f2b3e5fc",
+    "integration": "Independent191pass on final formatted source; parent/fullmodule remain open."
+  },
+  "runtime_source_sha256_before_format": {
+    "pythonstan/analysis/pointer/kcfa/context.py": "c996714a8ab1203277ebf698638922e07d746a3a6d15c1e26a69679f4611f015",
+    "pythonstan/analysis/pointer/kcfa/protocol_context.py": "787ba364225d4e185993d73c73f85a8fc1d6db398f7c87fa67d07455f2b3e5fc"
+  },
+  "whole_format_proof": {
+    "before_sha256": "c996714a8ab1203277ebf698638922e07d746a3a6d15c1e26a69679f4611f015",
+    "after_sha256": "c794b98ef46fb409c5664e8e7bdd401319310e6450d6af3aff9fb20de6eb73da",
+    "exact_AST_equal": false,
+    "executable_AST_equal_excluding_docstring_whitespace": true,
+    "docstring_whitespace_changes": [
+      {
+        "path": "module/CallStringContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "5830bb6d9b7a00697de408029556a6a173f79b735bcfbb74554742cb920849a7",
+        "after_sha256": "9abbde6f2ab81adda6ba32c4e248d142009ed80e8a578bc8a72a7fadeb0b4d6a"
+      },
+      {
+        "path": "module/ObjectContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "9c1ddd18fc5eeb424613b0a3f195b9c9cc6f09fa4c9c24723da7a7a5c3d2f39b",
+        "after_sha256": "1e29fadb2e35a7f97c3326c4a5c88b1267a77508d8ecba446b9880dd93ea2e26"
+      },
+      {
+        "path": "module/TypeContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "9b6a53e4f9be8aab97ee3b3c5a8ea92a5e8aae6e83d531ea2c2e000a0dc9df91",
+        "after_sha256": "27fb0332e546c4994eaf1eada6956c24e89cd74f527bf960d12514411f503b3a"
+      },
+      {
+        "path": "module/ReceiverContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "b9d4fde5d895c019a7958158873eaae53819409d7b9cddc5f3e9dc6d1ffdda40",
+        "after_sha256": "be68f0d6849b7c036032ef452d882f9847feb01b7a0351c1e86e961244414362"
+      },
+      {
+        "path": "module/ParamContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "d57a0c3e653c201fcab3d4d70677e8f2f8ea87c426707942c3fa4118ff9f856d",
+        "after_sha256": "be147a90601a046493e9fe1eed4132ca89b39316da48cd390996c93fb5038296"
+      },
+      {
+        "path": "module/HybridContext",
+        "difference": "docstring whitespace only",
+        "before_sha256": "10d8aa4416a8d7efc7b49af44771a9239dab8732790ca308c293b1fc62cb5847",
+        "after_sha256": "35cfc120e228bcb1ec4cd27498b8d814faa962689ddbf4285aa0a85720058dba"
+      },
+      {
+        "path": "module/Ctx",
+        "difference": "docstring whitespace only",
+        "before_sha256": "9ef69e5f49dd2aefe1ef98337e0646677e37bb2a15ed04c44bdc7a9f75509e03",
+        "after_sha256": "04140b0990c36b48d8aec5c3110890fd1459bc55bca9a926f0ded9fa940a236f"
+      },
+      {
+        "path": "module/Scope",
+        "difference": "docstring whitespace only",
+        "before_sha256": "e4b6b55694a4462cfc6921f18215f4ecd5a3389cf8d30d59f4195388ec9258d8",
+        "after_sha256": "31b4aa3243d53a9783949cd7bc857c13f23ac8d67866c554edd046480fd71b82"
+      }
+    ],
+    "command": "ruff format pythonstan/analysis/pointer/kcfa/context.py"
+  },
+  "benchmark_lifecycle": {
+    "path": "benchmark/refactor/guarded_dispatch_family.py",
+    "sha256": "8dbeb8ffc692d12b44194ad5ab4f681da4b5b0020ebf798baf9aaeb467ac7134",
+    "change": "provider.prepare() in candidate branch, after timer start and construction, before Driver.run",
+    "initial_red": "benchmark-lifecycle-red.txt: NEW provider not prepared",
+    "following_red": "benchmark-lifecycle-green.txt:21pass1red measured68vs17 due repeated Driver optional imports; root owns neutralContextDTO repair",
+    "tests_modified": false,
+    "expected_fields_or_timing_modified": false,
+    "final_green": "22 passed in 0.73s",
+    "final_stdout": "benchmark-lifecycle-final.txt",
+    "root_neutral_dto_fix": "SummaryApplicationContext/hostId/charge definitions moved to neutral summary_context.py with provider same-class reexports; Driver local import now neutral.",
+    "observed_dependency_sha256": {
+      "pythonstan/analysis/composition/summary_context.py": "c1169f7ad18225e7753d95536736eb4f430da3ee0e92badbdab4900d25f7193f",
+      "pythonstan/analysis/engines/abstract/driver.py": "5c736c511e9c22bbf72b112ebfb4dee03f39ae13e0ad799eba41f86625e1cb59",
+      "pythonstan/analysis/composition/guarded_dispatch.py": "4da2650c82a72c9925e93012fcf551b5e623583a9b16a3b344c46cfb32118679"
+    }
+  }
+}

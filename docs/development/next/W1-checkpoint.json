@@ -1,32 +1,73 @@
 {
-  "phase": "W1 coherent checkpoint",
+  "phase": "W1 actual TYPE integrated checkpoint",
   "api_card": "verified",
   "type_card": "running_not_verified",
-  "production_digest": "71c9119b7a480fd417ca599171a9b14eceabeb5ca6895ad8eb3e2de3ab8e0bfd",
+  "current_record": "docs/development/next/TYPE_CHECKPOINT_20261112.json",
+  "historical_recovery_record": "docs/development/next/RECOVERY_CHECKPOINT_20261112.json",
+  "source_snapshot_sha256": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
   "original_stage": {
     "passed": 1001,
-    "seconds": 50.87,
-    "receipt": "artifacts/next/evidence/W1-checkpoint/stage.receipt.json"
+    "seconds": 63.077,
+    "exit_code": 0
   },
-  "api_matrix": {
-    "passed": 186,
-    "strict_checked_files": 36,
-    "own_diagnostics": 0,
-    "imported_errors": 1782,
-    "note_count": 1,
+  "new_controls": {
+    "passed": 4001,
+    "seconds": 22.818,
+    "exit_code": 0,
+    "excluded_frozen_red_suites": [
+      "test_domain_mandatory.py",
+      "test_native_mandatory.py"
+    ],
+    "exclusion_reason": "Separate unchanged W0 red repair witnesses, not deleted, skipped, relabelled or counted green."
+  },
+  "quality": {
+    "passed": false,
+    "diagnostic_counts": {
+      "format": 156,
+      "ruff": 6741,
+      "mypy": 6027
+    },
+    "added_diagnostics": 431,
+    "modified_unit_diagnostics": 515,
+    "resolved_diagnostics": 10603,
+    "negative_controls_passed": true,
     "whole_tree_mypy_clean": false
   },
-  "strict_frontier_modules": 60,
-  "metadata_runtime_controls": 117,
-  "core_qualified": false,
-  "scale_qualified": false,
-  "release_qualified": false,
-  "live_requests": 0,
+  "canonical_core": {
+    "modules": 98,
+    "source_stable": true,
+    "diagnostics": {
+      "ordinary": {
+        "exit_code": 1,
+        "all_errors": 3588,
+        "core_errors": 0
+      },
+      "any_expr": {
+        "exit_code": 1,
+        "all_errors": 10970,
+        "core_errors": 12
+      },
+      "ruff": {
+        "exit_code": 0,
+        "all_errors": 0,
+        "core_errors": 0
+      }
+    },
+    "scope_note": "Own-module filtering with normal imports; imported diagnostics are retained and command exit1 is not called whole-tree success."
+  },
+  "qualifications": {
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "live_llm_requests": 0
+  },
   "remaining_type_obligations": [
-    "Real discriminated completion union and StateHandle/BindingRef/SummaryDependency consumers",
-    "Strict Store/graph/driver/transfer and all actual metadata consumers",
-    "Real completion exhaustive-handler mutation guard",
-    "All mandatory semantics/domain/epoch/Native/L2 repair cards and later evaluation gates"
+    "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
+    "Clear12 canonical Any-expression diagnostics in dictionary bytecode boundary and oracle queue construction; extend reviewed whole-module frontier",
+    "Complete independent final integration and mandatory semantic/domain/state/Native repair gates; no later card inferred complete from local controls",
+    "Retain explicit open profiles, graph-memo provenance, unsupported custom contexts and existing frozen red witnesses",
+    "Run real LLM only after offline verification and independent audit; credentials only from environment"
   ],
-  "remote_sync": "Not synced; remote lastverifiede8d9e0d. No ref update was attempted."
+  "remote_target": "dev-cocktail-analysis; exact tree publication only"
 }

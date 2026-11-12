@@ -7,8 +7,9 @@ for selecting ignored source, guard evidence, verification status or tools.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import TypeGuard
 
 from pythonstan.analysis.contracts import freeze_snapshot, thaw_snapshot
 from pythonstan.analysis.contracts.identity import SemanticIdentity, VersionedDependency
@@ -23,29 +24,53 @@ class CandidateError(ValueError):
     pass
 
 
-def _keys(value, names, label):
-    if not isinstance(value, Mapping) or set(value) != set(names):
+def _mapping(value: object) -> TypeGuard[Mapping[str, object]]:
+    if not isinstance(value, Mapping):
+        return False
+    raw: Mapping[object, object] = value
+    return all(isinstance(key, str) for key in raw)
+
+
+def _keys(value: object, names: Sequence[str], label: str) -> Mapping[str, object]:
+    if not _mapping(value) or set(value) != set(names):
         raise CandidateError(label + " has missing or unknown fields")
+    return value
 
 
-def _string(value, label):
-    if type(value) is not str or not value or len(value) > 4096:
+def _sequence(value: object, label: str) -> Sequence[object]:
+    if not isinstance(value, (list, tuple)) or len(value) > 4096:
+        raise CandidateError(label + " must be a bounded list")
+    return value
+
+
+def _string(value: object, label: str) -> str:
+    if not isinstance(value, str) or type(value) is not str or not value or len(value) > 4096:
         raise CandidateError(label + " must be a bounded nonempty string")
     return value
 
 
-def _strings(value, label):
-    if not isinstance(value, (list, tuple)) or len(value) > 4096:
-        raise CandidateError(label + " must be a bounded list")
-    values = tuple(_string(item, label) for item in value)
+def _strings(value: object, label: str) -> tuple[str, ...]:
+    values = tuple(_string(item, label) for item in _sequence(value, label))
     if len(set(values)) != len(values):
         raise CandidateError(label + " contains duplicates")
     return values
 
 
-def _key(value):
-    if type(value) is not str or len(value) > 4096:
+def _key(value: object) -> str:
+    if not isinstance(value, str) or type(value) is not str or len(value) > 4096:
         raise CandidateError("key must be a bounded literal string")
+    return value
+
+
+def _boolean(value: object, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise CandidateError(label + " must be boolean")
+    return value
+
+
+def _relation(value: object) -> str:
+    if not isinstance(value, str) or value not in RELATIONS:
+        raise CandidateError("unknown relation or frame contract")
     return value
 
 
@@ -104,9 +129,9 @@ def identity_to_dict(identity: SemanticIdentity) -> JsonObject:
     }
 
 
-def parse_identity(data):
-    _keys(
-        data,
+def parse_identity(value: object) -> SemanticIdentity:
+    data = _keys(
+        value,
         (
             "source_digest",
             "ir_digest",
@@ -119,34 +144,27 @@ def parse_identity(data):
         ),
         "identity",
     )
-    if not isinstance(data["dependencies"], (list, tuple)) or len(data["dependencies"]) > 4096:
-        raise CandidateError("identity dependencies must be bounded")
-    dependencies = []
-    for dependency in data["dependencies"]:
-        _keys(dependency, ("kind", "identity", "version", "negative"), "dependency")
-        if type(dependency["negative"]) is not bool:
-            raise CandidateError("negative dependency flag must be boolean")
+    dependencies: list[VersionedDependency] = []
+    for item in _sequence(data["dependencies"], "identity dependencies"):
+        dependency = _keys(item, ("kind", "identity", "version", "negative"), "dependency")
         dependencies.append(
             VersionedDependency(
                 _string(dependency["kind"], "dependency kind"),
                 _string(dependency["identity"], "dependency identity"),
                 _string(dependency["version"], "dependency version"),
-                dependency["negative"],
+                _boolean(dependency["negative"], "negative dependency flag"),
             )
         )
-    fields = {
-        name: _string(data[name], name)
-        for name in (
-            "source_digest",
-            "ir_digest",
-            "model_digest",
-            "policy_digest",
-            "profile",
-            "state_version",
-            "python_version",
-        )
-    }
-    return SemanticIdentity(**fields, dependencies=tuple(dependencies))
+    return SemanticIdentity(
+        source_digest=_string(data["source_digest"], "source_digest"),
+        ir_digest=_string(data["ir_digest"], "ir_digest"),
+        model_digest=_string(data["model_digest"], "model_digest"),
+        policy_digest=_string(data["policy_digest"], "policy_digest"),
+        profile=_string(data["profile"], "profile"),
+        state_version=_string(data["state_version"], "state_version"),
+        python_version=_string(data["python_version"], "python_version"),
+        dependencies=tuple(dependencies),
+    )
 
 
 def candidate_to_dict(candidate: GuardedSummary) -> JsonObject:
@@ -181,8 +199,8 @@ def candidate_to_dict(candidate: GuardedSummary) -> JsonObject:
     }
 
 
-def _no_duplicates(pairs):
-    result = {}
+def _no_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
     for key, value in pairs:
         if key in result:
             raise CandidateError("duplicate JSON key: " + key)
@@ -190,36 +208,35 @@ def _no_duplicates(pairs):
     return result
 
 
-def parse_candidate(data):
-    if isinstance(data, GuardedSummary):
-        data = candidate_to_dict(data)
+def parse_candidate(value: object) -> GuardedSummary:
+    data: object = candidate_to_dict(value) if isinstance(value, GuardedSummary) else value
     if isinstance(data, str):
         if len(data.encode("utf-8")) > 1_000_000:
             raise CandidateError("candidate byte budget exceeded")
-        data = json.loads(data, object_pairs_hook=_no_duplicates)
+        decoded: object = json.loads(data, object_pairs_hook=_no_duplicates)
+        data = decoded
     elif isinstance(data, Mapping):
-        # Direct Python/recorded providers obey the same byte/JSON boundary as
-        # text providers; live objects and large mappings cannot bypass it.
         try:
             data = thaw_snapshot(freeze_snapshot(data))
             if len(json.dumps(data, ensure_ascii=False, allow_nan=False).encode()) > 1_000_000:
                 raise CandidateError("candidate byte budget exceeded")
         except (TypeError, ValueError, RecursionError) as error:
             raise CandidateError(str(error)) from error
-    _keys(
+    candidate = _keys(
         data,
         ("schema_version", "profile", "identity", "dispatch", "guard", "handlers", "arms"),
         "candidate",
     )
     if (
-        type(data["schema_version"]) is not int
-        or data["schema_version"] != SCHEMA_VERSION
-        or data["profile"] != PROFILE
+        type(candidate["schema_version"]) is not int
+        or candidate["schema_version"] != SCHEMA_VERSION
+        or candidate["profile"] != PROFILE
     ):
         raise CandidateError("candidate schema/profile mismatch")
-    guard = data["guard"]
-    _keys(
-        guard, ("table_name", "keys", "exact_builtin_dict", "stable_bindings", "payload"), "guard"
+    guard = _keys(
+        candidate["guard"],
+        ("table_name", "keys", "exact_builtin_dict", "stable_bindings", "payload"),
+        "guard",
     )
     if (
         guard["exact_builtin_dict"] is not True
@@ -227,18 +244,14 @@ def parse_candidate(data):
         or guard["payload"] != "all_modeled_values"
     ):
         raise CandidateError("guard must require an exact stable builtin dict and symbolic payload")
-    if not isinstance(guard["keys"], (list, tuple)) or len(guard["keys"]) > 4096:
-        raise CandidateError("keys must be a bounded list")
-    guard_keys = tuple(_key(key) for key in guard["keys"])
+    guard_keys = tuple(_key(key) for key in _sequence(guard["keys"], "keys"))
     if len(set(guard_keys)) != len(guard_keys):
         raise CandidateError("duplicate guard keys")
     parsed_guard = FiniteGuard(_string(guard["table_name"], "table name"), guard_keys)
-    handlers = []
-    if not isinstance(data["handlers"], (list, tuple)) or len(data["handlers"]) > 4096:
-        raise CandidateError("handlers must be a bounded list")
-    for handler in data["handlers"]:
-        _keys(
-            handler,
+    handlers: list[HandlerClaim] = []
+    for item in _sequence(candidate["handlers"], "handlers"):
+        handler = _keys(
+            item,
             (
                 "name",
                 "relation",
@@ -251,13 +264,11 @@ def parse_candidate(data):
             ),
             "handler",
         )
-        relation = handler["relation"]
-        if relation not in RELATIONS or handler["existing_heap"] != "unchanged":
+        relation = _relation(handler["relation"])
+        if handler["existing_heap"] != "unchanged":
             raise CandidateError("unknown relation or frame contract")
-        if type(handler["normal_exit"]) is not bool or type(handler["suspends"]) is not bool:
-            raise CandidateError("outcome flags must be booleans")
         slot = handler["slot"]
-        if slot is not None and type(slot) is not str:
+        if slot is not None and (not isinstance(slot, str) or type(slot) is not str):
             raise CandidateError("slot must be a literal string or null")
         if relation == "fresh_box" and slot != "value":
             raise CandidateError("fresh_box has the single exact value slot")
@@ -270,28 +281,44 @@ def parse_candidate(data):
                 _string(handler["input_parameter"], "input parameter"),
                 slot,
                 "unchanged",
-                handler["normal_exit"],
+                _boolean(handler["normal_exit"], "normal exit flag"),
                 _strings(handler["exceptions"], "exceptions"),
-                handler["suspends"],
+                _boolean(handler["suspends"], "suspension flag"),
             )
         )
-    if len({h.name for h in handlers}) != len(handlers):
+    if len({handler.name for handler in handlers}) != len(handlers):
         raise CandidateError("duplicate handler claims")
-    if not isinstance(data["arms"], (list, tuple)) or len(data["arms"]) > 4096:
-        raise CandidateError("arms must be a bounded list")
-    arms = []
-    for arm in data["arms"]:
-        _keys(arm, ("key", "handler", "relation"), "arm")
-        if arm["relation"] not in RELATIONS:
-            raise CandidateError("unknown arm relation")
+    arms: list[DispatchArm] = []
+    for item in _sequence(candidate["arms"], "arms"):
+        arm = _keys(item, ("key", "handler", "relation"), "arm")
         arms.append(
-            DispatchArm(_key(arm["key"]), _string(arm["handler"], "handler"), arm["relation"])
+            DispatchArm(
+                _key(arm["key"]), _string(arm["handler"], "handler"), _relation(arm["relation"])
+            )
         )
-    if len({a.key for a in arms}) != len(arms):
+    if len({arm.key for arm in arms}) != len(arms):
         raise CandidateError("duplicate key arms")
-    identity = parse_identity(data["identity"])
+    identity = parse_identity(candidate["identity"])
     if identity.profile != PROFILE:
         raise CandidateError("identity profile mismatch")
     return GuardedSummary(
-        identity, _string(data["dispatch"], "dispatch"), parsed_guard, tuple(handlers), tuple(arms)
+        identity,
+        _string(candidate["dispatch"], "dispatch"),
+        parsed_guard,
+        tuple(handlers),
+        tuple(arms),
     )
+
+
+__all__ = [
+    "PROFILE",
+    "CandidateError",
+    "DispatchArm",
+    "FiniteGuard",
+    "GuardedSummary",
+    "HandlerClaim",
+    "candidate_to_dict",
+    "identity_to_dict",
+    "parse_candidate",
+    "parse_identity",
+]

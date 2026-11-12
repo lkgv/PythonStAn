@@ -1,0 +1,151 @@
+{
+  "status": "ready_for_independent_review",
+  "production_files": [
+    "pythonstan/analysis/composition/plan.py",
+    "pythonstan/analysis/contracts/outcomes.py",
+    "pythonstan/config/model.py",
+    "pythonstan/config/resolve.py",
+    "pythonstan/results/output.py",
+    "pythonstan/session_preparation.py",
+    "pythonstan/llm/providers.py"
+  ],
+  "new_tests": [
+    "tests/regression/audit3/test_config_foreign_boundaries.py"
+  ],
+  "baseline_owned_any_diagnostics": 24,
+  "source_before": {
+    "pythonstan/analysis/composition/plan.py": "74b8806a2d70af61b1881a915f5d355186afc9742b9baeeef8cf4ee69c765e84",
+    "pythonstan/analysis/contracts/outcomes.py": "5dc85467abf533bbee38673bd851f6982d980179862ff95992590e1b53ad9456",
+    "pythonstan/config/model.py": "a4faa1dc1f62e4420417cb6d2e746785f8b25fdda446d5c247098345df8c39ce",
+    "pythonstan/config/resolve.py": "fc7107797244c24fbdd93490ecae34a54d94334e6a1fdc9e2c49dfdee93593c1",
+    "pythonstan/results/output.py": "255bf809d344cc8d06e18d9ff325fdf6c98b10cdfe2dcb5620cfbf07502ea5ad",
+    "pythonstan/session_preparation.py": "cf9ab7c2ead75ad47f00352ba485f7681697a7722bb98030ba6017151c2890fe",
+    "pythonstan/llm/providers.py": "7192241a7e47c0618695d6171468be3ef17c9f9ab8048befc4b1db823cbe299b",
+    "tests/regression/audit3/test_config_foreign_boundaries.py": "386a8ed71f1a10cde4355daf50dbbffbf1dd71c40e607cf66deac6c87c14e8e0"
+  },
+  "source_after": {
+    "pythonstan/analysis/composition/plan.py": "74b8806a2d70af61b1881a915f5d355186afc9742b9baeeef8cf4ee69c765e84",
+    "pythonstan/analysis/contracts/outcomes.py": "5dc85467abf533bbee38673bd851f6982d980179862ff95992590e1b53ad9456",
+    "pythonstan/config/model.py": "a4faa1dc1f62e4420417cb6d2e746785f8b25fdda446d5c247098345df8c39ce",
+    "pythonstan/config/resolve.py": "fc7107797244c24fbdd93490ecae34a54d94334e6a1fdc9e2c49dfdee93593c1",
+    "pythonstan/results/output.py": "255bf809d344cc8d06e18d9ff325fdf6c98b10cdfe2dcb5620cfbf07502ea5ad",
+    "pythonstan/session_preparation.py": "cf9ab7c2ead75ad47f00352ba485f7681697a7722bb98030ba6017151c2890fe",
+    "pythonstan/llm/providers.py": "7192241a7e47c0618695d6171468be3ef17c9f9ab8048befc4b1db823cbe299b",
+    "tests/regression/audit3/test_config_foreign_boundaries.py": "386a8ed71f1a10cde4355daf50dbbffbf1dd71c40e607cf66deac6c87c14e8e0"
+  },
+  "source_unchanged": true,
+  "checks": [
+    {
+      "name": "mypy",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "mypy",
+        "--strict",
+        "--disallow-any-expr",
+        "--no-incremental",
+        "--output",
+        "json",
+        "pythonstan/analysis/composition/plan.py",
+        "pythonstan/analysis/contracts/outcomes.py",
+        "pythonstan/config/model.py",
+        "pythonstan/config/resolve.py",
+        "pythonstan/results/output.py",
+        "pythonstan/session_preparation.py",
+        "pythonstan/llm/providers.py",
+        "tests/regression/audit3/test_config_foreign_boundaries.py"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 7.070330818000002,
+      "owned_diagnostics": [],
+      "all_records": 535
+    },
+    {
+      "name": "lint",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+        "check",
+        "pythonstan/analysis/composition/plan.py",
+        "pythonstan/analysis/contracts/outcomes.py",
+        "pythonstan/config/model.py",
+        "pythonstan/config/resolve.py",
+        "pythonstan/results/output.py",
+        "pythonstan/session_preparation.py",
+        "pythonstan/llm/providers.py",
+        "tests/regression/audit3/test_config_foreign_boundaries.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.009884981999675801
+    },
+    {
+      "name": "format",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/ruff",
+        "format",
+        "--check",
+        "pythonstan/analysis/composition/plan.py",
+        "pythonstan/analysis/contracts/outcomes.py",
+        "pythonstan/config/model.py",
+        "pythonstan/config/resolve.py",
+        "pythonstan/results/output.py",
+        "pythonstan/session_preparation.py",
+        "pythonstan/llm/providers.py",
+        "tests/regression/audit3/test_config_foreign_boundaries.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.007903952999186004
+    },
+    {
+      "name": "tests",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/regression/audit3/test_config_foreign_boundaries.py",
+        "tests/regression/audit3/test_effective_config.py",
+        "tests/regression/audit3/test_low_contracts.py",
+        "tests/regression/audit3/test_summary_provider_context.py",
+        "tests/refactor/api",
+        "tests/refactor/llm",
+        "tests/refactor/verification",
+        "tests/refactor/composition/test_regions_oracle_relations.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 5.462098092000815
+    },
+    {
+      "name": "differential",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "artifacts/next/evidence/N4-TYPE-01/recovery-20261112/verification_differential.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.5430152769995402
+    }
+  ],
+  "whole_tree_clean": false,
+  "parent_TYPE01_verified": false,
+  "baseline_note": "Actual fresh ordinary-import scan found 24 owned Any-expression diagnostics; root initial estimate was 25.",
+  "changes": [
+    "Typed immutable tuple and MappingProxy publications retain actual existing fields and wire values.",
+    "Named typed region-strategy/dependency/scenario sort helpers preserve exactly the original projection/order.",
+    "PyYAML MappingNode.value is decoded from object into finite pairs, with genuine Node membership before SafeLoader construction; constructor-stub erasure is restricted to the runtime class token, never used to instantiate a core object.",
+    "Foreign os.PathLike outputs remain raw object only until the existing JSON decoder; conversion order and public filesystem coercion errors remain.",
+    "Control metadata JSON is bound once as object then passed to the existing checked JSON-object decoder."
+  ],
+  "foreign_boundary_limits": [
+    "PyYAML SafeLoader owns scalar construction; its raw Node.value and construct_object result are validated at the configuration boundary. The code creates no unchecked Python object or parallel typed loader fa\u00e7ade.",
+    "PathLike coercion remains os.fspath; bytes or non-JSON values are rejected by the same existing public decoder."
+  ],
+  "preserved": [
+    "Config defaults/aliases/provenance/digest and detached projections",
+    "Pure request resolution and SourceSnapshot rerun/parser identity",
+    "Region priority, recursive SCC strategy validation and phase order",
+    "GuaranteeLedger property evidence/status invariants",
+    "LLM disabled-before-import and existing preparation/cost behavior"
+  ],
+  "no_Any_cast_ignore_added": true,
+  "no_test_gold_or_policy_weakening": true,
+  "LLM_actual_network_executed": false
+}

@@ -1,9 +1,22 @@
 """Persistent unknown-call effects; diagnostic ledgers are separate consumers."""
 
-from .context import Ctx
-from .variable import Variable, VariableKind
-from .points_to_set import PointsToSet
+from __future__ import annotations
+
+from collections.abc import Mapping
+from typing import TYPE_CHECKING
+
+from pythonstan.analysis.contracts.json_data import JsonObject
+
+from .context import Ctx, Scope
+from .object import AbstractObject
+from .variable import FieldAccess
+
+if TYPE_CHECKING:
+    from .state import PointerAnalysisState
+
 from .pointer_flow_graph import NormalNode
+from .points_to_set import PointsToSet
+from .variable import Variable, VariableKind
 
 
 class UnknownEffects:
@@ -15,14 +28,14 @@ class UnknownEffects:
     concrete call graph or certifies their ordering.
     """
 
-    def __init__(self, state):
-        self.state = state
-        self.source = None
-        self.origins = set()
-        self.events = []
-        self.subscriptions = set()
+    def __init__(self, state: PointerAnalysisState) -> None:
+        self.state: PointerAnalysisState = state
+        self.source: Ctx[Variable] | None = None
+        self.origins: set[str] = set()
+        self.events: list[JsonObject] = []
+        self.subscriptions: set[Ctx[Variable | FieldAccess]] = set()
 
-    def install(self, scope, top_object, origin):
+    def install(self, scope: Scope, top_object: AbstractObject, origin: str) -> None:
         if origin in self.origins:
             return
         self.origins.add(origin)
@@ -59,16 +72,16 @@ class UnknownEffects:
             )
         )
 
-    def subscribe(self, variable):
+    def subscribe(self, variable: Ctx[Variable | FieldAccess]) -> None:
         if self.source is None or variable == self.source or variable in self.subscriptions:
             return
         self.subscriptions.add(variable)
         self.state._add_var_points_flow(self.source, variable)
 
-    def field_created(self, obj, field_access):
+    def field_created(self, obj: AbstractObject, field_access: FieldAccess) -> None:
         self.subscribe(Ctx(obj.context, None, field_access))
 
-    def variable_created(self, variable):
+    def variable_created(self, variable: Ctx[Variable]) -> None:
         value = variable.content
         if value.kind in {
             VariableKind.GLOBAL,
@@ -77,10 +90,10 @@ class UnknownEffects:
         } and not value.name.startswith(("$", "<")):
             self.subscribe(variable)
 
-    def captures_created(self, variables):
+    def captures_created(self, variables: Mapping[str, Ctx[Variable]]) -> None:
         for variable in tuple(variables.values()):
             # A captured cell can be implemented by a PARAMETER/LOCAL slot.
             self.subscribe(variable)
 
-    def snapshot(self):
+    def snapshot(self) -> tuple[JsonObject, ...]:
         return tuple(dict(event) for event in self.events)

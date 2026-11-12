@@ -1,5 +1,5 @@
 from typing import Set, Dict, List
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 import os
 import yaml
 
@@ -7,6 +7,59 @@ from pythonstan.analysis import AnalysisConfig
 from pythonstan.analysis.analysis import order_analysis_configs
 
 __all__ = ["Config"]
+
+
+def _mapping(value: object, message: str) -> Mapping[object, object]:
+    if not isinstance(value, Mapping):
+        raise ValueError(message)
+    return value
+
+
+def _text(value: object, message: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(message)
+    return value
+
+
+def _boolean(value: object, name: str) -> bool:
+    if type(value) is not bool:
+        raise ValueError(f"{name} must be boolean")
+    return value
+
+
+def _integer(value: object) -> int:
+    if type(value) is not int:
+        raise ValueError("import_level must be -1 or a nonnegative integer")
+    return value
+
+
+def _path(value: object, message: str) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, os.PathLike):
+        try:
+            decoded: object = value.__fspath__()
+        except TypeError as exc:
+            raise ValueError(message) from exc
+        if isinstance(decoded, str):
+            return decoded
+    raise ValueError(message)
+
+
+def _sequence(value: object, message: str) -> Sequence[object]:
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(message)
+    return value
+
+
+def _dependencies(value: object) -> list[str] | tuple[str, ...] | None:
+    if value is None:
+        return None
+    values = _sequence(value, "prev_analysis must contain unique nonempty analysis names")
+    result = [
+        _text(item, "prev_analysis must contain unique nonempty analysis names") for item in values
+    ]
+    return tuple(result) if isinstance(value, tuple) else result
 
 
 class Config:
@@ -67,9 +120,8 @@ class Config:
         self.prefer_mock_libs = prefer_mock_libs
 
     @classmethod
-    def from_dict(cls, info: Dict):
-        if not isinstance(info, Mapping):
-            raise ValueError("pipeline configuration must be a mapping")
+    def from_dict(cls, info: object) -> "Config":
+        fields = _mapping(info, "pipeline configuration must be a mapping")
         allowed = {
             "filename",
             "project_path",
@@ -81,30 +133,32 @@ class Config:
             "mock_libs",
             "prefer_mock_libs",
         }
-        unknown = set(info) - allowed
+        unknown = set(fields) - allowed
         if unknown:
             raise ValueError(f"Unknown pipeline options: {sorted(unknown, key=str)}")
-        if "filename" not in info:
+        if "filename" not in fields:
             raise ValueError("filename is required")
-        lazy_ir = info.get("lazy_ir_construction", False)
-        mock_libs = info.get("mock_libs", True)
-        prefer_mock_libs = info.get("prefer_mock_libs", False)
+        lazy_ir = _boolean(fields.get("lazy_ir_construction", False), "lazy_ir_construction")
+        mock_libs = _boolean(fields.get("mock_libs", True), "mock_libs")
+        prefer_mock_libs = _boolean(fields.get("prefer_mock_libs", False), "prefer_mock_libs")
+        project = fields.get("project_path")
         conf = cls(
-            info["filename"],
-            info.get("project_path"),
+            _path(fields["filename"], "filename and project_path must be filesystem paths"),
+            None
+            if project is None
+            else _path(project, "filename and project_path must be filesystem paths"),
             lazy_ir_construction=lazy_ir,
-            import_level=info.get("import_level", -1),
-            time_count=info.get("time_count", False),
+            import_level=_integer(fields.get("import_level", -1)),
+            time_count=_boolean(fields.get("time_count", False), "time_count"),
             mock_libs=mock_libs,
             prefer_mock_libs=prefer_mock_libs,
         )
-        analyses = info.get("analysis", [])
-        paths = info.get("library_paths", [])
-        if not isinstance(analyses, (list, tuple)) or not isinstance(paths, (list, tuple)):
-            raise ValueError("analysis and library_paths must be lists")
-        for anal_info in analyses:
-            if not isinstance(anal_info, Mapping):
-                raise ValueError("each analysis must be a mapping")
+        analyses = _sequence(fields.get("analysis", []), "analysis and library_paths must be lists")
+        paths = _sequence(
+            fields.get("library_paths", []), "analysis and library_paths must be lists"
+        )
+        for raw_analysis in analyses:
+            anal_info = _mapping(raw_analysis, "each analysis must be a mapping")
             unexpected = set(anal_info) - {
                 "name",
                 "id",
@@ -117,24 +171,30 @@ class Config:
                 raise ValueError(f"Unknown analysis fields: {sorted(unexpected, key=str)}")
             if not {"name", "id"} <= set(anal_info):
                 raise ValueError("each analysis requires name and id")
-            inter_procedure = anal_info.get("inter_procedure", False)
+            inter_procedure = _boolean(anal_info.get("inter_procedure", False), "inter_procedure")
+            raw_options = anal_info.get("options")
             anal_cfg = AnalysisConfig(
-                anal_info["name"],
-                anal_info["id"],
-                anal_info.get("description", ""),
-                anal_info.get("prev_analysis"),
+                _text(anal_info["name"], "analysis name and id must be nonempty strings"),
+                _text(anal_info["id"], "analysis name and id must be nonempty strings"),
+                _text(
+                    anal_info.get("description", ""),
+                    "description must be text and inter_procedure must be boolean",
+                ),
+                _dependencies(anal_info.get("prev_analysis")),
                 inter_procedure,
-                anal_info.get("options"),
+                None
+                if raw_options is None
+                else _mapping(raw_options, "analysis options must be a mapping"),
             )
             conf.add_analysis(anal_cfg)
         for library_path in paths:
-            conf.add_library_path(library_path)
+            conf.add_library_path(_path(library_path, "library paths must be filesystem paths"))
         return conf
 
     @classmethod
-    def from_file(cls, filename):
+    def from_file(cls, filename: str | os.PathLike[str]) -> "Config":
         with open(filename, "r") as f:
-            info = yaml.safe_load(f)
+            info: object = yaml.safe_load(f)
         return cls.from_dict(info)
 
     def add_analysis(self, cfg: AnalysisConfig):
@@ -156,7 +216,7 @@ class Config:
             raise ValueError("library paths must be nonempty strings")
         self.library_paths.append(path)
 
-    def get_analysis_list(self):
+    def get_analysis_list(self) -> list[AnalysisConfig]:
         from .analysis_manager import DEFAULT_ANALYSIS
 
         ordered = order_analysis_configs([*DEFAULT_ANALYSIS, *self.analysis.values()])

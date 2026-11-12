@@ -7,9 +7,10 @@ import os
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from importlib.resources import files
 from pathlib import Path
+from typing import TypeGuard
 
 import yaml
-from yaml.nodes import MappingNode
+from yaml.nodes import MappingNode, Node
 
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
@@ -57,11 +58,30 @@ class _UniqueLoader(yaml.SafeLoader):
     """Safe YAML loader whose mapping construction retains duplicate evidence."""
 
 
+_YAML_NODE: type[object] = Node
+
+
+def _is_yaml_node(value: object) -> TypeGuard[Node]:
+    return isinstance(value, _YAML_NODE)
+
+
 def _yaml_mapping(loader: yaml.SafeLoader, node: MappingNode) -> dict[object, object]:
     # YAML permits integer block IDs in solver_options.loop_iters. Keep those
     # external keys until the field decoder validates and canonicalizes them.
     result: dict[object, object] = {}
-    for key_node, value_node in node.value:
+    raw_pairs: object = node.value
+    if not isinstance(raw_pairs, (list, tuple)):
+        raise ConfigurationError("YAML mapping must contain node pairs")
+    pairs: Sequence[object] = raw_pairs
+    for pair in pairs:
+        if not isinstance(pair, (list, tuple)):
+            raise ConfigurationError("YAML mapping must contain node pairs")
+        nodes: Sequence[object] = pair
+        if len(nodes) != 2:
+            raise ConfigurationError("YAML mapping must contain node pairs")
+        key_node, value_node = nodes
+        if not _is_yaml_node(key_node) or not _is_yaml_node(value_node):
+            raise ConfigurationError("YAML mapping must contain node pairs")
         key: object = loader.construct_object(key_node)
         value: object = loader.construct_object(value_node)
         if key in result:
@@ -148,9 +168,18 @@ def _solver_json(value: object) -> JsonObject:
 def _leaf_value(path: str, value: object) -> JsonValue:
     if path in {"inputs.project_root", "andersen.project_path", "andersen.debug_output_dir"}:
         if isinstance(value, os.PathLike):
-            value = os.fspath(value)
+            path_value: object = os.fspath(value)
+            value = path_value
     elif path == "inputs.source_roots" and isinstance(value, (list, tuple)):
-        value = [os.fspath(item) if isinstance(item, os.PathLike) else item for item in value]
+        roots: Sequence[object] = value
+        path_values: list[object] = []
+        for item in roots:
+            if isinstance(item, os.PathLike):
+                path_item: object = os.fspath(item)
+                path_values.append(path_item)
+            else:
+                path_values.append(item)
+        value = path_values
     data = _solver_json(value) if path == "abstract.solver_options" else validate_json(value)
     option = CATALOG.get(path)
     if option is None:
@@ -335,9 +364,10 @@ def _validate_controls(data: JsonObject, provenance: Mapping[str, str]) -> None:
     llm = require_object(data["llm"])
     if llm["enabled"] and not (llm["level1"] or llm["level2"]):
         raise ConfigurationError("Enabled LLM requires level1 or level2")
-    metadata = validate_json_object(
-        json.loads(files(__package__).joinpath("control_metadata.json").read_text())
+    raw_metadata: object = json.loads(
+        files(__package__).joinpath("control_metadata.json").read_text()
     )
+    metadata = validate_json_object(raw_metadata)
     _active_controls(data, solver, metadata, provenance)
     _validate_bindings(require_object(_get(data, "inputs.bindings")))
 

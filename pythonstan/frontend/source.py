@@ -9,7 +9,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
+from types import EllipsisType, MappingProxyType
 from typing import override
 
 from pythonstan.analysis.contracts.identity import ProgramPointId, SourceModule
@@ -28,6 +28,34 @@ _LOCATIONLESS_MARKERS = (ast.expr_context, ast.operator, ast.unaryop, ast.boolop
 
 type SourceInput = SourceModule | Mapping[str, JsonValue]
 type ParsedTreeCache = Mapping[str, tuple[str, ast.Module]]
+type SourceLiteral = (
+    None
+    | bool
+    | int
+    | float
+    | complex
+    | str
+    | bytes
+    | EllipsisType
+    | tuple[SourceLiteral, ...]
+    | frozenset[SourceLiteral]
+)
+
+
+def _checked_source_literal(value: object) -> SourceLiteral:
+    if value is None or isinstance(value, (bool, int, float, complex, str, bytes, EllipsisType)):
+        return value
+    if isinstance(value, tuple):
+        return tuple(_checked_source_literal(item) for item in value)
+    if isinstance(value, frozenset):
+        return frozenset(_checked_source_literal(item) for item in value)
+    raise TypeError("AST constant contains an unsupported payload")
+
+
+def source_constant(node: ast.Constant) -> SourceLiteral:
+    """Validate CPython's dynamically typed Constant field at the real AST boundary."""
+    value: object = node.value
+    return _checked_source_literal(value)
 
 
 def _location(node: ast.AST) -> tuple[int, int] | None:

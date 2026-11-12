@@ -14,29 +14,54 @@ import sys
 import types
 from dataclasses import replace
 from itertools import product
+from typing import TYPE_CHECKING, Literal
 
+from pythonstan.analysis.contracts.json_data import JsonScalar
 from pythonstan.analysis.domains.relations import KeyValueRelation, PartitionToken
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.state.effects import HeapDefaultWrite, HeapWrite
+from pythonstan.analysis.state.flow import Flow, NormalExprFlow, require_payload
+from pythonstan.analysis.state.handles import StateHandle
+from pythonstan.analysis.state.keys import FieldKey
+from pythonstan.analysis.state.metadata import ContainerMeta, Metadata
+from pythonstan.analysis.state.store import Frame, Store
 
-from .state import Flow, HeapObject
+if TYPE_CHECKING:
+    from .transfer import Transfer
+
+
+type PairBuild = tuple[Literal["pairs"], tuple[int, ...]]
+type UnpackBuild = tuple[Literal["unpack"], int]
+type DictionaryBuild = PairBuild | UnpackBuild
+type BuildState = tuple[Store, dict[FieldKey, Value], Value]
+
+
+def _string_index(text: str, index: JsonScalar) -> str:
+    if not isinstance(index, int):
+        raise TypeError("String indices must be integers")
+    return text[index]
+
+
+def _scalar_contains(item: JsonScalar, container: JsonScalar) -> bool:
+    if not isinstance(container, str) or not isinstance(item, str):
+        raise TypeError("Unsupported scalar membership operands")
+    return item in container
 
 
 class DictionaryOperations:
-    def __init__(self, transfer):
+    def __init__(self, transfer: Transfer) -> None:
         self.t = transfer
         self.d = transfer.d
         self.ops = transfer.ops
-        self._plans = {}
+        self._plans: dict[str, tuple[DictionaryBuild, ...]] = {}
 
-    def _current(self, store):
-        if hasattr(store, "ensure_current"):
-            store.ensure_current(self.ops)
+    def _current(self, store: Store) -> None:
+        store.ensure_current(self.ops)
 
-    def _normalize(self, value):
-        return self.ops.normalize(value) if hasattr(self.ops, "normalize") else value
+    def _normalize(self, value: Value) -> Value:
+        return self.ops.normalize(value)
 
-    def plan(self, node):
+    def plan(self, node: ast.Dict) -> tuple[DictionaryBuild, ...]:
         digest = hashlib.sha256(ast.dump(node, include_attributes=True).encode()).hexdigest()
         if digest in self._plans:
             return self._plans[digest]
@@ -48,19 +73,23 @@ class DictionaryOperations:
             args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
             body=[ast.Return(value=copied)],
             decorator_list=[],
+            type_params=[],
         )
         module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
         compiled = compile(module, "<static-dictionary-shape>", "exec")
         code = next(item for item in compiled.co_consts if isinstance(item, types.CodeType))
         position = (node.lineno, node.end_lineno, node.col_offset, node.end_col_offset)
-        operations = []
+        operations: list[DictionaryBuild] = []
         cursor = 0
         for item in dis.get_instructions(code):
+            positions = item.positions
+            if positions is None:
+                raise ValueError("dictionary compiler instruction has no source position")
             if (
-                item.positions.lineno,
-                item.positions.end_lineno,
-                item.positions.col_offset,
-                item.positions.end_col_offset,
+                positions.lineno,
+                positions.end_lineno,
+                positions.col_offset,
+                positions.end_col_offset,
             ) != position:
                 continue
             if item.opname in {"BUILD_MAP", "BUILD_CONST_KEY_MAP"} and item.arg:
@@ -91,25 +120,25 @@ class DictionaryOperations:
         )
         return self._plans[digest]
 
-    def build(self, node, store, frame):
+    def build(self, node: ast.Dict, store: Store, frame: Frame) -> list[Flow]:
         try:
             plan = self.plan(node)
         except (ValueError, TypeError, SyntaxError, StopIteration, AttributeError):
             return self.t.unknown(store, node, "dictionary_compiler_profile")
         # Each entry carries the complete constructed map. Residual/default is
         # a separate value, never an invented target string key.
-        states = [(store.copy(), {}, Value.bottom())]
-        errors = []
-        for operation, payload in plan:
-            next_states = []
-            if operation == "unpack":
+        states: list[BuildState] = [(store.copy(), {}, Value.bottom())]
+        errors: list[Flow] = []
+        for operation in plan:
+            next_states: list[BuildState] = []
+            if operation[0] == "unpack":
                 for state, fields, default in states:
-                    for out in self.t.expr(node.values[payload], state, frame):
+                    for out in self.t.expr(node.values[operation[1]], state, frame):
                         if out.kind != "normal":
                             errors.append(out)
                             continue
-                        candidates = []
-                        for ref in out.value.refs:
+                        candidates: list[BuildState] = []
+                        for ref in require_payload(out).refs:
                             obj = out.store.heap.get(ref)
                             if obj and obj.kind in {"dict", "namespace"}:
                                 additions = (
@@ -146,7 +175,7 @@ class DictionaryOperations:
                                         )
                                     else:
                                         errors.append(unknown)
-                        if out.value.top or out.value.top_sorts:
+                        if require_payload(out).top or require_payload(out).top_sorts:
                             for unknown in self.t.unknown(
                                 out.store, node, "dynamic_dictionary_unpack"
                             ):
@@ -156,20 +185,27 @@ class DictionaryOperations:
                                     )
                                 else:
                                     errors.append(unknown)
-                        if not out.value.refs and not out.value.top and not out.value.top_sorts:
+                        if (
+                            not require_payload(out).refs
+                            and not require_payload(out).top
+                            and not require_payload(out).top_sorts
+                        ):
                             errors.append(self.t.error(out.store.copy(), "TypeError"))
                         next_states.extend(candidates)
             else:
-                evaluation_nodes = tuple(
-                    value for index in payload for value in (node.keys[index], node.values[index])
-                )
+                evaluation_nodes: list[ast.expr] = []
+                for index in operation[1]:
+                    key_node = node.keys[index]
+                    if key_node is None:
+                        raise ValueError("dictionary build shape mismatch")
+                    evaluation_nodes.extend((key_node, node.values[index]))
                 for state, fields, default in states:
                     evaluated, abrupt = self.t.eval_nodes(evaluation_nodes, state, frame)
                     errors.extend(abrupt)
                     for evaluated_store, values in evaluated:
-                        inserted = [(evaluated_store, dict(fields), default)]
-                        for key, value in zip(values[::2], values[1::2]):
-                            updated = []
+                        inserted: list[BuildState] = [(evaluated_store, dict(fields), default)]
+                        for key, value in zip(values[::2], values[1::2], strict=False):
+                            updated: list[BuildState] = []
                             for insertion_store, current, residual in inserted:
                                 cases, abrupt = self.t.namespaces.key_cases(
                                     key, insertion_store, frame, node
@@ -194,20 +230,24 @@ class DictionaryOperations:
             states = next_states
         result = list(errors)
         for state, fields, default in states:
-            metadata = {"length": len(fields)} if default.is_bottom() else {}
+            metadata = Metadata.from_record(
+                "dict", ContainerMeta(length=len(fields) if default.is_bottom() else None)
+            )
             fields = {key: self.ops.normalize(value) for key, value in fields.items()}
             default = self.ops.normalize(default)
             value = self.t.alloc(node, state, frame, "dict", fields, metadata)
             for ref in value.refs:
                 state.heap[ref].default = default
-            result.append(Flow(state, value=value))
+            result.append(NormalExprFlow(StateHandle.capture(state), value=value))
         return result
 
-    def getitem(self, base, key, store, frame, node):
+    def getitem(
+        self, base: Value, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> list[Flow]:
         self._current(store)
         base = self._normalize(base)
         key = self._normalize(key)
-        result = []
+        result: list[Flow] = []
         if base.top:
             result.extend(self.t.unknown(store, node, "unknown_subscript"))
         for ref in base.refs:
@@ -227,7 +267,9 @@ class DictionaryOperations:
                 ):
                     if method.kind == "normal":
                         result.extend(
-                            self.t.invoke(method.value, [key], (), method.store, frame, node)
+                            self.t.invoke(
+                                require_payload(method), [key], (), method.store, frame, node
+                            )
                         )
                     else:
                         result.append(method)
@@ -255,7 +297,7 @@ class DictionaryOperations:
                         for concrete in keys
                         if not target.fields.get(concrete, Value.bottom()).is_bottom()
                     ]
-                    cap = max(0, int(self.d.abstract.get("max_value_partitions", 4)))
+                    cap = max(0, self.d.abstract_integer("max_value_partitions", 4))
                     requested = bool(self.d.abstract.get("enable_value_partition", False))
                     partitioned = requested and len(eligible) <= cap
                     handlers = {
@@ -269,26 +311,29 @@ class DictionaryOperations:
                             state = current.copy()
                             if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Name):
                                 state.cells[frame.cell(node.slice.id)] = Value.constant(concrete)
-                            tokens = KeyValueRelation(
+                            partition_tokens = KeyValueRelation(
                                 frozenset(
                                     PartitionToken.make(
                                         self.d.point(node),
                                         concrete,
-                                        self.d.functions[handler].qualname
-                                        if handler in self.d.functions
-                                        else handler,
+                                        handler,
                                         True,
+                                        display_name=self.d.functions[handler].qualname
+                                        if handler in self.d.functions
+                                        else None,
                                     )
                                     for handler in value.refs
                                 )
                             ).coarsen(cap)
                             result.append(
-                                Flow(
-                                    state,
-                                    value=replace(value, relations=value.relations | tokens.tokens),
+                                NormalExprFlow(
+                                    StateHandle.capture(state),
+                                    value=replace(
+                                        value, relations=value.relations | partition_tokens.tokens
+                                    ),
                                 )
                             )
-                        self.d.stats["value_partition_branches"] += len(eligible)
+                        self.d.increment_stat("value_partition_branches", len(eligible))
                     else:
                         self.d.charge(len(keys) * len(handlers), "relation_product_work")
                         value = self.ops.join_all(
@@ -298,38 +343,41 @@ class DictionaryOperations:
                             PartitionToken.make(
                                 self.d.point(node),
                                 concrete,
-                                self.d.functions[handler].qualname
-                                if handler in self.d.functions
-                                else handler,
+                                handler,
                                 False,
+                                display_name=self.d.functions[handler].qualname
+                                if handler in self.d.functions
+                                else None,
                             )
                             for concrete in keys
                             for handler in handlers
                         )
                         if not value.is_bottom():
                             result.append(
-                                Flow(
-                                    current.copy(),
+                                NormalExprFlow(
+                                    StateHandle.capture(current.copy()),
                                     value=replace(value, relations=value.relations | tokens),
                                 )
                             )
                         if requested:
-                            self.d.stats["value_partition_collapses"] += 1
+                            self.d.increment_stat("value_partition_collapses")
                     if constants is None or any(
                         concrete not in target.fields or concrete in target.maybe_missing
                         for concrete in keys
                     ):
                         result.append(self.t.error(current.copy(), "KeyError"))
-                    self.d.stats[
+                    self.d.increment_stat(
                         "value_partition_reads" if partitioned else "unpartitioned_key_reads"
-                    ] += 1
+                    )
                     continue
                 if constants is None:
                     value = self.ops.join_all((*target.fields.values(), target.default))
                     if target.havoc:
                         value = self.ops.join(value, Value.unknown())
                     if not value.is_bottom():
-                        result.append(Flow(current.copy(), value=value))
+                        result.append(
+                            NormalExprFlow(StateHandle.capture(current.copy()), value=value)
+                        )
                     result.append(
                         self.t.error(
                             current.copy(), "KeyError" if obj.kind == "dict" else "IndexError"
@@ -339,14 +387,16 @@ class DictionaryOperations:
                     for concrete in constants:
                         actual = concrete
                         if obj.kind != "dict":
-                            if type(actual) not in {int, bool}:
+                            if not isinstance(actual, int) or type(actual) not in {int, bool}:
                                 result.append(self.t.error(current.copy(), "TypeError"))
                                 continue
                             if actual < 0 and "length" in target.metadata:
                                 actual += target.metadata["length"]
                         value, missing = current.read_slot(ref, actual, self.ops)
                         if not value.is_bottom():
-                            result.append(Flow(current.copy(), value=value))
+                            result.append(
+                                NormalExprFlow(StateHandle.capture(current.copy()), value=value)
+                            )
                         if missing:
                             result.append(
                                 self.t.error(
@@ -362,23 +412,35 @@ class DictionaryOperations:
                 values = []
                 for text, index in product(strings, constants):
                     try:
-                        values.append(Value.constant(text[index]))
+                        values.append(Value.constant(_string_index(text, index)))
                     except (IndexError, TypeError) as exc:
                         result.append(self.t.error(store.copy(), type(exc).__name__))
                 if values:
-                    result.append(Flow(store.copy(), value=self.ops.join_all(values)))
+                    result.append(
+                        NormalExprFlow(
+                            StateHandle.capture(store.copy()), value=self.ops.join_all(values)
+                        )
+                    )
             elif base.top_sorts or not base.strings.is_bottom():
                 result.extend(self.t.unknown(store, node, "unmodeled_scalar_subscript"))
             elif not base.is_bottom():
                 result.append(self.t.error(store.copy(), "TypeError"))
         return result
 
-    def setitem(self, base, key, value, store, frame, node):
+    def setitem(
+        self,
+        base: Value,
+        key: Value,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         self._current(store)
         base = self._normalize(base)
         key = self._normalize(key)
         value = self._normalize(value)
-        result = []
+        result: list[Flow] = []
         if base.top:
             result.extend(self.t.unknown(store, node, "unknown_subscript_write"))
         for ref in base.refs:
@@ -397,7 +459,9 @@ class DictionaryOperations:
                 for method in self.t.getattr(Value.ref(ref), "__setitem__", current, frame, node):
                     if method.kind == "normal":
                         result.extend(
-                            self.t.invoke(method.value, [key, value], (), method.store, frame, node)
+                            self.t.invoke(
+                                require_payload(method), [key, value], (), method.store, frame, node
+                            )
                         )
                     else:
                         result.append(method)
@@ -420,17 +484,14 @@ class DictionaryOperations:
                     target.default = self.ops.join(target.default, value)
                     for field in target.fields:
                         target.fields[field] = self.ops.join(target.fields[field], value)
-                        state.writes.add(HeapWrite(ref, field))
-                    state.writes.add(HeapDefaultWrite(ref))
+                        state.record_write(HeapWrite(ref, field))
+                    state.record_write(HeapDefaultWrite(ref))
                     target.metadata.pop("length", None)
                     if obj.kind == "list":
                         result.append(self.t.error(state.copy(), "TypeError"))
                         result.append(self.t.error(state.copy(), "IndexError"))
-                    if self.d.oracle is not None and hasattr(self.d.oracle, "publish_field"):
-                        for field, fieldvalue in target.fields.items():
-                            self.d.oracle.publish_field(
-                                ref, field, fieldvalue, "ai_unknown_item_write"
-                            )
+                    for field, fieldvalue in target.fields.items():
+                        self.d.publish_oracle_field(ref, field, fieldvalue, "ai_unknown_item_write")
                     self.d.writes.add((ref, "*", self.d.point(node)))
                     result.append(self.t.normal(state))
                     continue
@@ -439,7 +500,7 @@ class DictionaryOperations:
                     target = branch.heap[ref]
                     actual = concrete
                     if obj.kind == "list":
-                        if type(actual) not in {int, bool}:
+                        if not isinstance(actual, int) or type(actual) not in {int, bool}:
                             result.append(self.t.error(branch, "TypeError"))
                             continue
                         length = target.metadata.lookup("length")
@@ -461,16 +522,15 @@ class DictionaryOperations:
                             target.metadata["length"] = len(target.fields)
                         else:
                             target.metadata.pop("length", None)
-                    if self.d.oracle is not None and hasattr(self.d.oracle, "publish_field"):
-                        self.d.oracle.publish_field(
-                            ref, actual, target.fields[actual], "ai_item_write"
-                        )
+                    self.d.publish_oracle_field(ref, actual, target.fields[actual], "ai_item_write")
                     self.d.writes.add((ref, repr(actual), self.d.point(node)))
                     result.append(self.t.normal(branch))
         return result
 
-    def contains(self, base, key, store, frame, node):
-        result = []
+    def contains(
+        self, base: Value, key: Value, store: Store, frame: Frame, node: ast.AST | None
+    ) -> list[Flow]:
+        result: list[Flow] = []
         for ref in base.refs:
             obj = store.heap.get(ref)
             if obj is None:
@@ -511,7 +571,11 @@ class DictionaryOperations:
                             if target.havoc:
                                 truths.add(True)
                     if truths:
-                        result.append(Flow(state, value=Value(bools=frozenset(truths))))
+                        result.append(
+                            NormalExprFlow(
+                                StateHandle.capture(state), value=Value(bools=frozenset(truths))
+                            )
+                        )
                 continue
             methods = self.ops.join_all(
                 self.t.lookup_class(cls, "__contains__", store) for cls in obj.class_ids
@@ -521,7 +585,9 @@ class DictionaryOperations:
                     methods, Value.ref(ref), [key], (), store.copy(), frame, node
                 ):
                     if called.kind == "normal":
-                        result.extend(self.t.truth_flows(called.value, called.store, frame, node))
+                        result.extend(
+                            self.t.truth_flows(require_payload(called), called.store, frame, node)
+                        )
                     else:
                         result.append(called)
             elif obj.kind in {"list", "tuple", "range", "set"}:
@@ -545,7 +611,11 @@ class DictionaryOperations:
                     truths.update((True, False))
                 # Multiple nonmatching elements do not establish a whole-sequence
                 # false when one element can match; the may union is covering.
-                result.append(Flow(store.copy(), value=Value(bools=frozenset(truths))))
+                result.append(
+                    NormalExprFlow(
+                        StateHandle.capture(store.copy()), value=Value(bools=frozenset(truths))
+                    )
+                )
             else:
                 result.extend(self.t.unknown(store, node, "unmodeled_iteration_membership"))
         scalar = replace(base, refs=frozenset())
@@ -556,11 +626,15 @@ class DictionaryOperations:
             if a is not None and b is not None:
                 for item, container in product(a, b):
                     try:
-                        truths.add(item in container)
+                        truths.add(_scalar_contains(item, container))
                     except TypeError:
                         result.append(self.t.error(store.copy(), "TypeError"))
                 if truths:
-                    result.append(Flow(store.copy(), value=Value(bools=frozenset(truths))))
+                    result.append(
+                        NormalExprFlow(
+                            StateHandle.capture(store.copy()), value=Value(bools=frozenset(truths))
+                        )
+                    )
             else:
                 result.extend(self.t.unknown(store, node, "unknown_scalar_membership"))
         return result

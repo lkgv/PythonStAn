@@ -517,30 +517,36 @@ class TestCallableDomain:
         targets = to_callable_targets(val)
         assert any(t.callee_obj == fn_obj for t in targets)
 
-    def test_callable_auto_populates_from_addrs(self):
+    def test_callable_auto_populates_from_addrs(self) -> None:
         """Callable tokens are derived from address sets on reduction."""
-        from pythonstan.analysis.pointer.ai.state import AIState, AbsVal
-        from pythonstan.analysis.pointer.ai.domains.callable import (
+        import ast
+
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext, Scope
+        from pythonstan.analysis.pointer.kcfa.object import (
+            AllocKind,
+            AllocSite,
+            FunctionObject,
+            ModuleObject,
+        )
+        from pythonstan.compat.legacy_ai.domains.callable import (
             CallableVal,
             FunctionRef,
         )
-        from pythonstan.analysis.pointer.ai.value_domain import CALLABLE_DOMAIN
-        from pythonstan.analysis.pointer.kcfa.object import AllocKind
+        from pythonstan.compat.legacy_ai.state import AIState
+        from pythonstan.compat.legacy_ai.value_domain import CALLABLE_DOMAIN, AbsVal
+        from pythonstan.ir.ir_statements import IRFunc, IRModule
 
-        class MockObj:
-            def __init__(self, name: str, kind: AllocKind) -> None:
-                self.name = name
-                self.kind = kind
-
-            def __hash__(self) -> int:
-                return hash(self.name)
-
-            def __eq__(self, other: object) -> bool:
-                if isinstance(other, MockObj):
-                    return self.name == other.name
-                return False
-
-        func_obj = MockObj("fn", AllocKind.FUNCTION)
+        module_ast = ast.parse("def fn():\n    pass\n")
+        function_ast = module_ast.body[0]
+        assert isinstance(function_ast, ast.FunctionDef)
+        module_ir = IRModule("fixture", module_ast)
+        function_ir = IRFunc("fixture.fn", function_ast)
+        context = CallStringContext()
+        module_obj = ModuleObject(context, AllocSite(module_ir, AllocKind.MODULE), module_ir)
+        module_scope = Scope(module_ir, module_obj, context, None, None)
+        func_obj = FunctionObject(
+            context, AllocSite(function_ir, AllocKind.FUNCTION), module_scope, function_ir
+        )
         state = AIState()
         state = state.set_var("f", AbsVal.from_addrs(frozenset({func_obj})))
         val = state.get_var("f")
@@ -607,35 +613,37 @@ class TestTypeDomain:
         assert not val.is_bottom()
         assert len(val.tokens) == 1
 
-    def test_type_auto_populates_from_addrs(self):
+    def test_type_auto_populates_from_addrs(self) -> None:
         """Type tokens are derived from class objects on reduction."""
-        from pythonstan.analysis.pointer.ai.state import AIState, AbsVal
-        from pythonstan.analysis.pointer.ai.domains.type_domain import (
-            TypeVal,
-            ClassRef,
+        import ast
+
+        from pythonstan.analysis.pointer.kcfa.context import CallStringContext, Scope
+        from pythonstan.analysis.pointer.kcfa.object import (
+            AllocKind,
+            AllocSite,
+            ClassObject,
+            ModuleObject,
         )
-        from pythonstan.analysis.pointer.ai.value_domain import TYPE_DOMAIN
-        from pythonstan.analysis.pointer.kcfa.object import AllocKind
+        from pythonstan.compat.legacy_ai.domains.type_domain import (
+            ClassRef,
+            TypeVal,
+        )
+        from pythonstan.compat.legacy_ai.state import AIState
+        from pythonstan.compat.legacy_ai.value_domain import TYPE_DOMAIN, AbsVal
+        from pythonstan.ir.ir_statements import IRClass, IRModule
 
-        class MockObj:
-            def __init__(self, name: str, kind: AllocKind) -> None:
-                self.name = name
-                self.kind = kind
-
-            def __hash__(self) -> int:
-                return hash(self.name)
-
-            def __eq__(self, other: object) -> bool:
-                if isinstance(other, MockObj):
-                    return self.name == other.name
-                return False
-
-        cls_obj = MockObj("MyClass", AllocKind.CLASS)
+        module_ast = ast.parse("class MyClass:\n    pass\n")
+        class_ast = module_ast.body[0]
+        assert isinstance(class_ast, ast.ClassDef)
+        module_ir = IRModule("fixture", module_ast)
+        class_ir = IRClass("fixture.MyClass", class_ast)
+        context = CallStringContext()
+        module_obj = ModuleObject(context, AllocSite(module_ir, AllocKind.MODULE), module_ir)
+        module_scope = Scope(module_ir, module_obj, context, None, None)
+        cls_obj = ClassObject(context, AllocSite(class_ir, AllocKind.CLASS), module_scope, class_ir)
         state = AIState()
         state = state.set_var("c", AbsVal.from_addrs(frozenset({cls_obj})))
         val = state.get_var("c")
         type_elem = val.get_component(TYPE_DOMAIN)
         assert isinstance(type_elem, TypeVal)
         assert ClassRef(cls_obj) in type_elem.tokens
-
-

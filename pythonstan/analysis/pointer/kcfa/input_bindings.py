@@ -5,7 +5,8 @@ UnknownValue and retain an explicit projection obligation, never one sample.
 """
 
 from copy import deepcopy
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from typing import TypeGuard
 import math
 from .allocation import canonical_constant
 from .object import AllocSite, AllocKind, UnknownValue
@@ -14,32 +15,39 @@ from .variable import Variable, VariableKind
 from .pointer_flow_graph import NormalNode
 
 
-def alternatives(descriptor):
+def alternatives(descriptor: object) -> tuple[tuple[object, ...], object | None]:
     if isinstance(descriptor, Mapping):
-        if "constants" in descriptor:
-            values = descriptor["constants"]
+        fields: Mapping[object, object] = descriptor
+        if "constants" in fields:
+            values = fields["constants"]
             if not isinstance(values, (list, tuple)) or not values:
                 raise ValueError("Input constants require a nonempty finite sequence")
-            return tuple(values), None
-        if "value" in descriptor:
-            return (descriptor["value"],), None
-        if descriptor.get("type") == "none":
+            sequence: Sequence[object] = values
+            return tuple(sequence), None
+        if "value" in fields:
+            return (fields["value"],), None
+        if fields.get("type") == "none":
             return (None,), None
-        if descriptor.get("top") is True or descriptor.get("type") in {
+        if fields.get("top") is True or fields.get("type") in {
             "str",
             "int",
             "bool",
             "float",
         }:
-            return (), descriptor.get("type", "any")
+            return (), fields.get("type", "any")
         raise ValueError("Unsupported initial input descriptor")
     return (descriptor,), None
 
 
-def validate_input_bindings(bindings):
+def _string_keys(bindings: dict[object, object]) -> TypeGuard[dict[str, object]]:
+    return all(type(key) is str for key in bindings)
+
+
+def validate_input_bindings(bindings: object) -> dict[str, object]:
     if not isinstance(bindings, Mapping):
         raise TypeError("Input bindings must be a mapping")
-    result = deepcopy(dict(bindings))
+    entries: Mapping[object, object] = bindings
+    result = deepcopy(dict(entries))
     for name, descriptor in result.items():
         if (
             type(name) is not str
@@ -55,6 +63,8 @@ def validate_input_bindings(bindings):
                 and not math.isfinite(value)
             ):
                 raise ValueError("Native initial bindings require finite scalar inputs")
+    if not _string_keys(result):
+        raise ValueError("Initial input must identify a module global")
     return result
 
 

@@ -26,9 +26,12 @@ class PropertyProof:
     evidence: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "closed_obligations", tuple(self.closed_obligations))
-        object.__setattr__(self, "open_obligations", tuple(self.open_obligations))
-        object.__setattr__(self, "evidence", tuple(self.evidence))
+        closed_obligations: tuple[str, ...] = tuple(self.closed_obligations)
+        open_obligations: tuple[str, ...] = tuple(self.open_obligations)
+        evidence: tuple[str, ...] = tuple(self.evidence)
+        object.__setattr__(self, "closed_obligations", closed_obligations)
+        object.__setattr__(self, "open_obligations", open_obligations)
+        object.__setattr__(self, "evidence", evidence)
         if self.status == "verified" and (self.open_obligations or not self.evidence):
             raise ValueError("verified property requires evidence and no open obligations")
 
@@ -44,8 +47,10 @@ class GuaranteeLedger:
     open_obligations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "properties", tuple(self.properties))
-        object.__setattr__(self, "open_obligations", tuple(self.open_obligations))
+        properties: tuple[PropertyProof, ...] = tuple(self.properties)
+        open_obligations: tuple[str, ...] = tuple(self.open_obligations)
+        object.__setattr__(self, "properties", properties)
+        object.__setattr__(self, "open_obligations", open_obligations)
 
     @property
     def proof_status(self) -> ProofStatus:

@@ -1,20 +1,40 @@
 """Native representation projection onto the one canonical scalar implementation."""
 
+from __future__ import annotations
+
 import ast
-from pythonstan.compat.legacy_ai.value_domain import AbsVal
+from collections.abc import Callable, Collection
+from typing import TYPE_CHECKING
+
+from pythonstan.analysis.domains.base import DomainRegistry
 from pythonstan.analysis.domains.values import Value, ValueOperations, ValuePolicy
-from pythonstan.analysis.pointer.kcfa.object import ConstantObject, AllocKind, AllocSite
 from pythonstan.analysis.pointer.kcfa.context import CallStringContext
+from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite, ConstantObject
+from pythonstan.compat.legacy_ai.value_domain import AbsVal
+from pythonstan.frontend.source import source_constant
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.pointer.kcfa.context import NativeContext
+    from pythonstan.analysis.pointer.kcfa.object import AllocationSource
 
 
-def finite_integer_transfer(expr, read_name, statement, context, *, max_pairs=256, max_bits=4096):
-    registry = []
+def finite_integer_transfer(
+    expr: ast.expr,
+    read_name: Callable[[str], AbsVal],
+    statement: AllocationSource | None,
+    context: NativeContext | None,
+    *,
+    max_pairs: int = 256,
+    max_bits: int = 4096,
+) -> AbsVal | None:
+    registry: list[DomainRegistry] = []
 
-    def operand(node):
+    def operand(node: ast.expr) -> Value | None:
         if isinstance(node, ast.Constant):
+            literal = source_constant(node)
             return (
-                Value.constant(node.value)
-                if type(node.value) is int and node.value.bit_length() <= max_bits
+                Value.constant(literal)
+                if type(literal) is int and literal.bit_length() <= max_bits
                 else None
             )
         if not isinstance(node, ast.Name):
@@ -34,7 +54,7 @@ def finite_integer_transfer(expr, read_name, statement, context, *, max_pairs=25
         integer = old.get_int_lattice()
         if integer.is_bottom or integer.is_top:
             return None
-        constants = integer.get_consts()
+        constants: Collection[int] | None = integer.get_consts()
         if constants is None:
             if integer.lo is None or integer.hi is None or integer.hi - integer.lo >= max_pairs:
                 return None
@@ -56,20 +76,22 @@ def finite_integer_transfer(expr, read_name, statement, context, *, max_pairs=25
         if errors:
             return None
     elif isinstance(expr, (ast.BinOp, ast.Compare)):
+        operator: ast.operator | ast.cmpop
         if isinstance(expr, ast.Compare):
             if len(expr.ops) != 1 or len(expr.comparators) != 1:
                 return None
-            op, left, right = expr.ops[0], expr.left, expr.comparators[0]
+            operator, left_node, right_node = expr.ops[0], expr.left, expr.comparators[0]
         else:
-            op, left, right = expr.op, expr.left, expr.right
+            operator, left_node, right_node = expr.op, expr.left, expr.right
         if not isinstance(
-            op, (ast.Add, ast.Sub, ast.Mult, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE)
+            operator,
+            (ast.Add, ast.Sub, ast.Mult, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE),
         ):
             return None
-        left, right = operand(left), operand(right)
+        left, right = operand(left_node), operand(right_node)
         if left is None or right is None:
             return None
-        result, errors = ops.scalar_binary(op, left, right)
+        result, errors = ops.scalar_binary(operator, left, right)
         if errors:
             return None
     else:
@@ -79,15 +101,20 @@ def finite_integer_transfer(expr, read_name, statement, context, *, max_pairs=25
         type(value) is int and value.bit_length() > max_bits for value in constants
     ):
         return None
+    integers: list[int | bool] = []
     scalar = AbsVal.bottom()
-    for value in constants:
-        scalar = scalar.join(
+    for constant in constants:
+        if not isinstance(constant, int):
+            return None
+        integers.append(constant)
+        component = (
             AbsVal.bool_true()
-            if value is True
+            if constant is True
             else AbsVal.bool_false()
-            if value is False
-            else AbsVal.from_int(value)
+            if constant is False
+            else AbsVal.from_int(constant)
         )
+        scalar = scalar.join(component)
     if registry:
         scalar = scalar.with_registry(registry[0])
     return scalar.with_addrs(
@@ -95,6 +122,6 @@ def finite_integer_transfer(expr, read_name, statement, context, *, max_pairs=25
             ConstantObject(
                 context or CallStringContext(), AllocSite(statement, AllocKind.CONSTANT), value
             )
-            for value in constants
+            for value in integers
         )
     )

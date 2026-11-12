@@ -1,0 +1,44 @@
+{
+  "status": "ready_for_independent_review",
+  "cards_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/config.py": "2ab0478348b4c9f5542e44fdf30d7a4edb6b6aa5a99cf9f313286edfa673d082",
+    "tests/regression/audit3/test_native_config_codec.py": "9dd9139b429d8e85912a1c85ff8af3a2aa15ea07b3329d9f11ad020e688e7709"
+  },
+  "provider_sha256": {
+    "pythonstan/analysis/contracts/budgets.py": "6e68e61289713099429ecbb095899b1ea8eba2764a4a0f298dd55869ac185b2a",
+    "pythonstan/analysis/contracts/json_data.py": "2d5db8e1cbd0dff907553cc564369dbac207698523329c81f77065f088d7168a",
+    "pythonstan/analysis/pointer/kcfa/context_selector.py": "87ccf8f7a9f8008d82e286cf57cf867170fe2bfb093ce3c259441ef6fe1f62a0"
+  },
+  "mechanical_base": "2214c8a; executable AST unchanged, trailing docstring whitespace normalized separately",
+  "scope": [
+    "The single existing KCFA Config dataclass retains its defaults and supported controls; complete actual implementation is strictly typed.",
+    "Config.from_dict(JsonObject) validates known solver fields and constructs the real Config explicitly, with no dynamic kwargs/Any/getattr shell.",
+    "Existing driver-only test_root/test_dir/test_files filtering, unknown-option rejection, context policies, unsupported-control diagnostics, entry/library-list constraints and single AnalysisBudget validator are preserved.",
+    "Exact ai_budget/list container constraints are checked before canonical JSON copying can normalize invalid containers.",
+    "Config.to_dict returns a complete owned JsonObject; input and exported mutable lists/budgets do not share Config storage."
+  ],
+  "explicit_boundary_repairs": [
+    "Wrong-typed project_path/debug_output_dir and other malformed scalar fields are rejected at the checked boundary rather than entering a falsely JSON-typed projection.",
+    "Mutating an exported entry_points list no longer mutates the frozen configuration record; supported configuration values and analysis defaults are unchanged."
+  ],
+  "verification": {
+    "runtime": "114 passed in 17.31s",
+    "differential": "69 valid projections equal the committed original 2214c8a; 12 invalid control cases rejected by both",
+    "differential_script": "artifacts/next/evidence/N4-TYPE-01/native-config/differential_controls.py",
+    "strict_owned_diagnostics": 0,
+    "strict_underlying_exit": 1,
+    "strict_imported_diagnostics": 4012,
+    "ruff": "All checks passed!",
+    "format": "2 files already formatted",
+    "owned_source_stable": true,
+    "provider_source_stable": true,
+    "raw_receipt": "artifacts/next/evidence/N4-TYPE-01/native-config/receipt.json"
+  },
+  "limits": [
+    "Ordinary imports retain 4,012 legacy Native diagnostics in 101 dependency files; no whole-tree clean or parent TYPE acceptance is claimed.",
+    "This preserves the legacy Config field interface, including owned mutable list/budget attributes inside a frozen dataclass; it does not claim a new deeply immutable Native configuration object.",
+    "The Native worker and its broader typed process boundary are peer-owned and require their own integration review.",
+    "No baseline, frozen quality debt, semantic gold or card status was reset."
+  ]
+}

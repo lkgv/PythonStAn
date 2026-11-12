@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "base_commit": "d61e81e46b224b0e7c31d520ce9402a27369e112",
+  "base_commit": "cd330f71d0332b6ad63a8bffbd9285e1d16ffd89",
   "reviewer": "requirements_audit",
-  "production_semantics": "W0 independently accepted. Each shared hotspot has one writer. Narrow extra consumer changes require root coordination; all current owners held production writes for the recorded recovery checkpoint.",
+  "production_semantics": "All source/test/benchmark writers held for the recorded checks. Independent review remains bounded to named slices; no parent qualification inferred.",
   "historical_w0_owners": {
     "root": [
       ".gitignore",
@@ -40,7 +40,7 @@
       "docs/development/next/client_query*"
     ]
   },
-  "phase": "W1 recovery",
+  "phase": "W1 integrated checkpoint frozen",
   "owners": {
     "root": [
       "pythonstan/analysis/engines/abstract/driver.py",
@@ -89,6 +89,27 @@
     "client_preregistration": [
       "pythonstan/analysis/engines/abstract/publication.py",
       "pythonstan/analysis/engines/abstract/namespaces.py"
+    ]
+  },
+  "checkpoint_source_snapshot_sha256": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
+  "next_quality_leases_planned": {
+    "quality_tools": [
+      "Native solver/intrinsic actual couplings, diagnostics/worklist/query adapter/API, dictionaries/oracle remaining strong boundaries"
+    ],
+    "input_typing": [
+      "Native state/object/heap/PFG/IR and legacy AIState actual newly activated units"
+    ],
+    "semantic_baseline": [
+      "Native context/protocol, points_to_set and processor consumers"
+    ],
+    "client_preregistration": [
+      "World/Pipeline/ScopeManager/config and Inspector actual couplings"
+    ],
+    "requirements_audit": [
+      "Native analysis/IR translator/certified driver and actual legacy budget caller; independent review by another owner"
+    ],
+    "root": [
+      "quality policy/frontier, canonical contracts, integration, reviewed evidence and publication"
     ]
   }
 }

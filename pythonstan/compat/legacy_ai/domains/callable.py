@@ -6,14 +6,14 @@ for call dispatch precision.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, FrozenSet, Optional, Set, Union
+from typing import TYPE_CHECKING, override
 
-from pythonstan.compat.legacy_ai.domains.base import Domain, DomainRegistry
+from pythonstan.analysis.contracts.budgets import AnalysisBudget
+from pythonstan.analysis.domains.base import Domain, DomainRegistry
+from pythonstan.analysis.pointer.kcfa.object import AbstractObject
 
 if TYPE_CHECKING:
-    from pythonstan.analysis.pointer.kcfa.object import AbstractObject
-    from pythonstan.compat.legacy_ai.value_domain import AddrSet, AbsVal, CallableTarget
-    from pythonstan.compat.legacy_ai.api import AnalysisBudget
+    from pythonstan.compat.legacy_ai.value_domain import AbsVal, AddrSet, CallableTarget
 
 __all__ = [
     "CallableDomain",
@@ -47,7 +47,7 @@ class BoundMethodRef:
     receiver_addrs: "AddrSet"
 
 
-CallableToken = Union[FunctionRef, BoundMethodRef]
+type CallableToken = FunctionRef | BoundMethodRef
 
 
 @dataclass(frozen=True)
@@ -55,7 +55,7 @@ class CallableVal:
     """Abstract callable value."""
 
     kind: CallableKind = CallableKind.BOTTOM
-    tokens: FrozenSet[CallableToken] = field(default_factory=frozenset)
+    tokens: frozenset[CallableToken] = field(default_factory=frozenset)
 
     @classmethod
     def bottom(cls) -> "CallableVal":
@@ -66,7 +66,7 @@ class CallableVal:
         return cls(CallableKind.TOP, frozenset())
 
     @classmethod
-    def from_tokens(cls, tokens: FrozenSet[CallableToken]) -> "CallableVal":
+    def from_tokens(cls, tokens: frozenset[CallableToken]) -> "CallableVal":
         if len(tokens) == 0:
             return cls.bottom()
         return cls(CallableKind.SET, tokens)
@@ -106,13 +106,13 @@ class CallableVal:
             return False
         return self.tokens <= other.tokens
 
-    def to_callable_targets(self) -> FrozenSet["CallableTarget"]:
+    def to_callable_targets(self) -> frozenset["CallableTarget"]:
         """Extract callables to feed call dispatch."""
         from pythonstan.compat.legacy_ai.value_domain import AbsVal, CallableTarget
 
         if self.is_top() or self.is_bottom():
             return frozenset()
-        targets: Set[CallableTarget] = set()
+        targets: set[CallableTarget] = set()
         for tok in self.tokens:
             if isinstance(tok, BoundMethodRef):
                 receiver = AbsVal.from_addrs(tok.receiver_addrs)
@@ -140,12 +140,13 @@ class CallableVal:
         )
         if not receiver_addrs:
             return self
-        new_tokens: Set[CallableToken] = set(self.tokens)
+        new_tokens: set[CallableToken] = set(self.tokens)
         for tok in self.tokens:
             if isinstance(tok, FunctionRef):
                 new_tokens.add(BoundMethodRef(tok.obj, receiver_addrs))
         return CallableVal.from_tokens(frozenset(new_tokens))
 
+    @override
     def __str__(self) -> str:
         if self.is_bottom():
             return "⊥_callable"
@@ -157,44 +158,53 @@ class CallableVal:
 class CallableDomain(Domain[CallableVal]):
     """Domain for callable tokens with bounded set widening."""
 
-    def __init__(self, max_tokens: int = 20):
+    def __init__(self, max_tokens: int = 20) -> None:
         self.max_tokens = max_tokens
 
     @property
+    @override
     def name(self) -> str:
         return "callable"
 
+    @override
     def bottom(self) -> CallableVal:
         return CallableVal.bottom()
 
+    @override
     def top(self) -> CallableVal:
         return CallableVal.top()
 
+    @override
     def join(self, a: CallableVal, b: CallableVal) -> CallableVal:
         return a.join(b)
 
+    @override
     def meet(self, a: CallableVal, b: CallableVal) -> CallableVal:
         return a.meet(b)
 
+    @override
     def leq(self, a: CallableVal, b: CallableVal) -> bool:
         return a.leq(b)
 
+    @override
     def widen(self, old: CallableVal, new: CallableVal) -> CallableVal:
         joined = old.join(new)
         if joined.kind == CallableKind.SET and len(joined.tokens) > self.max_tokens:
             return CallableVal.top()
         return joined
 
+    @override
     def narrow(self, old: CallableVal, new: CallableVal) -> CallableVal:
         return old.meet(new)
 
+    @override
     def on_reduce_value(
         self,
         var: str,
-        addrs: "AddrSet",
+        addrs: frozenset[object],
         elem: CallableVal,
         registry: DomainRegistry,
-        budget: Optional["AnalysisBudget"] = None,
+        budget: AnalysisBudget | None = None,
     ) -> CallableVal:
         """Derive callable tokens from the address set."""
         if not addrs:
@@ -205,12 +215,7 @@ class CallableDomain(Domain[CallableVal]):
             return elem
 
         # Merge with existing element
-        if elem.is_top():
-            combined = derived
-        elif elem.is_bottom():
-            combined = derived
-        else:
-            combined = elem.join(derived)
+        combined = derived if elem.is_top() or elem.is_bottom() else elem.join(derived)
 
         # Apply max_tokens cap
         max_tokens = self.max_tokens
@@ -222,14 +227,13 @@ class CallableDomain(Domain[CallableVal]):
 
         return combined
 
-    def _derive_from_addrs(self, addrs: "AddrSet") -> Optional[CallableVal]:
+    def _derive_from_addrs(self, addrs: frozenset[object]) -> CallableVal | None:
         """Derive callable tokens from KCFA address set."""
         from pythonstan.analysis.pointer.kcfa.object import AllocKind
 
-        tokens: Set[CallableToken] = set()
+        tokens: set[CallableToken] = set()
         for obj in addrs:
-            kind = getattr(obj, "kind", None)
-            if kind in (
+            if isinstance(obj, AbstractObject) and obj.kind in (
                 AllocKind.FUNCTION,
                 AllocKind.METHOD,
                 AllocKind.BOUND_METHOD,

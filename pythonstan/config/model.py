@@ -179,7 +179,8 @@ class EffectiveConfig(Mapping[str, JsonValue]):
         data["queries"] = [query.to_dict() for query in queries]
         data["output"] = output.to_dict()
         object.__setattr__(self, "_document", freeze_json_object(data))
-        object.__setattr__(self, "_provenance", MappingProxyType(dict(provenance)))
+        owned_provenance: Mapping[str, str] = MappingProxyType(dict[str, str](provenance))
+        object.__setattr__(self, "_provenance", owned_provenance)
         object.__setattr__(self, "config_file", config_file)
         object.__setattr__(self, "engine", engine_name(data["engine"]))
         object.__setattr__(self, "semantic_profile", require_string(data["semantic_profile"]))
@@ -191,9 +192,10 @@ class EffectiveConfig(Mapping[str, JsonValue]):
             self, "observation", ObservationConfig.from_wire(require_object(data["observation"]))
         )
         object.__setattr__(self, "llm", LlmConfig.from_wire(require_object(data["llm"])))
-        object.__setattr__(
-            self, "regions", tuple(freeze_json(item) for item in require_array(data["regions"]))
+        owned_regions: tuple[FrozenJsonValue, ...] = tuple(
+            freeze_json(item) for item in require_array(data["regions"])
         )
+        object.__setattr__(self, "regions", owned_regions)
         object.__setattr__(self, "queries", queries)
         object.__setattr__(self, "output", output)
         object.__setattr__(self, "andersen", freeze_json_object(require_object(data["andersen"])))

@@ -8,6 +8,7 @@ of this configuration description.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Self
 
 
 @dataclass
@@ -80,6 +81,68 @@ class AnalysisBudget:
     enable_dict_identity_keys: bool = True  # Enable identity key partitioning
     max_dict_identity_keys: int = 10  # Max identity keys
 
+    @classmethod
+    def from_options(cls, options: Mapping[str, object]) -> Self:
+        """Decode validated controls into this single finite runtime record."""
+        checked = validate_budget_options(options)
+        defaults = cls()
+
+        def integer(name: str, default: int) -> int:
+            value = checked.get(name, default)
+            if type(value) is not int:
+                raise ValueError(f"{name} must have type int")
+            return value
+
+        def boolean(name: str, default: bool) -> bool:
+            value = checked.get(name, default)
+            if type(value) is not bool:
+                raise ValueError(f"{name} must have type bool")
+            return value
+
+        return cls(
+            max_iterations=integer("max_iterations", defaults.max_iterations),
+            max_stmt_visits=integer("max_stmt_visits", defaults.max_stmt_visits),
+            max_recursion_depth=integer("max_recursion_depth", defaults.max_recursion_depth),
+            strict_exceptions=boolean("strict_exceptions", defaults.strict_exceptions),
+            max_addr_set_size=integer("max_addr_set_size", defaults.max_addr_set_size),
+            max_field_keys=integer("max_field_keys", defaults.max_field_keys),
+            max_const_strings=integer("max_const_strings", defaults.max_const_strings),
+            max_ho_tokens=integer("max_ho_tokens", defaults.max_ho_tokens),
+            enable_narrowing=boolean("enable_narrowing", defaults.enable_narrowing),
+            narrowing_iterations=integer("narrowing_iterations", defaults.narrowing_iterations),
+            enable_value_partition=boolean(
+                "enable_value_partition", defaults.enable_value_partition
+            ),
+            max_value_partitions=integer("max_value_partitions", defaults.max_value_partitions),
+            value_partition_str_cap=integer(
+                "value_partition_str_cap", defaults.value_partition_str_cap
+            ),
+            max_const_ints=integer("max_const_ints", defaults.max_const_ints),
+            max_tuple_len_exact=integer("max_tuple_len_exact", defaults.max_tuple_len_exact),
+            max_tuple_alts=integer("max_tuple_alts", defaults.max_tuple_alts),
+            max_star_expand_len=integer("max_star_expand_len", defaults.max_star_expand_len),
+            max_star_expand_alts=integer("max_star_expand_alts", defaults.max_star_expand_alts),
+            max_dict_parts=integer("max_dict_parts", defaults.max_dict_parts),
+            max_dict_key_const_strs=integer(
+                "max_dict_key_const_strs", defaults.max_dict_key_const_strs
+            ),
+            max_dict_key_const_ints=integer(
+                "max_dict_key_const_ints", defaults.max_dict_key_const_ints
+            ),
+            max_dict_key_tuple_len=integer(
+                "max_dict_key_tuple_len", defaults.max_dict_key_tuple_len
+            ),
+            max_dict_key_tuple_alts=integer(
+                "max_dict_key_tuple_alts", defaults.max_dict_key_tuple_alts
+            ),
+            enable_dict_identity_keys=boolean(
+                "enable_dict_identity_keys", defaults.enable_dict_identity_keys
+            ),
+            max_dict_identity_keys=integer(
+                "max_dict_identity_keys", defaults.max_dict_identity_keys
+            ),
+        )
+
     def to_dict(self) -> dict[str, int | bool]:
         """Return the finite, owned configuration projection."""
         return {
@@ -113,10 +176,11 @@ class AnalysisBudget:
 
 def validate_budget_options(options: Mapping[str, object]) -> dict[str, int | bool]:
     """Validate historical budget controls without truthiness or bool/int coercion."""
+    supplied: Mapping[str, object] = options
     if type(options) is not dict:
         raise ValueError("AI budget must be a dictionary")
     defaults = AnalysisBudget().to_dict()
-    unknown = set(options) - defaults.keys()
+    unknown = set(supplied) - defaults.keys()
     if unknown:
         raise ValueError(f"Unknown AI budget options: {sorted(unknown)}")
     zero_allowed = {
@@ -127,7 +191,7 @@ def validate_budget_options(options: Mapping[str, object]) -> dict[str, int | bo
         "max_value_partitions",
     }
     checked: dict[str, int | bool] = {}
-    for name, value in options.items():
+    for name, value in supplied.items():
         default = defaults[name]
         if isinstance(default, bool):
             if type(value) is not bool:

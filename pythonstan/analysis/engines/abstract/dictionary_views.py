@@ -8,29 +8,75 @@ from __future__ import annotations
 
 import ast
 from dataclasses import replace
+from typing import TYPE_CHECKING, TypeGuard
 
+from pythonstan.analysis.contracts.identity import ObjectId
+from pythonstan.analysis.contracts.json_data import JsonScalar
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.state.effects import MetadataAspect, MetadataUpdate
+from pythonstan.analysis.state.flow import Flow, NormalExprFlow
+from pythonstan.analysis.state.handles import StateHandle
+from pythonstan.analysis.state.keys import FieldKey
+from pythonstan.analysis.state.metadata import (
+    DictionaryIteratorMeta,
+    DictViewKind,
+    DictViewMeta,
+    Metadata,
+)
+from pythonstan.analysis.state.store import Frame, HeapObject, Store
 
-from .state import Flow
+if TYPE_CHECKING:
+    from .transfer import Transfer
+
+
+def _scalar_key(key: FieldKey) -> TypeGuard[JsonScalar]:
+    """Admit exactly the historical finite builtin key representation."""
+    return type(key) in {str, int, bool, float, type(None)}
 
 
 class DictionaryViews:
-    def __init__(self, transfer):
+    def __init__(self, transfer: Transfer) -> None:
         self.t = transfer
         self.d = transfer.d
         self.ops = transfer.ops
 
-    def create(self, owner, kind, store, frame, node):
+    def create(
+        self,
+        owner: ObjectId,
+        kind: DictViewKind,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> Value:
         return self.t.alloc(
-            node, store, frame, "dict_view", metadata={"owner": Value.ref(owner), "view_kind": kind}
+            node,
+            store,
+            frame,
+            "dict_view",
+            metadata=Metadata.from_record("dict_view", DictViewMeta(Value.ref(owner), kind)),
         )
 
-    def length(self, view, store, frame, node):
-        return self.t.length_builtin([view.metadata["owner"]], (), store, frame, node)
+    def length(
+        self,
+        view: HeapObject,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
+        record = view.metadata.record
+        if not isinstance(record, DictViewMeta) or record.owner is None:
+            raise KeyError("owner")
+        return self.t.length_builtin([record.owner], (), store, frame, node)
 
-    def iterator(self, owner, kind, store, frame, node):
-        result = []
+    def iterator(
+        self,
+        owner: Value,
+        kind: DictViewKind,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
+        result: list[Flow] = []
         for ref in owner.refs:
             current = store.copy()
             obj = current.heap.get(ref)
@@ -51,26 +97,32 @@ class DictionaryViews:
             ):
                 result.extend(self.t.unknown(current, node, "abstract_dictionary_view_iteration"))
                 continue
-            metadata = {
-                "container": Value.ref(ref),
-                "dictionary_iteration": kind,
-                "dictionary_keys": tuple(obj.fields),
-                "index": 0,
-            }
-            result.append(
-                Flow(
-                    current, value=self.t.alloc(node, current, frame, "iterator", metadata=metadata)
-                )
+            metadata = Metadata.from_record(
+                "iterator",
+                DictionaryIteratorMeta(
+                    container=Value.ref(ref),
+                    dictionary_iteration=kind,
+                    dictionary_keys=tuple(obj.fields),
+                    index=0,
+                ),
             )
+            allocated = self.t.alloc(node, current, frame, "iterator", metadata=metadata)
+            result.append(NormalExprFlow(StateHandle.capture(current), allocated))
         if owner.top or owner.top_sorts:
             result.extend(self.t.unknown(store, node, "unknown_dictionary_view_owner"))
         return result
 
-    def next(self, iterator, store, frame, node):
+    def next(
+        self,
+        iterator: ObjectId,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         item = store.heap[iterator]
         index = item.metadata["index"]
         kind = item.metadata["dictionary_iteration"]
-        result = []
+        result: list[Flow] = []
         if item.metadata.lookup("dictionary_exhausted"):
             return [self.t.continuations.stop(store, frame, node)]
         for owner in item.metadata["container"].refs:
@@ -102,16 +154,18 @@ class DictionaryViews:
                 continue
             if index >= len(keys):
                 current.heap[iterator].metadata["dictionary_exhausted"] = True
-                current.writes.add(MetadataUpdate(iterator, MetadataAspect.ITERATOR_STATE))
+                current.record_write(MetadataUpdate(iterator, MetadataAspect.ITERATOR_STATE))
                 result.append(self.t.continuations.stop(current, frame, node))
                 continue
             key = keys[index]
-            if type(key) not in {str, int, bool, float, type(None)}:
+            if not _scalar_key(key):
                 result.extend(self.t.unknown(current, node, "dictionary_view_key_representation"))
                 continue
             answer = Value.constant(key) if kind == "keys" else source.fields[key]
             if kind == "items":
-                synthetic = ast.copy_location(ast.Constant(value=None), node)
+                synthetic = ast.Constant(value=None)
+                if node is not None:
+                    ast.copy_location(synthetic, node)
                 self.d.register_generated(
                     synthetic,
                     self.d.point(node) + "#dictionary-item:" + iterator + ":" + str(index),
@@ -125,18 +179,30 @@ class DictionaryViews:
                     {"length": 2},
                 )
             current.heap[iterator].metadata["index"] = index + 1
-            current.writes.add(MetadataUpdate(iterator, MetadataAspect.ITERATOR_STATE))
-            result.append(Flow(current, value=answer))
+            current.record_write(MetadataUpdate(iterator, MetadataAspect.ITERATOR_STATE))
+            result.append(NormalExprFlow(StateHandle.capture(current), value=answer))
         return result
 
-    def contains(self, view, key, store, frame, node):
+    def contains(
+        self,
+        view: HeapObject,
+        key: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+    ) -> list[Flow]:
         if view.havoc:
             return self.t.unknown(store, node, "havoc_dictionary_view_membership")
-        owner = view.metadata["owner"]
-        kind = view.metadata["view_kind"]
+        record = view.metadata.record
+        if not isinstance(record, DictViewMeta) or record.owner is None:
+            raise KeyError("owner")
+        if record.view_kind is None:
+            raise KeyError("view_kind")
+        owner = record.owner
+        kind = record.view_kind
         if kind == "keys":
             return self.t.dictionaries.contains(owner, key, store, frame, node)
-        result = []
+        result: list[Flow] = []
         for ref in owner.refs:
             source = store.heap.get(ref)
             if (
@@ -147,7 +213,7 @@ class DictionaryViews:
             ):
                 result.extend(self.t.unknown(store, node, "abstract_dictionary_view_membership"))
                 continue
-            needles = []
+            needles: list[tuple[Value | None, Value]] = []
             if kind == "values":
                 needles = [(None, key)]
             else:
@@ -167,7 +233,11 @@ class DictionaryViews:
                         and pair.kind == "tuple"
                         and type(pair.metadata.lookup("length")) is int
                     ):
-                        result.append(Flow(store.copy(), value=Value.constant(False)))
+                        result.append(
+                            NormalExprFlow(
+                                StateHandle.capture(store.copy()), value=Value.constant(False)
+                            )
+                        )
                     else:
                         result.extend(
                             self.t.unknown(store, node, "dictionary_items_equality_protocol")
@@ -176,12 +246,23 @@ class DictionaryViews:
                 if scalar.top or scalar.top_sorts:
                     result.extend(self.t.unknown(store, node, "dictionary_items_equality_protocol"))
                 elif not scalar.is_bottom():
-                    result.append(Flow(store.copy(), value=Value.constant(False)))
+                    result.append(
+                        NormalExprFlow(
+                            StateHandle.capture(store.copy()), value=Value.constant(False)
+                        )
+                    )
             for wanted_key, wanted_value in needles:
                 constants = wanted_value.exact_constants()
                 keys = wanted_key.exact_constants() if wanted_key is not None else [None]
-                values = [value.exact_constants() for value in source.fields.values()]
-                if constants is None or keys is None or any(value is None for value in values):
+                values: list[list[JsonScalar]] = []
+                unknown_values = False
+                for value in source.fields.values():
+                    choices = value.exact_constants()
+                    if choices is None:
+                        unknown_values = True
+                        break
+                    values.append(choices)
+                if constants is None or keys is None or unknown_values:
                     result.extend(self.t.unknown(store, node, "dictionary_view_equality_protocol"))
                     continue
                 truths = set()
@@ -192,7 +273,7 @@ class DictionaryViews:
                                 wanted_key is None or concrete_key == target_key,
                                 [v == target_value for v in choices],
                             )
-                            for concrete_key, choices in zip(source.fields, values)
+                            for concrete_key, choices in zip(source.fields, values, strict=False)
                         ]
                         if any(
                             matches_key and any(matches) for matches_key, matches in comparisons
@@ -204,5 +285,9 @@ class DictionaryViews:
                         ):
                             truths.add(False)
                 if truths:
-                    result.append(Flow(store.copy(), value=Value(bools=frozenset(truths))))
+                    result.append(
+                        NormalExprFlow(
+                            StateHandle.capture(store.copy()), value=Value(bools=frozenset(truths))
+                        )
+                    )
         return result

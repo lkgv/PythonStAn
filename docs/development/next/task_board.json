@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "plan_version": "PythonStAn-next-v2",
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "timezone": "Asia/Shanghai",
   "audited_baseline": "b19d98e0cdca8fd23d49ec82a526f814309edf75",
   "source_tree": "23135d4c1070af6c20fd88308008197fb1c333bc",
@@ -18,7 +18,7 @@
     "W8": 2,
     "W9": 1
   },
-  "instruction": "All tasks are proposed, not implemented. dependencies are task edges; contributes_to_gates is reporting only and never an implicit prerequisite. Phase labels are scheduling hints, not barriers. Source-file leases and independent review required.",
+  "instruction": "Historical task obligations are retained. status and implementation_record report current evidence; phase labels schedule work and never imply gate acceptance. Source leases and independent reviews remain required.",
   "effort_classes": {
     "S": "一个窄接口/修复切片",
     "M": "若干紧密相关实现与独立验收",
@@ -415,22 +415,29 @@
       "effort_class": "L",
       "status": "running",
       "implementation_record": {
-        "owner": "domain_native_baseline; domains semantic_baseline; metadata semantic_baseline",
+        "owner": "root integration; domain_native_baseline runtime; semantic_baseline graph/provider/context; input_typing bridge/inputs; quality_tools contracts/oracle/intrinsics; client_preregistration worker/API",
         "reviewer": "requirements_audit",
         "commit": null,
         "evidence": [
-          "docs/development/next/RECOVERY_CHECKPOINT_20261112.json",
-          "artifacts/next/evidence/recovery-checkpoint-final/stage.receipt.json",
-          "artifacts/next/evidence/recovery-checkpoint-final/new-controls.receipt.json"
+          "docs/development/next/TYPE_CHECKPOINT_20261112.json",
+          "docs/development/next/evidence/type_checkpoint_20261112"
         ],
         "remaining_obligations": [
-          "Complete strict Transfer and all actual helper/provider calls, including namespaces, dictionaries and verified-summary boundaries.",
-          "Resolve relation handler identity/display distinction without treating a qualname as ObjectId.",
-          "Expand reviewed strict frontier only for whole clean modules; preserve immutable debt and run actual quality guards.",
-          "Revalidate live exhaustive-handler mutation, complete call/effect/abrupt/return/query paths and independent review on final source."
+          "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
+          "Clear12 canonical Any-expression diagnostics in dictionary bytecode boundary and oracle queue construction; extend reviewed whole-module frontier",
+          "Complete independent final integration and mandatory semantic/domain/state/Native repair gates; no later card inferred complete from local controls",
+          "Retain explicit open profiles, graph-memo provenance, unsupported custom contexts and existing frozen red witnesses",
+          "Run real LLM only after offline verification and independent audit; credentials only from environment"
         ],
-        "scope": "Recovery runtime checkpoint with actual Flow/StateHandle, BindingRef, CallArguments, SummaryDependency consumers, finite graph visitor, optional explicit oracle lifecycle and typed publication. Parent card remains unverified.",
+        "scope": "Integrated actual TYPE contracts and checked-summary/Native boundary checkpoint; parent TYPE-01 remains unverified",
         "review_records": [
+          "docs/development/next/domain_native_independent_review.json",
+          "docs/development/next/domain_native_legacy_registry_review.json",
+          "docs/development/next/reviews/TYPE-01-checker2.md",
+          "docs/development/next/reviews/TYPE-01-graph-metadata.md",
+          "docs/development/next/reviews/TYPE-01-native-context.md",
+          "docs/development/next/reviews/TYPE-01-oracle-preparation-coherence.md",
+          "docs/development/next/reviews/TYPE-01-shared-bridge.md",
           "docs/development/next/reviews/W1-domain-config-input.md",
           "docs/development/next/reviews/W1-effect-slice.md",
           "docs/development/next/reviews/W1-low-contracts-ports.md"
@@ -3517,16 +3524,16 @@
       "LIVE-2": "pending_internal_prerequisites",
       "LIVE-3": "pending_internal_prerequisites"
     },
-    "benefit_demonstrated": "not_evaluated"
+    "benefit_demonstrated": "not_evaluated",
+    "release_qualified": false
   },
   "publication_status": {
     "remote_branch": "dev-cocktail-analysis",
-    "remote_head_last_observed": "d61e81e46b224b0e7c31d520ce9402a27369e112",
-    "sync_status": "W0_API_checkpoint_synced; recovered_runtime_checkpoint_pending",
-    "source_local_commit": "4f91def2eb4a2616dfefb12c1ebbfacbaaff40dc",
-    "published_tree": "f6414956a25c8664ca336508506147df07793be4",
-    "history_note": "Connector publication commit has a distinct identity; original local history retained at checkpoint/local-pre-publication-29e6782. Exact source tree matched before ref update.",
-    "payload_review": "docs/development/next/reviews/QUALITY-debt-payload.md"
+    "remote_head_observed_before_checkpoint": "cd330f71d0332b6ad63a8bffbd9285e1d16ffd89",
+    "previous_published_tree": "00bc89c85fbf885b40fff426abf6a1e77add2bbf",
+    "publication_mode": "Exact local candidate tree compared with connector tree before expected-SHA ref update; containing commit identifies this snapshot.",
+    "history_note": "Original local formatting/implementation history is retained under checkpoint refs; connector publication commit identities can differ while trees match.",
+    "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged."
   },
-  "checkpoint_note": "Recovered actual runtime TYPE partial checkpoint: frozen original1001 and new3751 controls passed after exact Flow-tail preservation and memo-node guards. Quality gate failed; 448 new diagnostics remain in the intermediate scan. TYPE01 stays running, mandatory repair suites remain red obligations; no qualification inferred."
+  "checkpoint_note": "Actual runtime checkpoint: original1001 and new4001 controls pass on fixed source;98core ordinary/Ruff own0, strongAny12. Quality gate fails 431new/515modified-unit diagnostics; negativecontrols pass. TYPE remains running; no final qualification."
 }

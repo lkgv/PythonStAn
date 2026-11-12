@@ -9,21 +9,25 @@ Extended to support closure/scope queries:
 - get_function_global_vars: Get accessible global variable bindings
 """
 
+from __future__ import annotations
+
 import ast
-from typing import Callable, Dict, FrozenSet, List, TYPE_CHECKING, Optional, Tuple
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from pythonstan.ir.ir_statements import IRCall
-from .context import CallSite
+
+from .context import CallSite, Ctx
 
 if TYPE_CHECKING:
-    from .state import PointerAnalysisState
-    from .object import AbstractObject
-    from .heap_model import Field
-    from .variable import Variable
-    from .context import AbstractContext, Scope
     from .class_hierarchy import ClassHierarchyManager
-    from .points_to_set import PointsToSet
+    from .context import AbstractContext, Scope
     from .context_selector import ContextSelector
+    from .heap_model import Field
+    from .object import AbstractObject
+    from .points_to_set import PointsToSet
+    from .state import PointerAnalysisState
+    from .variable import FieldAccess, Variable
 
 __all__ = ["PtaQueryAdapter"]
 
@@ -37,11 +41,11 @@ class PtaQueryAdapter:
 
     def __init__(
         self,
-        state: "PointerAnalysisState",
-        class_hierarchy: Optional["ClassHierarchyManager"] = None,
-        context_selector: Optional["ContextSelector"] = None,
-        on_field_read: Optional[Callable] = None,
-    ):
+        state: PointerAnalysisState,
+        class_hierarchy: ClassHierarchyManager | None = None,
+        context_selector: ContextSelector | None = None,
+        on_field_read: Callable[[Ctx[FieldAccess]], None] | None = None,
+    ) -> None:
         """Initialize the adapter.
 
         Args:
@@ -52,8 +56,8 @@ class PtaQueryAdapter:
         self._class_hierarchy = class_hierarchy
         self._context_selector = context_selector
         self.on_field_read = on_field_read
-        self.on_attribute_names_read = None
-        self._callsite_cache: Dict[str, CallSite] = {}
+        self.on_attribute_names_read: Callable[[AbstractObject], None] | None = None
+        self._callsite_cache: dict[str, CallSite] = {}
 
     def _get_call_site(self, callsite_id: str) -> CallSite:
         if callsite_id in self._callsite_cache:
@@ -65,10 +69,10 @@ class PtaQueryAdapter:
 
     def points_to(
         self,
-        var: "Variable",
-        scope: "Scope",
-        context: "AbstractContext",
-    ) -> "PointsToSet":
+        var: Variable,
+        scope: Scope,
+        context: AbstractContext,
+    ) -> PointsToSet:
         """Get points-to set for a variable in given scope/context.
 
         Args:
@@ -79,18 +83,17 @@ class PtaQueryAdapter:
         Returns:
             PointsToSet of abstract objects the variable may point to
         """
-        from .points_to_set import PointsToSet
 
         ctx_var = self._state.get_variable(scope, context, var)
         return self._state.get_points_to(ctx_var)
 
     def field_points_to(
         self,
-        obj: "AbstractObject",
-        field: "Field",
-        scope: "Scope",
-        context: "AbstractContext",
-    ) -> "PointsToSet":
+        obj: AbstractObject,
+        field: Field,
+        scope: Scope | None,
+        context: AbstractContext,
+    ) -> PointsToSet:
         """Get points-to set for an object's field.
 
         Args:
@@ -102,8 +105,8 @@ class PtaQueryAdapter:
         Returns:
             PointsToSet of objects the field may point to
         """
+        from .object import is_summary_object, summarize_object
         from .points_to_set import PointsToSet
-        from .object import summarize_object, is_summary_object
 
         # A value-top receiver can select any field value; creating an empty
         # concrete slot for it would incorrectly turn unknown into bottom.
@@ -128,7 +131,7 @@ class PtaQueryAdapter:
             self.on_field_read(field_var)
         return self._state.get_points_to(field_var)
 
-    def get_class_mro(self, cls_obj: "AbstractObject") -> List["AbstractObject"]:
+    def get_class_mro(self, cls_obj: AbstractObject) -> list[AbstractObject]:
         """Get MRO (method resolution order) for a class object.
 
         Args:
@@ -142,8 +145,8 @@ class PtaQueryAdapter:
         return project_class_mro(self._state, cls_obj, self._class_hierarchy, self.on_field_read)
 
     def known_attribute_names(
-        self, obj: "AbstractObject", scope: "Scope", context: "AbstractContext"
-    ) -> FrozenSet[str]:
+        self, obj: AbstractObject, scope: Scope, context: AbstractContext
+    ) -> frozenset[str]:
         """Return observed attribute names, never a proof of field absence."""
         from .heap_model import FieldKind
         from .object import InstanceObject
@@ -162,10 +165,10 @@ class PtaQueryAdapter:
 
     def may_have_attr(
         self,
-        obj: "AbstractObject",
+        obj: AbstractObject,
         attr_name: str,
-        scope: "Scope",
-        context: "AbstractContext",
+        scope: Scope,
+        context: AbstractContext,
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
 
@@ -198,10 +201,10 @@ class PtaQueryAdapter:
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: "AbstractContext",
-        receiver_obj: Optional["AbstractObject"],
-        params: Optional[Tuple["AbstractObject", ...]] = None,
-    ) -> Optional["AbstractContext"]:
+        caller_ctx: AbstractContext,
+        receiver_obj: AbstractObject | None,
+        params: tuple[AbstractObject, ...] | None = None,
+    ) -> AbstractContext | None:
         """Delegate call context selection to kcfa ContextSelector when available."""
         if self._context_selector is None:
             return None
@@ -215,8 +218,8 @@ class PtaQueryAdapter:
 
     def get_function_cell_vars(
         self,
-        func_obj: "AbstractObject",
-    ) -> Dict[str, FrozenSet["AbstractObject"]]:
+        func_obj: AbstractObject,
+    ) -> dict[str, frozenset[AbstractObject]]:
         """Get cell variable bindings captured by a function object.
 
         Cell variables are variables from enclosing scopes that are captured
@@ -231,10 +234,10 @@ class PtaQueryAdapter:
         Returns:
             Dict mapping cell variable names to their captured points-to sets
         """
-        from .variable import VariableKind
         from .heap_model import attr
+        from .variable import VariableKind
 
-        result: Dict[str, FrozenSet["AbstractObject"]] = {}
+        result: dict[str, frozenset[AbstractObject]] = {}
 
         # Get the function's internal scope to access cell_vars metadata
         scope = self._state.get_internal_scope(func_obj)
@@ -285,8 +288,8 @@ class PtaQueryAdapter:
 
     def get_function_global_vars(
         self,
-        func_obj: "AbstractObject",
-    ) -> Dict[str, FrozenSet["AbstractObject"]]:
+        func_obj: AbstractObject,
+    ) -> dict[str, frozenset[AbstractObject]]:
         """Get global variable bindings accessible by a function object.
 
         Global variables are module-level names that the function may read/write.
@@ -299,10 +302,10 @@ class PtaQueryAdapter:
         Returns:
             Dict mapping global variable names to their points-to sets
         """
-        from .variable import Variable, VariableKind
         from .heap_model import attr
+        from .variable import Variable, VariableKind
 
-        result: Dict[str, FrozenSet["AbstractObject"]] = {}
+        result: dict[str, frozenset[AbstractObject]] = {}
 
         # Get the function's internal scope
         scope = self._state.get_internal_scope(func_obj)
