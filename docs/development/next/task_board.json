@@ -510,7 +510,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-STATE-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -520,7 +520,14 @@
           "两个generator+cap1/trace1的公开例正常包含1，cap2控制保持精度。",
           "next/send/throw/close/yield-from/finally及protocol内汇总的独立变体覆盖。",
           "epoch增长使依赖的must/singleton/guard/certificate失效，未更新句柄debug守卫能发现。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -585,7 +592,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-STATE-02",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -595,7 +602,14 @@
           "cycle+collision、cycle-only、collision-only和metadata→root别名均正确。",
           "join(s,s)及后续写入可观察行为一致，normalize幂等且输入不被比较修改。",
           "每准备阶段注入失败都不部分发布；发布成功后的所有根/事实/continuation使用新身份。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -661,7 +675,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-DOM-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -671,7 +685,14 @@
           "int|str相加cap1仍覆盖3、ab及TypeError；cap8正例保持精确。",
           "0.0与非枚举分量混合保留False，默认cap触发变体也覆盖。",
           "有限gamma与join/widen/coarsen law、正常/异常/effect单调覆盖通过。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -735,7 +756,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -745,7 +766,14 @@
           "原sk及文本位置对照正确，star/keyword/**异常前缀与独立CPython一致或有明确覆盖近似。",
           "AS08日志b、三操作数and/or、__bool__/__len__异常和副作用不重复。",
           "AI-primary和hybrid都通过，binder默认/posonly/kwonly/receiver旧回归不退化。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -806,7 +834,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-02",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "M",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -815,7 +843,14 @@
         "remaining_obligations": [
           "module/local/global/nonlocal/conditional/repeated-del/finally与原bound-delete控制通过。",
           "删除成功才写unbound；异常路径没有伪造正常后继或丢前缀。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -1582,7 +1617,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-CTRL-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1592,7 +1627,14 @@
           "relations/context_depth/nested max_traces三个probe生效或精确启动拒绝。",
           "API/CLI/explain-plan和worker消费同一policy digest。",
           "每接受选项有consumer与行为/不变性见证；区域限额不能重置全局quota。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -2463,7 +2505,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-LLM-04",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "M",
-      "status": "ready",
+      "status": "blocked_external",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -2473,7 +2515,14 @@
           "llm=False不import SDK、不联网、不查key；缺SDK/凭据准确blocked而非silent offline成功。",
           "API key不进入config/repr/日志/fixture/receipt/提交，CLI无key明文参数。",
           "网络响应通过parser后仍是不可信候选；不能构造CheckedSummary/Verified。"
-        ]
+        ],
+        "external_blocker": {
+          "date": "2026-11-12",
+          "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+          "resume_status": "running",
+          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+        },
+        "scope": "Partial unpublished W2 work; no acceptance or success inferred."
       }
     },
     {
@@ -3517,7 +3566,7 @@
     "dirty_at_clone": false
   },
   "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
-  "current_phase": "W2 and other DAG-ready repairs after W1 verified",
+  "current_phase": "W2 implementation externally blocked by unavailable execution environment",
   "qualification": {
     "core_qualified": false,
     "scale_qualified": false,
@@ -3528,7 +3577,8 @@
     },
     "benefit_demonstrated": "not_evaluated",
     "release_qualified": false,
-    "type_01_verified": true
+    "type_01_verified": true,
+    "working_tree_verified": false
   },
   "publication_status": {
     "remote_branch": "dev-cocktail-analysis",
@@ -3538,5 +3588,16 @@
     "history_note": "Original local formatting/implementation history is retained under checkpoint refs; connector publication commit identities can differ while trees match.",
     "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged."
   },
-  "checkpoint_note": "TYPE-01 verified:stage1001+audit3controls4171 pass;quality0new0modified,negativeguards pass;110ordinaryfrontier and98core strong0. Semantic18red/36 remain; no final qualification."
+  "checkpoint_note": "Published W1 TYPE/API dc1a814 remains verified:1001+4171,quality0new0modified. W2 partial source is unpublished/unverified; restore environment and inspect retention before continuing.",
+  "publication": {
+    "last_verified_code_checkpoint": {
+      "commit": "dc1a814364f4f82c15bd8173d3a2e5ba69cacafb",
+      "tree": "f90cbe73abe5d2c3fa7ea47677b27b050bf9811a",
+      "type_01_verified": true,
+      "original_stage_passed": 1001,
+      "audit3_controls_passed": 4171,
+      "quality_passed": true
+    },
+    "unpublished_workspace_handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json"
+  }
 }

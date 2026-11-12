@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "timezone": "Asia/Shanghai",
+  "status": "blocked_external",
+  "reason": "The execution environment explicitly reports unavailable; exec-server transport disconnected or recovery timed out. No usable local execution environment remains.",
+  "repository": "lkgv/PythonStAn",
+  "branch": "dev-cocktail-analysis",
+  "published_verified_code": {
+    "commit": "dc1a814364f4f82c15bd8173d3a2e5ba69cacafb",
+    "tree": "f90cbe73abe5d2c3fa7ea47677b27b050bf9811a",
+    "equivalent_local_commit": "82ecbc38d33548606e76d3f06ea91b00ce604159",
+    "type_01": "verified",
+    "api_01": "verified",
+    "G1": "passed",
+    "original_stage_passed": 1001,
+    "audit3_controls_passed": 4171,
+    "quality": {
+      "passed": true,
+      "new": 0,
+      "modified_unit": 0,
+      "negative_controls_passed": true,
+      "ordinary_frontier_modules": 110,
+      "core98_any_expression_own_errors": 0
+    },
+    "whole_tree_debt": {
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
+    },
+    "source_manifest_sha256": "b2d4a759f85ac89c30d81c9aba60926aa7b8cc5f5d06e6fc2c9587d09e4d9284",
+    "code_tree_verified": true,
+    "real_llm_requests": 0
+  },
+  "local_unpublished_w2": {
+    "path": "/workspace/scratch/8d3426210943/PythonStAn",
+    "publication_status": "No W2 partial source or tests were committed or pushed.",
+    "verification_status": "Unqualified; exact retention and final bytes must be rechecked after recovery.",
+    "warning": "The most recent working tree is NOT the verified published code. Preserve dirty/untracked/index/checkpoint history before any reconstruction or reset."
+  },
+  "owners": {
+    "producer_quality": {
+      "tasks": [
+        "N4-DOM-01"
+      ],
+      "written": [
+        "pythonstan/analysis/domains/values.py: actual facet-pair binary coverage, finite-float truth and scalar_unary API"
+      ],
+      "completed_partial_checks": [
+        "Author reported Ruff0.",
+        "Author reported90-case independent suite87passed/3public unary adapter failures; baseline82ec50failed/40passed.",
+        "One own type diagnostic was fixed; final type output was not retrieved."
+      ],
+      "pending": [
+        "Recover final mypy session67478 if available, otherwise rerun on retained source.",
+        "SEM Transfer non-Not unary adapter.",
+        "Coordinate full Store/heap/default/metadata widening policy with STATE owner.",
+        "Independent final normal/error/effect covering and old/new controls; do not close DOM or RESULT dependencies."
+      ],
+      "last_evidence": "Local ignored domain artifacts; exact paths and hashes require recovery."
+    },
+    "native_quality": {
+      "tasks": [
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ],
+      "written": [
+        "analysis/state/store.py: initial current_view for detached observations; read_slot/join/leq/apply use views.",
+        "analysis/state/metadata.py: initial recursive GeneratorMeta alternatives, SuspensionStatesField roles/codecs/known-key registration.",
+        "analysis/state/transform.py: GeneratorMeta graph records, explicit fields/function-reference remap, SuspensionStatesField traversal."
+      ],
+      "not_written_or_unvalidated": [
+        "Runtime continuations.py and driver.py consumer integration not landed.",
+        "merge_suspensions/detached-right-contribution patch failed during file read; application not confirmed.",
+        "No state repair acceptance or green regression claim."
+      ],
+      "pending": [
+        "Preserve residual alternatives inside tracked heap metadata during selected-primary execution; do not hold untracked residual roots across epoch publication.",
+        "Refresh ObjectHandle after execution and match activation/frame/control key; weakly retain old+updated alternatives for nonsingleton owners.",
+        "Distinguish frame identity for two activations sharing summary owner; retain entry/exception/correlated state.",
+        "Pure read/leq/hash/export and atomic failed-prepare/no-partial-publication proofs/tests.",
+        "Uniform cells+heap fields/default+metadata Value widening policy with shared memo/provenance.",
+        "Provide explicit region execution context request/tick/compact/default_execution ports to CTRL/SEM."
+      ]
+    },
+    "legacy_quality": {
+      "tasks": [
+        "N4-SEM-01",
+        "N4-SEM-02"
+      ],
+      "written": [],
+      "completed_partial_checks": [
+        "Created detached baseline sem-baseline-82ec and ignored N4-SEM-01/N4-SEM-02 directories.",
+        "Baseline runner printed call_star_order False; other output/file writes unverified."
+      ],
+      "inflight_production_write": "None",
+      "pending": [
+        "Actual ordered call evaluation plan: callable, positional AST order, star expansion, keyword groups/** merge, binder, invoke; do not sort by text position.",
+        "CPython3.12 sole-star expansion can be deferred until after keywords; mixed/multiple positionals expand each star before next positional. Duplicate keys fail at DICT_MERGE; named-keyword group values precede its merge; non-string key failure follows later keyword values and deferred-star coercion.",
+        "Use real ContinuationEngine.collect(...,'tuple') to preserve __iter__/__next__ effects, not iterable_values alone.",
+        "BoolOp finalized short-circuit alternatives must remain separate; do not truth-test final operand twice. Audit nested BoolOps, if/while/Not consumers.",
+        "Deletion uses Frame.binding/effective_cell without builtin/oracle fallback; split bound/unbound values and scope-correct NameError/UnboundLocalError; write unbound only on successful deletion, keep left-to-right effects.",
+        "Probe hybrid deletion/read so flow-insensitive oracle cannot resurrect pre-delete binding.",
+        "Wire ValueOperations.scalar_unary for non-Not; preserve Not truth_flows.",
+        "Integrate genuine RegionExecutionContext after STATE ports; no temporary global ops mutation."
+      ],
+      "unverified_baseline_artifact": "artifacts/next/evidence/N4-SEM-01/baseline-frozen.json"
+    },
+    "quality_review": {
+      "tasks": [
+        "N4-CTRL-01"
+      ],
+      "written": [
+        "analysis/policies/__init__.py and region.py: initial immutable EffectiveRegionPolicy/RegionExecutionContext.",
+        "config/catalog.py: initial scope/capability/effect/version/evidence registry and schema fields.",
+        "config/resolve.py: initial regional abstract inheritance/relations alias handling and scope rejection.",
+        "composition/plan.py: initial actual policy binding to region decisions/SCC strategy."
+      ],
+      "uncertain_write": "composition/region_scheduler.py replacement was running when transport failed; cellg7:91 was terminated without completion. Inspect actual retained bytes before any retry.",
+      "pending": [
+        "Real driver/Transfer/helper execution-context consumers; cached attributes/continuations/dictionaries/views/namespaces must use scoped ops/settings.",
+        "region_engine explicit ops/global charge port, no PTA algorithm changes in this slice.",
+        "Canonical wire/digest normalization, nested scope inheritance, solver child capabilities and source/SCC compatibility.",
+        "No global quota reset or temporary driver/ops/abstract swaps.",
+        "Registry references planned test_region_policy_execution.py which had not been created; it is not evidence.",
+        "Full baseline3red->green plus independent variants and strict checks."
+      ],
+      "completed_partial_checks": [
+        "Exact82ec mandatory context/relations/nestedtrace probes:3failed."
+      ],
+      "llm_config_changes": "Not made before interruption."
+    },
+    "inspector_quality": {
+      "tasks": [
+        "N4-LLM-04"
+      ],
+      "written": [],
+      "completed_partial_checks": [
+        "Official Responses, structured output, Python SDK and requested model docs read; provider config design sent to CTRL owner."
+      ],
+      "pending": [
+        "Optional dependency/Poetry lock, lazy typed SDK transport and separate provider config implementation.",
+        "Strict bounded local candidate parsing/schema/duplicate key/identity validation; never construct CheckedSummary.",
+        "Offline transport tests for refusal/incomplete/timeout/missing usage/wrong model/secret canary.",
+        "Canonical provider mode/config integration with CTRL owner."
+      ],
+      "live_status": "No key read, SDK import or paid/live request; live semantic/audit gates unmet."
+    }
+  },
+  "readiness": {
+    "record": "docs/development/next/semantic_repair_readiness_round2.json",
+    "frozen_domain_native": {
+      "passed": 18,
+      "failed": 18,
+      "skipped": 0
+    },
+    "notes": [
+      "Generatorcap1 no longer crashes at typed checkpoint but remains Top/Open via suspension metadata havoc, violating useful mandatory precision.",
+      "Three cycle/root alias mandatory cases are already green; that does not close broader STATE-02.",
+      "Store.leq stale-epoch component witness mutates both operands; observation purity still needs repair."
+    ]
+  },
+  "recovery_order": [
+    "Restore a usable execution environment; do not try to validate or publish incomplete local edits through remote-only source mutation.",
+    "Inventory local HEAD/tree/index/dirty/untracked and checkpoint refs. Preserve newer work; verify published code dc1a814/tree f90cbe... equals local82ec tree.",
+    "Inspect uncertain region_scheduler write and exact retained domain/state/policy files. Do not assume an interrupted write completed or rolled back.",
+    "Restore leases: STATE owns canonical state+driver+continuations, SEM owns transfer+binding/names/control, DOM owns domain/scalar services, CTRL owns policy/scheduler/region_engine and narrow helper context substitutions; LLM owns llm+optional dependency+separate provider config.",
+    "Finish driver/Transfer/context ports and domain unary adapter, uniform value widening, suspension graph semantics and exact call/delete plans.",
+    "Preserve mandatory oracle/gold/budgets; add independent variants/red-green/provenance before accepting a card.",
+    "Freeze exact source/config/tests for strict quality+negative guards, originalstage, audit3 controls and required mandatory repair suites; bind results to hashes.",
+    "Commit/push only coherent reviewed checkpoints using non-force expected-SHA updates; existing user authorization remains valid."
+  ],
+  "invariants": {
+    "no_debt_reset": true,
+    "no_frontier_retreat": true,
+    "no_source_suppression": true,
+    "no_gold_skip_or_budget_weakening": true,
+    "published_TYPE_01_verified_only": true,
+    "working_tree_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "real_llm_requests": 0
+  }
+}
