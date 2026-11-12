@@ -10,28 +10,45 @@ class AnalysisConfig:
     name: str
     id: str
     description: str
-    type: Literal['dataflow analysis', 'transform', 'pointer analysis', 'closure analysis', 'ai analysis', 'certified analysis']
+    type: Literal[
+        "dataflow analysis",
+        "transform",
+        "pointer analysis",
+        "closure analysis",
+        "ai analysis",
+        "certified analysis",
+    ]
     inter_procedure: bool
     prev_analysis: List[str]  # previous analysis name
     options: Dict[str, Any]
 
-    def __init__(self, name, id, description="", prev_analysis=None, inter_procedure=False, options=None):
+    def __init__(
+        self, name, id, description="", prev_analysis=None, inter_procedure=False, options=None
+    ):
         if not isinstance(name, str) or not name or not isinstance(id, str) or not id:
             raise ValueError("analysis name and id must be nonempty strings")
         if options is None:
             options = {}
         if not isinstance(options, Mapping):
             raise ValueError("analysis options must be a mapping")
-        supported = {"dataflow analysis", "transform", "pointer analysis",
-                     "closure analysis", "ai analysis", "certified analysis"}
+        supported = {
+            "dataflow analysis",
+            "transform",
+            "pointer analysis",
+            "closure analysis",
+            "ai analysis",
+            "certified analysis",
+        }
         if not isinstance(options.get("type"), str) or options["type"] not in supported:
             raise ValueError("options.type must name a supported analysis type")
         if not isinstance(description, str) or type(inter_procedure) is not bool:
             raise ValueError("description must be text and inter_procedure must be boolean")
         dependencies = [] if prev_analysis is None else prev_analysis
-        if (not isinstance(dependencies, (list, tuple))
-                or any(not isinstance(item, str) or not item for item in dependencies)
-                or len(set(dependencies)) != len(dependencies)):
+        if (
+            not isinstance(dependencies, (list, tuple))
+            or any(not isinstance(item, str) or not item for item in dependencies)
+            or len(set(dependencies)) != len(dependencies)
+        ):
             raise ValueError("prev_analysis must contain unique nonempty analysis names")
         self.name = name
         self.id = id
@@ -40,9 +57,9 @@ class AnalysisConfig:
         self.inter_procedure = inter_procedure
         self.options = dict(options)
         self.prev_analysis = list(dependencies)
-    
+
     def __str__(self):
-        return f'''
+        return f"""
 AnalysisConfig(
     name={self.name},
     id={self.id},
@@ -52,8 +69,8 @@ AnalysisConfig(
     prev_analysis={self.prev_analysis},
     options={self.options}
 )
-'''
-    
+"""
+
     def __repr__(self):
         return self.__str__()
 
@@ -112,7 +129,7 @@ def get_scope_result(result, scope, dependency="analysis"):
 
 
 class Analysis(ABC):
-    analysis_dict: 'Dict[str, Type[Analysis]]' = {}
+    analysis_dict: "Dict[str, Type[Analysis]]" = {}
     config: AnalysisConfig
 
     @abstractmethod

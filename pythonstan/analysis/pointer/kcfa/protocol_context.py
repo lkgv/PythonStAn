@@ -4,6 +4,7 @@ The token contains source identities and a bounded key bucket, never a Scope,
 receiver object, or another context. Base sensitivity remains independently
 selected. Replacement is flat; summary tags remain the outermost wrapper.
 """
+
 from dataclasses import dataclass
 from typing import Optional
 from pythonstan.ir.ir_statements import IRStatement
@@ -20,18 +21,28 @@ class KeywordPartition:
     key_value: Optional[str]
 
     def __post_init__(self):
-        if (type(self.operation) is not CallSite
-                or not isinstance(self.operation.statement, IRStatement)
-                or self.operation.index is not None and type(self.operation.index) is not int
-                or self.operation.scope_name is not None and type(self.operation.scope_name) is not str
-                or self.receiver_source is not None and (
-                    type(self.receiver_source) is not AllocSite
-                    or not isinstance(self.receiver_source.stmt, IRStatement)
-                    or not isinstance(self.receiver_source.kind, AllocKind))
-                or type(self.key_kind) is not str or self.key_kind not in {"exact", "summary"}
-                or self.key_kind == "exact" and self.receiver_source is None
-                or self.key_kind == "exact" and type(self.key_value) is not str
-                or self.key_kind == "summary" and self.key_value is not None):
+        if (
+            type(self.operation) is not CallSite
+            or not isinstance(self.operation.statement, IRStatement)
+            or self.operation.index is not None
+            and type(self.operation.index) is not int
+            or self.operation.scope_name is not None
+            and type(self.operation.scope_name) is not str
+            or self.receiver_source is not None
+            and (
+                type(self.receiver_source) is not AllocSite
+                or not isinstance(self.receiver_source.stmt, IRStatement)
+                or not isinstance(self.receiver_source.kind, AllocKind)
+            )
+            or type(self.key_kind) is not str
+            or self.key_kind not in {"exact", "summary"}
+            or self.key_kind == "exact"
+            and self.receiver_source is None
+            or self.key_kind == "exact"
+            and type(self.key_value) is not str
+            or self.key_kind == "summary"
+            and self.key_value is not None
+        ):
             raise ValueError("Invalid keyword protocol partition")
 
 
@@ -41,10 +52,14 @@ class ProtocolKeyContext(AbstractContext):
     partition: KeywordPartition
 
     def __post_init__(self):
-        if (not isinstance(self.inner, AbstractContext)
-                or isinstance(self.inner, (ProtocolKeyContext, SummaryContext))
-                or type(self.partition) is not KeywordPartition):
-            raise ValueError("ProtocolKeyContext requires one flat partition and an unwrapped base context")
+        if (
+            not isinstance(self.inner, AbstractContext)
+            or isinstance(self.inner, (ProtocolKeyContext, SummaryContext))
+            or type(self.partition) is not KeywordPartition
+        ):
+            raise ValueError(
+                "ProtocolKeyContext requires one flat partition and an unwrapped base context"
+            )
         super().__post_init__()
 
     def to_string(self):

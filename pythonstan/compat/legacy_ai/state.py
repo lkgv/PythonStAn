@@ -11,21 +11,36 @@ This module defines AIState which tracks:
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterator, List, Optional, Set, Tuple, Union
 
-from pythonstan.compat.legacy_ai.heap import AIAddr, AbsObj, SlotMap, Slot, Presence, ContainerSlots, ObjKind, AddrSet, FieldStore
-from pythonstan.compat.legacy_ai.domains.mapslots import field_to_keysig, keysig_to_field, make_str_keysig
+from pythonstan.compat.legacy_ai.heap import (
+    AIAddr,
+    AbsObj,
+    SlotMap,
+    Slot,
+    Presence,
+    ContainerSlots,
+    ObjKind,
+    AddrSet,
+    FieldStore,
+)
+from pythonstan.compat.legacy_ai.domains.mapslots import (
+    field_to_keysig,
+    keysig_to_field,
+    make_str_keysig,
+)
 
 
 # =============================================================================
 # PredicateInfo - Info about TAC temporaries holding predicate results
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class PredicateInfo:
     """Information about a predicate result stored in a TAC temporary.
-    
+
     This is used to track `k in d` expressions that have been assigned to
     temporaries so that ConditionRefiner can refine dict membership.
-    
+
     Attributes:
         kind: Predicate kind ("dict_contains", "dict_not_contains")
         dict_var: Variable name holding the dict
@@ -33,12 +48,23 @@ class PredicateInfo:
         key_literal: Literal key value (str/int) if key_var is None
         negated: Whether the predicate is negated
     """
+
     kind: str
     dict_var: str
     key_var: Optional[str] = None
     key_literal: Optional[Any] = None
     negated: bool = False
-from pythonstan.compat.legacy_ai.value_domain import AbsVal, DomainRegistry, get_default_registry, STRING_DOMAIN, BOOL_DOMAIN, NONE_DOMAIN, INT_DOMAIN
+
+
+from pythonstan.compat.legacy_ai.value_domain import (
+    AbsVal,
+    DomainRegistry,
+    get_default_registry,
+    STRING_DOMAIN,
+    BOOL_DOMAIN,
+    NONE_DOMAIN,
+    INT_DOMAIN,
+)
 
 if TYPE_CHECKING:
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject
@@ -46,8 +72,10 @@ if TYPE_CHECKING:
     from pythonstan.analysis.pointer.kcfa.context import AbstractContext, Scope
     from pythonstan.compat.legacy_ai.api import PtaQuery, ArgBinding, AnalysisBudget
 
+
 def _has_object_alternatives(value):
     from pythonstan.analysis.pointer.kcfa.object import ConstantObject
+
     return value.addr_top or any(not isinstance(obj, ConstantObject) for obj in value.addrs)
 
 
@@ -58,10 +86,11 @@ __all__ = ["AIState", "AbsVal", "PredicateInfo"]
 # AIState - Abstract state for intraprocedural analysis
 # =============================================================================
 
+
 @dataclass
 class AIState:
     """Abstract state for AI intraprocedural analysis.
-    
+
     Attributes:
         env: Variable name -> AbsVal mapping
         heap: AIAddr -> AbsObj mapping (AI-local heap view)
@@ -71,14 +100,15 @@ class AIState:
         pta_query: Reference to PTA for querying points-to
         budget: Analysis budget for widening caps
     """
+
     env: Dict[str, AbsVal] = field(default_factory=dict)
     heap: Dict[AIAddr, AbsObj] = field(default_factory=dict)
-    overlay: Dict[Tuple['AbstractObject', 'Field'], AbsVal] = field(default_factory=dict)
-    overlay_havoc: Set['AbstractObject'] = field(default_factory=set)
+    overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = field(default_factory=dict)
+    overlay_havoc: Set["AbstractObject"] = field(default_factory=set)
     predicates: Dict[str, PredicateInfo] = field(default_factory=dict)
     exn: Optional[AbsVal] = None
-    pta_query: Optional['PtaQuery'] = None
-    budget: Optional['AnalysisBudget'] = None
+    pta_query: Optional["PtaQuery"] = None
+    budget: Optional["AnalysisBudget"] = None
     registry: Optional[DomainRegistry] = None
     # Shared cell/global slots are state, not mutable interpreter services.
     shared_bindings: Dict[Tuple[str, str], AbsVal] = field(default_factory=dict)
@@ -89,11 +119,15 @@ class AIState:
     def __post_init__(self):
         if self.registry is None:
             from pythonstan.compat.legacy_ai.domains.base import create_default_registry
+
             self.registry = create_default_registry(self.budget)
         self.env = {name: value.with_registry(self.registry) for name, value in self.env.items()}
-        self.overlay = {key: value.with_registry(self.registry) for key, value in self.overlay.items()}
-        self.shared_bindings = {key: value.with_registry(self.registry)
-                                for key, value in self.shared_bindings.items()}
+        self.overlay = {
+            key: value.with_registry(self.registry) for key, value in self.overlay.items()
+        }
+        self.shared_bindings = {
+            key: value.with_registry(self.registry) for key, value in self.shared_bindings.items()
+        }
         self.heap = {key: self._bind_object(value) for key, value in self.heap.items()}
         if self.exn is not None:
             self.exn = self.exn.with_registry(self.registry)
@@ -107,13 +141,16 @@ class AIState:
                 slot.key_rep = slot.key_rep.with_registry(self.registry)
         if obj.container_slots is not None:
             obj.container_slots = obj.container_slots.copy()
-            obj.container_slots.elem_bucket = obj.container_slots.elem_bucket.with_registry(self.registry)
+            obj.container_slots.elem_bucket = obj.container_slots.elem_bucket.with_registry(
+                self.registry
+            )
             obj.container_slots.tracked_indices = {
                 key: value.with_registry(self.registry)
-                for key, value in obj.container_slots.tracked_indices.items()}
+                for key, value in obj.container_slots.tracked_indices.items()
+            }
         return obj
 
-    def copy(self) -> 'AIState':
+    def copy(self) -> "AIState":
         """Create a deep-ish copy (copies env/heap dicts)."""
         return AIState(
             env=dict(self.env),
@@ -131,29 +168,32 @@ class AIState:
         )
 
     @classmethod
-    def bottom(cls, pta_query: Optional['PtaQuery'] = None, budget: Optional['AnalysisBudget'] = None) -> 'AIState':
+    def bottom(
+        cls, pta_query: Optional["PtaQuery"] = None, budget: Optional["AnalysisBudget"] = None
+    ) -> "AIState":
         """Create bottom state (unreachable)."""
         return cls(pta_query=pta_query, budget=budget)
 
     @classmethod
     def from_arg_bindings(
         cls,
-        arg_bindings: List['ArgBinding'],
-        pta_query: Optional['PtaQuery'] = None,
-        budget: Optional['AnalysisBudget'] = None,
-    ) -> 'AIState':
+        arg_bindings: List["ArgBinding"],
+        pta_query: Optional["PtaQuery"] = None,
+        budget: Optional["AnalysisBudget"] = None,
+    ) -> "AIState":
         """Create initial state from argument bindings.
-        
+
         Args:
             arg_bindings: Parameter -> PointsToSet bindings from caller
             pta_query: PTA query interface
             budget: Analysis budget
-            
+
         Returns:
             Initial AIState with parameters bound
         """
         env: Dict[str, AbsVal] = {}
         from pythonstan.compat.legacy_ai.domains.base import create_default_registry
+
         registry = create_default_registry(budget)
         for binding in arg_bindings:
             # Prefer full AbsVal if provided (includes domain components)
@@ -178,7 +218,7 @@ class AIState:
                     has_object_alternatives=_has_object_alternatives(val),
                 )
                 env[binding.param_name] = val.with_components(reduced)
-        
+
         return cls(env=env, pta_query=pta_query, budget=budget, registry=registry)
 
     def _reduce_value(self, var: str, val: AbsVal) -> AbsVal:
@@ -204,14 +244,14 @@ class AIState:
         """Get abstract value for variable."""
         return self.env.get(name, AbsVal.bottom(self.registry))
 
-    def set_var(self, name: str, val: AbsVal) -> 'AIState':
+    def set_var(self, name: str, val: AbsVal) -> "AIState":
         """Set variable value (returns new state)."""
         new_state = self.copy()
         new_state._forget_predicates_for(name)
         new_state.env[name] = new_state._reduce_value(name, val)
         return new_state
 
-    def weak_set_var(self, name: str, val: AbsVal) -> 'AIState':
+    def weak_set_var(self, name: str, val: AbsVal) -> "AIState":
         """Weak update variable (join with existing)."""
         new_state = self.copy()
         new_state._forget_predicates_for(name)
@@ -225,18 +265,20 @@ class AIState:
     def _forget_predicates_for(self, name: str) -> None:
         """Invalidate facts whose result or operands have been reassigned."""
         self.predicates = {
-            result: pred for result, pred in self.predicates.items()
+            result: pred
+            for result, pred in self.predicates.items()
             if result != name and pred.dict_var != name and pred.key_var != name
         }
 
     def _forget_heap_predicates_for(self, addr: AIAddr) -> None:
         """Membership facts cannot refine a dictionary changed through aliases."""
+
         def may_alias(pred: PredicateInfo) -> bool:
             receivers = self.get_var(pred.dict_var).addrs
             return not receivers or any(
-                getattr(obj, "alloc_site", None) == addr.alloc_site
-                for obj in receivers
+                getattr(obj, "alloc_site", None) == addr.alloc_site for obj in receivers
             )
+
         self.predicates = {
             result: pred for result, pred in self.predicates.items() if not may_alias(pred)
         }
@@ -247,10 +289,10 @@ class AIState:
 
     def add_overlay_write(
         self,
-        obj: 'AbstractObject',
-        field_key: 'Field',
+        obj: "AbstractObject",
+        field_key: "Field",
         value: AbsVal,
-    ) -> 'AIState':
+    ) -> "AIState":
         """Weakly update overlay for a field write."""
         obj = self.canonical_object(obj)
         if value.is_bottom():
@@ -263,7 +305,7 @@ class AIState:
         new_state.overlay[key] = existing.join(value)
         return new_state
 
-    def add_overlay_havoc(self, obj: 'AbstractObject') -> 'AIState':
+    def add_overlay_havoc(self, obj: "AbstractObject") -> "AIState":
         """Mark an object as having unknown writes within this analysis."""
         obj = self.canonical_object(obj)
         new_state = self.copy()
@@ -273,10 +315,10 @@ class AIState:
 
     def read_field_value(
         self,
-        obj: 'AbstractObject',
-        field_key: 'Field',
-        caller_scope: Optional['Scope'],
-        call_context: Optional['AbstractContext'],
+        obj: "AbstractObject",
+        field_key: "Field",
+        caller_scope: Optional["Scope"],
+        call_context: Optional["AbstractContext"],
         *,
         unknown_is_residual: bool = False,
     ) -> Tuple[AbsVal, bool]:
@@ -292,7 +334,9 @@ class AIState:
                     overlay_val = overlay_val.join(value)
         elif field_key.kind == FieldKind.ATTRIBUTE:
             # A write through an unknown name may alias this named field.
-            overlay_val = overlay_val.join(self.overlay.get((obj, unknown()), AbsVal.bottom(self.registry)))
+            overlay_val = overlay_val.join(
+                self.overlay.get((obj, unknown()), AbsVal.bottom(self.registry))
+            )
         havoc = obj in self.overlay_havoc
 
         heap_val = AbsVal.bottom(self.registry)
@@ -309,8 +353,11 @@ class AIState:
             else:
                 # Residual buckets accompany a named read; wildcard reads may
                 # select any named field as well. Do not conflate the two.
-                heap_val = (ai_obj.slots.default.val if unknown_is_residual
-                            else ai_obj.slots.get_all_values())
+                heap_val = (
+                    ai_obj.slots.default.val
+                    if unknown_is_residual
+                    else ai_obj.slots.get_all_values()
+                )
 
         pta_val = AbsVal.bottom(self.registry)
         if self.pta_query is not None:
@@ -331,22 +378,22 @@ class AIState:
 
     def read_field_points_to(
         self,
-        obj: 'AbstractObject',
-        field_key: 'Field',
-        caller_scope: Optional['Scope'],
-        call_context: Optional['AbstractContext'],
-    ) -> Tuple[FrozenSet['AbstractObject'], bool]:
+        obj: "AbstractObject",
+        field_key: "Field",
+        caller_scope: Optional["Scope"],
+        call_context: Optional["AbstractContext"],
+    ) -> Tuple[FrozenSet["AbstractObject"], bool]:
         """Read field points-to with overlay, returning (pts, is_havoc)."""
         val, havoc = self.read_field_value(obj, field_key, caller_scope, call_context)
         return val.addrs, havoc
 
     def write_field_value(
         self,
-        obj: 'AbstractObject',
-        field_key: 'Field',
+        obj: "AbstractObject",
+        field_key: "Field",
         value: AbsVal,
         update_heap: bool = False,
-    ) -> 'AIState':
+    ) -> "AIState":
         """Weakly update overlay (and optional AI heap) for a field write."""
         obj = self.canonical_object(obj)
         new_state = self.add_overlay_write(obj, field_key, value)
@@ -388,17 +435,22 @@ class AIState:
         """Map references inside values, keys and token payloads, never source IR."""
         from dataclasses import fields, is_dataclass, replace
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+
         def remap(item):
             if isinstance(item, AbsVal):
-                return AbsVal(frozenset(remap(x) for x in item.addrs),
-                              {name: remap(x) for name, x in item.components.items()},
-                              addr_top=item.addr_top, registry=item.registry,
-                              scalar_kinds=item.scalar_kinds, boolean_values=item.boolean_values)
+                return AbsVal(
+                    frozenset(remap(x) for x in item.addrs),
+                    {name: remap(x) for name, x in item.components.items()},
+                    addr_top=item.addr_top,
+                    registry=item.registry,
+                    scalar_kinds=item.scalar_kinds,
+                    boolean_values=item.boolean_values,
+                )
             if isinstance(item, AbstractObject):
                 current = mapping.get(item, item)
                 changes = {}
                 for f in fields(current):
-                    if f.name in ('context', 'alloc_site', 'container_scope', 'ir', 'receiver_var'):
+                    if f.name in ("context", "alloc_site", "container_scope", "ir", "receiver_var"):
                         continue
                     old = getattr(current, f.name)
                     new = remap(old)
@@ -418,19 +470,26 @@ class AIState:
                 return [remap(x) for x in item]
             if isinstance(item, dict):
                 return {remap(k): remap(v) for k, v in item.items()}
-            if is_dataclass(item) and item.__class__.__module__.startswith((
-                    'pythonstan.analysis.pointer.ai.domains', 'pythonstan.compat.legacy_ai.domains', 'pythonstan.analysis.domains')):
+            if is_dataclass(item) and item.__class__.__module__.startswith(
+                (
+                    "pythonstan.analysis.pointer.ai.domains",
+                    "pythonstan.compat.legacy_ai.domains",
+                    "pythonstan.analysis.domains",
+                )
+            ):
                 return replace(item, **{f.name: remap(getattr(item, f.name)) for f in fields(item)})
             return item
+
         return remap(value)
 
-    def reabstract(self, mapping) -> 'AIState':
+    def reabstract(self, mapping) -> "AIState":
         """Apply one covering identity map to every state component atomically.
 
         Mapping is retained for future old-alias reads/writes. Hosts consume the
         versioned address_remaps ledger to migrate dependency subscriptions.
         """
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
+
         combined = {**self.address_remaps, **mapping}
         # Compose prior maps so no callback or future consumer sees stale hops.
         for old, new in list(combined.items()):
@@ -439,13 +498,16 @@ class AIState:
                 seen.add(new)
                 new = combined[new]
             combined[old] = new
+
         def remap(value):
             return self._remap_payload(value, combined, record_induced=True)
+
         def remap_addr(addr):
             for old, new in combined.items():
                 if AIAddr.from_kcfa_obj(old) == addr:
                     return AIAddr.from_kcfa_obj(new)
             return addr
+
         result = self.copy()
         result.address_remaps = combined
         result.remap_generation += 1
@@ -454,7 +516,9 @@ class AIState:
         result.overlay = {}
         for (owner, key), value in self.overlay.items():
             new_key = (remap(owner), remap(key))
-            result.overlay[new_key] = result.overlay.get(new_key, AbsVal.bottom(self.registry)).join(remap(value))
+            result.overlay[new_key] = result.overlay.get(
+                new_key, AbsVal.bottom(self.registry)
+            ).join(remap(value))
         result.overlay_havoc = {remap(owner) for owner in self.overlay_havoc}
         result.heap = {}
         for addr, obj in self.heap.items():
@@ -464,14 +528,22 @@ class AIState:
             new_obj.cls_addrs = remap(obj.cls_addrs)
             slots = obj.slots.copy()
             slots.partitions = {}
+
             def mapped_slot(slot):
-                return Slot(remap(slot.val), slot.pres,
-                            remap(slot.key_rep) if slot.key_rep is not None else None)
+                return Slot(
+                    remap(slot.val),
+                    slot.pres,
+                    remap(slot.key_rep) if slot.key_rep is not None else None,
+                )
+
             for key, slot in obj.slots.partitions.items():
                 key = remap(key)
                 transformed = mapped_slot(slot)
-                slots.partitions[key] = (slots.partitions[key].join(transformed)
-                                         if key in slots.partitions else transformed)
+                slots.partitions[key] = (
+                    slots.partitions[key].join(transformed)
+                    if key in slots.partitions
+                    else transformed
+                )
             slots.default = mapped_slot(obj.slots.default)
             new_obj.slots = slots
             if obj.container_slots is not None:
@@ -479,8 +551,9 @@ class AIState:
                 container.elem_bucket = remap(container.elem_bucket)
                 container.tracked_indices = remap(container.tracked_indices)
                 new_obj.container_slots = container
-            result.heap[new_addr] = (result.heap[new_addr].join(new_obj)
-                                     if new_addr in result.heap else new_obj)
+            result.heap[new_addr] = (
+                result.heap[new_addr].join(new_obj) if new_addr in result.heap else new_obj
+            )
         result.exn = remap(self.exn) if self.exn is not None else None
         # Branch predicates involving a changed heap identity may no longer be
         # justified; discarding constraints is a covering abstraction.
@@ -489,9 +562,14 @@ class AIState:
 
     def _widen_address_mapping(self, other, max_addrs):
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject, summarize_object
+
         mapping = {}
         joined = self.join(other)
-        values = list(joined.env.values()) + list(joined.overlay.values()) + list(joined.shared_bindings.values())
+        values = (
+            list(joined.env.values())
+            + list(joined.overlay.values())
+            + list(joined.shared_bindings.values())
+        )
         if joined.exn is not None:
             values.append(joined.exn)
         for obj in joined.heap.values():
@@ -519,7 +597,7 @@ class AIState:
         """Get heap object at address."""
         return self.heap.get(self.canonical_address(addr))
 
-    def set_obj(self, addr: AIAddr, obj: AbsObj) -> 'AIState':
+    def set_obj(self, addr: AIAddr, obj: AbsObj) -> "AIState":
         """Set heap object (returns new state)."""
         new_state = self.copy()
         new_state._forget_heap_predicates_for(addr)
@@ -529,7 +607,7 @@ class AIState:
         new_state.heap[addr] = new_state._bind_object(obj)
         return new_state
 
-    def update_obj(self, addr: AIAddr, obj: AbsObj) -> 'AIState':
+    def update_obj(self, addr: AIAddr, obj: AbsObj) -> "AIState":
         """Weakly join a heap object after run-local binding/canonicalization."""
         addr = self.canonical_address(addr)
         obj = obj.copy()
@@ -544,10 +622,14 @@ class AIState:
 
     def is_bottom(self) -> bool:
         """Check if state is bottom (unreachable)."""
-        return (len(self.env) == 0 and len(self.heap) == 0 and len(self.overlay) == 0
-                and not self.shared_bindings)
+        return (
+            len(self.env) == 0
+            and len(self.heap) == 0
+            and len(self.overlay) == 0
+            and not self.shared_bindings
+        )
 
-    def join(self, other: 'AIState') -> 'AIState':
+    def join(self, other: "AIState") -> "AIState":
         """Join two states (⊔)."""
         # Join environments
         new_env: Dict[str, AbsVal] = {}
@@ -570,7 +652,7 @@ class AIState:
                 new_heap[a] = other.heap[a]
 
         # Join overlays
-        new_overlay: Dict[Tuple['AbstractObject', 'Field'], AbsVal] = {}
+        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
         all_overlay_keys = set(self.overlay.keys()) | set(other.overlay.keys())
         for k in all_overlay_keys:
             v1 = self.overlay.get(k, AbsVal.bottom(self.registry))
@@ -606,17 +688,23 @@ class AIState:
             registry=self.registry,
             address_remaps={**self.address_remaps, **other.address_remaps},
             remap_generation=max(self.remap_generation, other.remap_generation),
-            shared_bindings={key: self.shared_bindings.get(key, AbsVal.bottom(self.registry)).join(
-                other.shared_bindings.get(key, AbsVal.bottom(self.registry)))
-                for key in self.shared_bindings.keys() | other.shared_bindings.keys()},
+            shared_bindings={
+                key: self.shared_bindings.get(key, AbsVal.bottom(self.registry)).join(
+                    other.shared_bindings.get(key, AbsVal.bottom(self.registry))
+                )
+                for key in self.shared_bindings.keys() | other.shared_bindings.keys()
+            },
         )
 
-    def leq(self, other: 'AIState') -> bool:
+    def leq(self, other: "AIState") -> bool:
         """Check if self ⊑ other."""
         # Compare effective states after the target's covering remap, including
         # local heap and overlay; env-only address inclusion is insufficient.
-        if other.address_remaps and any(old != new for old, new in other.address_remaps.items()
-                                       if self.address_remaps.get(old) != new):
+        if other.address_remaps and any(
+            old != new
+            for old, new in other.address_remaps.items()
+            if self.address_remaps.get(old) != new
+        ):
             return self.reabstract(other.address_remaps).leq(other)
         for key, value in self.shared_bindings.items():
             if not value.leq(other.shared_bindings.get(key, AbsVal.bottom(self.registry))):
@@ -626,7 +714,7 @@ class AIState:
             other_val = other.env.get(v, AbsVal.bottom(self.registry))
             if not val.leq(other_val):
                 return False
-        
+
         # Check heap objects
         for a, obj in self.heap.items():
             if a not in other.heap:
@@ -642,7 +730,7 @@ class AIState:
                 return False
         if not self.overlay_havoc <= other.overlay_havoc:
             return False
-        
+
         # Predicate facts are constraints: more facts means a smaller state.
         # Every fact required by ``other`` must therefore hold in ``self``.
         for k, pred in other.predicates.items():
@@ -654,12 +742,12 @@ class AIState:
         if self.exn is not None:
             if other.exn is None or not self.exn.leq(other.exn):
                 return False
-        
+
         return True
 
-    def widen(self, other: 'AIState') -> 'AIState':
+    def widen(self, other: "AIState") -> "AIState":
         """Widen state (∇).
-        
+
         Apply widening to address sets, string sets, and field stores.
         From ai_spec.md §10.1: address-set widening caps growth via summarization.
         """
@@ -675,7 +763,8 @@ class AIState:
             v1 = self.env.get(v, AbsVal.bottom(self.registry))
             v2 = other.env.get(v, AbsVal.bottom(self.registry))
             widened = v1.widen(
-                v2, max_addrs=max_addrs,
+                v2,
+                max_addrs=max_addrs,
                 max_strs=self.budget.max_const_strings if self.budget else None,
                 max_ho_tokens=self.budget.max_ho_tokens if self.budget else None,
             )
@@ -693,7 +782,7 @@ class AIState:
                 new_heap[a] = other.heap[a]
 
         # Widen overlays (use join semantics)
-        new_overlay: Dict[Tuple['AbstractObject', 'Field'], AbsVal] = {}
+        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
         all_overlay_keys = set(self.overlay.keys()) | set(other.overlay.keys())
         for k in all_overlay_keys:
             v1 = self.overlay.get(k, AbsVal.bottom(self.registry))
@@ -719,14 +808,18 @@ class AIState:
             registry=self.registry,
             address_remaps={**self.address_remaps, **other.address_remaps},
             remap_generation=max(self.remap_generation, other.remap_generation),
-            shared_bindings={key: self.shared_bindings.get(key, AbsVal.bottom(self.registry)).widen(
-                other.shared_bindings.get(key, AbsVal.bottom(self.registry)), max_addrs=max_addrs)
-                for key in self.shared_bindings.keys() | other.shared_bindings.keys()},
+            shared_bindings={
+                key: self.shared_bindings.get(key, AbsVal.bottom(self.registry)).widen(
+                    other.shared_bindings.get(key, AbsVal.bottom(self.registry)),
+                    max_addrs=max_addrs,
+                )
+                for key in self.shared_bindings.keys() | other.shared_bindings.keys()
+            },
         )
 
-    def narrow(self, other: 'AIState') -> 'AIState':
+    def narrow(self, other: "AIState") -> "AIState":
         """Narrow state (△).
-        
+
         Apply meet to refine after widening. Narrows both environment and heap.
         From ai_spec.md §10.6: narrowing uses meet with branch constraints.
         """
@@ -749,7 +842,7 @@ class AIState:
                 new_heap[a] = self.heap[a]
 
         # Narrow overlays (intersection where possible)
-        new_overlay: Dict[Tuple['AbstractObject', 'Field'], AbsVal] = {}
+        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
         for k, v in self.overlay.items():
             if k in other.overlay:
                 new_overlay[k] = v.meet(other.overlay[k])
@@ -773,16 +866,19 @@ class AIState:
             registry=self.registry,
             address_remaps={**self.address_remaps, **other.address_remaps},
             remap_generation=max(self.remap_generation, other.remap_generation),
-            shared_bindings={key: value.meet(other.shared_bindings[key])
-                if key in other.shared_bindings else value
-                for key, value in self.shared_bindings.items()},
+            shared_bindings={
+                key: value.meet(other.shared_bindings[key])
+                if key in other.shared_bindings
+                else value
+                for key, value in self.shared_bindings.items()
+            },
         )
 
     # -------------------------------------------------------------------------
     # Predicate operations (for value partition refinement)
     # -------------------------------------------------------------------------
 
-    def add_predicate(self, var_name: str, info: PredicateInfo) -> 'AIState':
+    def add_predicate(self, var_name: str, info: PredicateInfo) -> "AIState":
         """Add a predicate for a TAC temporary variable."""
         new_state = self.copy()
         new_state.predicates[var_name] = info
@@ -795,4 +891,3 @@ class AIState:
     def __str__(self) -> str:
         env_str = ", ".join(f"{k}={v}" for k, v in sorted(self.env.items()))
         return f"AIState(env={{{env_str}}}, heap={len(self.heap)} objs, overlay={len(self.overlay)}, preds={len(self.predicates)})"
-

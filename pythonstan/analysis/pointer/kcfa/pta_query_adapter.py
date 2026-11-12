@@ -30,20 +30,20 @@ __all__ = ["PtaQueryAdapter"]
 
 class PtaQueryAdapter:
     """Adapter implementing AI's PtaQuery protocol over kcfa state.
-    
+
     This allows the AI engine to query the kcfa pointer analysis state
     for points-to information without depending on the full solver.
     """
 
     def __init__(
         self,
-        state: 'PointerAnalysisState',
-        class_hierarchy: Optional['ClassHierarchyManager'] = None,
-        context_selector: Optional['ContextSelector'] = None,
+        state: "PointerAnalysisState",
+        class_hierarchy: Optional["ClassHierarchyManager"] = None,
+        context_selector: Optional["ContextSelector"] = None,
         on_field_read: Optional[Callable] = None,
     ):
         """Initialize the adapter.
-        
+
         Args:
             state: The kcfa pointer analysis state
             class_hierarchy: Optional class hierarchy manager for MRO queries
@@ -65,46 +65,46 @@ class PtaQueryAdapter:
 
     def points_to(
         self,
-        var: 'Variable',
-        scope: 'Scope',
-        context: 'AbstractContext',
-    ) -> 'PointsToSet':
+        var: "Variable",
+        scope: "Scope",
+        context: "AbstractContext",
+    ) -> "PointsToSet":
         """Get points-to set for a variable in given scope/context.
-        
+
         Args:
             var: Variable to query
             scope: Scope containing the variable
             context: Analysis context
-            
+
         Returns:
             PointsToSet of abstract objects the variable may point to
         """
         from .points_to_set import PointsToSet
-        
+
         ctx_var = self._state.get_variable(scope, context, var)
         return self._state.get_points_to(ctx_var)
 
     def field_points_to(
         self,
-        obj: 'AbstractObject',
-        field: 'Field',
-        scope: 'Scope',
-        context: 'AbstractContext',
-    ) -> 'PointsToSet':
+        obj: "AbstractObject",
+        field: "Field",
+        scope: "Scope",
+        context: "AbstractContext",
+    ) -> "PointsToSet":
         """Get points-to set for an object's field.
-        
+
         Args:
             obj: Abstract object
             field: Field key (attr/key/elem)
             scope: Current scope
             context: Analysis context
-            
+
         Returns:
             PointsToSet of objects the field may point to
         """
         from .points_to_set import PointsToSet
         from .object import summarize_object, is_summary_object
-        
+
         # A value-top receiver can select any field value; creating an empty
         # concrete slot for it would incorrectly turn unknown into bottom.
         if getattr(obj, "is_top_value", False):
@@ -121,26 +121,29 @@ class PtaQueryAdapter:
                         self.on_field_read(field_var)
                     pts_acc = pts_acc.union(self._state.get_points_to(field_var))
             return pts_acc
-        
+
         # Get field access variable for concrete object
         field_var = self._state.get_field(scope, context, obj, field)
         if self.on_field_read is not None:
             self.on_field_read(field_var)
         return self._state.get_points_to(field_var)
 
-    def get_class_mro(self, cls_obj: 'AbstractObject') -> List['AbstractObject']:
+    def get_class_mro(self, cls_obj: "AbstractObject") -> List["AbstractObject"]:
         """Get MRO (method resolution order) for a class object.
-        
+
         Args:
             cls_obj: Class object
-            
+
         Returns:
             List of class objects in MRO order (most specific first)
         """
         from .mro_projection import project_class_mro
+
         return project_class_mro(self._state, cls_obj, self._class_hierarchy, self.on_field_read)
 
-    def known_attribute_names(self, obj: 'AbstractObject', scope: 'Scope', context: 'AbstractContext') -> FrozenSet[str]:
+    def known_attribute_names(
+        self, obj: "AbstractObject", scope: "Scope", context: "AbstractContext"
+    ) -> FrozenSet[str]:
         """Return observed attribute names, never a proof of field absence."""
         from .heap_model import FieldKind
         from .object import InstanceObject
@@ -152,33 +155,34 @@ class PtaQueryAdapter:
             if self.on_attribute_names_read is not None:
                 self.on_attribute_names_read(owner)
         return frozenset(
-            field.name for owner, field in self._state._field_accesses
+            field.name
+            for owner, field in self._state._field_accesses
             if owner in owners and field.kind == FieldKind.ATTRIBUTE
         )
 
     def may_have_attr(
         self,
-        obj: 'AbstractObject',
+        obj: "AbstractObject",
         attr_name: str,
-        scope: 'Scope',
-        context: 'AbstractContext',
+        scope: "Scope",
+        context: "AbstractContext",
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
-        
+
         Conservative implementation: returns True unless we can prove
         the attribute definitely doesn't exist.
-        
+
         Args:
             obj: Object to check
             attr_name: Attribute name (e.g., "__get__", "__set__")
             scope: Current scope
             context: Analysis context
-            
+
         Returns:
             True if the object may have the attribute
         """
         from .heap_model import attr
-        
+
         # Check if field exists in state
         field_access = self._state.has_field(scope, context, obj, attr(attr_name))
         if field_access is not None:
@@ -186,7 +190,7 @@ class PtaQueryAdapter:
             pts = self._state.get_points_to(field_access)
             if not pts.is_empty():
                 return True
-        
+
         # Conservative: assume it may have the attribute
         return True
 
@@ -194,10 +198,10 @@ class PtaQueryAdapter:
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: 'AbstractContext',
-        receiver_obj: Optional['AbstractObject'],
-        params: Optional[Tuple['AbstractObject', ...]] = None,
-    ) -> Optional['AbstractContext']:
+        caller_ctx: "AbstractContext",
+        receiver_obj: Optional["AbstractObject"],
+        params: Optional[Tuple["AbstractObject", ...]] = None,
+    ) -> Optional["AbstractContext"]:
         """Delegate call context selection to kcfa ContextSelector when available."""
         if self._context_selector is None:
             return None
@@ -211,46 +215,47 @@ class PtaQueryAdapter:
 
     def get_function_cell_vars(
         self,
-        func_obj: 'AbstractObject',
-    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        func_obj: "AbstractObject",
+    ) -> Dict[str, FrozenSet["AbstractObject"]]:
         """Get cell variable bindings captured by a function object.
-        
+
         Cell variables are variables from enclosing scopes that are captured
         by the function for use in its body (closure variables).
-        
+
         This method queries the KCFA heap model to find captured bindings
         stored in the function object's closure representation.
-        
+
         Args:
             func_obj: Function object to query
-            
+
         Returns:
             Dict mapping cell variable names to their captured points-to sets
         """
         from .variable import VariableKind
         from .heap_model import attr
-        
-        result: Dict[str, FrozenSet['AbstractObject']] = {}
-        
+
+        result: Dict[str, FrozenSet["AbstractObject"]] = {}
+
         # Get the function's internal scope to access cell_vars metadata
         scope = self._state.get_internal_scope(func_obj)
         if scope is None:
             return result
-        
+
         # Try to get the IRFunc from the scope
         ir_func = None
-        if hasattr(scope, 'stmt'):
+        if hasattr(scope, "stmt"):
             ir_stmt = scope.stmt
             from pythonstan.ir.ir_statements import IRFunc
+
             if isinstance(ir_stmt, IRFunc):
                 ir_func = ir_stmt
-        
+
         if ir_func is None:
             return result
-        
+
         # Get cell_vars from the IRFunc
         cell_var_names = ir_func.cell_vars
-        
+
         # For each cell var, try to find its binding in the function's closure
         # The closure is typically stored as a special field on the function object
         for var_name in cell_var_names:
@@ -262,10 +267,11 @@ class PtaQueryAdapter:
                     result[var_name] = frozenset(pts)
             except Exception:
                 pass
-            
+
             # Fallback: try to read from nonlocal tracking in state
             # This uses the KCFA variable tracking for cell/nonlocal vars
             from .variable import Variable
+
             cell_var = Variable(name=var_name, kind=VariableKind.CELL)
             try:
                 ctx_var = self._state.get_variable(scope, None, cell_var)
@@ -274,60 +280,62 @@ class PtaQueryAdapter:
                     result[var_name] = frozenset(pts) | result.get(var_name, frozenset())
             except Exception:
                 pass
-        
+
         return result
 
     def get_function_global_vars(
         self,
-        func_obj: 'AbstractObject',
-    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        func_obj: "AbstractObject",
+    ) -> Dict[str, FrozenSet["AbstractObject"]]:
         """Get global variable bindings accessible by a function object.
-        
+
         Global variables are module-level names that the function may read/write.
         This method queries the KCFA state to find global variable bindings
         in the module namespace.
-        
+
         Args:
             func_obj: Function object to query
-            
+
         Returns:
             Dict mapping global variable names to their points-to sets
         """
         from .variable import Variable, VariableKind
         from .heap_model import attr
-        
-        result: Dict[str, FrozenSet['AbstractObject']] = {}
-        
+
+        result: Dict[str, FrozenSet["AbstractObject"]] = {}
+
         # Get the function's internal scope
         scope = self._state.get_internal_scope(func_obj)
         if scope is None:
             return result
-        
+
         # Try to get the IRFunc from the scope
         ir_func = None
-        if hasattr(scope, 'stmt'):
+        if hasattr(scope, "stmt"):
             ir_stmt = scope.stmt
             from pythonstan.ir.ir_statements import IRFunc
+
             if isinstance(ir_stmt, IRFunc):
                 ir_func = ir_stmt
-        
+
         if ir_func is None:
             return result
-        
+
         # Get global_vars from the IRFunc
         global_var_names = ir_func.global_vars
-        
+
         # Try to find the module object containing this function
         # This is a heuristic - look for MODULE kind objects
         from .object import AllocKind
+
         module_obj = None
         for obj in self._state._heap.objects.values():
-            if hasattr(obj, 'kind') and obj.kind == AllocKind.MODULE:
+            if hasattr(obj, "kind") and obj.kind == AllocKind.MODULE:
                 # Check if this module contains our function
                 # This is a simplified check
                 module_obj = obj
                 break
-        
+
         for var_name in global_var_names:
             # Try to read from module attribute
             if module_obj is not None:
@@ -338,7 +346,7 @@ class PtaQueryAdapter:
                         result[var_name] = frozenset(pts)
                 except Exception:
                     pass
-            
+
             # Fallback: read from global variable tracking
             global_var = Variable(name=var_name, kind=VariableKind.GLOBAL)
             try:
@@ -348,5 +356,5 @@ class PtaQueryAdapter:
                     result[var_name] = frozenset(pts) | result.get(var_name, frozenset())
             except Exception:
                 pass
-        
+
         return result

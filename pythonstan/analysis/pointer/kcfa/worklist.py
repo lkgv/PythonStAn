@@ -4,6 +4,7 @@ The original FIFO Worklist remains in state.py for compatibility. This backend
 is selected only by points_work_policy='consumer_fair'. OrderedDict lanes avoid
 scanning or copying the pending queue during selection and promotion.
 """
+
 from collections import OrderedDict
 
 from pythonstan.utils.common import Box
@@ -107,7 +108,13 @@ class ConsumerFairWorklist:
         return tuple(self.iter_pending())
 
     def diagnostics(self):
-        return {"points_work_policy": "consumer_fair", "hot_quota": self.HOT_QUOTA,
-                "pending_hot": len(self._hot), "pending_cold": len(self._cold),
-                "hot_pops": self._hot_pops, "cold_pops": self._cold_pops,
-                "promotions": self._promotions, "cold_seed_nodes": self._cold_seeds}
+        return {
+            "points_work_policy": "consumer_fair",
+            "hot_quota": self.HOT_QUOTA,
+            "pending_hot": len(self._hot),
+            "pending_cold": len(self._cold),
+            "hot_pops": self._hot_pops,
+            "cold_pops": self._cold_pops,
+            "promotions": self._promotions,
+            "cold_seed_nodes": self._cold_seeds,
+        }
