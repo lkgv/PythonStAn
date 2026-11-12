@@ -1,4 +1,5 @@
 """Denotations of the small relational DSL, independent of engine transfers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,11 +26,11 @@ def interpret_relation(relation, parameter="payload", allocation="fresh-template
     if relation == "input":
         return SymbolicInput(parameter)
     if relation == "fresh_box":
-        return SymbolicFreshBox(allocation,"value",SymbolicInput(parameter))
+        return SymbolicFreshBox(allocation, "value", SymbolicInput(parameter))
     if relation == "top":
         return SymbolicTop()
     raise ValueError("not a guarded-dispatch relation")
 
 
 def relation_covers(candidate, concrete_symbolic_relation):
-    return isinstance(candidate,SymbolicTop) or candidate == concrete_symbolic_relation
+    return isinstance(candidate, SymbolicTop) or candidate == concrete_symbolic_relation

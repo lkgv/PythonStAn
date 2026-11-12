@@ -25,26 +25,52 @@ SCHEMA_VERSION = 1
 SEMANTICS_VERSION = "closed-call-effects-v2"
 MAX_SOURCE_BYTES = 1_000_000
 MAX_CERTIFICATE_FACTS = 100_000
-EXCEPTION_TYPES = frozenset({
-    "Exception", "BaseException", "ValueError", "TypeError", "RuntimeError",
-    "KeyError", "IndexError", "LookupError", "ArithmeticError",
-    "ZeroDivisionError", "AssertionError", "AttributeError", "NameError",
-    "UnboundLocalError", "StopIteration", "SystemExit", "KeyboardInterrupt",
-    "NotImplementedError", "OverflowError", "RecursionError",
-})
+EXCEPTION_TYPES = frozenset(
+    {
+        "Exception",
+        "BaseException",
+        "ValueError",
+        "TypeError",
+        "RuntimeError",
+        "KeyError",
+        "IndexError",
+        "LookupError",
+        "ArithmeticError",
+        "ZeroDivisionError",
+        "AssertionError",
+        "AttributeError",
+        "NameError",
+        "UnboundLocalError",
+        "StopIteration",
+        "SystemExit",
+        "KeyboardInterrupt",
+        "NotImplementedError",
+        "OverflowError",
+        "RecursionError",
+    }
+)
 
 # Fixed builtin hierarchy, independent of names or objects in the analyzed
 # module. Matching may not invoke a user metaclass, descriptor or comparison.
 _EXCEPTION_PARENT = {
-    "Exception": "BaseException", "SystemExit": "BaseException",
-    "KeyboardInterrupt": "BaseException", "ValueError": "Exception",
-    "TypeError": "Exception", "RuntimeError": "Exception",
-    "LookupError": "Exception", "KeyError": "LookupError",
-    "IndexError": "LookupError", "ArithmeticError": "Exception",
-    "ZeroDivisionError": "ArithmeticError", "OverflowError": "ArithmeticError",
-    "AssertionError": "Exception", "AttributeError": "Exception",
-    "NameError": "Exception", "UnboundLocalError": "NameError",
-    "StopIteration": "Exception", "NotImplementedError": "RuntimeError",
+    "Exception": "BaseException",
+    "SystemExit": "BaseException",
+    "KeyboardInterrupt": "BaseException",
+    "ValueError": "Exception",
+    "TypeError": "Exception",
+    "RuntimeError": "Exception",
+    "LookupError": "Exception",
+    "KeyError": "LookupError",
+    "IndexError": "LookupError",
+    "ArithmeticError": "Exception",
+    "ZeroDivisionError": "ArithmeticError",
+    "OverflowError": "ArithmeticError",
+    "AssertionError": "Exception",
+    "AttributeError": "Exception",
+    "NameError": "Exception",
+    "UnboundLocalError": "NameError",
+    "StopIteration": "Exception",
+    "NotImplementedError": "RuntimeError",
     "RecursionError": "RuntimeError",
 }
 
@@ -79,11 +105,13 @@ class FunctionSummary:
     heap_effect: str = "unchanged"
 
     def included_in(self, other: "FunctionSummary") -> bool:
-        return (self.events <= other.events
-                and (not self.normal_exit or other.normal_exit)
-                and self.exceptions <= other.exceptions
-                and (not self.suspends or other.suspends)
-                and self.heap_effect == other.heap_effect)
+        return (
+            self.events <= other.events
+            and (not self.normal_exit or other.normal_exit)
+            and self.exceptions <= other.exceptions
+            and (not self.suspends or other.suspends)
+            and self.heap_effect == other.heap_effect
+        )
 
 
 @dataclass(frozen=True)
@@ -122,7 +150,8 @@ def source_digest(source: str) -> str:
 def candidate_json_schema(function_names: Optional[Iterable[str]] = None) -> dict:
     """Wire schema; passing names gives a strict structured-output schema."""
     summary = {
-        "type": "object", "additionalProperties": False,
+        "type": "object",
+        "additionalProperties": False,
         "required": ["events", "normal_exit", "exceptions", "suspends", "heap_effect"],
         "properties": {
             "events": {"type": "array", "items": {"type": "string"}},
@@ -136,10 +165,15 @@ def candidate_json_schema(function_names: Optional[Iterable[str]] = None) -> dic
         summaries = {"type": "object", "additionalProperties": summary}
     else:
         names = sorted(set(function_names))
-        summaries = {"type": "object", "additionalProperties": False,
-                     "properties": {name: summary for name in names}, "required": names}
+        summaries = {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {name: summary for name in names},
+            "required": names,
+        }
     return {
-        "type": "object", "additionalProperties": False,
+        "type": "object",
+        "additionalProperties": False,
         "required": ["schema_version", "semantics_version", "source_sha256", "summaries"],
         "properties": {
             "schema_version": {"type": "integer", "enum": [SCHEMA_VERSION]},
@@ -168,13 +202,19 @@ def _string_set(value: Any, label: str) -> frozenset[str]:
 def parse_candidate(data: Mapping[str, Any]) -> ProgramCertificate:
     if not isinstance(data, Mapping):
         raise ValueError("certificate must be an object")
-    _keys(data, {"schema_version", "semantics_version", "source_sha256", "summaries"}, "certificate")
+    _keys(
+        data, {"schema_version", "semantics_version", "source_sha256", "summaries"}, "certificate"
+    )
     if type(data["schema_version"]) is not int or data["schema_version"] != SCHEMA_VERSION:
         raise ValueError("unsupported schema_version")
     if data["semantics_version"] != SEMANTICS_VERSION:
         raise ValueError("unsupported semantics_version")
     digest = data["source_sha256"]
-    if type(digest) is not str or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+    if (
+        type(digest) is not str
+        or len(digest) != 64
+        or any(c not in "0123456789abcdef" for c in digest)
+    ):
         raise ValueError("source_sha256 must be a lowercase SHA256 digest")
     items = data["summaries"]
     if not isinstance(items, Mapping) or len(items) > MAX_CERTIFICATE_FACTS:
@@ -203,11 +243,16 @@ def certificate_to_dict(certificate: ProgramCertificate) -> dict:
         "schema_version": certificate.schema_version,
         "semantics_version": certificate.semantics_version,
         "source_sha256": certificate.source_sha256,
-        "summaries": {name: {
-            "events": sorted(summary.events), "normal_exit": summary.normal_exit,
-            "exceptions": sorted(summary.exceptions), "suspends": summary.suspends,
-            "heap_effect": summary.heap_effect,
-        } for name, summary in certificate.summaries},
+        "summaries": {
+            name: {
+                "events": sorted(summary.events),
+                "normal_exit": summary.normal_exit,
+                "exceptions": sorted(summary.exceptions),
+                "suspends": summary.suspends,
+                "heap_effect": summary.heap_effect,
+            }
+            for name, summary in certificate.summaries
+        },
     }
 
 
@@ -246,19 +291,37 @@ def _load_program(source: str) -> _Program:
         raise UnsupportedSource(f"invalid Python source: {exc}") from exc
     functions: Dict[str, _Function] = {}
     body = module.body
-    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and type(body[0].value.value) is str:
+    if (
+        body
+        and isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and type(body[0].value.value) is str
+    ):
         body = body[1:]
     for node in body:
         if not isinstance(node, ast.FunctionDef):
-            _unsupported(node, "closed modules contain only function definitions and an optional docstring")
+            _unsupported(
+                node, "closed modules contain only function definitions and an optional docstring"
+            )
         if node.name in functions or node.name in EXCEPTION_TYPES or node.name == "__builtins__":
             _unsupported(node, "duplicate or reserved function binding")
         args = node.args
         params = tuple(arg.arg for arg in (*args.posonlyargs, *args.args))
-        if (node.decorator_list or node.returns or getattr(node, "type_params", ())
-                or args.defaults or args.kw_defaults or args.kwonlyargs or args.vararg or args.kwarg
-                or any(arg.annotation for arg in (*args.posonlyargs, *args.args))):
-            _unsupported(node, "decorators, annotations, defaults, variadic and keyword-only parameters are unsupported")
+        if (
+            node.decorator_list
+            or node.returns
+            or getattr(node, "type_params", ())
+            or args.defaults
+            or args.kw_defaults
+            or args.kwonlyargs
+            or args.vararg
+            or args.kwarg
+            or any(arg.annotation for arg in (*args.posonlyargs, *args.args))
+        ):
+            _unsupported(
+                node,
+                "decorators, annotations, defaults, variadic and keyword-only parameters are unsupported",
+            )
         if len(params) != len(set(params)):
             _unsupported(node, "duplicate parameters")
         local_names = set(params)
@@ -290,8 +353,11 @@ class _Validator:
                 _unsupported(node, f"unmodeled global name {node.id!r}")
             return
         if isinstance(node, ast.Call) and allow_calls:
-            if (not isinstance(node.func, ast.Name) or node.func.id not in self.functions
-                    or node.func.id in self.function.locals):
+            if (
+                not isinstance(node.func, ast.Name)
+                or node.func.id not in self.functions
+                or node.func.id in self.function.locals
+            ):
                 _unsupported(node, "calls require an unshadowed closed-module function binding")
             if node.keywords or any(isinstance(arg, ast.Starred) for arg in node.args):
                 _unsupported(node, "keyword and starred arguments are unsupported")
@@ -305,7 +371,9 @@ class _Validator:
     def condition(self, node: ast.AST) -> None:
         if isinstance(node, ast.Constant) and type(node.value) is bool:
             return
-        if isinstance(node, ast.Compare) and all(isinstance(op, (ast.Is, ast.IsNot)) for op in node.ops):
+        if isinstance(node, ast.Compare) and all(
+            isinstance(op, (ast.Is, ast.IsNot)) for op in node.ops
+        ):
             for value in (node.left, *node.comparators):
                 self.value(value, allow_calls=False)
             return
@@ -316,7 +384,10 @@ class _Validator:
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             self.condition(node.operand)
             return
-        _unsupported(node, "conditions require Boolean literals or pure identity tests; arbitrary truthiness is unsupported")
+        _unsupported(
+            node,
+            "conditions require Boolean literals or pure identity tests; arbitrary truthiness is unsupported",
+        )
 
     def statements(self, nodes: Iterable[ast.stmt], loop_depth: int) -> None:
         for node in nodes:
@@ -342,16 +413,24 @@ class _Validator:
             elif isinstance(node, ast.Try):
                 self.statements(node.body, loop_depth)
                 for handler in node.handlers:
-                    types = (handler.type.elts if isinstance(handler.type, ast.Tuple)
-                             else (handler.type,))
+                    types = (
+                        handler.type.elts
+                        if isinstance(handler.type, ast.Tuple)
+                        else (handler.type,)
+                    )
                     for exception in types:
                         if exception is None:
                             continue
-                        if (not isinstance(exception, ast.Name)
-                                or exception.id not in EXCEPTION_TYPES
-                                or exception.id in self.function.locals
-                                or exception.id in self.functions):
-                            _unsupported(exception, "handlers require exact unshadowed builtin exception bindings")
+                        if (
+                            not isinstance(exception, ast.Name)
+                            or exception.id not in EXCEPTION_TYPES
+                            or exception.id in self.function.locals
+                            or exception.id in self.functions
+                        ):
+                            _unsupported(
+                                exception,
+                                "handlers require exact unshadowed builtin exception bindings",
+                            )
                     self.statements(handler.body, loop_depth)
                 self.statements(node.orelse, loop_depth)
                 self.statements(node.finalbody, loop_depth)
@@ -362,11 +441,17 @@ class _Validator:
                 if node.cause is not None:
                     _unsupported(node, "explicit exception chaining is unsupported")
                 name = node.exc.func if isinstance(node.exc, ast.Call) else node.exc
-                if (not isinstance(name, ast.Name) or name.id not in EXCEPTION_TYPES
-                        or name.id in self.function.locals or name.id in self.functions):
+                if (
+                    not isinstance(name, ast.Name)
+                    or name.id not in EXCEPTION_TYPES
+                    or name.id in self.function.locals
+                    or name.id in self.functions
+                ):
                     _unsupported(node, "raise requires an exact modeled builtin exception binding")
                 if isinstance(node.exc, ast.Call):
-                    if node.exc.keywords or any(isinstance(arg, ast.Starred) for arg in node.exc.args):
+                    if node.exc.keywords or any(
+                        isinstance(arg, ast.Starred) for arg in node.exc.args
+                    ):
                         _unsupported(node, "exception keyword/starred arguments are unsupported")
                     for arg in node.exc.args:
                         self.value(arg)
@@ -435,13 +520,16 @@ class _Flow:
             if bindings is None:
                 return None
             return _Bindings(bindings.must - {name}, bindings.may - {name})
+
         for tag in ("normal", "returns", "breaks", "continues"):
             setattr(self, tag, delete(getattr(self, tag)))
         self.exceptions = {kind: delete(bindings) for kind, bindings in self.exceptions.items()}
 
 
 class _Transfer:
-    def __init__(self, program: _Program, summaries: Mapping[str, FunctionSummary], step_budget: int):
+    def __init__(
+        self, program: _Program, summaries: Mapping[str, FunctionSummary], step_budget: int
+    ):
         self.program = program
         self.summaries = summaries
         self.remaining = step_budget
@@ -521,11 +609,18 @@ class _Transfer:
             known: Optional[bool] = None
             if isinstance(left, ast.Name) and isinstance(right, ast.Name) and left.id == right.id:
                 known = True
-            elif (isinstance(left, ast.Constant) and isinstance(right, ast.Constant)
-                  and (left.value is None or type(left.value) is bool)
-                  and (right.value is None or type(right.value) is bool)):
+            elif (
+                isinstance(left, ast.Constant)
+                and isinstance(right, ast.Constant)
+                and (left.value is None or type(left.value) is bool)
+                and (right.value is None or type(right.value) is bool)
+            ):
                 known = left.value is right.value
-            truth = frozenset({True, False}) if known is None else frozenset({known != isinstance(op, ast.IsNot)})
+            truth = (
+                frozenset({True, False})
+                if known is None
+                else frozenset({known != isinstance(op, ast.IsNot)})
+            )
             possible = halted | truth
         return flow, possible if flow.normal is not None else frozenset()
 
@@ -547,7 +642,9 @@ class _Transfer:
         remain, including runs with no finite exit.
         """
         result = _Flow(None, events=set(flow.events))
-        pending = [(tag, getattr(flow, tag)) for tag in ("normal", "returns", "breaks", "continues")]
+        pending = [
+            (tag, getattr(flow, tag)) for tag in ("normal", "returns", "breaks", "continues")
+        ]
         pending.extend((name, bindings) for name, bindings in flow.exceptions.items())
         for tag, bindings in pending:
             if bindings is None:
@@ -563,8 +660,13 @@ class _Transfer:
 
     def try_statement(self, node: ast.Try, bindings: _Bindings) -> _Flow:
         body = self.statements(node.body, bindings)
-        result = _Flow(None, events=set(body.events), returns=body.returns,
-                       breaks=body.breaks, continues=body.continues)
+        result = _Flow(
+            None,
+            events=set(body.events),
+            returns=body.returns,
+            breaks=body.breaks,
+            continues=body.continues,
+        )
         # Else is outside the handlers' protected region. Handler exceptions
         # and else exceptions propagate directly to the pending-finally join.
         if body.normal is not None:
@@ -661,14 +763,20 @@ class _Transfer:
         self.function = function
         bindings = _Bindings(frozenset(function.parameters), frozenset(function.parameters))
         flow = self.statements(function.node.body, bindings)
-        return FunctionSummary(frozenset(flow.events),
-                               flow.returns is not None or flow.normal is not None,
-                               frozenset(flow.exceptions))
+        return FunctionSummary(
+            frozenset(flow.events),
+            flow.returns is not None or flow.normal is not None,
+            frozenset(flow.exceptions),
+        )
 
 
-def _apply(program: _Program, summaries: Mapping[str, FunctionSummary], budget: int) -> Tuple[Dict[str, FunctionSummary], int]:
+def _apply(
+    program: _Program, summaries: Mapping[str, FunctionSummary], budget: int
+) -> Tuple[Dict[str, FunctionSummary], int]:
     transfer = _Transfer(program, summaries, budget)
-    result = {name: transfer.function_summary(function) for name, function in program.functions.items()}
+    result = {
+        name: transfer.function_summary(function) for name, function in program.functions.items()
+    }
     return result, transfer.steps
 
 
@@ -689,7 +797,9 @@ def infer_candidate(source: str, *, max_iterations: int = 1000) -> ProgramCertif
     raise InferenceUnknown("inference iteration budget exhausted")
 
 
-def check_source(source: str, candidate: ProgramCertificate | Mapping[str, Any], *, max_iterations: int = 1000) -> CheckResult:
+def check_source(
+    source: str, candidate: ProgramCertificate | Mapping[str, Any], *, max_iterations: int = 1000
+) -> CheckResult:
     """Check a complete source-bound vector without trusting its producer."""
     try:
         digest = source_digest(source) if type(source) is str else ""
@@ -699,7 +809,11 @@ def check_source(source: str, candidate: ProgramCertificate | Mapping[str, Any],
         return CheckResult("unknown", ("checking budget exhausted",), digest)
     try:
         # Round-tripping also defends against mutable or malformed direct class construction.
-        cert = parse_candidate(certificate_to_dict(candidate) if isinstance(candidate, ProgramCertificate) else candidate)
+        cert = parse_candidate(
+            certificate_to_dict(candidate)
+            if isinstance(candidate, ProgramCertificate)
+            else candidate
+        )
     except (ValueError, TypeError, AttributeError) as exc:
         return CheckResult("rejected", (f"malformed certificate: {exc}",), digest)
     if cert.source_sha256 != digest:
@@ -709,11 +823,25 @@ def check_source(source: str, candidate: ProgramCertificate | Mapping[str, Any],
         names = tuple(sorted(program.functions))
         proposed = cert.summary_map()
         if set(proposed) != set(program.functions):
-            return CheckResult("rejected", ("certificate must cover exactly all source functions",), digest, names, source_coverage=True)
-        alphabet = {"call:" + name for name in names} | {"raise:" + name for name in EXCEPTION_TYPES}
+            return CheckResult(
+                "rejected",
+                ("certificate must cover exactly all source functions",),
+                digest,
+                names,
+                source_coverage=True,
+            )
+        alphabet = {"call:" + name for name in names} | {
+            "raise:" + name for name in EXCEPTION_TYPES
+        }
         for name, summary in proposed.items():
             if not summary.events <= alphabet or not summary.exceptions <= EXCEPTION_TYPES:
-                return CheckResult("rejected", (f"{name}: facts outside the modeled alphabet",), digest, names, source_coverage=True)
+                return CheckResult(
+                    "rejected",
+                    (f"{name}: facts outside the modeled alphabet",),
+                    digest,
+                    names,
+                    source_coverage=True,
+                )
         inferred, steps = _apply(program, proposed, max_iterations * 1000)
         diagnostics = []
         for name in names:
@@ -721,9 +849,13 @@ def check_source(source: str, candidate: ProgramCertificate | Mapping[str, Any],
             if not actual.included_in(claim):
                 diagnostics.append(f"{name}: source-derived post-fixpoint obligation failed")
                 if actual.events - claim.events:
-                    diagnostics.append(f"{name}: missing prefix events {sorted(actual.events - claim.events)}")
+                    diagnostics.append(
+                        f"{name}: missing prefix events {sorted(actual.events - claim.events)}"
+                    )
                 if actual.exceptions - claim.exceptions:
-                    diagnostics.append(f"{name}: missing exception exits {sorted(actual.exceptions - claim.exceptions)}")
+                    diagnostics.append(
+                        f"{name}: missing exception exits {sorted(actual.exceptions - claim.exceptions)}"
+                    )
                 if actual.normal_exit and not claim.normal_exit:
                     diagnostics.append(f"{name}: missing normal exit")
         if diagnostics:
