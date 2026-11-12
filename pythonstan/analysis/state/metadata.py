@@ -18,12 +18,14 @@ from pythonstan.analysis.contracts.identity import CellId, ObjectId, ProgramPoin
 from pythonstan.analysis.domains.reabstract import ReferenceKey
 from pythonstan.analysis.domains.values import Value
 
+from .bindings import BindingRef
 from .continuation import (
     Continuation,
     ExceptionContext,
     ExceptionRestoreRecord,
     parse_legacy_continuation,
 )
+from .dependencies import SummaryDependency
 from .effects import (
     CellWrite,
     Havoc,
@@ -33,6 +35,7 @@ from .effects import (
     MetadataUpdate,
     WriteEffect,
 )
+from .handles import ObjectHandle, StateHandle
 from .keys import FieldKey
 
 if TYPE_CHECKING:
@@ -54,6 +57,7 @@ type ComponentPayload = (
     | bool
     | int
     | float
+    | complex
     | str
     | bytes
     | Enum
@@ -61,6 +65,10 @@ type ComponentPayload = (
     | Value
     | ReferenceKey
     | Store
+    | StateHandle
+    | ObjectHandle
+    | BindingRef
+    | SummaryDependency
     | Frame
     | Flow
     | HeapObject
@@ -132,6 +140,11 @@ class StoreField:
 
 
 @dataclass(frozen=True, slots=True)
+class StateHandleField:
+    value: StateHandle
+
+
+@dataclass(frozen=True, slots=True)
 class ContinuationField:
     value: Continuation
 
@@ -181,6 +194,7 @@ type ComponentField = (
     | ValueField
     | FrameField
     | StoreField
+    | StateHandleField
     | ContinuationField
     | StatementsField
     | ExceptionField
@@ -224,7 +238,7 @@ class FunctionMeta:
 class GeneratorMeta:
     function: ObjectId | None = None
     frame: Frame | None = None
-    entry: Store | None = None
+    entry: StateHandle | None = None
     body: StatementBody | None = None
     stage: GeneratorStage | None = None
     index: int | None = None
@@ -329,53 +343,61 @@ type HeapMetadata = (
 
 
 def _typed[T](value: object, expected: type[T]) -> T:
-    if not isinstance(value, expected):
-        raise TypeError(f"Expected {expected.__name__} in heap metadata")
+    if not isinstance(value, expected) or type(value) is not expected:
+        raise TypeError(f"Expected registered {expected.__name__} in heap metadata")
     return value
 
 
 def _is_key(value: object) -> TypeGuard[FieldKey]:
-    if value is None or isinstance(value, (bool, int, float, str, bytes, Enum, ReferenceKey)):
+    if (
+        value is None
+        or type(value) in (bool, int, float, str, bytes, ReferenceKey)
+        or isinstance(value, Enum)
+    ):
         return True
-    if isinstance(value, tuple):
+    if isinstance(value, tuple) and type(value) is tuple:
         items: Sequence[object] = value
         return all(_is_key(item) for item in items)
     return False
 
 
 def _component(value: object, seen: set[int]) -> TypeGuard[ComponentPayload]:
+    from .boundary import BoundaryObject
     from .store import Frame, FunctionInfo, HeapObject, Store, Unit, is_flow
 
     if (
         value is None
-        or isinstance(
-            value,
-            (
-                bool,
-                int,
-                float,
-                str,
-                bytes,
-                Enum,
-                ast.AST,
-                Value,
-                ReferenceKey,
-                Frame,
-                FunctionInfo,
-                HeapObject,
-                Store,
-                Unit,
-                Continuation,
-                ExceptionContext,
-                ExceptionRestoreRecord,
-                Metadata,
-                CellWrite,
-                HeapWrite,
-                HeapDelete,
-                HeapDefaultWrite,
-                MetadataUpdate,
-                Havoc,
-            ),
+        or isinstance(value, (Enum, ast.AST))
+        or type(value)
+        in (
+            bool,
+            int,
+            float,
+            complex,
+            str,
+            bytes,
+            Value,
+            ReferenceKey,
+            Frame,
+            FunctionInfo,
+            HeapObject,
+            Store,
+            Unit,
+            Continuation,
+            ExceptionContext,
+            ExceptionRestoreRecord,
+            Metadata,
+            StateHandle,
+            ObjectHandle,
+            BindingRef,
+            SummaryDependency,
+            BoundaryObject,
+            CellWrite,
+            HeapWrite,
+            HeapDelete,
+            HeapDefaultWrite,
+            MetadataUpdate,
+            Havoc,
         )
         or is_flow(value)
     ):
@@ -384,10 +406,12 @@ def _component(value: object, seen: set[int]) -> TypeGuard[ComponentPayload]:
     if identity in seen:
         return True
     seen.add(identity)
-    if isinstance(value, dict):
+    if isinstance(value, dict) and type(value) is dict:
         mapping: Mapping[object, object] = value
         return all(_is_key(key) and _component(item, seen) for key, item in mapping.items())
-    if isinstance(value, (list, tuple, set, frozenset)):
+    if type(value) in (list, tuple, set, frozenset):
+        if not isinstance(value, (list, tuple, set, frozenset)):
+            return False
         items: Sequence[object] | set[object] | frozenset[object] = value
         return all(_component(item, seen) for item in items)
     return False
@@ -401,58 +425,58 @@ def validate_component(value: object) -> ComponentPayload:
 
 
 def _objects(value: object) -> TypeGuard[ObjectSequence]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
-    return all(isinstance(item, str) for item in items)
+    return all(type(item) is str for item in items)
 
 
 def _bindings(value: object) -> TypeGuard[ClosureBindings]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
     for item in items:
-        if not isinstance(item, tuple) or len(item) != 2:
+        if not isinstance(item, tuple) or type(item) is not tuple or len(item) != 2:
             return False
         pair: tuple[object, ...] = item
-        if not isinstance(pair[0], str) or not isinstance(pair[1], str):
+        if type(pair[0]) is not str or type(pair[1]) is not str:
             return False
     return True
 
 
 def _values(value: object) -> TypeGuard[ValueSequence]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
-    return all(isinstance(item, Value) for item in items)
+    return all(type(item) is Value for item in items)
 
 
 def _statements(value: object) -> TypeGuard[StatementBody]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
     return all(isinstance(item, ast.stmt) for item in items)
 
 
 def _keys(value: object) -> TypeGuard[KeySequence]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
     return all(_is_key(item) for item in items)
 
 
 def _key_set(value: object) -> TypeGuard[KeySet]:
-    if not isinstance(value, (set, frozenset)):
+    if not isinstance(value, (set, frozenset)) or type(value) not in (set, frozenset):
         return False
     items: set[object] | frozenset[object] = value
     return all(_is_key(item) for item in items)
 
 
 def _texts(value: object) -> TypeGuard[TextSequence]:
-    if not isinstance(value, (tuple, list)):
+    if not isinstance(value, (tuple, list)) or type(value) not in (tuple, list):
         return False
     items: Sequence[object] = value
-    return all(isinstance(item, str) for item in items)
+    return all(type(item) is str for item in items)
 
 
 def _stage(value: str) -> GeneratorStage:
@@ -483,7 +507,7 @@ def _field(kind: str, key: str, value: object) -> ComponentField:
     from .store import Frame, Store
 
     if key in {"length", "index", "resume_count"}:
-        if not isinstance(value, int) or isinstance(value, bool):
+        if type(value) is not int:
             raise TypeError("Heap metadata cursor/length must be an integer")
         return IntegerField(value)
     if key in {"readonly", "sequence_protocol", "dictionary_exhausted"}:
@@ -511,7 +535,12 @@ def _field(kind: str, key: str, value: object) -> ComponentField:
     if key == "frame":
         return FrameField(_typed(value, Frame))
     if key == "entry":
-        return StoreField(_typed(value, Store))
+        entry = (
+            _typed(value, StateHandle)
+            if isinstance(value, StateHandle)
+            else StateHandle.capture(_typed(value, Store))
+        )
+        return StateHandleField(entry)
     if key == "remaining":
         return ContinuationField(parse_legacy_continuation(value))
     if key == "body" and _statements(value):
@@ -577,7 +606,7 @@ def _decode_record(kind: str, entries: Mapping[str, ComponentField]) -> HeapMeta
     if kind in {"generator", "async_generator", "coroutine"}:
         function_field = _optional(entries, "function", ReferenceField)
         frame_field = _optional(entries, "frame", FrameField)
-        entry_field = _optional(entries, "entry", StoreField)
+        entry_field = _optional(entries, "entry", StateHandleField)
         body_field = _optional(entries, "body", StatementsField)
         stage_field = _optional(entries, "stage", TextField)
         index_field = _optional(entries, "index", IntegerField)
@@ -701,6 +730,24 @@ def _dictionary_record(entries: Mapping[str, ComponentField]) -> DictionaryItera
 
 
 def _record_fields(record: HeapMetadata) -> dict[str, ComponentField]:
+    if type(record) not in (
+        EmptyMeta,
+        ContainerMeta,
+        FunctionMeta,
+        GeneratorMeta,
+        ClassMeta,
+        SequenceIteratorMeta,
+        DictionaryIteratorMeta,
+        ModuleMeta,
+        NamespaceMeta,
+        BoundMethodMeta,
+        BuiltinMethodMeta,
+        DictViewMeta,
+        ExceptionMeta,
+        SuperMeta,
+        SummaryMeta,
+    ):
+        raise TypeError("Unregistered per-kind metadata record")
     result: dict[str, ComponentField]
     if isinstance(record, ContainerMeta):
         result = {}
@@ -731,7 +778,7 @@ def _record_fields(record: HeapMetadata) -> dict[str, ComponentField]:
         if record.frame is not None:
             result["frame"] = FrameField(record.frame)
         if record.entry is not None:
-            result["entry"] = StoreField(record.entry)
+            result["entry"] = StateHandleField(_typed(record.entry, StateHandle))
         if record.body is not None:
             result["body"] = StatementsField(record.body)
         if record.stage is not None:
@@ -914,6 +961,8 @@ class Metadata(MutableMapping[str, ComponentPayload]):
     @classmethod
     def from_legacy(cls, kind: str, data: Metadata | Mapping[str, object] | None) -> Metadata:
         if isinstance(data, Metadata):
+            if type(data) is not Metadata:
+                raise TypeError("Unregistered metadata facade subclass")
             if data.kind == kind:
                 return data
             result = cls(kind, allow_components=data._allow_components)
@@ -930,6 +979,10 @@ class Metadata(MutableMapping[str, ComponentPayload]):
     def from_record(cls, kind: str, record: HeapMetadata) -> Metadata:
         """Normal producers publish their real typed record without a raw DTO."""
         entries = _record_fields(record)
+        for key, entry in entries.items():
+            decoded = _field(kind, key, entry.value)
+            if type(decoded) is not type(entry):
+                raise TypeError("Typed metadata field has an incompatible semantic role")
         if isinstance(record, GeneratorMeta) and record.owned_exception is None:
             entries.pop("owned_exception", None)
         if type(_decode_record(kind, entries)) is not type(record):
@@ -1033,7 +1086,17 @@ class Metadata(MutableMapping[str, ComponentPayload]):
         item = normal.get(key)
         if item is None:
             item = self.components.entries[key]
+        if key == "entry" and isinstance(item, StateHandleField):
+            # Documented compatibility projection; the stored fact is one handle.
+            return item.value.read()
         return item.value
+
+    def entry_handle(self) -> StateHandle:
+        """Return the stored checkpoint without capturing on read."""
+        entry = self.transformation_entries().get("entry")
+        if not isinstance(entry, StateHandleField):
+            raise KeyError("Generator metadata has no canonical entry handle")
+        return entry.value
 
     @overload
     def lookup(

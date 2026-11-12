@@ -16,6 +16,7 @@ from pythonstan.analysis.domains.strings import StrLattice
 from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver, BudgetStop
 from pythonstan.analysis.engines.abstract.state import Store, HeapObject, Frame, Flow, FunctionInfo
 from pythonstan.analysis.semantics.names import classify_bindings
+from pythonstan.analysis.state.flow import flow_payload, require_payload
 
 
 class BoundaryUnavailable(ValueError):
@@ -564,10 +565,12 @@ class LegacyStateBridge:
         normal=[flow for flow in flows if flow.kind in {'normal','return'}]
         exceptional=[flow for flow in flows if flow.kind=='raise']
         ret=AbsVal.bottom(self.initial.registry)
-        for flow in normal:ret=ret.join(self.old_value(flow.value,flow.store))
+        for flow in normal:
+            payload=flow_payload(flow)
+            if payload is not None: ret=ret.join(self.old_value(payload,flow.store))
         joined=None
         for flow in normal:joined=flow.store.copy() if joined is None else joined.join(flow.store,self.driver.ops)
-        exit_state=None if joined is None else self.old_state(joined,frame,(ref for flow in normal for ref in flow.value.refs))
+        exit_state=None if joined is None else self.old_state(joined,frame,(ref for flow in normal for payload in (flow_payload(flow),) if payload is not None for ref in payload.refs))
         writes=[]
         for flow in flows:
             from pythonstan.analysis.state.effects import HeapWrite, HeapDelete, HeapDefaultWrite
@@ -585,7 +588,7 @@ class LegacyStateBridge:
                 value=self.old_value(obj.default if tag=='heap_default' else obj.fields.get(field,Value.bottom()),flow.store)
                 writes.append(FieldWrite(frozenset((native,)),native_field,value.addrs,value))
         def exception_name(flow):return 'BaseException' if flow.exception in {None,'AnyException'} else flow.exception
-        exceptional_states=tuple((exception_name(flow),self.old_state(flow.store,frame,flow.value.refs)) for flow in exceptional)
+        exceptional_states=tuple((exception_name(flow),self.old_state(flow.store,frame,require_payload(flow).refs)) for flow in exceptional)
         calls=[]
         for caller,callee,point in self.driver.calls:
             objects=set()

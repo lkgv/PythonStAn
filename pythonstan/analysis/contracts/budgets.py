@@ -6,8 +6,8 @@ A shared runtime WorkLedger accounts work across engine boundaries independently
 of this configuration description.
 """
 
-from dataclasses import dataclass, fields
-from typing import Any, Dict, Protocol
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 
 @dataclass
@@ -80,14 +80,45 @@ class AnalysisBudget:
     enable_dict_identity_keys: bool = True  # Enable identity key partitioning
     max_dict_identity_keys: int = 10  # Max identity keys
 
+    def to_dict(self) -> dict[str, int | bool]:
+        """Return the finite, owned configuration projection."""
+        return {
+            "max_iterations": self.max_iterations,
+            "max_stmt_visits": self.max_stmt_visits,
+            "max_recursion_depth": self.max_recursion_depth,
+            "strict_exceptions": self.strict_exceptions,
+            "max_addr_set_size": self.max_addr_set_size,
+            "max_field_keys": self.max_field_keys,
+            "max_const_strings": self.max_const_strings,
+            "max_ho_tokens": self.max_ho_tokens,
+            "enable_narrowing": self.enable_narrowing,
+            "narrowing_iterations": self.narrowing_iterations,
+            "enable_value_partition": self.enable_value_partition,
+            "max_value_partitions": self.max_value_partitions,
+            "value_partition_str_cap": self.value_partition_str_cap,
+            "max_const_ints": self.max_const_ints,
+            "max_tuple_len_exact": self.max_tuple_len_exact,
+            "max_tuple_alts": self.max_tuple_alts,
+            "max_star_expand_len": self.max_star_expand_len,
+            "max_star_expand_alts": self.max_star_expand_alts,
+            "max_dict_parts": self.max_dict_parts,
+            "max_dict_key_const_strs": self.max_dict_key_const_strs,
+            "max_dict_key_const_ints": self.max_dict_key_const_ints,
+            "max_dict_key_tuple_len": self.max_dict_key_tuple_len,
+            "max_dict_key_tuple_alts": self.max_dict_key_tuple_alts,
+            "enable_dict_identity_keys": self.enable_dict_identity_keys,
+            "max_dict_identity_keys": self.max_dict_identity_keys,
+        }
 
-def validate_budget_options(options: Dict[str, Any]) -> Dict[str, Any]:
+
+def validate_budget_options(options: Mapping[str, object]) -> dict[str, int | bool]:
+    """Validate historical budget controls without truthiness or bool/int coercion."""
     if type(options) is not dict:
         raise ValueError("AI budget must be a dictionary")
-    defaults = AnalysisBudget()
-    known = {f.name for f in fields(AnalysisBudget)}
-    if set(options) - known:
-        raise ValueError(f"Unknown AI budget options: {sorted(set(options) - known)}")
+    defaults = AnalysisBudget().to_dict()
+    unknown = set(options) - defaults.keys()
+    if unknown:
+        raise ValueError(f"Unknown AI budget options: {sorted(unknown)}")
     zero_allowed = {
         "max_iterations",
         "max_stmt_visits",
@@ -95,18 +126,17 @@ def validate_budget_options(options: Dict[str, Any]) -> Dict[str, Any]:
         "narrowing_iterations",
         "max_value_partitions",
     }
+    checked: dict[str, int | bool] = {}
     for name, value in options.items():
-        default = getattr(defaults, name)
-        if type(value) is not type(default):
-            raise ValueError(f"{name} must have type {type(default).__name__}")
-        if type(value) is int and value < (0 if name in zero_allowed else 1):
-            raise ValueError(f"{name} is outside its supported range")
-    return dict(options)
-
-
-class WorkLedger(Protocol):
-    remaining: int
-
-    def consume(self, *, kind: str = "abstract_transfer") -> bool:
-        """Charge one actual operation; False means no remaining work."""
-        ...
+        default = defaults[name]
+        if isinstance(default, bool):
+            if type(value) is not bool:
+                raise ValueError(f"{name} must have type bool")
+            checked[name] = value
+        else:
+            if type(value) is not int:
+                raise ValueError(f"{name} must have type int")
+            if value < (0 if name in zero_allowed else 1):
+                raise ValueError(f"{name} is outside its supported range")
+            checked[name] = value
+    return checked

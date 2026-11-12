@@ -162,7 +162,11 @@ class DictionaryViews:
                         needles.append(
                             (pair.fields.get(0, pair.default), pair.fields.get(1, pair.default))
                         )
-                    elif pair and pair.kind == "tuple" and type(pair.metadata.lookup("length")) is int:
+                    elif (
+                        pair
+                        and pair.kind == "tuple"
+                        and type(pair.metadata.lookup("length")) is int
+                    ):
                         result.append(Flow(store.copy(), value=Value.constant(False)))
                     else:
                         result.extend(

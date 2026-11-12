@@ -9,6 +9,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Literal, TypeGuard
 
 from pythonstan.analysis.contracts.identity import ContinuationId, FrameId, ProgramPointId
+from pythonstan.analysis.contracts.outcomes import CompletionKind as CompletionKind
 from pythonstan.analysis.domains.reabstract import ReferenceKey
 from pythonstan.analysis.domains.values import Value
 
@@ -38,7 +39,6 @@ class CallResumeContext:
     generator_frame: FrameId
 
 
-type CompletionKind = Literal["normal", "return", "raise", "break", "continue", "suspend"]
 type TryPhase = Literal["body", "handler", "orelse"]
 
 
@@ -47,7 +47,7 @@ class PendingCompletion:
     """An exit without its obsolete state; cleanup supplies the current state."""
 
     kind: CompletionKind
-    value: Value
+    value: Value | None
     exception: str | None
 
 
@@ -251,8 +251,11 @@ def _attachment_key(value: object) -> TypeGuard[FieldKey]:
 
 
 def _is_attachment(value: object, seen: set[int]) -> TypeGuard[AttachmentValue]:
-    from .store import Flow, Frame, HeapObject, Store
+    from .flow import is_flow
+    from .store import Frame, HeapObject, Store
 
+    if is_flow(value):
+        return True
     if value is None or isinstance(
         value,
         (
@@ -268,7 +271,6 @@ def _is_attachment(value: object, seen: set[int]) -> TypeGuard[AttachmentValue]:
             Store,
             Frame,
             HeapObject,
-            Flow,
             ExceptionContext,
             ExceptionRestoreRecord,
             Continuation,

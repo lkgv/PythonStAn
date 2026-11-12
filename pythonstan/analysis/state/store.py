@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import ast
 from collections.abc import Mapping
-from dataclasses import dataclass, field, replace
-from typing import TypeGuard, assert_never
+from dataclasses import dataclass, field
+from typing import assert_never
 
-from pythonstan.analysis.contracts.identity import CellId, ContextId, FrameId, ObjectId, UnitId
-from pythonstan.analysis.domains.values import Value, ValueOperations
-from pythonstan.analysis.state.continuation import (
-    AttachmentValue,
-    CompletionKind,
-    Continuation,
-    parse_graph_attachment,
-    parse_legacy_continuation,
+from pythonstan.analysis.contracts.identity import (
+    CellId,
+    ContextId,
+    FrameId,
+    ObjectId,
+    StateRevision,
+    UnitId,
 )
+from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.state.bindings import BindingRef
+from pythonstan.analysis.state.dependencies import SummaryDependency
 from pythonstan.analysis.state.effects import (
     CellWrite,
     Havoc,
@@ -25,12 +27,14 @@ from pythonstan.analysis.state.effects import (
     MetadataUpdate,
     WriteEffect,
 )
-from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.guards import MembershipGuard
+from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.metadata import Metadata
 
 
-def semantic_payload_equal(left, right, seen=None):
+def semantic_payload_equal(
+    left: object, right: object, seen: set[tuple[int, int]] | None = None
+) -> bool:
     from .transform import semantic_payload_equal as equal
 
     return equal(left, right, seen)
@@ -76,21 +80,30 @@ class HeapObject:
         """The compatibility input boundary always publishes a typed record."""
         self._metadata = Metadata.from_legacy(self.kind, value)
 
-    def copy(self):
+    def copy(self) -> HeapObject:
         from .transform import detached_payload
 
         return detached_payload(self)
 
-    def join(self, other, ops):
+    def join(self, other: HeapObject, ops: ValueOperations) -> HeapObject:
         result = self.copy()
+        result._merge_from(other, ops)
+        return result
+
+    def _merge_from(self, other: HeapObject, ops: ValueOperations) -> None:
+        """Merge into an already detached graph shell without copying its root."""
+        result = self
+        left_default = self.default
+        left_fields = dict(self.fields)
+        left_missing = set(self.maybe_missing)
         result.singleton = self.singleton and other.singleton
         # Observable iterator/frame/length/default metadata belongs to the
         # store order. If distinct metadata cannot be represented jointly, the
         # object becomes a declared conservative havoc object; consumers must
         # not reuse the retained representative as an exact execution state.
         summarized_keys = frozenset(
-            (*self.metadata.lookup("summarized_keys", ()), *other.metadata.lookup("summarized_keys", ()))
-        )
+            self.metadata.lookup("summarized_keys", frozenset[FieldKey]())
+        ) | frozenset(other.metadata.lookup("summarized_keys", frozenset[FieldKey]()))
         abstract_keys = (
             {"summarized_keys", "length", "length_value"}
             if summarized_keys
@@ -112,22 +125,21 @@ class HeapObject:
             result.kind = "summary"
             result.metadata.reclassify("summary")
             result.singleton = False
-        result.default = ops.join(self.default, other.default)
+        result.default = ops.join(left_default, other.default)
         if incompatible:
             result.default = ops.join(result.default, Value.unknown())
         result.class_ids = self.class_ids | other.class_ids
-        for key in self.fields.keys() | other.fields.keys():
+        for key in left_fields.keys() | other.fields.keys():
             result.fields[key] = ops.join(
-                self.fields.get(key, self.default), other.fields.get(key, other.default)
+                left_fields.get(key, left_default), other.fields.get(key, other.default)
             )
             if (
-                key not in self.fields
+                key not in left_fields
                 or key not in other.fields
-                or key in self.maybe_missing
+                or key in left_missing
                 or key in other.maybe_missing
             ):
                 result.maybe_missing.add(key)
-        return result
 
 
 @dataclass
@@ -142,8 +154,13 @@ class Store:
     havoc_imports: bool = False
     guards: dict[str, MembershipGuard] = field(default_factory=dict)
     identity_epoch: int = 0
+    state_revision: StateRevision = StateRevision(0)
 
-    def effective_cell(self, cell):
+    def record_write(self, effect: WriteEffect) -> None:
+        self.writes.add(effect)
+        self.state_revision = StateRevision(self.state_revision + 1)
+
+    def effective_cell(self, cell: CellId) -> Value:
         if cell in self.cells:
             return self.cells[cell]
         module = cell[len("global:") :].rsplit(":", 1)[0] if cell.startswith("global:") else None
@@ -153,29 +170,37 @@ class Store:
             else Value(unbound=True)
         )
 
-    def copy(self):
+    def copy(self) -> Store:
         from .transform import detached_payload
 
         return detached_payload(self)
 
-    def ensure_current(self, ops):
-        arena = getattr(ops, "arena", None)
-        if arena is not None and self.identity_epoch != arena.epoch:
+    def ensure_current(self, ops: ValueOperations) -> Store:
+        arena = ops.arena
+        if self.identity_epoch != arena.epoch:
             from .transform import remap_store
 
             mapped = remap_store(self, arena.aliases, ops, epoch=arena.epoch)
-            self.__dict__.update(mapped.__dict__)
+            self.cells = mapped.cells
+            self.heap = mapped.heap
+            self.initialized = mapped.initialized
+            self.writes = mapped.writes
+            self.events = mapped.events
+            self.obligations = mapped.obligations
+            self.havoc_namespaces = mapped.havoc_namespaces
+            self.havoc_imports = mapped.havoc_imports
+            self.guards = mapped.guards
+            self.identity_epoch = mapped.identity_epoch
+            self.state_revision = StateRevision(self.state_revision + 1)
         return self
 
-    def invalidate_guards(self, owner=None):
+    def invalidate_guards(self, owner: ObjectId | None = None) -> None:
         if owner is None:
             self.guards.clear()
         else:
-            self.guards = {
-                key: fact for key, fact in self.guards.items() if not fact or fact[0] != owner
-            }
+            self.guards = {key: fact for key, fact in self.guards.items() if fact.owner != owner}
 
-    def clear_effects(self):
+    def clear_effects(self) -> Store:
         result = self.copy()
         result.writes = set()
         result.events = ()
@@ -199,9 +224,9 @@ class Store:
                 raise ValueError("A weak cell write requires value operations")
             value = ops.join(self.cells[cell], value)
         self.cells[cell] = value
-        self.writes.add(CellWrite(cell))
+        self.record_write(CellWrite(cell))
 
-    def read_slot(self, objid, key, ops):
+    def read_slot(self, objid: ObjectId, key: FieldKey, ops: ValueOperations) -> tuple[Value, bool]:
         self.ensure_current(ops)
         objid = ops.arena.resolve(objid)
         if ops.arena.aliases:
@@ -243,24 +268,35 @@ class Store:
         elif not weak:
             obj.maybe_missing.discard(key)
         self.invalidate_guards(objid)
-        self.writes.add(HeapWrite(objid, key))
+        self.record_write(HeapWrite(objid, key))
 
-    def join(self, other, ops, *, widen=False):
+    def join(self, other: Store, ops: ValueOperations, *, widen: bool = False) -> Store:
         self.ensure_current(ops)
         other.ensure_current(ops)
-        result = self.copy()
+        from .transform import PayloadMemo, detached_payload
+
+        memo: PayloadMemo = {}
+        result = detached_payload(self, memo)
+        memo[id(other)] = result
+        for owner in self.heap.keys() & other.heap.keys():
+            memo[id(other.heap[owner])] = result.heap[owner]
         join = ops.widen if widen else ops.join
         for cell in self.cells.keys() | other.cells.keys():
             a = self.effective_cell(cell)
             b = other.effective_cell(cell)
             result.cells[cell] = join(a, b)
         for key, obj in other.heap.items():
-            result.heap[key] = result.heap[key].join(obj, ops) if key in result.heap else obj.copy()
+            if key in result.heap:
+                result.heap[key]._merge_from(obj, ops)
+            else:
+                result.heap[key] = detached_payload(obj, memo)
         result.havoc_imports = self.havoc_imports or other.havoc_imports
         for module in self.initialized.keys() | other.initialized.keys():
-            a = self.initialized.get(module, "maybe" if self.havoc_imports else "unseen")
-            b = other.initialized.get(module, "maybe" if other.havoc_imports else "unseen")
-            result.initialized[module] = a if a == b else "maybe"
+            left_status = self.initialized.get(module, "maybe" if self.havoc_imports else "unseen")
+            right_status = other.initialized.get(
+                module, "maybe" if other.havoc_imports else "unseen"
+            )
+            result.initialized[module] = left_status if left_status == right_status else "maybe"
         result.writes |= other.writes
         result.guards = {
             key: fact
@@ -270,10 +306,11 @@ class Store:
         result.obligations |= other.obligations
         result.havoc_namespaces |= other.havoc_namespaces
         # Events are may-prefix observations, not an order proof.
-        result.events = tuple(dict.fromkeys((*self.events, *other.events)))
+        result.events = tuple({event: None for event in (*self.events, *other.events)})
+        result.state_revision = StateRevision(max(self.state_revision, other.state_revision) + 1)
         return result
 
-    def leq(self, other, ops):
+    def leq(self, other: Store, ops: ValueOperations) -> bool:
         self.ensure_current(ops)
         other.ensure_current(ops)
         if not self.writes <= other.writes:
@@ -350,7 +387,7 @@ class Store:
             and self.havoc_namespaces <= other.havoc_namespaces
         )
 
-    def remap(self, mapping, ops):
+    def remap(self, mapping: Mapping[ObjectId, ObjectId], ops: ValueOperations) -> Store:
         from .transform import remap_store
 
         return remap_store(self, mapping, ops, epoch=ops.arena.epoch)
@@ -431,7 +468,8 @@ class Store:
         result.havoc_imports |= callee.havoc_imports
         result.obligations |= callee.obligations
         result.havoc_namespaces |= callee.havoc_namespaces
-        result.events = tuple(dict.fromkeys((*result.events, *callee.events)))
+        result.events = tuple({event: None for event in (*result.events, *callee.events)})
+        result.state_revision = StateRevision(max(self.state_revision, callee.state_revision) + 1)
         return result
 
 
@@ -448,41 +486,24 @@ class Frame:
     is_module: bool = False
     is_class: bool = False
 
-    def cell(self, name: str) -> CellId:
+    def binding(self, name: str) -> BindingRef:
         if self.is_module or name in self.globals:
-            return CellId(f"global:{self.module}:{name}")
+            return BindingRef(name, CellId(f"global:{self.module}:{name}"), "global")
         closure = dict(self.closure)
         if name in self.nonlocals:
-            return closure.get(name, CellId(f"unbound-nonlocal:{self.identity}:{name}"))
+            if name in closure:
+                return BindingRef(name, closure[name], "nonlocal")
+            return BindingRef(
+                name, CellId(f"unbound-nonlocal:{self.identity}:{name}"), "unbound_nonlocal"
+            )
         if name in self.locals:
-            return CellId(f"local:{self.identity}:{name}")
-        return closure.get(name, CellId(f"global:{self.module}:{name}"))
+            return BindingRef(name, CellId(f"local:{self.identity}:{name}"), "local")
+        if name in closure:
+            return BindingRef(name, closure[name], "closure")
+        return BindingRef(name, CellId(f"global:{self.module}:{name}"), "global")
 
-
-@dataclass
-class Flow:
-    store: Store
-    kind: CompletionKind = "normal"
-    value: Value = field(default_factory=Value.bottom)
-    exception: str | None = None
-    continuation: Continuation = field(default_factory=Continuation)
-    cleanups: Continuation = field(default_factory=Continuation)
-    resume_target: AttachmentValue = None
-
-    def __post_init__(self) -> None:
-        # Only the compatibility constructor accepts old component markers.
-        # The live fields always contain validated records/payloads.
-        self.continuation = parse_legacy_continuation(self.continuation)
-        self.cleanups = parse_legacy_continuation(self.cleanups)
-        self.resume_target = parse_graph_attachment(self.resume_target)
-
-    def with_value(self, value):
-        return Flow(self.store, self.kind, value, self.exception)
-
-
-def is_flow(value: object) -> TypeGuard[Flow]:
-    """The single runtime completion predicate, retained across union migration."""
-    return isinstance(value, Flow)
+    def cell(self, name: str) -> CellId:
+        return self.binding(name).cell
 
 
 @dataclass
@@ -509,6 +530,11 @@ class Unit:
     entry: Store
     outcomes: list[Flow] = field(default_factory=list)
     consumers: set[UnitId] = field(default_factory=set)
-    revision: int = 0
+    dependencies: dict[UnitId, SummaryDependency] = field(default_factory=dict)
+    revision: StateRevision = StateRevision(0)
     visits: int = 0
     is_module: bool = False
+
+
+from .flow import Flow as Flow
+from .flow import is_flow as is_flow

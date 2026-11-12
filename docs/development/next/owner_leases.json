@@ -1,7 +1,9 @@
 {
   "schema_version": 1,
-  "base_commit": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
-  "owners": {
+  "base_commit": "d61e81e46b224b0e7c31d520ce9402a27369e112",
+  "reviewer": "requirements_audit",
+  "production_semantics": "W0 independently accepted. Each shared hotspot has one writer. Narrow extra consumer changes require root coordination; all current owners held production writes for the recorded recovery checkpoint.",
+  "historical_w0_owners": {
     "root": [
       ".gitignore",
       "docs/development/next/baseline.json",
@@ -38,6 +40,55 @@
       "docs/development/next/client_query*"
     ]
   },
-  "reviewer": "requirements_audit",
-  "production_semantics": "No production writes until original-source diagnostic capture complete and W0 reviewed."
+  "phase": "W1 recovery",
+  "owners": {
+    "root": [
+      "pythonstan/analysis/engines/abstract/driver.py",
+      "pythonstan/analysis/engines/abstract/runtime_options.py",
+      "pythonstan/analysis/contracts/__init__.py",
+      "scripts/quality/",
+      "docs/development/next/task_board.json",
+      "docs/development/next/gate_manifest.json",
+      "docs/development/next/owner_leases.json"
+    ],
+    "domain_native_baseline": [
+      "pythonstan/analysis/state/store.py",
+      "pythonstan/analysis/state/flow.py",
+      "pythonstan/analysis/state/handles.py",
+      "pythonstan/analysis/state/bindings.py",
+      "pythonstan/analysis/state/dependencies.py",
+      "pythonstan/analysis/state/continuation.py",
+      "pythonstan/analysis/engines/abstract/transfer.py",
+      "pythonstan/analysis/engines/abstract/continuations.py"
+    ],
+    "semantic_baseline": [
+      "pythonstan/analysis/state/metadata.py",
+      "pythonstan/analysis/state/transform.py",
+      "pythonstan/analysis/state/boundary.py",
+      "pythonstan/analysis/composition/state_adapter.py",
+      "pythonstan/analysis/domains/",
+      "pythonstan/analysis/composition/guarded_dispatch.py"
+    ],
+    "quality_tools": [
+      "pythonstan/analysis/contracts/budgets.py",
+      "pythonstan/analysis/contracts/engine.py",
+      "pythonstan/analysis/contracts/outcomes.py",
+      "pythonstan/analysis/contracts/wire.py",
+      "pythonstan/analysis/contracts/oracle.py",
+      "pythonstan/analysis/composition/oracle.py",
+      "pythonstan/analysis/engines/abstract/dictionaries.py",
+      "pythonstan/analysis/engines/abstract/dictionary_views.py"
+    ],
+    "input_typing": [
+      "pythonstan/analysis/contracts/arguments.py",
+      "pythonstan/analysis/semantics/binding.py",
+      "pythonstan/analysis/semantics/names.py",
+      "pythonstan/analysis/semantics/scalar_strings.py",
+      "pythonstan/analysis/engines/abstract/attributes.py"
+    ],
+    "client_preregistration": [
+      "pythonstan/analysis/engines/abstract/publication.py",
+      "pythonstan/analysis/engines/abstract/namespaces.py"
+    ]
+  }
 }

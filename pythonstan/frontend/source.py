@@ -42,6 +42,11 @@ def _location(node: ast.AST) -> tuple[int, int] | None:
     return line, column
 
 
+def source_position(node: ast.AST) -> tuple[int, int]:
+    """Return validated coordinates or the generated-node origin."""
+    return _location(node) or (0, 0)
+
+
 def source_node_identity(module: str, digest: str, node: ast.AST, path: str = "") -> ProgramPointId:
     """Keep source selectors stable across engine and planner parsing."""
     location = _location(node)

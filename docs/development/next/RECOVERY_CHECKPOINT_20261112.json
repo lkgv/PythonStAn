@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "timezone": "Asia/Shanghai",
+  "scope": "Functional recovery and partial actual TYPE migration; not TYPE-01 acceptance",
+  "source_digest": "8a140bc56f64d97ebd42c06e1a785caf7c2b88bdb2f32a2f444549b0ca8a9bdc",
+  "original_stage": {
+    "passed": 1001,
+    "seconds": 57.03,
+    "receipt": "artifacts/next/evidence/recovery-checkpoint-final/stage.receipt.json"
+  },
+  "new_controls": {
+    "passed": 3751,
+    "seconds": 17.39,
+    "receipt": "artifacts/next/evidence/recovery-checkpoint-final/new-controls.receipt.json",
+    "excluded_frozen_red_suites": [
+      "test_domain_mandatory.py",
+      "test_native_mandatory.py"
+    ],
+    "exclusion_reason": "These remain frozen W0 acceptance witnesses for later repair cards; they are not reclassified, deleted, skipped or claimed green."
+  },
+  "source_stable_during_checks": true,
+  "quality_gate": {
+    "passed": false,
+    "whole_tree_mypy_clean": false,
+    "local_iteration_counts": {
+      "format": 207,
+      "ruff": 8007,
+      "mypy": 7437
+    },
+    "added_diagnostics": 448,
+    "snapshot_scope": "Earlier local scan before final preservation/memo guards, negative controls deliberately omitted for iteration only. No debt baseline reset or frontier reduction.",
+    "report": "artifacts/next/evidence/recovery-quality/report.json"
+  },
+  "completed_runtime_slices": [
+    "Actual seven-variant Flow and owned StateHandle, BindingRef and CallArguments consumers",
+    "Actual SummaryDependency revision/source/policy/epoch checks",
+    "Finite registered graph visitor and explicit host boundary",
+    "Opaque issuer-bound oracle epoch token and optional explicit lifecycle channel",
+    "Pure typed publication with actual host-statistics ordering and mutation preservation",
+    "Finite scalar string service consumed by real source analysis"
+  ],
+  "remaining": [
+    "Transfer and continuation strict bodies and all namespace/dictionary/provider services",
+    "Verified-summary source checker/application type boundaries and narrow actual context",
+    "PartitionToken real handler identity versus public display name",
+    "Inspector and legacy bridge completion consumers and quality guard failures",
+    "External graph memo requires coherent source/element provenance; no unconditional generic proof",
+    "Final strict frontier expansion and all later mandatory semantic/domain/epoch/Native/evaluation gates"
+  ],
+  "qualifications": {
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "live_llm_requests": 0
+  },
+  "publication_base": "d61e81e46b224b0e7c31d520ce9402a27369e112"
+}

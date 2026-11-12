@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING
 
 from pythonstan.analysis.contracts.json_data import JsonObject, require_int, thaw_json_object
 from pythonstan.analysis.domains.values import ValueOperations, ValuePolicy
-from pythonstan.analysis.engines.abstract.state import Flow, Frame
+from pythonstan.analysis.engines.abstract.state import Frame
+from pythonstan.analysis.state.flow import Flow, as_statement
 
 from .plan import EffectiveRegionPlan
 from .region_engine import NativeRegionEngine, validate_region_plan
@@ -101,4 +102,4 @@ class RegionScheduler:
                 old_transfer_ops,
                 old_abstract,
             )
-        return outputs
+        return [as_statement(output) for output in outputs]

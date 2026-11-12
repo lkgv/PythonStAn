@@ -55,7 +55,16 @@ def configure_driver(
             ),
         )
         oracle.bind(driver, source_digest=source_digest, profile=profile)
-        driver.oracle = oracle
+        driver.install_oracle(
+            oracle,
+            incremental=oracle,
+            phase_record={
+                "engine": "andersen",
+                "phase": "incremental_candidate_oracle",
+                "whole_program_prepass": False,
+                "coverage": "partial",
+            },
+        )
     if summary_provider is not None:
         driver.summary_provider = summary_provider
     return driver

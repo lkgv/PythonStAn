@@ -312,6 +312,53 @@ class IncrementalInclusionStore:
         }
 
 
+class PreparedOracleUpdate:
+    """An issuer-bound detached update; retrying commit never republishes it."""
+
+    def __init__(self, owner: IncrementalCandidateOracle, prepared: PreparedOracle) -> None:
+        self._owner = owner
+        self._prepared = prepared
+        self._committed = False
+
+    @property
+    def work(self) -> int:
+        return self._prepared["work"]
+
+    @property
+    def work_precharged(self) -> bool:
+        return self._prepared["work_precharged"]
+
+    @property
+    def kernel(self) -> IncrementalInclusionStore:
+        return self._prepared["kernel"]
+
+    def belongs_to(self, owner: IncrementalCandidateOracle) -> bool:
+        return self._owner is owner
+
+    def commit(self) -> None:
+        if self._committed:
+            return
+        self._owner._publish_prepared(self._prepared)
+        self._committed = True
+
+    def __getitem__(self, key: str) -> IncrementalInclusionStore | int | bool:
+        """Finite legacy component inspection; hosts use the typed properties."""
+        if key == "kernel":
+            return self.kernel
+        if key == "work":
+            return self.work
+        if key == "work_precharged":
+            return self.work_precharged
+        raise KeyError(key)
+
+    def get(
+        self, key: str, default: int | bool | None = None
+    ) -> IncrementalInclusionStore | int | bool | None:
+        if key in ("kernel", "work", "work_precharged"):
+            return self[key]
+        return default
+
+
 class IncrementalCandidateOracle:
     def __init__(
         self,
@@ -348,19 +395,26 @@ class IncrementalCandidateOracle:
         mapping: Mapping[ObjectId, ObjectId],
         ops: ValueOperations | None = None,
         charge: Callable[[int], None] | None = None,
-    ) -> PreparedOracle:
+    ) -> PreparedOracleUpdate:
         prepared = self.kernel.prepare_reabstract(mapping, ops, charge=charge)
         own_work = 1 + len(self._subscriptions) + len(self.calls)
         if charge is not None:
             charge(own_work)
-        return {
+        update: PreparedOracle = {
             **prepared,
             "subscriptions": set(self._subscriptions),
             "calls": set(self.calls),
             "work": prepared["work"] + own_work,
         }
+        return PreparedOracleUpdate(self, update)
 
-    def commit_reabstract(self, prepared: PreparedOracle) -> None:
+    def commit_reabstract(self, prepared: PreparedOracleUpdate) -> None:
+        """Compatibility entry point; the update itself owns one-time publication."""
+        if not prepared.belongs_to(self):
+            raise ValueError("oracle update issuer mismatch")
+        prepared.commit()
+
+    def _publish_prepared(self, prepared: PreparedOracle) -> None:
         """The host has charged and published its address epoch before this."""
         self.kernel = prepared["kernel"]
         self._subscriptions = prepared["subscriptions"]

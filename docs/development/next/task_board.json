@@ -418,17 +418,22 @@
         "owner": "domain_native_baseline; domains semantic_baseline; metadata semantic_baseline",
         "reviewer": "requirements_audit",
         "commit": null,
-        "evidence": [],
-        "remaining_obligations": [
-          "至少一条真实调用→效果→异常/返回→查询链完全使用新类型。",
-          "所有新改定义完整类型；新增Flow变体能触发旧handler穷尽检查失败。",
-          "核心Value/State/Flow/Policy没有Any泄漏，metadata不是dict[str,Any]的重命名。",
-          "所有旧语义正例保持；state canonical迁到analysis/state时依赖不反转。"
+        "evidence": [
+          "docs/development/next/RECOVERY_CHECKPOINT_20261112.json",
+          "artifacts/next/evidence/recovery-checkpoint-final/stage.receipt.json",
+          "artifacts/next/evidence/recovery-checkpoint-final/new-controls.receipt.json"
         ],
-        "scope": "Actual IDs and write footprints consumed; Flow/metadata/continuations and strict state remain incomplete.",
+        "remaining_obligations": [
+          "Complete strict Transfer and all actual helper/provider calls, including namespaces, dictionaries and verified-summary boundaries.",
+          "Resolve relation handler identity/display distinction without treating a qualname as ObjectId.",
+          "Expand reviewed strict frontier only for whole clean modules; preserve immutable debt and run actual quality guards.",
+          "Revalidate live exhaustive-handler mutation, complete call/effect/abrupt/return/query paths and independent review on final source."
+        ],
+        "scope": "Recovery runtime checkpoint with actual Flow/StateHandle, BindingRef, CallArguments, SummaryDependency consumers, finite graph visitor, optional explicit oracle lifecycle and typed publication. Parent card remains unverified.",
         "review_records": [
           "docs/development/next/reviews/W1-domain-config-input.md",
-          "docs/development/next/reviews/W1-effect-slice.md"
+          "docs/development/next/reviews/W1-effect-slice.md",
+          "docs/development/next/reviews/W1-low-contracts-ports.md"
         ]
       }
     },
@@ -3516,15 +3521,12 @@
   },
   "publication_status": {
     "remote_branch": "dev-cocktail-analysis",
-    "remote_head_last_observed": "e8d9e0d3d7cdf540622537f5af0490522edde91c",
-    "local_commits": [
-      "8634254",
-      "37f9a93",
-      "4ce28a6",
-      "4f0f1ec"
-    ],
-    "sync_status": "not_synced",
-    "reason": "Large ledger upload interrupted; initial immutable tree request auto-review rejected destination/payload authorization. Subsequent exact request after verifying publicsource and repo permission was permitted but API422 confirmed blob absent. No ref update attempted."
+    "remote_head_last_observed": "d61e81e46b224b0e7c31d520ce9402a27369e112",
+    "sync_status": "W0_API_checkpoint_synced; recovered_runtime_checkpoint_pending",
+    "source_local_commit": "4f91def2eb4a2616dfefb12c1ebbfacbaaff40dc",
+    "published_tree": "f6414956a25c8664ca336508506147df07793be4",
+    "history_note": "Connector publication commit has a distinct identity; original local history retained at checkpoint/local-pre-publication-29e6782. Exact source tree matched before ref update.",
+    "payload_review": "docs/development/next/reviews/QUALITY-debt-payload.md"
   },
-  "checkpoint_note": "Coherent API checkpoint includes reviewed partial runtime ID/effect/metadata/continuation support; TYPE01 full Flow/StateHandle and strict state remain running. Current original1001stage scope passes. No core/scale/release/live qualification inferred."
+  "checkpoint_note": "Recovered actual runtime TYPE partial checkpoint: frozen original1001 and new3751 controls passed after exact Flow-tail preservation and memo-node guards. Quality gate failed; 448 new diagnostics remain in the intermediate scan. TYPE01 stays running, mandatory repair suites remain red obligations; no qualification inferred."
 }

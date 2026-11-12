@@ -2,147 +2,102 @@
 
 from __future__ import annotations
 
-import ast
-from dataclasses import dataclass, field, replace
-from typing import Any
+from dataclasses import replace
 
 from pythonstan.analysis.domains.ints import IntLattice
 from pythonstan.analysis.domains.values import Value, ValueOperations
-from pythonstan.analysis.engines.abstract.state import Flow, HeapObject, Store
-from pythonstan.analysis.state.effects import WriteEffect
-
-
-@dataclass
-class BoundaryObject:
-    kind: str
-    fields: dict[Any, Value]
-    default: Value
-    maybe_missing: set
-    singleton: bool
-    class_ids: frozenset[str]
-    metadata: dict[str, Any]
-    havoc: bool
-
-
-@dataclass
-class BoundaryState:
-    cells: dict[str, Value]
-    heap: dict[str, BoundaryObject]
-    initialized: dict[str, str]
-    writes: set[WriteEffect]
-    events: tuple
-    obligations: frozenset
-    completion: str = "normal"
-    value: Value = field(default_factory=Value.bottom)
-    exception: str | None = None
-    continuation: tuple = ()
-    cleanups: tuple = ()
-    resume_target: Any = None
-    havoc_namespaces: frozenset[str] = frozenset()
-    havoc_imports: bool = False
-    guards: dict = field(default_factory=dict)
-    identity_epoch: int = 0
-    # Private in-process anchor. Flat fields remain authoritative for engines
-    # which replace maps or add BoundaryObjects; this keeps embedded root refs.
-    _store_root: Any = field(default=None, repr=False, compare=False)
-
-
-from pythonstan.analysis.engines.abstract.state_transform import (
-    PayloadTransformer,
-    detached_payload,
-)
-from pythonstan.analysis.engines.abstract.state_transform import (
-    semantic_payload_equal as payload_equal,
-)
-
-
-class _BoundaryPayload(PayloadTransformer):
-    def __init__(self, source_type, target_type):
-        super().__init__()
-        self.source_type = source_type
-        self.target_type = target_type
-
-    def visit(self, value):
-        if isinstance(value, self.source_type):
-            if id(value) in self.memo:
-                return self.memo[id(value)]
-            result = object.__new__(self.target_type)
-            self.memo[id(value)] = result
-            for name in (
-                "kind",
-                "fields",
-                "default",
-                "maybe_missing",
-                "singleton",
-                "class_ids",
-                "metadata",
-                "havoc",
-            ):
-                setattr(result, name, self.visit(getattr(value, name)))
-            return result
-        return super().visit(value)
+from pythonstan.analysis.state.boundary import BoundaryObject, BoundaryState
+from pythonstan.analysis.state.flow import Flow, FlowTail, flow_payload, make_completion
+from pythonstan.analysis.state.handles import StateHandle
+from pythonstan.analysis.state.store import HeapObject, Store
+from pythonstan.analysis.state.transform import PayloadTransformer, detached_payload
+from pythonstan.analysis.state.transform import semantic_payload_equal as payload_equal
 
 
 class FullStateAdapter:
     def encode(self, flow: Flow) -> BoundaryState:
-        copied = _BoundaryPayload(HeapObject, BoundaryObject).visit(flow)
+        copied = detached_payload(flow)
         state = copied.store
+        heap = {
+            identifier: BoundaryObject(
+                obj.kind,
+                obj.fields,
+                obj.default,
+                obj.maybe_missing,
+                obj.singleton,
+                obj.class_ids,
+                obj.metadata,
+                obj.havoc,
+                obj,
+            )
+            for identifier, obj in state.heap.items()
+        }
         return BoundaryState(
-            state.cells,
-            state.heap,
-            state.initialized,
-            state.writes,
-            state.events,
-            state.obligations,
-            copied.kind,
-            copied.value,
-            copied.exception,
-            copied.continuation,
-            copied.cleanups,
-            copied.resume_target,
-            state.havoc_namespaces,
-            state.havoc_imports,
-            state.guards,
-            state.identity_epoch,
-            state,
+            cells=state.cells,
+            heap=heap,
+            initialized=state.initialized,
+            writes=state.writes,
+            events=state.events,
+            obligations=state.obligations,
+            completion=copied.kind,
+            value=flow_payload(copied),
+            exception=copied.exception,
+            continuation=copied.continuation,
+            cleanups=copied.cleanups,
+            resume_target=copied.resume_target,
+            havoc_namespaces=state.havoc_namespaces,
+            havoc_imports=state.havoc_imports,
+            guards=state.guards,
+            identity_epoch=state.identity_epoch,
+            _store_root=state,
+            state_revision=state.state_revision,
         )
 
     def decode(self, boundary: BoundaryState) -> Flow:
-        copied = _BoundaryPayload(BoundaryObject, HeapObject).visit(boundary)
+        copied = detached_payload(boundary)
         state = copied._store_root if copied._store_root is not None else Store()
-        for name in (
-            "cells",
-            "heap",
-            "initialized",
-            "writes",
-            "events",
-            "obligations",
-            "havoc_namespaces",
-            "havoc_imports",
-            "guards",
-            "identity_epoch",
-        ):
-            setattr(state, name, getattr(copied, name))
-        return Flow(
-            state,
+        heap = {}
+        for identifier, obj in copied.heap.items():
+            runtime = obj._runtime_root if obj._runtime_root is not None else HeapObject(obj.kind)
+            runtime.kind = obj.kind
+            runtime.fields = obj.fields
+            runtime.default = obj.default
+            runtime.maybe_missing = obj.maybe_missing
+            runtime.singleton = obj.singleton
+            runtime.class_ids = obj.class_ids
+            runtime.metadata = obj.metadata
+            runtime.havoc = obj.havoc
+            heap[identifier] = runtime
+        state.cells = copied.cells
+        state.heap.clear()
+        state.heap.update(heap)
+        state.initialized = copied.initialized
+        state.writes = copied.writes
+        state.events = copied.events
+        state.obligations = copied.obligations
+        state.havoc_namespaces = copied.havoc_namespaces
+        state.havoc_imports = copied.havoc_imports
+        state.guards = copied.guards
+        state.identity_epoch = copied.identity_epoch
+        state.state_revision = copied.state_revision
+        return make_completion(
+            StateHandle.capture(state),
             copied.completion,
             copied.value,
             copied.exception,
-            copied.continuation,
-            copied.cleanups,
-            copied.resume_target,
+            FlowTail(copied.continuation, copied.cleanups, copied.resume_target),
         )
 
     def check_roundtrip(self, flow: Flow, ops: ValueOperations) -> bool:
         decoded = self.decode(self.encode(flow))
         return (
-            flow.kind == decoded.kind
+            type(flow) is type(decoded)
             and flow.exception == decoded.exception
             and payload_equal(flow.store, decoded.store)
             and payload_equal(flow.continuation, decoded.continuation)
             and payload_equal(flow.cleanups, decoded.cleanups)
             and payload_equal(flow.resume_target, decoded.resume_target)
-            and flow.value == decoded.value
+            and flow_payload(flow) == flow_payload(decoded)
         )
 
 
@@ -155,7 +110,6 @@ def reabstract_value(value: Value, operations: ValueOperations) -> Value:
 
 
 def reabstract_state(flow: Flow, operations: ValueOperations) -> Flow:
-    """Reabstract all scalar payloads, preserving the shared identity arena."""
     transform = PayloadTransformer(
         operations.arena.aliases,
         operations,
@@ -163,3 +117,12 @@ def reabstract_state(flow: Flow, operations: ValueOperations) -> Flow:
         epoch=operations.arena.epoch,
     )
     return transform.visit(flow)
+
+
+__all__ = [
+    "BoundaryObject",
+    "BoundaryState",
+    "FullStateAdapter",
+    "reabstract_state",
+    "reabstract_value",
+]

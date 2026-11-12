@@ -14,16 +14,18 @@ from typing import TYPE_CHECKING
 
 from pythonstan.analysis.composition.oracle import IncrementalInclusionStore
 from pythonstan.analysis.composition.state_adapter import BoundaryObject, FullStateAdapter
-from pythonstan.analysis.domains.values import Value
-from pythonstan.analysis.engines.abstract.state import Flow, Frame
 from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.analysis.domains.values import Value
+from pythonstan.analysis.engines.abstract.state import Frame
 from pythonstan.analysis.state.effects import CellWrite, HeapWrite
+from pythonstan.analysis.state.flow import Flow
 from pythonstan.config import ConfigurationError
 from pythonstan.models.builtin_attributes import known_builtin_attribute
 from pythonstan.models.builtins import PYTHON312_BUILTIN_NAMES
 
 if TYPE_CHECKING:
     from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
+
     from .plan import EffectiveRegionPlan
 
 _ALLOWED_EXPRESSIONS = (
@@ -500,7 +502,7 @@ class NativeRegionEngine:
             boundary.heap[objid] = obj
         for cell, target in cell_outputs.items():
             boundary.cells[cell] = kernel.value(target).without_unbound()
-            boundary.writes.add(CellWrite(cell))
+            boundary.record_write(CellWrite(cell))
             if driver.oracle is not None and hasattr(driver.oracle, "publish_cell"):
                 driver.oracle.publish_cell(cell, boundary.cells[cell], "native_region_output")
         for ref, key, source, one_target in field_writes:
@@ -512,7 +514,7 @@ class NativeRegionEngine:
             else:
                 obj.fields[key] = driver.ops.join(obj.fields.get(key, obj.default), value)
             obj.maybe_missing.discard(key)
-            boundary.writes.add(HeapWrite(ref, key))
+            boundary.record_write(HeapWrite(ref, key))
             if driver.oracle is not None and hasattr(driver.oracle, "publish_field"):
                 driver.oracle.publish_field(ref, key, obj.fields[key], "native_region_output")
         boundary.completion = completion

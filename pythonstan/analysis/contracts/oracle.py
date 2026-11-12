@@ -67,7 +67,21 @@ class OracleHostPort[OperationsT](Protocol):
     def enqueue(self, key: UnitId, reason: str) -> None: ...
 
 
-class IncrementalOraclePort[ValueT, OperationsT, PreparedT](CandidateOraclePort[ValueT], Protocol):
+class OraclePreparedUpdate(Protocol):
+    """Detached, accounted update published by its producing oracle at most once."""
+
+    @property
+    def work(self) -> int: ...
+
+    @property
+    def work_precharged(self) -> bool: ...
+
+    def commit(self) -> None: ...
+
+
+class IncrementalOraclePort[ValueT, OperationsT, PreparedT: OraclePreparedUpdate](
+    CandidateOraclePort[ValueT], Protocol
+):
     """Explicit additional capabilities for a run-local incremental oracle."""
 
     def bind(
@@ -85,6 +99,12 @@ class IncrementalOraclePort[ValueT, OperationsT, PreparedT](CandidateOraclePort[
         self, objid: ObjectId, key: Hashable, value: ValueT, origin: str = "ai"
     ) -> bool: ...
 
+    def register_copy(self, source: CellId, target: CellId) -> None: ...
+
+    def register_load(self, base: CellId, key: Hashable, target: CellId) -> None: ...
+
+    def register_store(self, base: CellId, key: Hashable, source: CellId) -> None: ...
+
     def observe_call(self, caller: str, callee: str, site: ProgramPointId) -> None: ...
 
     def prepare_reabstract(
@@ -93,5 +113,3 @@ class IncrementalOraclePort[ValueT, OperationsT, PreparedT](CandidateOraclePort[
         ops: OperationsT | None = None,
         charge: Callable[[int], None] | None = None,
     ) -> PreparedT: ...
-
-    def commit_reabstract(self, prepared: PreparedT) -> None: ...

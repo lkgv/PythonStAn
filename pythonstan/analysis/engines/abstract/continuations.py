@@ -9,9 +9,9 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterable
 from dataclasses import replace
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
-from pythonstan.analysis.contracts.identity import ContinuationId
+from pythonstan.analysis.contracts.identity import ContinuationId, ObjectId, ContextId, ProgramPointId, FrameId
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.semantics.control import resume_pending
 from pythonstan.analysis.state.continuation import (
@@ -30,23 +30,41 @@ from pythonstan.analysis.state.continuation import (
     ResumeCommand,
     ReturnResume,
     TryResume,
+    TryPhase,
     WhileResume,
     WithResume,
 )
+from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.effects import MetadataAspect, MetadataUpdate
+from pythonstan.analysis.state.flow import (
+    ExceptionValue,
+    Flow,
+    FlowTail,
+    NormalExprFlow,
+    RaiseFlow,
+    SuspendFlow,
+    make_completion,
+    replace_flow,
+    require_payload,
+    flow_payload,
+)
+from pythonstan.analysis.state.handles import ObjectHandle, StateHandle
 
-from .state import Flow, Frame, FunctionInfo, HeapObject
+from .state import Frame, FunctionInfo, Store
+
+if TYPE_CHECKING:
+    from .transfer import Transfer
 
 
 class ContinuationEngine:
-    def __init__(self, transfer):
-        self.t = transfer
+    def __init__(self, transfer: Transfer) -> None:
+        self.t: Transfer = transfer
         self.d = transfer.d
         self.ops = transfer.ops
-        self.active = []
+        self.active: list[ObjectHandle] = []
         self.exception_contexts: list[CallResumeContext] = []
 
-    def normal(self, store, value=None):
+    def normal(self, store: Store, value: Value | None = None) -> NormalExprFlow:
         return self.t.normal(store, value)
 
     def wrap(self, flow: Flow, command: ResumeCommand) -> Flow:
@@ -71,7 +89,7 @@ class ContinuationEngine:
             case _:
                 assert_never(command)
         identity = ContinuationId(f"{self.d.current}:{point}:{type(command).__name__}")
-        return replace(
+        return replace_flow(
             flow,
             continuation=Continuation((command,), identity, point),
             cleanups=Continuation(),
@@ -98,7 +116,7 @@ class ContinuationEngine:
                     produced = [flow]
                 for out in produced:
                     if out.kind == "suspend":
-                        out = replace(
+                        out = replace_flow(
                             out,
                             continuation=Continuation(
                                 (*out.continuation.commands, *commands[position + 1 :]),
@@ -113,20 +131,23 @@ class ContinuationEngine:
         return flows
 
     def marker(self, command: ResumeCommand, incoming: Flow, frame: Frame) -> list[Flow]:
+        result: list[Flow]
         match command:
             case AssignResume(targets, inner):
-                result: list[Flow] = []
+                result = []
                 for flow in self.block(inner, [incoming], frame):
                     if flow.kind == "suspend":
                         result.append(self.wrap(flow, AssignResume(targets, flow.continuation)))
                         continue
-                    pending = [flow]
+                    pending: list[Flow] = [flow]
                     for target in targets:
                         pending = [
                             out
                             for candidate in pending
                             for out in (
-                                self.t.assign(target, flow.value, candidate.store, frame, target)
+                                self.t.assign(
+                                    target, require_payload(flow), candidate.store, frame, target
+                                )
                                 if candidate.kind == "normal"
                                 else [candidate]
                             )
@@ -145,7 +166,7 @@ class ContinuationEngine:
                         result.append(self.wrap(flow, wrapped))
                     elif flow.kind == "normal":
                         result.append(
-                            replace(flow, kind="return")
+                            replace_flow(flow, kind="return")
                             if isinstance(command, ReturnResume)
                             else self.normal(flow.store)
                         )
@@ -164,7 +185,9 @@ class ContinuationEngine:
                 )
             case FinallyResume(node, held, previous, inner):
                 result = []
-                pending_exit = Flow(incoming.store, held.kind, held.value, held.exception)
+                pending_exit = make_completion(
+                    incoming.state, held.kind, held.value, held.exception, FlowTail()
+                )
                 for flow in self.block(inner, [incoming], frame):
                     if flow.kind == "suspend":
                         result.append(
@@ -174,7 +197,7 @@ class ContinuationEngine:
                                     node,
                                     PendingCompletion(
                                         pending_exit.kind,
-                                        pending_exit.value,
+                                        flow_payload(pending_exit),
                                         pending_exit.exception,
                                     ),
                                     previous,
@@ -212,12 +235,20 @@ class ContinuationEngine:
             case _:
                 assert_never(command)
 
-    def try_statement(self, node, store, frame):
+    def try_statement(self, node: ast.Try | ast.TryStar, store: Store, frame: Frame) -> list[Flow]:
         return self.finish_try(
             node, self.block(node.body, [self.normal(store.copy())], frame), frame, "body", None
         )
 
-    def finish_try(self, node, flows, frame, phase, extra):
+    def finish_try(
+        self,
+        node: ast.Try | ast.TryStar,
+        flows: list[Flow],
+        frame: Frame,
+        phase: TryPhase,
+        extra: HandlerContext | None,
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
         for flow in flows:
             if flow.kind == "suspend":
@@ -246,12 +277,12 @@ class ContinuationEngine:
             if flow.kind != "raise":
                 result.append(flow)
                 continue
-            remaining = [flow]
+            remaining: list[Flow] = [flow]
             for handler in node.handlers:
-                next_remaining = []
+                next_remaining: list[Flow] = []
                 for raised in remaining:
                     evaluations = (
-                        [Flow(raised.store.copy(), value=Value.bottom())]
+                        [NormalExprFlow(StateHandle.capture(raised.store.copy()), Value.bottom())]
                         if handler.type is None
                         else self.t.expr(handler.type, raised.store.copy(), frame)
                     )
@@ -262,7 +293,7 @@ class ContinuationEngine:
                         tags, uncertain, invalid = (
                             ({"builtin:BaseException"}, False, False)
                             if handler.type is None
-                            else self.t.handler_tags(evaluated.value, evaluated.store)
+                            else self.t.handler_tags(require_payload(evaluated), evaluated.store)
                         )
                         raised_types = self.t.raised_tags(raised)
                         matches = (
@@ -283,7 +314,7 @@ class ContinuationEngine:
                             previous = self.t._active_exception(current, raised, frame.identity)
                             if handler.name:
                                 self.t.write_name(
-                                    handler.name, raised.value, current, frame, handler
+                                    handler.name, require_payload(raised), current, frame, handler
                                 )
                             for handled in self.block(handler.body, [self.normal(current)], frame):
                                 if handled.kind == "suspend":
@@ -310,17 +341,17 @@ class ContinuationEngine:
                                     self.t._restore_exception(handled.store, previous)
                                     result.append(handled)
                         if may_escape and (tags or uncertain):
-                            next_remaining.append(replace(raised, store=evaluated.store))
+                            next_remaining.append(replace_flow(raised, store=evaluated.store))
                 remaining = next_remaining
             result.extend(remaining)
         if node.finalbody:
-            cleaned = []
+            cleaned: list[Flow] = []
             for pending in result:
                 if pending.kind == "suspend":
                     cleaned.append(pending)
                     continue
                 current = pending.store.copy()
-                previous = (
+                finally_previous = (
                     self.t._active_exception(current, pending, frame.identity)
                     if pending.kind == "raise"
                     else None
@@ -333,21 +364,30 @@ class ContinuationEngine:
                                 FinallyResume(
                                     node,
                                     PendingCompletion(
-                                        pending.kind, pending.value, pending.exception
+                                        pending.kind, flow_payload(pending), pending.exception
                                     ),
-                                    previous,
+                                    finally_previous,
                                     out.continuation,
                                 ),
                             )
                         )
                         continue
-                    if previous is not None:
-                        self.t._restore_exception(out.store, previous)
+                    if finally_previous is not None:
+                        self.t._restore_exception(out.store, finally_previous)
                     cleaned.append(resume_pending(pending, out))
             result = cleaned
         return result
 
-    def special(self, value, name, store, frame, node, missing_error="AttributeError"):
+    def special(
+        self,
+        value: Value,
+        name: str,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        missing_error: str = "AttributeError",
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
         for ref in value.refs:
             obj = store.heap.get(ref)
@@ -388,19 +428,29 @@ class ContinuationEngine:
                 )
         return result
 
-    def get_iterator(self, value, store, frame, node, asynchronous=False):
+    def get_iterator(
+        self,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        asynchronous: bool = False,
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
         if asynchronous:
             for method in self.special(value, "__aiter__", store, frame, node, "TypeError"):
                 if method.kind != "normal":
                     result.append(method)
                     continue
-                result.extend(self.t.invoke(method.value, [], (), method.store, frame, node))
+                result.extend(
+                    self.t.invoke(require_payload(method), [], (), method.store, frame, node)
+                )
             return result
         for ref in value.refs:
             obj = store.heap.get(ref)
             if obj and obj.kind in {"iterator", "generator"}:
-                result.append(Flow(store.copy(), value=Value.ref(ref)))
+                result.append(NormalExprFlow(StateHandle.capture(store.copy()), Value.ref(ref)))
                 continue
             if obj and obj.kind == "dict_view":
                 result.extend(
@@ -421,9 +471,9 @@ class ContinuationEngine:
             if obj and obj.kind in {"list", "tuple", "set", "range"}:
                 s = store.copy()
                 result.append(
-                    Flow(
-                        s,
-                        value=self.t.alloc(
+                    NormalExprFlow(
+                        StateHandle.capture(s),
+                        self.t.alloc(
                             node,
                             s,
                             frame,
@@ -445,8 +495,8 @@ class ContinuationEngine:
                             result.append(out)
                             continue
                         valid = False
-                        unknown = out.value.top or bool(out.value.top_sorts)
-                        for target in out.value.refs:
+                        unknown = require_payload(out).top or bool(require_payload(out).top_sorts)
+                        for target in require_payload(out).refs:
                             item = out.store.heap.get(target)
                             if item and item.kind in {"iterator", "generator"}:
                                 valid = True
@@ -474,9 +524,9 @@ class ContinuationEngine:
                 if not getitem.is_bottom():
                     s = store.copy()
                     result.append(
-                        Flow(
-                            s,
-                            value=self.t.alloc(
+                        NormalExprFlow(
+                            StateHandle.capture(s),
+                            self.t.alloc(
                                 node,
                                 s,
                                 frame,
@@ -496,15 +546,15 @@ class ContinuationEngine:
             for text in strings:
                 s = store.copy()
                 result.append(
-                    Flow(
-                        s,
-                        value=self.t.alloc(
+                    NormalExprFlow(
+                        StateHandle.capture(s),
+                        self.t.alloc(
                             node,
                             s,
                             frame,
                             "iterator",
                             metadata={
-                                "sequence": tuple(Value.constant(c) for c in text),
+                                "sequence": tuple((Value.constant(c) for c in text)),
                                 "index": 0,
                             },
                         ),
@@ -518,7 +568,15 @@ class ContinuationEngine:
             result.append(self.t.error(store.copy(), "TypeError"))
         return result
 
-    def next_iterator(self, iterator, store, frame, node, asynchronous=False):
+    def next_iterator(
+        self,
+        iterator: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        asynchronous: bool = False,
+    ) -> list[Flow]:
+        result: list[Flow]
         if not asynchronous:
             return self.resume(iterator, store, frame, node, "next")
         result = []
@@ -526,37 +584,45 @@ class ContinuationEngine:
             if method.kind != "normal":
                 result.append(method)
                 continue
-            for called in self.t.invoke(method.value, [], (), method.store, frame, node):
+            for called in self.t.invoke(require_payload(method), [], (), method.store, frame, node):
                 if called.kind != "normal":
                     result.append(called)
                 else:
-                    result.extend(self.resume(called.value, called.store, frame, node, "await"))
+                    result.extend(
+                        self.resume(require_payload(called), called.store, frame, node, "await")
+                    )
         return result
 
-    def is_stop(self, flow, asynchronous=False):
+    def is_stop(self, flow: Flow, asynchronous: bool = False) -> bool:
         if flow.kind != "raise":
             return False
         name = "StopAsyncIteration" if asynchronous else "StopIteration"
         tags = self.t.raised_tags(flow)
         return flow.exception == name or tags is not None and "builtin:" + name in tags
 
-    def collect(self, value, store, frame, node, kind):
+    def collect(
+        self, value: Value, store: Store, frame: Frame, node: ast.AST | None, kind: str
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
-        states = []
-        for iterator in self.get_iterator(value, store, frame, node):
-            if iterator.kind == "normal":
-                states.append((iterator.store, iterator.value, ()))
+        states: list[tuple[Store, Value, tuple[Value, ...]]] = []
+        for iterator_flow in self.get_iterator(value, store, frame, node):
+            if iterator_flow.kind == "normal":
+                states.append((iterator_flow.store, require_payload(iterator_flow), ()))
             else:
-                result.append(iterator)
-        limit = max(1, int(self.d.abstract.get("max_stmt_visits", 100)))
+                result.append(iterator_flow)
+        raw_limit = self.d.abstract.get("max_stmt_visits", 100)
+        if not isinstance(raw_limit, (str, int, float)):
+            raise TypeError("max_stmt_visits must be numeric")
+        limit = max(1, int(raw_limit))
         for _ in range(limit):
-            following = []
+            following: list[tuple[Store, Value, tuple[Value, ...]]] = []
             for current, iterator, values in states:
                 for advanced in self.next_iterator(iterator, current, frame, node):
                     if self.is_stop(advanced):
-                        fields = {i: v for i, v in enumerate(values)}
+                        fields: dict[FieldKey, Value] = {i: v for i, v in enumerate(values)}
                         if kind == "set":
-                            known = {}
+                            known: dict[FieldKey, Value] = {}
                             uncertain = False
                             for value_ in values:
                                 constants = value_.exact_constants()
@@ -573,9 +639,9 @@ class ContinuationEngine:
                                 continue
                             fields = {i: v for i, v in enumerate(known.values())}
                         result.append(
-                            Flow(
-                                advanced.store,
-                                value=self.t.alloc(
+                            NormalExprFlow(
+                                StateHandle.capture(advanced.store),
+                                self.t.alloc(
                                     node,
                                     advanced.store,
                                     frame,
@@ -586,7 +652,9 @@ class ContinuationEngine:
                             )
                         )
                     elif advanced.kind == "normal":
-                        following.append((advanced.store, iterator, (*values, advanced.value)))
+                        following.append(
+                            (advanced.store, iterator, (*values, require_payload(advanced)))
+                        )
                     else:
                         result.append(advanced)
             states = following
@@ -598,25 +666,35 @@ class ContinuationEngine:
             result.extend(self.t.unknown(current, node, "iterator_collection_budget"))
         return self.d.compact(result)
 
-    def for_loop(self, node, store, frame):
+    def for_loop(self, node: ast.For | ast.AsyncFor, store: Store, frame: Frame) -> list[Flow]:
+        result: list[Flow]
         result = []
         for evaluated in self.t.expr(node.iter, store, frame):
             if evaluated.kind != "normal":
                 result.append(evaluated)
                 continue
             for iterator in self.get_iterator(
-                evaluated.value, evaluated.store, frame, node, isinstance(node, ast.AsyncFor)
+                require_payload(evaluated),
+                evaluated.store,
+                frame,
+                node,
+                isinstance(node, ast.AsyncFor),
             ):
                 if iterator.kind != "normal":
                     result.append(iterator)
                     continue
                 result.extend(
-                    self.advance_for(node, iterator.value, [self.normal(iterator.store)], frame)
+                    self.advance_for(
+                        node, require_payload(iterator), [self.normal(iterator.store)], frame
+                    )
                 )
         return self.d.compact(result)
 
-    def finish_for_body(self, node, iterator, flows, frame):
-        again = []
+    def finish_for_body(
+        self, node: ast.For | ast.AsyncFor, iterator: Value, flows: list[Flow], frame: Frame
+    ) -> list[Flow]:
+        result: list[Flow]
+        again: list[Flow] = []
         result = []
         for out in flows:
             if out.kind == "suspend":
@@ -631,12 +709,18 @@ class ContinuationEngine:
             result.extend(self.advance_for(node, iterator, again, frame))
         return result
 
-    def advance_for(self, node, iterator, starting, frame):
+    def advance_for(
+        self, node: ast.For | ast.AsyncFor, iterator: Value, starting: list[Flow], frame: Frame
+    ) -> list[Flow]:
+        result: list[Flow]
         states = starting
         result = []
-        limit = max(1, int(self.d.abstract.get("max_stmt_visits", 100)))
+        raw_limit = self.d.abstract.get("max_stmt_visits", 100)
+        if not isinstance(raw_limit, (str, int, float)):
+            raise TypeError("max_stmt_visits must be numeric")
+        limit = max(1, int(raw_limit))
         for _ in range(limit):
-            next_states = []
+            next_states: list[Flow] = []
             for state in states:
                 for advanced in self.next_iterator(
                     iterator, state.store, frame, node, isinstance(node, ast.AsyncFor)
@@ -648,7 +732,7 @@ class ContinuationEngine:
                         result.append(advanced)
                         continue
                     for assigned in self.t.assign(
-                        node.target, advanced.value, advanced.store, frame, node
+                        node.target, require_payload(advanced), advanced.store, frame, node
                     ):
                         if assigned.kind != "normal":
                             result.append(assigned)
@@ -675,8 +759,11 @@ class ContinuationEngine:
                 result.append(opaque)
         return self.d.compact(result)
 
-    def with_statement(self, node, store, frame):
-        paths = [(store.copy(), ())]
+    def with_statement(
+        self, node: ast.With | ast.AsyncWith, store: Store, frame: Frame
+    ) -> list[Flow]:
+        result: list[Flow]
+        paths: list[tuple[Store, tuple[Value, ...]]] = [(store.copy(), ())]
         result = []
         async_ = isinstance(node, ast.AsyncWith)
         enter_name = "__aenter__" if async_ else "__enter__"
@@ -689,22 +776,33 @@ class ContinuationEngine:
                         result.extend(self.cleanup_with(node, exits, [manager], frame))
                         continue
                     for exit_method in self.special(
-                        manager.value, exit_name, manager.store, frame, node, "TypeError"
+                        require_payload(manager), exit_name, manager.store, frame, node, "TypeError"
                     ):
                         if exit_method.kind != "normal":
                             result.extend(self.cleanup_with(node, exits, [exit_method], frame))
                             continue
                         for enter in self.special(
-                            manager.value, enter_name, exit_method.store, frame, node, "TypeError"
+                            require_payload(manager),
+                            enter_name,
+                            exit_method.store,
+                            frame,
+                            node,
+                            "TypeError",
                         ):
                             if enter.kind != "normal":
                                 result.extend(self.cleanup_with(node, exits, [enter], frame))
                                 continue
                             for entered in self.t.invoke(
-                                enter.value, [], (), enter.store, frame, node
+                                require_payload(enter), [], (), enter.store, frame, node
                             ):
                                 entered_flows = (
-                                    self.resume(entered.value, entered.store, frame, node, "await")
+                                    self.resume(
+                                        require_payload(entered),
+                                        entered.store,
+                                        frame,
+                                        node,
+                                        "await",
+                                    )
                                     if async_ and entered.kind == "normal"
                                     else [entered]
                                 )
@@ -714,11 +812,11 @@ class ContinuationEngine:
                                             self.cleanup_with(node, exits, [completed], frame)
                                         )
                                         continue
-                                    acquired = (*exits, exit_method.value)
+                                    acquired = (*exits, require_payload(exit_method))
                                     assigned = (
                                         self.t.assign(
                                             item.optional_vars,
-                                            completed.value,
+                                            require_payload(completed),
                                             completed.store,
                                             frame,
                                             node,
@@ -742,32 +840,39 @@ class ContinuationEngine:
             )
         return self.d.compact(result)
 
-    def cleanup_with(self, node, exits, flows, frame):
+    def cleanup_with(
+        self,
+        node: ast.With | ast.AsyncWith,
+        exits: tuple[Value, ...],
+        flows: list[Flow],
+        frame: Frame,
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
-        pending = []
+        pending: list[Flow] = []
         for flow in flows:
             if flow.kind == "suspend":
                 result.append(self.wrap(flow, WithResume(node, exits, flow.continuation)))
             else:
                 pending.append(flow)
         for method in reversed(exits):
-            cleaned = []
+            cleaned: list[Flow] = []
             for flow in pending:
                 if flow.kind == "raise":
-                    tags = set()
-                    for ref in flow.value.refs:
+                    tags: set[ObjectId] = set()
+                    for ref in require_payload(flow).refs:
                         obj = flow.store.heap.get(ref)
                         if obj:
                             tags.update(obj.class_ids)
                     if not tags and flow.exception and flow.exception != "AnyException":
-                        tags.add("builtin:" + flow.exception)
+                        tags.add(ObjectId("builtin:" + flow.exception))
                     exception_type = Value(refs=frozenset(tags)) if tags else Value.unknown()
-                    parameters = [exception_type, flow.value, Value.constant(None)]
+                    parameters = [exception_type, require_payload(flow), Value.constant(None)]
                 else:
                     parameters = [Value.constant(None)] * 3
                 for called in self.t.invoke(method, parameters, (), flow.store, frame, node):
                     completed = (
-                        self.resume(called.value, called.store, frame, node, "await")
+                        self.resume(require_payload(called), called.store, frame, node, "await")
                         if isinstance(node, ast.AsyncWith) and called.kind == "normal"
                         else [called]
                     )
@@ -776,34 +881,44 @@ class ContinuationEngine:
                             cleaned.append(cleanup)
                         elif flow.kind == "raise":
                             for tested in self.t.truth_flows(
-                                cleanup.value, cleanup.store, frame, node
+                                require_payload(cleanup), cleanup.store, frame, node
                             ):
                                 if tested.kind != "normal":
                                     cleaned.append(tested)
                                 else:
-                                    if True in tested.value.bools:
+                                    if True in require_payload(tested).bools:
                                         cleaned.append(self.normal(tested.store.copy()))
-                                    if False in tested.value.bools:
-                                        cleaned.append(replace(flow, store=tested.store))
+                                    if False in require_payload(tested).bools:
+                                        cleaned.append(replace_flow(flow, store=tested.store))
                         else:
-                            cleaned.append(replace(flow, store=cleanup.store))
+                            cleaned.append(replace_flow(flow, store=cleanup.store))
             pending = cleaned
         return result + pending
 
-    def stop(self, store, frame, node, value=None, async_=False):
+    def stop(
+        self,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        value: Value | None = None,
+        async_: bool = False,
+    ) -> RaiseFlow:
         value = Value.constant(None) if value is None else value
         name = "StopAsyncIteration" if async_ else "StopIteration"
         for exception in self.t.builtin(name, [value], (), store, frame, node):
             if exception.kind == "normal":
-                for ref in exception.value.refs:
+                for ref in require_payload(exception).refs:
                     exception.store.heap[ref].fields["value"] = value
                 self.d.exceptions.add(name)
-                return Flow(exception.store, "raise", exception.value, name)
+                return RaiseFlow(
+                    StateHandle.capture(exception.store),
+                    ExceptionValue(require_payload(exception), name),
+                )
         return self.t.error(store, name)
 
-    def stop_value(self, flow):
+    def stop_value(self, flow: Flow) -> Value:
         values = []
-        for ref in flow.value.refs:
+        for ref in require_payload(flow).refs:
             obj = flow.store.heap.get(ref)
             if obj:
                 if "value" in obj.fields:
@@ -815,26 +930,30 @@ class ContinuationEngine:
                             values.append(item.fields.get(0, Value.constant(None)))
         return self.ops.join_all(values) if values else Value.constant(None)
 
-    def delegate_start(self, node, store, frame):
+    def delegate_start(self, node: ast.YieldFrom, store: Store, frame: Frame) -> list[Flow]:
+        result: list[Flow]
         result = []
         for source in self.t.expr(node.value, store, frame):
             if source.kind != "normal":
                 result.append(source)
                 continue
-            for iterator in self.get_iterator(source.value, source.store, frame, node):
+            for iterator in self.get_iterator(require_payload(source), source.store, frame, node):
                 if iterator.kind != "normal":
                     result.append(iterator)
                 else:
                     result.extend(
                         self.delegate_advance(
-                            node, iterator.value, self.normal(iterator.store), frame
+                            node, require_payload(iterator), self.normal(iterator.store), frame
                         )
                     )
         return result
 
-    def delegate_advance(self, node, iterator, incoming, frame):
+    def delegate_advance(
+        self, node: ast.YieldFrom, iterator: Value, incoming: Flow, frame: Frame
+    ) -> list[Flow]:
+        result: list[Flow]
         result = []
-        advanced = []
+        advanced: list[Flow] = []
         if incoming.kind == "raise":
             closing = incoming.exception == "GeneratorExit"
             for method in self.t.getattr(
@@ -847,14 +966,19 @@ class ContinuationEngine:
                     advanced.append(method)
                     continue
                 for called in self.t.invoke(
-                    method.value, [] if closing else [incoming.value], (), method.store, frame, node
+                    require_payload(method),
+                    [] if closing else [require_payload(incoming)],
+                    (),
+                    method.store,
+                    frame,
+                    node,
                 ):
                     advanced.append(
-                        replace(incoming, store=called.store)
+                        replace_flow(incoming, store=called.store)
                         if closing and called.kind == "normal"
                         else called
                     )
-        elif incoming.value.exact_constants() == [None]:
+        elif require_payload(incoming).exact_constants() == [None]:
             advanced = self.next_iterator(iterator, incoming.store, frame, node)
         else:
             for method in self.t.getattr(iterator, "send", incoming.store, frame, node):
@@ -862,24 +986,36 @@ class ContinuationEngine:
                     advanced.append(method)
                 else:
                     advanced.extend(
-                        self.t.invoke(method.value, [incoming.value], (), method.store, frame, node)
+                        self.t.invoke(
+                            require_payload(method),
+                            [require_payload(incoming)],
+                            (),
+                            method.store,
+                            frame,
+                            node,
+                        )
                     )
         for flow in advanced:
             if self.is_stop(flow):
-                result.append(Flow(flow.store, value=self.stop_value(flow)))
+                result.append(
+                    NormalExprFlow(StateHandle.capture(flow.store), self.stop_value(flow))
+                )
             elif flow.kind == "raise" and flow.exception == "AnyException":
-                result.append(Flow(flow.store.copy(), value=Value.unknown()))
+                result.append(
+                    NormalExprFlow(StateHandle.capture(flow.store.copy()), Value.unknown())
+                )
                 result.append(flow)
             elif flow.kind == "normal":
                 result.append(
-                    Flow(
-                        flow.store,
-                        "suspend",
-                        flow.value,
-                        continuation=Continuation(
-                            (DelegateResume(node, iterator, Continuation()),),
-                            ContinuationId(f"{self.d.current}:{self.d.point(node)}:delegate"),
-                            self.d.point(node),
+                    SuspendFlow(
+                        StateHandle.capture(flow.store),
+                        require_payload(flow),
+                        FlowTail(
+                            continuation=Continuation(
+                                (DelegateResume(node, iterator, Continuation()),),
+                                ContinuationId(f"{self.d.current}:{self.d.point(node)}:delegate"),
+                                self.d.point(node),
+                            )
                         ),
                     )
                 )
@@ -887,7 +1023,16 @@ class ContinuationEngine:
                 result.append(flow)
         return result
 
-    def resume(self, receiver, store, frame, node, operation, value=None):
+    def resume(
+        self,
+        receiver: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        operation: str,
+        value: Value | None = None,
+    ) -> list[Flow]:
+        result: list[Flow]
         value = Value.constant(None) if value is None else value
         result = []
         if hasattr(store, "ensure_current"):
@@ -914,7 +1059,9 @@ class ContinuationEngine:
                         result.append(method)
                     else:
                         result.extend(
-                            self.t.invoke(method.value, [], (), method.store, frame, node)
+                            self.t.invoke(
+                                require_payload(method), [], (), method.store, frame, node
+                            )
                         )
                 continue
             if obj.kind == "iterator":
@@ -940,7 +1087,7 @@ class ContinuationEngine:
                             Value.ref(container), Value.constant(index), current, frame, node
                         ):
                             if out.kind == "normal":
-                                values.append(out.value)
+                                values.append(require_payload(out))
                                 current = out.store
                                 item = current.heap[ref]
                             elif out.exception == "IndexError":
@@ -974,8 +1121,12 @@ class ContinuationEngine:
                         missing = True
                 if values:
                     item.metadata["index"] = index + 1
-                    current.writes.add(MetadataUpdate(ref, MetadataAspect.ITERATOR_STATE))
-                    result.append(Flow(current.copy(), value=self.ops.join_all(values)))
+                    current.record_write(MetadataUpdate(ref, MetadataAspect.ITERATOR_STATE))
+                    result.append(
+                        NormalExprFlow(
+                            StateHandle.capture(current.copy()), self.ops.join_all(values)
+                        )
+                    )
                 if missing or not values:
                     result.append(self.stop(current, frame, node))
                 continue
@@ -991,19 +1142,23 @@ class ContinuationEngine:
             if obj.kind == "coroutine" and operation == "next":
                 result.append(self.t.error(current, "TypeError"))
                 continue
-            if ref in self.active or len(self.active) >= 12:
+            if (
+                any(handle.refresh(self.ops.arena).identity == ref for handle in self.active)
+                or len(self.active) >= 12
+            ):
                 reason = "recursive_generator_delegation"
                 opaque = self.t.unknown(current, node, reason)
                 result.extend(opaque)
                 result.extend(
-                    Flow(
-                        out.store.copy(),
-                        "suspend",
+                    SuspendFlow(
+                        StateHandle.capture(out.store.copy()),
                         Value.unknown(),
-                        continuation=Continuation(
-                            (OpaqueResume(reason),),
-                            ContinuationId(f"{self.d.current}:{self.d.point(node)}:opaque"),
-                            self.d.point(node),
+                        FlowTail(
+                            continuation=Continuation(
+                                (OpaqueResume(reason),),
+                                ContinuationId(f"{self.d.current}:{self.d.point(node)}:opaque"),
+                                self.d.point(node),
+                            )
                         ),
                     )
                     for out in opaque
@@ -1026,7 +1181,7 @@ class ContinuationEngine:
                 continue
             if stage == "created" and operation in {"close", "throw"}:
                 item.metadata["stage"] = "closed"
-                current.writes.add(MetadataUpdate(ref, MetadataAspect.GENERATOR_STATE))
+                current.record_write(MetadataUpdate(ref, MetadataAspect.GENERATOR_STATE))
                 result.extend(
                     [self.normal(current)]
                     if operation == "close"
@@ -1040,15 +1195,16 @@ class ContinuationEngine:
                 + "#resume:"
                 + str(min(32, int(item.metadata.lookup("resume_count", 0))))
             )
+            prior_context: tuple[ProgramPointId, ...] = generator_frame.context
+            resumed_context = prior_context + (ProgramPointId(resume_point),)
             generator_frame = replace(
-                generator_frame,
-                context=(*generator_frame.context, resume_point)[-depth:] if depth else (),
+                generator_frame, context=ContextId(resumed_context[-depth:] if depth else ())
             )
             caller_exception = self.t.exception_context(current)
             owned_exception = item.metadata.lookup("owned_exception")
             if stage != "created" and owned_exception is not None:
                 self.t.install_exception_context(current, owned_exception)
-            for cell, initial in item.metadata["entry"].cells.items():
+            for cell, initial in item.metadata.entry_handle().read().cells.items():
                 if (
                     cell.startswith("local:" + generator_frame.identity + ":")
                     and cell not in current.cells
@@ -1056,17 +1212,21 @@ class ContinuationEngine:
                     current.cells[cell] = initial
             if operation == "close":
                 injected = self.t.builtin("GeneratorExit", [], (), current, generator_frame, node)
-                starting = [
-                    Flow(out.store, "raise", out.value, "GeneratorExit")
+                starting: list[Flow] = [
+                    RaiseFlow(
+                        StateHandle.capture(out.store),
+                        ExceptionValue(require_payload(out), "GeneratorExit"),
+                    )
                     for out in injected
                     if out.kind == "normal"
                 ]
             elif operation == "throw":
                 starting = self.t.raise_value(value, current, generator_frame, node)
             else:
-                starting = [Flow(current, value=value)]
+                starting = [NormalExprFlow(StateHandle.capture(current), value)]
             body = item.metadata.lookup("remaining", item.metadata["body"])
-            self.active.append(ref)
+            active_object = ObjectHandle(ref, self.ops.arena.epoch)
+            self.active.append(active_object)
             self.exception_contexts.append(
                 CallResumeContext(caller_exception, generator_frame.identity)
             )
@@ -1076,11 +1236,12 @@ class ContinuationEngine:
                 self.active.pop()
                 self.exception_contexts.pop()
             for flow in flows:
-                target = flow.store.heap[ref]
+                resumed_ref = active_object.refresh(self.ops.arena).identity
+                target = flow.store.heap[resumed_ref]
                 target.metadata["resume_count"] = min(
                     32, int(target.metadata.lookup("resume_count", 0)) + 1
                 )
-                flow.store.writes.add(MetadataUpdate(ref, MetadataAspect.GENERATOR_STATE))
+                flow.store.record_write(MetadataUpdate(resumed_ref, MetadataAspect.GENERATOR_STATE))
                 if flow.kind == "suspend":
                     active_exception = self.t.exception_context(flow.store)
                     owner = active_exception.owner.exact_constants()
@@ -1102,7 +1263,7 @@ class ContinuationEngine:
                     result.append(
                         self.t.error(flow.store, "RuntimeError")
                         if operation == "close"
-                        else Flow(flow.store, value=flow.value)
+                        else NormalExprFlow(StateHandle.capture(flow.store), require_payload(flow))
                     )
                 else:
                     target.metadata["stage"] = "closed"
@@ -1115,9 +1276,11 @@ class ContinuationEngine:
                     ):
                         result.append(self.normal(flow.store))
                     elif flow.kind in {"normal", "return"}:
-                        returned = flow.value if flow.kind == "return" else Value.constant(None)
+                        returned = (
+                            require_payload(flow) if flow.kind == "return" else Value.constant(None)
+                        )
                         result.append(
-                            Flow(flow.store, value=returned)
+                            NormalExprFlow(StateHandle.capture(flow.store), returned)
                             if operation == "await"
                             else self.stop(flow.store, frame, node, returned)
                         )
@@ -1130,14 +1293,15 @@ class ContinuationEngine:
             result.extend(opaque)
             if operation == "await":
                 result.extend(
-                    Flow(
-                        out.store.copy(),
-                        "suspend",
+                    SuspendFlow(
+                        StateHandle.capture(out.store.copy()),
                         Value.unknown(),
-                        continuation=Continuation(
-                            (OpaqueResume("external_await_resume"),),
-                            ContinuationId(f"{self.d.current}:{self.d.point(node)}:await"),
-                            self.d.point(node),
+                        FlowTail(
+                            continuation=Continuation(
+                                (OpaqueResume("external_await_resume"),),
+                                ContinuationId(f"{self.d.current}:{self.d.point(node)}:await"),
+                                self.d.point(node),
+                            )
                         ),
                     )
                     for out in opaque
@@ -1145,7 +1309,10 @@ class ContinuationEngine:
                 )
         return self.d.compact(result)
 
-    def generator_expression(self, node, store, frame):
+    def generator_expression(
+        self, node: ast.GeneratorExp, store: Store, frame: Frame
+    ) -> list[Flow]:
+        result: list[Flow]
         first = node.generators[0]
         result = []
         for outer in self.t.expr(first.iter, store, frame):
@@ -1153,13 +1320,13 @@ class ContinuationEngine:
                 result.append(outer)
                 continue
             for iterator in self.get_iterator(
-                outer.value, outer.store, frame, node, bool(first.is_async)
+                require_payload(outer), outer.store, frame, node, bool(first.is_async)
             ):
                 if iterator.kind != "normal":
                     result.append(iterator)
                     continue
                 current = iterator.store
-                identity = f"genexpr-frame:{self.d.point(node)}@{'|'.join(frame.context)}"
+                identity = FrameId(f"genexpr-frame:{self.d.point(node)}@{'|'.join(frame.context)}")
                 locals_ = frozenset(
                     {"$outer_iterator"}
                     | {
@@ -1172,7 +1339,7 @@ class ContinuationEngine:
                 closure = dict(frame.closure)
                 if not frame.is_module and not frame.is_class:
                     closure.update((name, frame.cell(name)) for name in frame.locals)
-                inner = [ast.Expr(value=ast.Yield(value=node.elt))]
+                inner: list[ast.stmt] = [ast.Expr(value=ast.Yield(value=node.elt))]
                 for position, gen in reversed(list(enumerate(node.generators))):
                     for condition in reversed(gen.ifs):
                         inner = [ast.If(test=condition, body=inner, orelse=[])]
@@ -1200,8 +1367,8 @@ class ContinuationEngine:
                     tuple(closure.items()),
                 )
                 entry = current.clear_effects()
-                entry.cells[compframe.cell("$outer_iterator")] = iterator.value
-                function_id = (
+                entry.cells[compframe.cell("$outer_iterator")] = require_payload(iterator)
+                function_id = ObjectId(
                     "genexpr-function:" + self.d.point(node) + "@" + "|".join(frame.context)
                 )
                 function_node = ast.FunctionDef(
@@ -1231,15 +1398,15 @@ class ContinuationEngine:
                 metadata = {
                     "function": function_id,
                     "frame": compframe,
-                    "entry": entry,
+                    "entry": StateHandle.capture(entry),
                     "body": tuple(inner),
                     "stage": "created",
                     "index": 0,
                 }
                 result.append(
-                    Flow(
-                        current,
-                        value=self.t.alloc(node, current, frame, "generator", metadata=metadata),
+                    NormalExprFlow(
+                        StateHandle.capture(current),
+                        self.t.alloc(node, current, frame, "generator", metadata=metadata),
                     )
                 )
         return result

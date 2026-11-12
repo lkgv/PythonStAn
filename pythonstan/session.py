@@ -160,6 +160,8 @@ class AnalysisSession:
             observer=sink,
             program=prepared.program,
         )
+        if oracle is not None:
+            driver.install_oracle(oracle, incremental=oracle, phase_record=oracle.phase_record)
         driver.max_work = max(0, config.resources.max_work - native_work)
         provider: GuardedDispatchProvider | None = None
         provider_failure: str | None = None

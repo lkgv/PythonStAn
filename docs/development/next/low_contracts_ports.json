@@ -1,0 +1,59 @@
+{
+  "status": "ready_for_independent_review",
+  "cards": [
+    "N4-TYPE-01",
+    "N4-TYPE-02"
+  ],
+  "cards_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/contracts/budgets.py": "6e68e61289713099429ecbb095899b1ea8eba2764a4a0f298dd55869ac185b2a",
+    "pythonstan/analysis/contracts/engine.py": "cadbb56a6b7557b79053450ed112d4305ac7a8ff911d7fe8249de79af5c60316",
+    "pythonstan/analysis/contracts/outcomes.py": "7149712c274c31750bd7dac55b5b73cb389d5ed4ea4008c16b2ffe9b3504cab4",
+    "pythonstan/analysis/contracts/wire.py": "bda5b3a4b5eaa839ba9d37e7b308342f4d38b84010f3895d295263627df48d91",
+    "pythonstan/analysis/contracts/oracle.py": "68af635bc17ddf47417f4aa0a2da24c8fb364c4ccd3f9632fc119ce81d50084b",
+    "pythonstan/analysis/contracts/json_data.py": "2d5db8e1cbd0dff907553cc564369dbac207698523329c81f77065f088d7168a",
+    "pythonstan/analysis/composition/oracle.py": "c2a8af086e80c8f0f75d9f7d3f7ab9db9b72b405447bdbd1492815b1fab5199b",
+    "pythonstan/analysis/composition/hybrid.py": "5885ceb86947c606b4c1ca3bb6438a13e5c85d804da7df0e1878af94dcf10801",
+    "pythonstan/analysis/composition/region_scheduler.py": "599ee09f50ae2e113559404f89c1bd800ac838aa5971c8859ad71ab9a71579af",
+    "tests/regression/audit3/test_low_contracts.py": "9045e1fdae6f366e07ebbbc551372a012e0f80d013381b44a8e90c9272b0f525"
+  },
+  "scope": [
+    "Single historical AnalysisBudget, exact 25 defaults and ranges and finite typed projection/validator",
+    "EngineSnapshot checked immutable JSON fields and complete external wire parser, actual GuaranteeLedger status storage",
+    "Retired idle Engine/WorkLedger/Outcome/ProcedureSummary/Effects/UnknownEffects/FreshTemplate/FrameMap/CoverageRecord/DerivationRecord; canonical Flow remains sole runtime completion union",
+    "Frozen wire preserves scalar tags and optional empty presence, copies shared acyclic inputs, rejects cycles without accepting live objects",
+    "Actual detached issuer-bound oracle preparation token with work accounting and idempotent publication; actual existing copy/load/store producer methods exposed in incremental channel",
+    "Explicit known-producer hybrid installation and canonical statement Flow normalization at scheduler boundary"
+  ],
+  "compatibility": {
+    "values_collision": "EngineSnapshot transport key values also historically served as facts attribute. Immutable callable ValueFacts preserves .values[key], while .values() is now genuine Mapping.values over the whole record, without thawing/copying.",
+    "retirement": "Removed internal unused generic hierarchy rather than publishing a parallel completion model. Existing explicit-payload assertion migrated by TYPE owner to actual runtime variants; no assertion deleted.",
+    "wire_validation": "The new from_wire parser requires all 16 fields and rejects unknown fields or wrong container/header kinds. Existing constructor defaults and complete valid transport stay unchanged. Cyclic JSON now raises ValueError; shared acyclic aliases remain valid.",
+    "statuses": "Solver, coverage, and profile strings remain open strings; constructing metadata does not grant a proof."
+  },
+  "verification": {
+    "behavior": "110 passed in 1.35s",
+    "strict_owned_diagnostics": 0,
+    "strict_underlying_exit": 1,
+    "strict_imported_diagnostics": 1004,
+    "ruff": "All checks passed!",
+    "format": "10 files already formatted",
+    "source_stable": true,
+    "raw_receipt": "artifacts/next/evidence/N4-TYPE-01/low-contracts-recovery/receipt.json",
+    "runtime_invalid_input_receipt": "artifacts/next/evidence/N4-TYPE-01/low-contracts-recovery/wire-invalid-runtime.txt"
+  },
+  "actual_negative_controls": [
+    "All 25 historical defaults and exact bool/int/range rejection",
+    "Detached mutable exports, missing complete wire and wrong object kind",
+    "Live objects/nonfinite JSON and scalar bool/int identity (new tests plus existing contract controls)",
+    "Preparation does not publish; actual issuer mismatch rejected; re-committing older token does not undo a newer commit",
+    "Real candidate-only provider survives host address epoch with same closed values and no lifecycle methods",
+    "Mixed candidate/lifecycle producers rejected; candidate assignment clears lifecycle channel"
+  ],
+  "limits": [
+    "Whole-tree mypy is not clean; normal imports expose 1,004 diagnostics in 19 imported files. No follow-imports skip/silent flags, casts, Any annotations, or suppressions were added.",
+    "This report covers the listed ports only, not full N4-TYPE-01/N4-TYPE-02 or any semantic audit red, full cost contract, real LLM execution, or release qualification.",
+    "Root owns driver installer/token consumption, contracts export migration and publication; API owner owns known Native producer Session installation. Their broader sources require independent checks.",
+    "No frozen quality debt, semantic gold, task status or baseline was reset."
+  ]
+}

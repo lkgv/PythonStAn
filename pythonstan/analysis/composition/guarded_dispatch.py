@@ -18,8 +18,14 @@ from pythonstan.analysis.contracts.identity import ObjectId
 from pythonstan.analysis.contracts.json_data import FrozenJsonObject, JsonObject, freeze_json_object
 from pythonstan.analysis.domains.relations import PartitionToken
 from pythonstan.analysis.domains.values import Value
-from pythonstan.analysis.engines.abstract.state import Flow, HeapObject
+from pythonstan.analysis.engines.abstract.state import HeapObject
 from pythonstan.analysis.state.effects import HeapWrite
+from pythonstan.analysis.state.flow import (
+    ExceptionValue,
+    NormalExprFlow,
+    RaiseFlow,
+)
+from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.analysis.verification.guarded_dispatch.apply import (
     apply_verified_summary,
     guard_from_source_call,
@@ -78,7 +84,9 @@ class GuardedDispatchProvider:
         self._state_epoch = 0
         self._applied_allocation_ids = set()
         self._retired_allocation_ids = set()
-        modules = tuple(snapshot.values()) if isinstance(snapshot, Mapping) else tuple(snapshot.modules)
+        modules = (
+            tuple(snapshot.values()) if isinstance(snapshot, Mapping) else tuple(snapshot.modules)
+        )
         self.required_property_points: list[str] = []
         max_proposals = config.get("llm", {}).get("max_proposals", 2)
         remaining = config.get("resources", {}).get("max_work", 100000)
@@ -460,7 +468,12 @@ class GuardedDispatchProvider:
             current = store.copy()
             if outcome["kind"] == "raise":
                 driver.exceptions.add("KeyError")
-                result.append(Flow(current, "raise", Value.constant("KeyError"), "KeyError"))
+                result.append(
+                    RaiseFlow(
+                        StateHandle.capture(current),
+                        ExceptionValue(Value.constant("KeyError"), "KeyError"),
+                    )
+                )
                 continue
             handler = outcome["handler"]
             driver.calls.add((info.qualname, info.module + "." + handler, handler_site))
@@ -480,7 +493,7 @@ class GuardedDispatchProvider:
                 current.heap[allocation["object"]] = HeapObject(
                     "dict", {"value": args[2]}, metadata={"length": 1, "fresh_source_call": point}
                 )
-                current.writes.add(HeapWrite(allocation["object"], "value"))
+                current.record_write(HeapWrite(allocation["object"], "value"))
                 driver.writes.add((allocation["object"], "value", point))
             relation = next(
                 arm.relation for arm in certificate.candidate.arms if arm.key == outcome["key"]
@@ -493,7 +506,7 @@ class GuardedDispatchProvider:
                 value = Value.unknown()
             token = PartitionToken.make(point, outcome["key"], info.module + "." + handler)
             value = replace(value, relations=value.relations | frozenset((token,)))
-            result.append(Flow(current, value=value))
+            result.append(NormalExprFlow(StateHandle.capture(current), value))
         self._records[point] = {
             **self._records[point],
             "status": application.proof_status,

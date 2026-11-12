@@ -82,3 +82,8 @@ def decode_runtime_options(options: Mapping[str, object] | None) -> RuntimeOptio
 
 
 __all__ = ["RuntimeOptions", "decode_runtime_options"]
+
+
+def integer_option(options: Mapping[str, JsonValue], name: str, default: int) -> int:
+    """Read an actual driver option with its historical numeric conversion."""
+    return _integer(options.get(name, default), name)

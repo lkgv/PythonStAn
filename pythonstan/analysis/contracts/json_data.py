@@ -7,8 +7,6 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import TypeGuard
 
-from .wire import freeze_snapshot, thaw_snapshot
-
 type JsonScalar = None | bool | int | float | str
 type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
 type JsonObject = dict[str, JsonValue]
@@ -80,6 +78,8 @@ def _is_frozen_json(value: object) -> TypeGuard[FrozenJsonValue]:
 
 
 def freeze_json(value: JsonValue) -> FrozenJsonValue:
+    from .wire import freeze_snapshot
+
     frozen = freeze_snapshot(value)
     if not _is_frozen_json(frozen):
         raise TypeError("Snapshot did not produce immutable JSON data")
@@ -94,6 +94,8 @@ def freeze_json_object(value: JsonObject) -> FrozenJsonObject:
 
 
 def thaw_json(value: FrozenJsonValue) -> JsonValue:
+    from .wire import thaw_snapshot
+
     thawed = thaw_snapshot(value)
     if not _is_json(thawed):
         raise TypeError("Snapshot did not produce JSON data")

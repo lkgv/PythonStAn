@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from pythonstan.analysis.contracts import (
-    EngineSnapshot, EntryScenario, GuaranteeLedger, Outcome, PropertyProof,
+    EngineSnapshot, EntryScenario, GuaranteeLedger, PropertyProof,
     SemanticIdentity, SourceModule, freeze_snapshot, value_snapshot,
 )
 
@@ -67,14 +67,21 @@ def test_function_returns_and_module_exits_do_not_conflate_no_normal_return():
     assert result["outcomes"]["example.f"][0]["kind"] == "raise"
 
 
-def test_outcome_payload_is_explicit():
+def test_outcome_payload_is_explicit() -> None:
+    from pythonstan.analysis.domains.values import Value
+    from pythonstan.analysis.state.flow import BreakFlow, NormalStmtFlow, ReturnFlow, flow_payload, make_completion, FlowTail
+    from pythonstan.analysis.state.handles import StateHandle
+    from pythonstan.analysis.state.store import Store
+
+    state = StateHandle.capture(Store())
     with pytest.raises(ValueError):
-        Outcome("return", {})
-    explicit_none = Outcome("return", {}, value=None, value_present=True)
-    assert explicit_none.value_present
-    assert Outcome("normal", {}).value_present is False
-    with pytest.raises(ValueError):
-        Outcome("break", {}, value=1, value_present=True)
+        make_completion(state, "return", None, None, FlowTail())
+    explicit_none = ReturnFlow(state, Value.constant(None))
+    assert explicit_none.value.exact_constants() == [None]
+    statement = NormalStmtFlow(state)
+    assert flow_payload(statement) is None and not hasattr(statement, "value")
+    breaking = BreakFlow(state)
+    assert flow_payload(breaking) is None and not hasattr(breaking, "value")
 
 
 def test_convergence_is_not_property_verification():

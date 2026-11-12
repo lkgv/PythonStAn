@@ -74,7 +74,8 @@ def test_partial_generator_keeps_original_entry_and_shared_list() -> None:
     shared: list[ComponentPayload] = []
     metadata = Metadata.from_component_graph("generator", {"entry": entry, "shared": shared})
     assert isinstance(metadata.record, GeneratorMeta)
-    assert metadata.record.entry is entry
+    assert metadata.record.entry is metadata.entry_handle()
+    assert metadata.record.entry.read() is entry
     assert metadata["entry"] is entry and metadata["shared"] is shared
     assert isinstance(metadata.components.entries["shared"], LiteralGraphField)
     shared.append(metadata)

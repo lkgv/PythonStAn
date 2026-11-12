@@ -202,7 +202,7 @@ def _project_outcomes(
     selected: JsonObject = {}
     for function, row in records[: spec.max_items]:
         require_array(selected.setdefault(function, [])).append(
-            _fields(row, spec, ("kind", "exception", "context"))
+            _fields(row, spec, ("kind", "exception", "context", "value_present"))
         )
     count = min(len(records), spec.max_items)
     return ProjectedPayload(selected, len(records), count, count < len(records))

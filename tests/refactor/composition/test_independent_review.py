@@ -13,6 +13,7 @@ from pythonstan import Source, ValueQuery, analyze
 from pythonstan.analysis.contracts import SourceModule
 from pythonstan.analysis.domains.values import Value, ValueOperations
 from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
+from pythonstan.analysis.state.flow import FlowTail
 from pythonstan.analysis.engines.abstract.state import Store, HeapObject, Flow
 from pythonstan.analysis.composition.state_adapter import FullStateAdapter
 from pythonstan.analysis.composition.oracle import IncrementalCandidateOracle, IncrementalInclusionStore
@@ -57,7 +58,7 @@ def test_boundary_nested_generator_state_is_detached():
 def test_roundtrip_validator_rejects_cleanup_and_resume_loss():
     class MissingCleanup(FullStateAdapter):
         def decode(self, boundary):
-            return replace(super().decode(boundary), continuation=(), cleanups=(), resume_target=None)
+            return replace(super().decode(boundary), tail=FlowTail())
     flow = Flow(Store(), 'suspend', Value.constant('yielded'), continuation=('resume',),
                 cleanups=(('finally',),), resume_target='target')
     assert not MissingCleanup().check_roundtrip(flow, ValueOperations())
