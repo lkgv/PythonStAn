@@ -14,7 +14,7 @@ __all__ = ["Config"]
 @dataclass(frozen=True)
 class Config:
     """Analysis configuration.
-    
+
     Attributes:
         context_policy: Context sensitivity policy string
         max_iterations: Maximum solver iterations
@@ -38,7 +38,7 @@ class Config:
         debug_output_dir: Directory for debug output files
         work_scheduling_policy: legacy strict-priority/LIFO or fair cyclic/FIFO work
     """
-    
+
     context_policy: str = "2-cfa"
     heap_context_policy: Optional[str] = None
     heap_context_depth: Optional[int] = None
@@ -67,7 +67,7 @@ class Config:
     # Additional local precision dimension; none preserves bare base policies.
     keyword_context_model: str = "none"
     keyword_context_limit: int = 32
-    
+
     # Debug monitoring options
     enable_debug_monitor: bool = False
     debug_log_interval: int = 1000
@@ -76,11 +76,11 @@ class Config:
     export_debug_data: bool = False
     debug_output_dir: str = "debug_output"
     debug_inheritance: bool = False  # Debug class field inheritance
-    
+
     # AI intrinsic toggle (for KCFA vs KCFA+AI comparison)
     enable_ai_intrinsics: bool = True
     ai_budget: Dict[str, Any] = field(default_factory=dict)
-    
+
     @classmethod
     def from_dict(cls, config_dict: Dict):
         if type(config_dict) is not dict:
@@ -127,9 +127,9 @@ class Config:
             "debug_inheritance": self.debug_inheritance,
             "enable_ai_intrinsics": self.enable_ai_intrinsics,
             "ai_budget": dict(self.ai_budget),
-            "type": self.type
+            "type": self.type,
         }
-    
+
     def __post_init__(self):
         """Validate configuration."""
         from pythonstan.analysis.contracts.budgets import validate_budget_options
@@ -146,18 +146,30 @@ class Config:
                 raise ValueError("heap_context_policy must be a policy string or None")
             parse_policy(self.heap_context_policy)
         if self.heap_context_depth is not None and (
-                type(self.heap_context_depth) is not int
-                or not 0 <= self.heap_context_depth <= 3):
+            type(self.heap_context_depth) is not int or not 0 <= self.heap_context_depth <= 3
+        ):
             raise ValueError("heap_context_depth must be an integer in 0..3 or None")
         if self.type != "pointer analysis":
             raise ValueError("type must be pointer analysis")
-        if type(self.work_scheduling_policy) is not str or self.work_scheduling_policy not in ("legacy", "fair"):
+        if type(self.work_scheduling_policy) is not str or self.work_scheduling_policy not in (
+            "legacy",
+            "fair",
+        ):
             raise ValueError("work_scheduling_policy must be legacy or fair")
-        if type(self.points_work_policy) is not str or self.points_work_policy not in ("fifo", "consumer_fair"):
+        if type(self.points_work_policy) is not str or self.points_work_policy not in (
+            "fifo",
+            "consumer_fair",
+        ):
             raise ValueError("points_work_policy must be fifo or consumer_fair")
-        if type(self.builtin_bootstrap_policy) is not str or self.builtin_bootstrap_policy not in ("queued", "eager_inert"):
+        if type(self.builtin_bootstrap_policy) is not str or self.builtin_bootstrap_policy not in (
+            "queued",
+            "eager_inert",
+        ):
             raise ValueError("builtin_bootstrap_policy must be queued or eager_inert")
-        if type(self.keyword_context_model) is not str or self.keyword_context_model not in ("none", "receiver_key_v1"):
+        if type(self.keyword_context_model) is not str or self.keyword_context_model not in (
+            "none",
+            "receiver_key_v1",
+        ):
             raise ValueError("keyword_context_model must be none or receiver_key_v1")
         if type(self.keyword_context_limit) is not int or self.keyword_context_limit <= 0:
             raise ValueError("keyword_context_limit must be a positive integer")
@@ -172,10 +184,14 @@ class Config:
                 raise ValueError(f"{option.name} must be a Boolean")
         for name in ("entry_points", "library_paths"):
             value = getattr(self, name)
-            if value is not None and (type(value) is not list or any(type(x) is not str or not x for x in value)):
+            if value is not None and (
+                type(value) is not list or any(type(x) is not str or not x for x in value)
+            ):
                 raise ValueError(f"{name} must be a list of nonempty strings")
         if self.library_paths:
-            raise ValueError("KCFA library_paths is unsupported; set Pipeline library_paths instead")
+            raise ValueError(
+                "KCFA library_paths is unsupported; set Pipeline library_paths instead"
+            )
         if type(self.max_import_depth) is not int or self.max_import_depth < -1:
             raise ValueError("max_import_depth must be an integer >= -1")
         # These historical knobs never reached this solver. Refuse requests for
@@ -189,7 +205,9 @@ class Config:
         }
         for name, default in unsupported.items():
             if getattr(self, name) != default:
-                raise ValueError(f"{name} is not configurable by this KCFA solver; see configuration_diagnostics()")
+                raise ValueError(
+                    f"{name} is not configurable by this KCFA solver; see configuration_diagnostics()"
+                )
 
     def configuration_diagnostics(self) -> List[str]:
         """Explicit support boundary for legacy options retained for roundtrip."""
@@ -203,6 +221,6 @@ class Config:
 
     def __str__(self):
         return f"""Pointer Analysis Config: {json.dumps(self.to_dict(), indent=4)}"""
-    
+
     def __repr__(self):
         return self.__str__()

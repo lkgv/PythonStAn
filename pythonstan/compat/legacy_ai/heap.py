@@ -9,7 +9,21 @@ This module defines:
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Generic, Iterator, List, Mapping, Optional, Set, Tuple, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    FrozenSet,
+    Generic,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from pythonstan.compat.legacy_ai.value_domain import AbsVal
 from pythonstan.analysis.domains.ints import IntLattice, IntDomain
@@ -20,7 +34,17 @@ if TYPE_CHECKING:
     from pythonstan.analysis.pointer.kcfa.heap_model import Field
 
 # Import unified SlotMap from domains
-from pythonstan.compat.legacy_ai.domains.mapslots import SlotMap, Slot, Presence, KeySig, make_str_keysig, keysig_to_field, field_to_keysig, slotmap_from_fieldstore, slotmap_to_fieldstore
+from pythonstan.compat.legacy_ai.domains.mapslots import (
+    SlotMap,
+    Slot,
+    Presence,
+    KeySig,
+    make_str_keysig,
+    keysig_to_field,
+    field_to_keysig,
+    slotmap_from_fieldstore,
+    slotmap_to_fieldstore,
+)
 
 __all__ = [
     "AIAddr",
@@ -35,26 +59,28 @@ __all__ = [
 ]
 
 # Type for address sets used by summaries and low-level compatibility.
-AddrSet = FrozenSet['AbstractObject']
+AddrSet = FrozenSet["AbstractObject"]
 
 
 # =============================================================================
 # AIAddr - Abstract addresses
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class AIAddr:
     """Abstract address = (AllocSite, Context).
-    
+
     This is compatible with kcfa's AbstractObject but used internally
     by AI for its heap abstraction. We can convert between them.
-    
+
     Attributes:
         alloc_site: Allocation site (static identity)
         context: Analysis context (dynamic identity)
     """
-    alloc_site: 'AllocSite'
-    context: 'AbstractContext'
+
+    alloc_site: "AllocSite"
+    context: "AbstractContext"
     # Bound and unbound Native method objects can have the same allocation and
     # context while denoting different receiver-bearing representations. The
     # optional flat token preserves them without embedding contextual objects.
@@ -64,15 +90,20 @@ class AIAddr:
         return f"{self.alloc_site}@{self.context}"
 
     @classmethod
-    def from_kcfa_obj(cls, obj: 'AbstractObject') -> 'AIAddr':
+    def from_kcfa_obj(cls, obj: "AbstractObject") -> "AIAddr":
         """Create AIAddr from kcfa AbstractObject."""
         from pythonstan.analysis.pointer.kcfa.object import MethodObject, BuiltinMethodObject
         from pythonstan.analysis.pointer.kcfa.context import finite_context_atom
-        projection=()
-        if isinstance(obj,MethodObject):
-            projection=('method',finite_context_atom(obj.class_obj),None if obj.instance_obj is None else finite_context_atom(obj.instance_obj))
-        elif isinstance(obj,BuiltinMethodObject):
-            projection=('builtin_method',obj.method_name,finite_context_atom(obj.receiver))
+
+        projection = ()
+        if isinstance(obj, MethodObject):
+            projection = (
+                "method",
+                finite_context_atom(obj.class_obj),
+                None if obj.instance_obj is None else finite_context_atom(obj.instance_obj),
+            )
+        elif isinstance(obj, BuiltinMethodObject):
+            projection = ("builtin_method", obj.method_name, finite_context_atom(obj.receiver))
         return cls(obj.alloc_site, obj.context, projection)
 
 
@@ -80,8 +111,10 @@ class AIAddr:
 # ObjKind - Types of heap objects
 # =============================================================================
 
+
 class ObjKind(Enum):
     """Kinds of abstract heap objects."""
+
     INSTANCE = "instance"
     CLASS = "class"
     FUNCTION = "function"
@@ -107,10 +140,11 @@ class ObjKind(Enum):
 # FieldStore - DEPRECATED: Kept for backward compatibility
 # =============================================================================
 
+
 @dataclass
 class FieldStore:
     """Field store abstraction with bounded precise map + default bucket.
-    
+
     DEPRECATED: Use SlotMap instead. This class is kept for backward compatibility
     and will be removed in a future version. Use slotmap_from_fieldstore() and
     slotmap_to_fieldstore() for conversion.
@@ -127,11 +161,12 @@ class FieldStore:
         default_bucket: Value for unknown/untracked keys
         max_keys: Maximum number of tracked keys before spilling
     """
-    precise_map: Dict['Field', AbsVal] = field(default_factory=dict)
+
+    precise_map: Dict["Field", AbsVal] = field(default_factory=dict)
     default_bucket: AbsVal = field(default_factory=AbsVal.bottom)
     max_keys: int = 20
 
-    def copy(self) -> 'FieldStore':
+    def copy(self) -> "FieldStore":
         """Create a shallow copy."""
         return FieldStore(
             precise_map=dict(self.precise_map),
@@ -143,7 +178,7 @@ class FieldStore:
     # Read operations
     # -------------------------------------------------------------------------
 
-    def get_const(self, key: 'Field') -> AbsVal:
+    def get_const(self, key: "Field") -> AbsVal:
         """Get value for a constant field key (FSGet# for const string).
 
         Returns M[key] ⊔ def if key in M, else just def.
@@ -152,7 +187,7 @@ class FieldStore:
             return self.precise_map[key].join(self.default_bucket)
         return self.default_bucket
 
-    def get_keys(self, keys: FrozenSet['Field']) -> AbsVal:
+    def get_keys(self, keys: FrozenSet["Field"]) -> AbsVal:
         """Get value for a set of constant field keys."""
         result = AbsVal.bottom()
         for k in keys:
@@ -170,7 +205,7 @@ class FieldStore:
     # Write operations
     # -------------------------------------------------------------------------
 
-    def weak_set_const(self, key: 'Field', value: AbsVal) -> 'FieldStore':
+    def weak_set_const(self, key: "Field", value: AbsVal) -> "FieldStore":
         """Weak update for a constant key (FSWeakSet#).
 
         M[key] := M[key] ⊔ value
@@ -185,14 +220,14 @@ class FieldStore:
             new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
-    def weak_set_keys(self, keys: FrozenSet['Field'], value: AbsVal) -> 'FieldStore':
+    def weak_set_keys(self, keys: FrozenSet["Field"], value: AbsVal) -> "FieldStore":
         """Weak update for a set of constant keys."""
         new_fs = self.copy()
         for k in keys:
             new_fs = new_fs.weak_set_const(k, value)
         return new_fs
 
-    def weak_set_unknown(self, value: AbsVal) -> 'FieldStore':
+    def weak_set_unknown(self, value: AbsVal) -> "FieldStore":
         """Weak update for unknown key (updates def only).
 
         def := def ⊔ value
@@ -201,7 +236,7 @@ class FieldStore:
         new_fs.default_bucket = new_fs.default_bucket.join(value)
         return new_fs
 
-    def strong_set_const(self, key: 'Field', value: AbsVal) -> 'FieldStore':
+    def strong_set_const(self, key: "Field", value: AbsVal) -> "FieldStore":
         """Strong update for a constant key (FSStrongSet#).
 
         M[key] := value (replaces, doesn't join)
@@ -219,9 +254,9 @@ class FieldStore:
     # Lattice operations
     # -------------------------------------------------------------------------
 
-    def join(self, other: 'FieldStore') -> 'FieldStore':
+    def join(self, other: "FieldStore") -> "FieldStore":
         """Join two field stores (⊔)."""
-        new_map: Dict['Field', AbsVal] = {}
+        new_map: Dict["Field", AbsVal] = {}
         all_keys = set(self.precise_map.keys()) | set(other.precise_map.keys())
 
         for k in all_keys:
@@ -235,7 +270,7 @@ class FieldStore:
             max_keys=min(self.max_keys, other.max_keys),
         )
 
-    def leq(self, other: 'FieldStore') -> bool:
+    def leq(self, other: "FieldStore") -> bool:
         """Check if self ⊑ other."""
         if not self.default_bucket.leq(other.default_bucket):
             return False
@@ -245,7 +280,7 @@ class FieldStore:
                 return False
         return True
 
-    def widen(self, other: 'FieldStore') -> 'FieldStore':
+    def widen(self, other: "FieldStore") -> "FieldStore":
         """Widen field store (∇).
 
         Key explosion → spill to default bucket.
@@ -260,7 +295,7 @@ class FieldStore:
             to_spill = len(joined.precise_map) - joined.max_keys
 
             spilled_values = AbsVal.bottom()
-            new_map: Dict['Field', AbsVal] = {}
+            new_map: Dict["Field", AbsVal] = {}
 
             for i, (k, v) in enumerate(items):
                 if i < to_spill:
@@ -276,7 +311,7 @@ class FieldStore:
 
         return joined
 
-    def narrow(self, other: 'FieldStore') -> 'FieldStore':
+    def narrow(self, other: "FieldStore") -> "FieldStore":
         """Narrow field store (△).
 
         Meet the effective read values, including default-bucket coverage.
@@ -284,7 +319,7 @@ class FieldStore:
         A previously spilled value may be precise in ``other``. Intersecting
         only matching stored keys/defaults would drop that reachable value.
         """
-        new_map: Dict['Field', AbsVal] = {}
+        new_map: Dict["Field", AbsVal] = {}
         for k in self.precise_map.keys() | other.precise_map.keys():
             new_map[k] = self.get_const(k).meet(other.get_const(k))
 
@@ -301,12 +336,12 @@ class FieldStore:
         return len(self.precise_map) == 0 and self.default_bucket.is_bottom()
 
     @classmethod
-    def bottom(cls, max_keys: int = 20) -> 'FieldStore':
+    def bottom(cls, max_keys: int = 20) -> "FieldStore":
         """Create bottom field store."""
         return cls(default_bucket=AbsVal.bottom(), max_keys=max_keys)
 
     @classmethod
-    def top(cls, max_keys: int = 20) -> 'FieldStore':
+    def top(cls, max_keys: int = 20) -> "FieldStore":
         """Create top field store (unknown value for all keys)."""
         return cls(default_bucket=AbsVal.top(), max_keys=max_keys)
 
@@ -316,13 +351,13 @@ class FieldStore:
             parts.append(f"{k}: {v}")
         parts.append(f"*: {self.default_bucket}")
         return "{" + ", ".join(parts) + "}"
-    
+
     def to_slotmap(self) -> SlotMap:
         """Convert to unified SlotMap."""
         return slotmap_from_fieldstore(self)
-    
+
     @classmethod
-    def from_slotmap(cls, slots: SlotMap) -> 'FieldStore':
+    def from_slotmap(cls, slots: SlotMap) -> "FieldStore":
         """Create from unified SlotMap."""
         return slotmap_to_fieldstore(slots)
 
@@ -330,6 +365,7 @@ class FieldStore:
 # =============================================================================
 # ContainerSlots - Container-specific abstract storage
 # =============================================================================
+
 
 @dataclass
 class ContainerSlots:
@@ -343,15 +379,16 @@ class ContainerSlots:
 
     For v1 we use a simplified model with elem bucket + optional tracked indices.
     """
+
     # Element summary (all elements)
     elem_bucket: AbsVal = field(default_factory=AbsVal.bottom)
 
     # Tracked indices/keys (optional precision)
     tracked_indices: Dict[Union[int, str], AbsVal] = field(default_factory=dict)
-    
+
     # Length abstraction (simplified: just may-be-empty flag for now)
     may_be_empty: bool = True
-    
+
     # Maximum tracked indices
     max_tracked: int = 10
 
@@ -359,18 +396,19 @@ class ContainerSlots:
     length: IntLattice = field(default_factory=IntLattice.nonneg)
 
     @classmethod
-    def empty_sequence(cls) -> 'ContainerSlots':
+    def empty_sequence(cls) -> "ContainerSlots":
         return cls(length=IntLattice.const(0))
 
-    def append(self, value: AbsVal) -> 'ContainerSlots':
+    def append(self, value: AbsVal) -> "ContainerSlots":
         """Append one element to every represented concrete sequence."""
         result = self.set_elem(value)
         lo, hi = self.length.lo, self.length.hi
-        result.length = IntLattice.from_interval(None if lo is None else lo + 1,
-                                                None if hi is None else hi + 1)
+        result.length = IntLattice.from_interval(
+            None if lo is None else lo + 1, None if hi is None else hi + 1
+        )
         return result
 
-    def copy(self) -> 'ContainerSlots':
+    def copy(self) -> "ContainerSlots":
         """Create a shallow copy."""
         return ContainerSlots(
             elem_bucket=self.elem_bucket,
@@ -393,14 +431,14 @@ class ContainerSlots:
             return self.tracked_indices[idx].join(self.elem_bucket)
         return self.elem_bucket
 
-    def set_elem(self, value: AbsVal) -> 'ContainerSlots':
+    def set_elem(self, value: AbsVal) -> "ContainerSlots":
         """Add to elem bucket."""
         new_slots = self.copy()
         new_slots.elem_bucket = new_slots.elem_bucket.join(value)
         new_slots.may_be_empty = False
         return new_slots
 
-    def set_index(self, idx: Union[int, str], value: AbsVal) -> 'ContainerSlots':
+    def set_index(self, idx: Union[int, str], value: AbsVal) -> "ContainerSlots":
         """Set element at specific index."""
         new_slots = self.copy()
         if idx in new_slots.tracked_indices:
@@ -412,7 +450,7 @@ class ContainerSlots:
         new_slots.may_be_empty = False
         return new_slots
 
-    def join(self, other: 'ContainerSlots') -> 'ContainerSlots':
+    def join(self, other: "ContainerSlots") -> "ContainerSlots":
         """Join two container slots."""
         new_tracked: Dict[Union[int, str], AbsVal] = {}
         all_keys = set(self.tracked_indices.keys()) | set(other.tracked_indices.keys())
@@ -430,7 +468,7 @@ class ContainerSlots:
             length=IntDomain().join(self.length, other.length),
         )
 
-    def leq(self, other: 'ContainerSlots') -> bool:
+    def leq(self, other: "ContainerSlots") -> bool:
         """Compare every semantic component, including wildcard elements.
 
         The element bucket contributes to every index. A tracked value may
@@ -443,18 +481,19 @@ class ContainerSlots:
             return False
         if not self.elem_bucket.leq(other.elem_bucket):
             return False
-        return all(value.leq(other.get_index(index))
-                   for index, value in self.tracked_indices.items())
+        return all(
+            value.leq(other.get_index(index)) for index, value in self.tracked_indices.items()
+        )
 
-    def widen(self, other: 'ContainerSlots') -> 'ContainerSlots':
+    def widen(self, other: "ContainerSlots") -> "ContainerSlots":
         """Widen container slots (spill tracked to elem bucket)."""
         joined = self.join(other)
         integer = self.elem_bucket.registry.get("int") or IntDomain()
         joined.length = integer.widen(self.length, other.length)
         joined.elem_bucket = self.elem_bucket.widen(other.elem_bucket)
         joined.tracked_indices = {
-            key: self.get_index(key).widen(other.get_index(key))
-            for key in joined.tracked_indices}
+            key: self.get_index(key).widen(other.get_index(key)) for key in joined.tracked_indices
+        }
 
         if len(joined.tracked_indices) > joined.max_tracked:
             spilled = AbsVal.bottom()
@@ -470,7 +509,7 @@ class ContainerSlots:
 
         return joined
 
-    def narrow(self, other: 'ContainerSlots') -> 'ContainerSlots':
+    def narrow(self, other: "ContainerSlots") -> "ContainerSlots":
         """Narrow container slots (△).
 
         Meet effective index values, recovering any prior spill when needed.
@@ -494,6 +533,7 @@ class ContainerSlots:
 # AbsObj - Abstract heap object
 # =============================================================================
 
+
 def _default_slotmap() -> SlotMap:
     """Create default SlotMap for AbsObj."""
     return SlotMap.for_namespace()
@@ -502,14 +542,14 @@ def _default_slotmap() -> SlotMap:
 @dataclass
 class AbsObj:
     """Abstract heap object.
-    
+
     From ai_spec.md §3.5:
     - kind: Instance/Class/Function/Module/List/Dict/Set/Tuple/...
     - cls: class pointer(s)
     - slots: unified namespace/dict slots (SlotMap)
     - container_slots: kind-specific payload for containers
     - proto: protocol hooks summaries
-    
+
     Attributes:
         addr: Abstract address identifying this object
         kind: Type of object
@@ -517,13 +557,14 @@ class AbsObj:
         slots: Unified namespace/dict SlotMap (replaces dict_store + dict_slots)
         container_slots: Container-specific slots (for List/Set/Tuple)
     """
+
     addr: AIAddr
     kind: ObjKind
     cls_addrs: AddrSet = field(default_factory=frozenset)
     slots: SlotMap = field(default_factory=_default_slotmap)
     container_slots: Optional[ContainerSlots] = None
 
-    def copy(self) -> 'AbsObj':
+    def copy(self) -> "AbsObj":
         """Create a shallow copy."""
         return AbsObj(
             addr=self.addr,
@@ -533,7 +574,7 @@ class AbsObj:
             container_slots=self.container_slots.copy() if self.container_slots else None,
         )
 
-    def with_slots(self, new_slots: SlotMap) -> 'AbsObj':
+    def with_slots(self, new_slots: SlotMap) -> "AbsObj":
         """Return copy with updated slots."""
         obj = self.copy()
         obj.slots = new_slots
@@ -544,30 +585,30 @@ class AbsObj:
     def dict_store(self) -> FieldStore:
         """DEPRECATED: Access slots as FieldStore for backward compatibility."""
         return slotmap_to_fieldstore(self.slots)
-    
+
     @property
     def dict_slots(self) -> SlotMap:
         """DEPRECATED: dict_slots is now unified into slots."""
         return self.slots
-    
-    def with_dict_store(self, new_store: FieldStore) -> 'AbsObj':
+
+    def with_dict_store(self, new_store: FieldStore) -> "AbsObj":
         """DEPRECATED: Use with_slots() instead. Updates slots from FieldStore."""
         return self.with_slots(slotmap_from_fieldstore(new_store))
 
-    def with_dict_slots(self, new_slots: SlotMap) -> 'AbsObj':
+    def with_dict_slots(self, new_slots: SlotMap) -> "AbsObj":
         """DEPRECATED: Use with_slots() instead."""
         return self.with_slots(new_slots)
 
-    def with_container_slots(self, new_slots: ContainerSlots) -> 'AbsObj':
+    def with_container_slots(self, new_slots: ContainerSlots) -> "AbsObj":
         """Return copy with updated container slots."""
         obj = self.copy()
         obj.container_slots = new_slots
         return obj
 
-    def join(self, other: 'AbsObj') -> 'AbsObj':
+    def join(self, other: "AbsObj") -> "AbsObj":
         """Join two abstract objects (must have same addr)."""
         assert self.addr == other.addr
-        
+
         container = None
         if self.container_slots and other.container_slots:
             container = self.container_slots.join(other.container_slots)
@@ -584,10 +625,10 @@ class AbsObj:
             container_slots=container,
         )
 
-    def widen(self, other: 'AbsObj') -> 'AbsObj':
+    def widen(self, other: "AbsObj") -> "AbsObj":
         """Widen two abstract objects."""
         assert self.addr == other.addr
-        
+
         container = None
         if self.container_slots and other.container_slots:
             container = self.container_slots.widen(other.container_slots)
@@ -604,13 +645,13 @@ class AbsObj:
             container_slots=container,
         )
 
-    def narrow(self, other: 'AbsObj') -> 'AbsObj':
+    def narrow(self, other: "AbsObj") -> "AbsObj":
         """Narrow two abstract objects (△).
-        
+
         Refines by meeting (intersecting) components.
         """
         assert self.addr == other.addr
-        
+
         container = None
         if self.container_slots and other.container_slots:
             container = self.container_slots.narrow(other.container_slots)
@@ -626,26 +667,26 @@ class AbsObj:
             container_slots=container,
         )
 
-    def leq(self, other: 'AbsObj') -> bool:
+    def leq(self, other: "AbsObj") -> bool:
         """Check if self ⊑ other.
-        
+
         Component-wise partial order check.
         """
         # Check cls_addrs
         if not self.cls_addrs <= other.cls_addrs:
             return False
-        
+
         # Check slots
         if not self.slots.leq(other.slots):
             return False
-        
+
         # Check container_slots (if present in self, must be ⊑ other's)
         if self.container_slots is not None:
             if other.container_slots is None:
                 return False
             if not self.container_slots.leq(other.container_slots):
                 return False
-        
+
         return True
 
     def is_container(self) -> bool:

@@ -136,9 +136,7 @@ class CallableVal:
         if getattr(owner, "kind", None) != AllocKind.CLASS:
             return self
         receiver_addrs = frozenset(
-            obj
-            for obj in receiver.addrs
-            if getattr(obj, "kind", None) != AllocKind.CLASS
+            obj for obj in receiver.addrs if getattr(obj, "kind", None) != AllocKind.CLASS
         )
         if not receiver_addrs:
             return self

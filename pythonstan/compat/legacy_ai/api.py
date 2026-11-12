@@ -15,7 +15,19 @@ Exception Handling:
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, List, Optional, Protocol, Set, Tuple, Union, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Protocol,
+    Set,
+    Tuple,
+    Union,
+    runtime_checkable,
+)
 
 from pythonstan.analysis.contracts.budgets import AnalysisBudget
 
@@ -47,22 +59,25 @@ __all__ = [
 # PtaQuery Protocol - How AI queries PTA
 # =============================================================================
 
+
 @runtime_checkable
 class PtaQuery(Protocol):
     """Protocol for AI to query PTA's points-to and field information.
-    
+
     This is the minimal interface AI needs from PTA to interpret
     attribute access, subscript operations, and call resolution.
     """
 
-    def points_to(self, var: 'Variable', scope: 'Scope', context: 'AbstractContext') -> 'PointsToSet':
+    def points_to(
+        self, var: "Variable", scope: "Scope", context: "AbstractContext"
+    ) -> "PointsToSet":
         """Get points-to set for a variable in given scope/context.
-        
+
         Args:
             var: Variable to query
             scope: Scope containing the variable
             context: Analysis context
-            
+
         Returns:
             PointsToSet of abstract objects the variable may point to
         """
@@ -70,30 +85,30 @@ class PtaQuery(Protocol):
 
     def field_points_to(
         self,
-        obj: 'AbstractObject',
-        field: 'Field',
-        scope: 'Scope',
-        context: 'AbstractContext',
-    ) -> 'PointsToSet':
+        obj: "AbstractObject",
+        field: "Field",
+        scope: "Scope",
+        context: "AbstractContext",
+    ) -> "PointsToSet":
         """Get points-to set for an object's field.
-        
+
         Args:
             obj: Abstract object
             field: Field key (attr/key/elem)
             scope: Current scope
             context: Analysis context
-            
+
         Returns:
             PointsToSet of objects the field may point to
         """
         ...
 
-    def get_class_mro(self, cls_obj: 'AbstractObject') -> List['AbstractObject']:
+    def get_class_mro(self, cls_obj: "AbstractObject") -> List["AbstractObject"]:
         """Get MRO (method resolution order) for a class object.
-        
+
         Args:
             cls_obj: Class object
-            
+
         Returns:
             List of class objects in MRO order (most specific first)
         """
@@ -101,19 +116,19 @@ class PtaQuery(Protocol):
 
     def may_have_attr(
         self,
-        obj: 'AbstractObject',
+        obj: "AbstractObject",
         attr_name: str,
-        scope: 'Scope',
-        context: 'AbstractContext',
+        scope: "Scope",
+        context: "AbstractContext",
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
-        
+
         Args:
             obj: Object to check
             attr_name: Attribute name (e.g., "__get__", "__set__")
             scope: Current scope
             context: Analysis context
-            
+
         Returns:
             True if the object may have the attribute
         """
@@ -123,28 +138,28 @@ class PtaQuery(Protocol):
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: 'AbstractContext',
-        receiver_obj: Optional['AbstractObject'],
-        params: Optional[Tuple['AbstractObject', ...]] = None,
-    ) -> Optional['AbstractContext']:
+        caller_ctx: "AbstractContext",
+        receiver_obj: Optional["AbstractObject"],
+        params: Optional[Tuple["AbstractObject", ...]] = None,
+    ) -> Optional["AbstractContext"]:
         """Select context for a call site (kcfa policy aware).
-        
+
         Returns None if context selection is not available.
         """
         ...
 
     def get_function_cell_vars(
         self,
-        func_obj: 'AbstractObject',
-    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        func_obj: "AbstractObject",
+    ) -> Dict[str, FrozenSet["AbstractObject"]]:
         """Get cell variable bindings captured by a function object.
-        
+
         Cell variables are variables from enclosing scopes that are captured
         by the function for use in its body (closure variables).
-        
+
         Args:
             func_obj: Function object to query
-            
+
         Returns:
             Dict mapping cell variable names to their captured points-to sets
         """
@@ -152,15 +167,15 @@ class PtaQuery(Protocol):
 
     def get_function_global_vars(
         self,
-        func_obj: 'AbstractObject',
-    ) -> Dict[str, FrozenSet['AbstractObject']]:
+        func_obj: "AbstractObject",
+    ) -> Dict[str, FrozenSet["AbstractObject"]]:
         """Get global variable bindings accessible by a function object.
-        
+
         Global variables are module-level names that the function may read/write.
-        
+
         Args:
             func_obj: Function object to query
-            
+
         Returns:
             Dict mapping global variable names to their points-to sets
         """
@@ -171,21 +186,23 @@ class PtaQuery(Protocol):
 # Summary dataclasses - What AI returns to PTA
 # =============================================================================
 
+
 @dataclass(frozen=True)
 class FieldWrite:
     """Represents a may-write to an object field.
-    
+
     Semantics: field `obj_addrs.field_key` may contain `value_addrs`.
-    
+
     Attributes:
         obj_addrs: Set of abstract objects being written to
         field_key: Field being written (attr/key/elem/unknown)
         value_addrs: Set of abstract objects being written
     """
-    obj_addrs: FrozenSet['AbstractObject']
-    field_key: 'Field'
-    value_addrs: FrozenSet['AbstractObject']
-    value: Optional['AbsVal'] = None
+
+    obj_addrs: FrozenSet["AbstractObject"]
+    field_key: "Field"
+    value_addrs: FrozenSet["AbstractObject"]
+    value: Optional["AbsVal"] = None
 
     def __str__(self) -> str:
         objs = ", ".join(str(o) for o in self.obj_addrs)
@@ -196,18 +213,19 @@ class FieldWrite:
 @dataclass(frozen=True)
 class UnknownEffect:
     """Represents a scoped havoc effect from unknown/foreign calls.
-    
+
     Used when AI cannot precisely model a call but needs to stay sound.
     Instead of global havoc, we scope the effect to specific regions.
-    
+
     Attributes:
         kind: Type of effect (may_write, may_read, may_call)
         target_addrs: Objects affected
         field_key: Optional field affected (None = all fields)
     """
+
     kind: str  # "may_write", "may_read", "may_call"
-    target_addrs: FrozenSet['AbstractObject']
-    field_key: Optional['Field'] = None
+    target_addrs: FrozenSet["AbstractObject"]
+    field_key: Optional["Field"] = None
 
     def __str__(self) -> str:
         targets = ", ".join(str(t) for t in self.target_addrs)
@@ -218,10 +236,10 @@ class UnknownEffect:
 @dataclass
 class AISummary:
     """Summary of AI analysis for a callee/scope.
-    
+
     This is what AI returns to PTA. PTA compiles this into
     constraints/worklist seeds.
-    
+
     Attributes:
         ret: Return value as set of abstract objects
         writes: Field writes (may-write effects)
@@ -233,15 +251,16 @@ class AISummary:
             model and budget. This is not a soundness certificate for Python.
         incomplete_reasons: Why the observed facts may omit further effects.
     """
-    ret: FrozenSet['AbstractObject'] = field(default_factory=frozenset)
-    ret_value: Optional['AbsVal'] = None
+
+    ret: FrozenSet["AbstractObject"] = field(default_factory=frozenset)
+    ret_value: Optional["AbsVal"] = None
     normal_exit: bool = False
-    exit_state: Optional['AIState'] = None
+    exit_state: Optional["AIState"] = None
     prefix_exceptions: FrozenSet[str] = field(default_factory=frozenset)
-    exceptional_exit_states: Tuple[Tuple[str, 'AIState'], ...] = ()
+    exceptional_exit_states: Tuple[Tuple[str, "AIState"], ...] = ()
     writes: Tuple[FieldWrite, ...] = field(default_factory=tuple)
-    reads: Tuple[Tuple[FrozenSet['AbstractObject'], 'Field'], ...] = field(default_factory=tuple)
-    calls: Tuple[Tuple[str, FrozenSet['AbstractObject']], ...] = field(default_factory=tuple)
+    reads: Tuple[Tuple[FrozenSet["AbstractObject"], "Field"], ...] = field(default_factory=tuple)
+    calls: Tuple[Tuple[str, FrozenSet["AbstractObject"]], ...] = field(default_factory=tuple)
     unknown_effects: Tuple[UnknownEffect, ...] = field(default_factory=tuple)
     may_raise: FrozenSet[str] = field(default_factory=frozenset)
     is_complete: bool = True
@@ -256,23 +275,26 @@ class AISummary:
     def is_empty(self) -> bool:
         """Check if summary has no effects."""
         return (
-            len(self.ret) == 0 and
-            (self.ret_value is None or self.ret_value.is_bottom()) and
-            not self.normal_exit and
-            not self.prefix_exceptions and
-            len(self.writes) == 0 and
-            len(self.unknown_effects) == 0 and
-            len(self.reads) == 0 and
-            len(self.calls) == 0 and
-            len(self.may_raise) == 0 and
-            self.is_complete
+            len(self.ret) == 0
+            and (self.ret_value is None or self.ret_value.is_bottom())
+            and not self.normal_exit
+            and not self.prefix_exceptions
+            and len(self.writes) == 0
+            and len(self.unknown_effects) == 0
+            and len(self.reads) == 0
+            and len(self.calls) == 0
+            and len(self.may_raise) == 0
+            and self.is_complete
         )
 
-    def merge(self, other: 'AISummary') -> 'AISummary':
+    def merge(self, other: "AISummary") -> "AISummary":
         """Merge two summaries (join)."""
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
+
         left_value = self.ret_value if self.ret_value is not None else AbsVal.from_addrs(self.ret)
-        right_value = other.ret_value if other.ret_value is not None else AbsVal.from_addrs(other.ret)
+        right_value = (
+            other.ret_value if other.ret_value is not None else AbsVal.from_addrs(other.ret)
+        )
         exit_state = self.exit_state
         if exit_state is None:
             exit_state = other.exit_state
@@ -291,9 +313,9 @@ class AISummary:
             unknown_effects=self.unknown_effects + other.unknown_effects,
             may_raise=self.may_raise | other.may_raise,
             is_complete=self.is_complete and other.is_complete,
-            incomplete_reasons=tuple(dict.fromkeys(
-                self.incomplete_reasons + other.incomplete_reasons
-            )),
+            incomplete_reasons=tuple(
+                dict.fromkeys(self.incomplete_reasons + other.incomplete_reasons)
+            ),
         )
 
     def __str__(self) -> str:
@@ -311,29 +333,30 @@ class AISummary:
 # Input bindings and budget
 # =============================================================================
 
+
 @dataclass
 class ArgBinding:
     """Binding of a formal parameter to input points-to set and optional domain value.
-    
+
     When `value` is provided, it takes precedence over `points_to` for creating
     the initial AIState. This allows passing domain facts (e.g., constant strings
     for attribute names in getattr/setattr).
-    
+
     Attributes:
         param_name: Formal parameter name
         points_to: Points-to set from caller arguments (fallback if value is None)
         value: Optional full AbsVal including domain components
     """
+
     param_name: str
-    points_to: FrozenSet['AbstractObject']
-    value: Optional['AbsVal'] = None  # When set, used instead of just points_to
-
-
+    points_to: FrozenSet["AbstractObject"]
+    value: Optional["AbsVal"] = None  # When set, used instead of just points_to
 
 
 # =============================================================================
 # AISummaryEngine - Entry point
 # =============================================================================
+
 
 class AISummaryEngine:
     """Source-backed compatibility facade over the sole shared abstract driver.
@@ -342,58 +365,129 @@ class AISummaryEngine:
     inspectable compatibility field, but no caller/heap-dependent result is
     reused without a complete dependency protocol.
     """
-    def __init__(self,pta_query,budget=None,solver_config=None,work_ledger=None):
+
+    def __init__(self, pta_query, budget=None, solver_config=None, work_ledger=None):
         from copy import deepcopy
-        self.pta_query=pta_query
-        self.budget=deepcopy(budget) if budget is not None else AnalysisBudget()
-        self.solver_config=deepcopy(solver_config)
+
+        self.pta_query = pta_query
+        self.budget = deepcopy(budget) if budget is not None else AnalysisBudget()
+        self.solver_config = deepcopy(solver_config)
         from pythonstan.compat.shared_ai import options
+
         # Configuration errors precede driver construction and are independent
         # of the host runtime exception fallback policy.
-        options(self.budget,self.solver_config)
-        self.work_ledger=work_ledger
-        self._summary_cache={}
+        options(self.budget, self.solver_config)
+        self.work_ledger = work_ledger
+        self._summary_cache = {}
 
-    def analyze_callee(self,scope_ir,call_context,arg_bindings,caller_scope=None,recursion_depth=0,caller_state=None):
+    def analyze_callee(
+        self,
+        scope_ir,
+        call_context,
+        arg_bindings,
+        caller_scope=None,
+        recursion_depth=0,
+        caller_state=None,
+    ):
         from pythonstan.compat.legacy_ai.state import AIState
         from pythonstan.compat.shared_ai import execute_scope
-        initial=AIState.from_arg_bindings(arg_bindings,self.pta_query,self.budget)
+
+        initial = AIState.from_arg_bindings(arg_bindings, self.pta_query, self.budget)
         if caller_state is not None:
-            parameters=initial.env
-            initial=caller_state.copy();initial.env=parameters
-            initial.pta_query=self.pta_query;initial.budget=self.budget
+            parameters = initial.env
+            initial = caller_state.copy()
+            initial.env = parameters
+            initial.pta_query = self.pta_query
+            initial.budget = self.budget
         try:
-            result,_,_,_=execute_scope(scope_ir,initial,self.pta_query,self.budget,caller_scope,call_context,self.solver_config,self.work_ledger)
+            result, _, _, _ = execute_scope(
+                scope_ir,
+                initial,
+                self.pta_query,
+                self.budget,
+                caller_scope,
+                call_context,
+                self.solver_config,
+                self.work_ledger,
+            )
             return result
         except Exception as error:
-            if self.budget.strict_exceptions:raise
-            logger.warning("Shared AI analysis failed for %s: %s",getattr(scope_ir,"qualname","<unknown>"),error,exc_info=True)
-            return self._conservative_summary(initial,call_context,reason=type(error).__name__+':'+str(error))
+            if self.budget.strict_exceptions:
+                raise
+            logger.warning(
+                "Shared AI analysis failed for %s: %s",
+                getattr(scope_ir, "qualname", "<unknown>"),
+                error,
+                exc_info=True,
+            )
+            return self._conservative_summary(
+                initial, call_context, reason=type(error).__name__ + ":" + str(error)
+            )
 
-    def analyze_intrinsic(self,builtin_name,call_context,arg_bindings,caller_scope=None,target_name=None):
+    def analyze_intrinsic(
+        self, builtin_name, call_context, arg_bindings, caller_scope=None, target_name=None
+    ):
         from pythonstan.compat.shared_ai import execute_intrinsic
         from pythonstan.compat.legacy_ai.state import AIState
-        try:return execute_intrinsic(builtin_name,arg_bindings,self.pta_query,self.budget,caller_scope,call_context,self.solver_config,self.work_ledger)
+
+        try:
+            return execute_intrinsic(
+                builtin_name,
+                arg_bindings,
+                self.pta_query,
+                self.budget,
+                caller_scope,
+                call_context,
+                self.solver_config,
+                self.work_ledger,
+            )
         except Exception as error:
-            if self.budget.strict_exceptions:raise
-            logger.warning("Shared intrinsic failed for %s: %s",builtin_name,error,exc_info=True)
-            return self._conservative_summary(AIState.from_arg_bindings(arg_bindings,self.pta_query,self.budget),call_context,reason=type(error).__name__+':'+str(error))
+            if self.budget.strict_exceptions:
+                raise
+            logger.warning("Shared intrinsic failed for %s: %s", builtin_name, error, exc_info=True)
+            return self._conservative_summary(
+                AIState.from_arg_bindings(arg_bindings, self.pta_query, self.budget),
+                call_context,
+                reason=type(error).__name__ + ":" + str(error),
+            )
 
-    def invalidate_cache(self):self._summary_cache.clear()
+    def invalidate_cache(self):
+        self._summary_cache.clear()
 
-    def _conservative_summary(self,initial=None,context=None,reason="analysis_error"):
+    def _conservative_summary(self, initial=None, context=None, reason="analysis_error"):
         from pythonstan.compat.legacy_ai.state import AIState
         from pythonstan.compat.legacy_ai.value_domain import AbsVal
-        from pythonstan.analysis.pointer.kcfa.object import UnknownValue,AllocSite,AllocKind
+        from pythonstan.analysis.pointer.kcfa.object import UnknownValue, AllocSite, AllocKind
         from pythonstan.analysis.pointer.kcfa.context import CallStringContext
-        initial=(initial or AIState(pta_query=self.pta_query,budget=self.budget)).copy()
-        targets=set(initial.overlay_havoc)
-        for value in (*initial.env.values(),*initial.overlay.values(),*initial.shared_bindings.values()):targets.update(value.addrs)
-        initial.overlay_havoc|=targets
-        initial.shared_bindings={key:AbsVal.top(initial.registry) for key in initial.shared_bindings}
-        unknown=UnknownValue(context or CallStringContext(),AllocSite("shared-unavailable",AllocKind.UNKNOWN))
-        value=AbsVal.top(initial.registry).with_addrs(frozenset((unknown,)))
-        return AISummary(ret=value.addrs,ret_value=value,normal_exit=True,exit_state=initial,
-            unknown_effects=tuple(UnknownEffect(kind,frozenset(targets)) for kind in ("may_read","may_write","may_call")),
-            may_raise=frozenset(("BaseException",)),prefix_exceptions=frozenset(("BaseException",)),
-            exceptional_exit_states=(("BaseException",initial.copy()),),is_complete=False,incomplete_reasons=(reason,))
+
+        initial = (initial or AIState(pta_query=self.pta_query, budget=self.budget)).copy()
+        targets = set(initial.overlay_havoc)
+        for value in (
+            *initial.env.values(),
+            *initial.overlay.values(),
+            *initial.shared_bindings.values(),
+        ):
+            targets.update(value.addrs)
+        initial.overlay_havoc |= targets
+        initial.shared_bindings = {
+            key: AbsVal.top(initial.registry) for key in initial.shared_bindings
+        }
+        unknown = UnknownValue(
+            context or CallStringContext(), AllocSite("shared-unavailable", AllocKind.UNKNOWN)
+        )
+        value = AbsVal.top(initial.registry).with_addrs(frozenset((unknown,)))
+        return AISummary(
+            ret=value.addrs,
+            ret_value=value,
+            normal_exit=True,
+            exit_state=initial,
+            unknown_effects=tuple(
+                UnknownEffect(kind, frozenset(targets))
+                for kind in ("may_read", "may_write", "may_call")
+            ),
+            may_raise=frozenset(("BaseException",)),
+            prefix_exceptions=frozenset(("BaseException",)),
+            exceptional_exit_states=(("BaseException", initial.copy()),),
+            is_complete=False,
+            incomplete_reasons=(reason,),
+        )
