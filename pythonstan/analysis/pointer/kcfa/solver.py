@@ -8,66 +8,103 @@ from __future__ import annotations
 
 import ast
 import logging
-import warnings
 import time
 from collections import deque
+from collections.abc import Callable, Sized
 from collections.abc import Iterable as ObjectIterable
-from typing import Literal
-from typing import Set, Dict, Any, TYPE_CHECKING, Optional, List, Tuple, Iterable, Union
+from typing import TYPE_CHECKING, Literal
 
+from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.compat.intrinsic_boundary import IntrinsicProviderPort
 from pythonstan.ir.ir_statements import (
-    IRScope,
-    IRFunc,
-    IRModule,
-    IRClass,
-    IRCall,
-    IRLoadAttr,
-    IRStoreAttr,
-    IRLoadSubscr,
-    IRStoreSubscr,
     IRAssign,
-    IRCopy,
+    IRClass,
+    IRFunc,
+    IRImport,
+    IRModule,
+    IRScope,
+    IRStoreSubscr,
 )
 
-from .state import PointerAnalysisState, PointsToSet, Worklist
-from .constraints import *
-from .variable import Variable, VariableKind, VariableFactory, FieldAccess
-from .config import Config
-from .heap_model import Field, FieldKind, attr, key, elem, value, wildcard_key
-from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge, CallKind
-from .ir_translator import IRTranslator
-from .context_selector import ContextSelector, AbstractContext
-from .context import Ctx, Scope, CallSite, NativeContext, is_native_context, ordered_binding_token
-from .class_hierarchy import ClassHierarchyManager
-from .builtin_api_handler import BuiltinSummaryManager
-from .unknown_tracker import UnknownTracker, UnknownKind
-from .object import *
-from .object import ObjectFactory
-from .solver_interface import ISolverQuery
-from .pointer_flow_graph import (
-    PointerFlowGraph,
-    PointerFlowEdge,
-    PointerFlowNode,
-    NormalNode,
-    GuardNode,
-    SelectorNode,
-    PointerFlowKind,
-)
-from .processor import Processor
+from . import debug_boundary
 from .bootstrap import (
     bind_native_solver_contract,
-    bootstrap_statistics,
     validate_bootstrap_contract,
 )
+from .builtin_api_handler import BuiltinSummaryManager
+from .class_hierarchy import ClassHierarchyManager
+from .config import Config
+from .constraints import (
+    AllocConstraint,
+    AttrReadConstraint,
+    AttrWriteConstraint,
+    CallConstraint,
+    Constraint,
+    CopyConstraint,
+    InheritanceConstraint,
+    LoadConstraint,
+    LoadSubscrConstraint,
+    MappingCopyConstraint,
+    OperatorProtocolConstraint,
+    ResidualEffectConstraint,
+    SpecialMethodLookupConstraint,
+    StoreConstraint,
+    StoreSubscrConstraint,
+    TruthTestConstraint,
+)
+from .context import CallSite, Ctx, NativeContext, Scope, is_native_context, ordered_binding_token
+from .context_selector import ContextSelector
 from .diagnostics import NativeDiagnostics
-from .scheduler import NativeScheduler
-from pythonstan.world import World
-from pythonstan.analysis.contracts.work import WorkLedgerPort
-from pythonstan.compat.intrinsic_boundary import IntrinsicProviderPort
+from .heap_model import Field, FieldKind, attr, elem, wildcard_key
+from .ir_translator import IRTranslator
+from .object import (
+    AbstractObject,
+    AllocKind,
+    AllocSite,
+    AsyncGeneratorObject,
+    BuiltinClassObject,
+    BuiltinFunctionObject,
+    BuiltinInstanceObject,
+    BuiltinMethodObject,
+    BuiltinObject,
+    ClassObject,
+    ConstantObject,
+    CoroutineObject,
+    DictObject,
+    FunctionObject,
+    GeneratorObject,
+    InstanceObject,
+    ListObject,
+    MappingItemObject,
+    MethodObject,
+    ModuleObject,
+    SetObject,
+    TupleObject,
+    UnknownValue,
+)
+from .pointer_flow_graph import (
+    GuardNode,
+    NormalNode,
+    PointerFlowEdge,
+    PointerFlowKind,
+    PointerFlowNode,
+    propagation_pair,
+)
+from .points_to_set import PointsToSet
+from .processor import Processor
 from .pta_query_adapter import PtaQueryAdapter
+from .query import SolverQuery as SolverQuery
+from .scheduler import NativeScheduler, NativeWorkKind
+from .solver_interface import ISolverQuery
+from .solver_statistics import NativeSolverStatistics
+from .state import PointerAnalysisState, Worklist
+from .unknown_tracker import UnknownKind, UnknownTracker
+from .variable import FieldAccess, Variable, VariableFactory, VariableKind
 
 if TYPE_CHECKING:
-    from .debug_monitor import DebugMonitor
+    from .processor.construction_hooks import SetNameKey
+    from .processor.keyword_expansion import KeywordExpansions
+    from .processor.type_protocol import InstanceMethodKey
 
 __all__ = ["PointerSolver", "SolverQuery"]
 
@@ -75,10 +112,16 @@ logger = logging.getLogger(__name__)
 
 
 type NativeBuiltinInvocation = tuple[Scope, CallConstraint, AbstractObject]
-type NativeWatchedVariable = Ctx[Variable] | Ctx[FieldAccess]
+type NativeWatchedVariable = Ctx[Variable | FieldAccess]
 
 
 class PointerSolver:
+    _type_protocol_calls: set[InstanceMethodKey]
+    _construction_statements: set[ClassObject]
+    _construction_set_name_sources: set[SetNameKey]
+    _class_metaclass_reads: set[tuple[Scope, ClassObject, Field, Variable, CallSite]]
+    _metaclass_call_subscriptions: set[tuple[Scope, CallConstraint, ClassObject]]
+    _keyword_expansions: KeywordExpansions
     intrinsic_provider: IntrinsicProviderPort | None
     _diagnostics: NativeDiagnostics | None
     _builtin_dependencies: dict[NativeWatchedVariable, set[NativeBuiltinInvocation]]
@@ -88,21 +131,30 @@ class PointerSolver:
     ]
     _builtin_replays: deque[NativeBuiltinInvocation]
     _queued_builtin_replays: set[NativeBuiltinInvocation]
+    _definition_objects: dict[tuple[object, ...], MethodObject | FunctionObject | ClassObject]
+    _constraint_replays: deque[tuple[Scope, NativeWatchedVariable, Constraint, PointsToSet]]
+    _unknown_results: dict[tuple[Scope, CallConstraint], UnknownValue]
+    _modules: set[IRModule]
+    _package_module_bindings: set[tuple[ModuleObject, ModuleObject]]
+    _canonical_module_objects: dict[IRScope, ModuleObject] | None
+    _work_step_observer: Callable[[JsonObject], object] | None
+    _inspector_table_generation: int | None
+    _inspector_cold_checkpoint: Callable[[PointerSolver], object] | None
     _WORK_KIND_ORDER = NativeScheduler.KIND_ORDER
 
     def __init__(
         self,
-        state: "PointerAnalysisState",
-        config: "Config",
-        processor: "Processor",
-        variable_factory: Optional["VariableFactory"] = None,
-        ir_translator: Optional["IRTranslator"] = None,
-        context_selector: Optional["ContextSelector"] = None,
-        class_hierarchy: Optional["ClassHierarchyManager"] = None,
-        builtin_manager: Optional["BuiltinSummaryManager"] = None,
-        debug_monitor: "DebugMonitor" = None,
-        intrinsic_provider=None,
-    ):
+        state: PointerAnalysisState,
+        config: Config,
+        processor: Processor,
+        variable_factory: VariableFactory | None = None,
+        ir_translator: IRTranslator | None = None,
+        context_selector: ContextSelector | None = None,
+        class_hierarchy: ClassHierarchyManager | None = None,
+        builtin_manager: BuiltinSummaryManager | None = None,
+        debug_monitor: object | None = None,
+        intrinsic_provider: IntrinsicProviderPort | None = None,
+    ) -> None:
         """Initialize solver.
 
         Args:
@@ -115,6 +167,9 @@ class PointerSolver:
             builtin_manager: Builtin summary manager
             debug_monitor: Optional debug monitor for tracking
         """
+        self.entrance_predicate: Callable[[IRFunc], bool] | None = None
+        self.constraint_observer: Callable[[Scope, NativeContext, Constraint], None] | None = None
+        self.fixpoint_observer: Callable[[], None] | None = None
         self.state = state
         self.config = config
         self.scheduler = NativeScheduler(config.work_scheduling_policy)
@@ -123,10 +178,7 @@ class PointerSolver:
         self.work_ledger = SharedWorkLedger()
         self.intrinsic_provider = intrinsic_provider
         self.intrinsic_seconds = 0.0
-        if (
-            config.points_work_policy == "fifo"
-            and getattr(state, "_consumer_worklist", None) is not None
-        ):
+        if config.points_work_policy == "fifo" and state._consumer_worklist is not None:
             raise ValueError("points_work_policy is fixed for a configured analysis state")
         if config.points_work_policy == "consumer_fair":
             from .worklist import ConsumerFairWorklist
@@ -187,13 +239,13 @@ class PointerSolver:
         # Unlike selected-work statistics, these admission clocks survive a
         # legacy iter() reset. Early publications must remain accountable.
         self._bootstrap_publications = 0
-        self._bootstrap_contract_signature = None
+        self._bootstrap_contract_signature: tuple[object, ...] | None = None
         self._bootstrap_invalid = False
         self._reset()
 
     def _reset(self) -> None:
         self._iteration = 0
-        self._stats: Dict[str, Any] = {
+        self._stats: NativeSolverStatistics = {
             "iterations": 0,
             "constraints_applied": 0,
             "converged": 0,
@@ -217,20 +269,20 @@ class PointerSolver:
             "points_work_policy": self.config.points_work_policy,
             "work_scheduler_kind_order": list(self._WORK_KIND_ORDER),
             "work_scheduler_cursor": self._work_scheduler_cursor,
-            "work_kind_first_service_iteration": {kind: None for kind in self._WORK_KIND_ORDER},
+            "work_kind_first_service_iteration": dict.fromkeys(self._WORK_KIND_ORDER, None),
             "configuration_diagnostics": self.config.configuration_diagnostics(),
         }
         self._modules = set()
         self._canonical_module_objects = None
         self._package_module_bindings = set()
         self._package_binding_version = -1
-        self._non_callable_evidence: Dict[
-            Tuple["Ctx[Any]", "Scope", "CallConstraint"], Set[str]
+        self._non_callable_evidence: dict[
+            tuple[NativeWatchedVariable, Scope, CallConstraint], set[str]
         ] = {}
 
-    def add_constraint(
-        self, scope: "Scope", context: "AbstractContext", constraint: "Constraint"
-    ) -> None:
+    def add_constraint(self, scope: Scope, context: NativeContext, constraint: Constraint) -> None:
+        if self.constraint_observer is not None:
+            self.constraint_observer(scope, context, constraint)
         if isinstance(constraint, (TruthTestConstraint, OperatorProtocolConstraint)):
             trigger = self.state.get_variable(scope, context, constraint.base)
             self._register_dynamic_constraint(scope, trigger, constraint)
@@ -261,15 +313,10 @@ class PointerSolver:
         if self.processor.handle_new_constraint(self, scope, constraint):
             return
 
-        if isinstance(constraint, CopyConstraint):
-            self.state._static_constraints.append((scope, context, constraint))
-        elif isinstance(constraint, AllocConstraint):
+        if isinstance(constraint, (CopyConstraint, AllocConstraint)):
             self.state._static_constraints.append((scope, context, constraint))
         else:
-            if isinstance(constraint, LoadConstraint):
-                base = self.state.get_variable(scope, context, constraint.base)
-                self._register_dynamic_constraint(scope, base, constraint)
-            elif isinstance(constraint, StoreConstraint):
+            if isinstance(constraint, (LoadConstraint, StoreConstraint)):
                 base = self.state.get_variable(scope, context, constraint.base)
                 self._register_dynamic_constraint(scope, base, constraint)
             elif isinstance(constraint, CallConstraint):
@@ -280,7 +327,7 @@ class PointerSolver:
                 self._register_dynamic_constraint(scope, base, constraint)
 
     def _register_dynamic_constraint(
-        self, scope: "Scope", trigger: "Ctx[Any]", constraint: "Constraint"
+        self, scope: Scope, trigger: NativeWatchedVariable, constraint: Constraint
     ) -> None:
         """Subscribe to future facts and replay facts already seen by a new rule.
 
@@ -364,7 +411,7 @@ class PointerSolver:
             self._queued_builtin_replays.add(invocation)
             self._builtin_replays.append(invocation)
 
-    def _schedule_builtin_dependents(self, variable):
+    def _schedule_builtin_dependents(self, variable: NativeWatchedVariable) -> None:
         invocations = set(self._builtin_dependencies.get(variable, ()))
         if isinstance(variable.content, FieldAccess):
             invocations.update(self._builtin_object_dependencies.get(variable.content.obj, ()))
@@ -377,6 +424,8 @@ class PointerSolver:
                 self._stats["builtin_replay_notifications_coalesced"] += 1
 
     def solve_to_fixpoint(self) -> None:
+        if self.fixpoint_observer is not None:
+            self.fixpoint_observer()
         logger.info("Starting constraint solving")
         for _ in self:
             # Cold owner-thread checkpoint: the atomic __next__ operation has
@@ -384,7 +433,7 @@ class PointerSolver:
             self._run_inspector_cold_checkpoint()
             # Update debug monitor iteration
             if self._debug_monitor:
-                self._debug_monitor.set_iteration(self._iteration)
+                debug_boundary.set_iteration(self._debug_monitor, self._iteration)
             # Log progress periodically
             log_interval = (
                 self.config.debug_log_interval if self.config.enable_debug_monitor else 1000
@@ -446,7 +495,7 @@ class PointerSolver:
                 self._stats["pending_work"],
             )
 
-    def __iter__(self):
+    def __iter__(self) -> PointerSolver:
         validate_bootstrap_contract(self)
         # Legacy clients historically start a new statistics/budget window on
         # iter(). Fair continuation cannot renew its budget or cursor that way.
@@ -458,7 +507,7 @@ class PointerSolver:
         self._work_iteration_started = True
         return self
 
-    def set_work_step_observer(self, observer):
+    def set_work_step_observer(self, observer: Callable[[JsonObject], object] | None) -> None:
         """Install a trusted passive diagnostic, called after an atomic step.
 
         The observation contains only scalar clocks and queue lengths. It does
@@ -473,8 +522,15 @@ class PointerSolver:
         self._work_step_observer = observer
 
     def enable_inspector_diagnostics(
-        self, mode, run_id, selector=None, *, max_events=256, max_bytes=262144, max_refs=512
-    ):
+        self,
+        mode: str,
+        run_id: str,
+        selector: object = None,
+        *,
+        max_events: int = 256,
+        max_bytes: int = 262144,
+        max_refs: int = 512,
+    ) -> None:
         """Configure the native memory-only port before initialization/work.
 
         Pure counters neither enable capture boundaries nor install an observer.
@@ -489,15 +545,15 @@ class PointerSolver:
             mode, run_id, selector, max_events=max_events, max_bytes=max_bytes, max_refs=max_refs
         )
 
-    def get_inspector_counters(self):
+    def get_inspector_counters(self) -> JsonObject:
         """Constant-size scalar observation; never traverse facts or inventory."""
         port = self._diagnostics
-        native = {
+        native: JsonObject = {
             "scope": "current_selected_budget_window",
             "selected_work_items": self._iteration,
             "bootstrap_publications_run": self._bootstrap_publications,
             "logical_work_items_mixed_scope": self._iteration + self._bootstrap_publications,
-            "pending_work_by_kind": self._pending_work_by_kind(),
+            "pending_work_by_kind": dict(self._pending_work_by_kind()),
             "converged": bool(self._stats.get("converged")),
             "iteration_limit_reached": bool(self._stats.get("iteration_limit_reached")),
         }
@@ -589,7 +645,7 @@ class PointerSolver:
             "cold_checkpoint_failures": self._inspector_cold_failures,
         }
 
-    def drain_inspector_events(self):
+    def drain_inspector_events(self) -> JsonObject:
         if self._diagnostics is None:
             return {
                 "schema_version": 1,
@@ -602,10 +658,16 @@ class PointerSolver:
             }
         return self._diagnostics.drain()
 
-    def resolve_inspector_event_ref(self, run_ref):
+    def resolve_inspector_event_ref(self, run_ref: object) -> object | None:
         return self._diagnostics.resolve(run_ref) if self._diagnostics is not None else None
 
-    def set_inspector_cold_checkpoint(self, callback, *, work_interval=1024, seconds=1.0):
+    def set_inspector_cold_checkpoint(
+        self,
+        callback: Callable[[PointerSolver], object] | None,
+        *,
+        work_interval: int = 1024,
+        seconds: float = 1.0,
+    ) -> None:
         """Install a cold bridge only for queued/targeted or capture paths."""
         if callback is not None and not callable(callback):
             raise ValueError("cold checkpoint must be callable or None")
@@ -633,7 +695,7 @@ class PointerSolver:
         self._inspector_cold_last_work = self._iteration
         self._inspector_cold_last_time = time.monotonic()
 
-    def _run_inspector_cold_checkpoint(self, force=False):
+    def _run_inspector_cold_checkpoint(self, force: bool = False) -> None:
         callback = self._inspector_cold_checkpoint
         if callback is None:
             return
@@ -653,7 +715,7 @@ class PointerSolver:
         except Exception:
             self._inspector_cold_failures += 1
 
-    def _queues(self):
+    def _queues(self) -> tuple[Sized, Sized, Sized, Sized]:
         return (
             self.state._static_constraints,
             self._constraint_replays,
@@ -661,16 +723,16 @@ class PointerSolver:
             self.state._worklist,
         )
 
-    def _select_work_kind(self):
+    def _select_work_kind(self) -> NativeWorkKind | None:
         kind, self._work_scheduler_cursor = self.scheduler.select(
             self._queues(), self._work_scheduler_cursor, policy=self.config.work_scheduling_policy
         )
         return kind
 
-    def _pop_scheduled(self, queue):
+    def _pop_scheduled[T](self, queue: deque[T]) -> T:
         return self.scheduler.pop(queue, policy=self.config.work_scheduling_policy)
 
-    def _finish_work_step(self, kind, result):
+    def _finish_work_step[T](self, kind: NativeWorkKind, result: T) -> T:
         validate_bootstrap_contract(self)
         first = self._stats["work_kind_first_service_iteration"]
         if first[kind] is None:
@@ -684,12 +746,12 @@ class PointerSolver:
                     "iteration": self._iteration,
                     "kind": kind,
                     "cursor": self._work_scheduler_cursor,
-                    "pending_work_by_kind": self._pending_work_by_kind(),
+                    "pending_work_by_kind": dict(self._pending_work_by_kind()),
                 }
             )
         return result
 
-    def __next__(self) -> "PointerAnalysisState":
+    def __next__(self) -> PointerAnalysisState | None:
         """Advance one item and publish whether the resulting cut is safe.
 
         Finalization can recursively request another item. The outermost call
@@ -730,7 +792,7 @@ class PointerSolver:
                 if outermost:
                     self._inspector_boundary = "aborted_step"
 
-    def enable_inspector_boundaries(self):
+    def enable_inspector_boundaries(self) -> None:
         """Opt in before solving, without importing the optional inspector.
 
         A late request cannot retrospectively certify earlier work boundaries.
@@ -746,7 +808,7 @@ class PointerSolver:
             raise ValueError("inspector boundaries must be enabled before solving")
         self._inspector_enabled = True
 
-    def _next_work_item(self) -> "PointerAnalysisState":
+    def _next_work_item(self) -> PointerAnalysisState | None:
         validate_bootstrap_contract(self)
         if (
             (self._pending_work_count() > 0)
@@ -764,19 +826,21 @@ class PointerSolver:
                 raise RuntimeError("Native work admission invariant failed")
             self._iteration += 1
             kind = self._select_work_kind()
+            if kind is None:
+                raise RuntimeError("Pending Native work has no selected work kind")
             if self._diagnostics is not None:
                 self._diagnostics.work_selected(kind)
             if kind == "static":
                 self._stats["work_items_static"] += 1
                 scope, ctx, constraint = self._pop_scheduled(self.state._static_constraints)
-                result = self._apply_static(scope, ctx, constraint)
-                return self._finish_work_step(kind, result)
-            elif kind == "constraint_replay":
+                self._apply_static(scope, ctx, constraint)
+                return self._finish_work_step(kind, None)
+            if kind == "constraint_replay":
                 self._stats["work_items_constraint_replay"] += 1
                 scope, trigger, constraint, pts = self._pop_scheduled(self._constraint_replays)
                 self._apply_constraint(scope, trigger, constraint, pts)
                 return self._finish_work_step(kind, self.state)
-            elif kind == "builtin_replay":
+            if kind == "builtin_replay":
                 self._stats["work_items_builtin_replay"] += 1
                 invocation = self._pop_scheduled(self._builtin_replays)
                 self._queued_builtin_replays.remove(invocation)
@@ -785,14 +849,14 @@ class PointerSolver:
                 self._stats["builtin_dependency_replays"] += 1
                 self._apply_call(scope, trigger, call, PointsToSet.singleton(builtin_obj))
                 return self._finish_work_step(kind, self.state)
-            elif kind == "points_to":
+            if kind == "points_to":
                 self._stats["work_items_points_to"] += 1
                 import time
 
                 start_time = time.time()
 
-                scope, node, pts = self.state._worklist.pop()
-                result, num_pts, num_constraint = self._apply_dynamic(scope, node, pts)
+                points_scope, node, pts = self.state._worklist.pop()
+                result, num_pts, num_constraint = self._apply_dynamic(points_scope, node, pts)
 
                 time_taken = time.time() - start_time
                 if time_taken > 1 and isinstance(node, NormalNode):
@@ -808,11 +872,19 @@ class PointerSolver:
         self._stats["pending_work_by_kind"] = self._pending_work_by_kind()
         self._stats["converged"] = int(pending_work == 0)
         self._stats["iteration_limit_reached"] = int(pending_work != 0)
-        if getattr(self.state, "_consumer_worklist", None) is not None:
+        consumer_worklist = self.state._consumer_worklist
+        if consumer_worklist is not None:
+            queue_stats = consumer_worklist.diagnostics()
             self._stats.update(
                 {
-                    "points_queue_" + key: value
-                    for key, value in self.state._consumer_worklist.diagnostics().items()
+                    "points_queue_points_work_policy": queue_stats["points_work_policy"],
+                    "points_queue_hot_quota": queue_stats["hot_quota"],
+                    "points_queue_pending_hot": queue_stats["pending_hot"],
+                    "points_queue_pending_cold": queue_stats["pending_cold"],
+                    "points_queue_hot_pops": queue_stats["hot_pops"],
+                    "points_queue_cold_pops": queue_stats["cold_pops"],
+                    "points_queue_promotions": queue_stats["promotions"],
+                    "points_queue_cold_seed_nodes": queue_stats["cold_seed_nodes"],
                 }
             )
         if pending_work:
@@ -838,13 +910,13 @@ class PointerSolver:
             + len(self._builtin_replays)
         )
 
-    def _pending_work_by_kind(self) -> Dict[str, int]:
+    def _pending_work_by_kind(self) -> dict[str, int]:
         """Constant-size queue observation; never enumerate or consume work."""
         return self.scheduler.pending(self._queues())
 
     def _apply_dynamic(
-        self, scope: "Scope", node: "PointerFlowNode", pts: "PointsToSet"
-    ) -> "PointerAnalysisState":
+        self, scope: Scope | None, node: PointerFlowNode, pts: PointsToSet
+    ) -> tuple[PointerAnalysisState, int, int]:
         if isinstance(node, NormalNode):
             assert isinstance(node.var, Ctx), f"node.var must be a Ctx, but got {type(node.var)}"
         diff = pts - self.state.get_points_to(node)
@@ -873,17 +945,19 @@ class PointerSolver:
                 for constraint_scope, constraint in constraints:
                     self._apply_constraint(constraint_scope, node.var, constraint, diff)
 
-            for succ, succ_pts in self.state.pointer_flow_graph.propagate(node, diff):
+            for row in self.state.pointer_flow_graph.propagate(node, diff):
+                succ, succ_pts = propagation_pair(row)
                 succ_scope = succ.var.scope if isinstance(succ, NormalNode) else None
                 self._enqueue_points_to(succ_scope, succ, succ_pts)
         return self.state, num_pts, num_constraint
 
-    def _log_solver_state(self):
+    def _log_solver_state(self) -> None:
         """Log periodic snapshot of solver state for debugging."""
-        if not self._debug_monitor or not self._debug_monitor.enabled:
+        if not self._debug_monitor or not debug_boundary.feature(self._debug_monitor, "enabled"):
             return
 
-        self._debug_monitor.record_iteration_snapshot(
+        debug_boundary.record_iteration_snapshot(
+            self._debug_monitor,
             worklist_size=len(self.state._worklist),
             call_edges=self.state._call_graph.num_plain_edges(),
             pfg_edges=len(self.state.pointer_flow_graph.get_edges()),
@@ -891,7 +965,7 @@ class PointerSolver:
             num_objects=len(self.state._heap.objects),
         )
 
-    def _apply_static(self, scope: "Scope", context: "AbstractContext", constraint: "Constraint"):
+    def _apply_static(self, scope: Scope, context: NativeContext, constraint: Constraint) -> None:
         self._stats["constraints_applied"] += 1
         if isinstance(constraint, AllocConstraint):
             self._apply_alloc(scope, context, constraint)
@@ -899,8 +973,12 @@ class PointerSolver:
             self._apply_copy(scope, context, constraint)
 
     def _apply_constraint(
-        self, scope: "Scope", variable: Ctx[Any], constraint: "Constraint", diff: "PointsToSet"
-    ) -> bool:
+        self,
+        scope: Scope,
+        variable: NativeWatchedVariable,
+        constraint: Constraint,
+        diff: PointsToSet,
+    ) -> bool | None:
         self._stats["constraints_applied"] += 1
         if isinstance(constraint, OperatorProtocolConstraint):
             from .processor.type_protocol import apply_operator
@@ -912,7 +990,9 @@ class PointerSolver:
 
             apply_truth_test(self, scope, constraint, diff)
             return True
-        result = self.processor.handle_constraint(self, variable, scope, constraint, diff)
+        result: bool | None = self.processor.handle_constraint(
+            self, variable, scope, constraint, diff
+        )
         if not result:
             # Here shoud add supports for Imports
             if isinstance(constraint, SpecialMethodLookupConstraint):
@@ -931,32 +1011,39 @@ class PointerSolver:
                     )
                 result = True
             elif isinstance(constraint, LoadConstraint):
-                result = self._apply_load(scope, variable, constraint, diff)
+                self._apply_load(scope, variable, constraint, diff)
+                result = None
             elif isinstance(constraint, StoreConstraint):
-                result = self._apply_store(scope, variable, constraint, diff)
+                self._apply_store(scope, variable, constraint, diff)
+                result = None
             elif isinstance(constraint, CallConstraint):
                 result = self._apply_call(scope, variable, constraint, diff)
             elif isinstance(constraint, InheritanceConstraint):
-                result = self._apply_inheritance(scope, variable, constraint, diff)
+                self._apply_inheritance(scope, variable, constraint, diff)
+                result = None
             else:
                 result = False
         return result
 
-    def _apply_copy(self, scope: "Scope", context: "AbstractContext", c: "CopyConstraint"):
+    def _apply_copy(self, scope: Scope, context: NativeContext, c: CopyConstraint) -> None:
         """Apply copy constraint: target = source."""
         src = self.state.get_variable(scope, context, c.source)
         tgt = self.state.get_variable(scope, context, c.target)
         self.state._add_var_points_flow(src, tgt)
 
-    def _apply_alloc(self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"):
+    def _apply_alloc(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> None:
         """Apply allocation constraint: target = new Object."""
 
         target = self.state.get_variable(scope, context, c.target)
+        obj: AbstractObject | None
 
         orig_obj = self.state._heap.get_obj(scope, context, c.alloc_site)
         if orig_obj is not None:
             if isinstance(orig_obj, (FunctionObject, ClassObject)):
-                self._capture_lexical_environment(orig_obj, scope, context, c.alloc_site.stmt)
+                source_scope = c.alloc_site.stmt
+                if not isinstance(source_scope, (IRFunc, IRClass)):
+                    raise AttributeError("Lexical allocation source is not a function/class scope")
+                self._capture_lexical_environment(orig_obj, scope, context, source_scope)
             # Reusing an abstract allocation does not discharge this binding.
             # Coarse contexts can encounter the same site through a synthetic
             # entry scope and a real invocation with distinct target variables.
@@ -989,9 +1076,6 @@ class PointerSolver:
                 self.state.select_allocation_context(context, c.alloc_site), c.alloc_site
             )
 
-        elif c.alloc_site.kind == AllocKind.OBJECT and False:
-            # logic for instance allocation is located in _apply_call
-            obj = None
         elif not self.config.index_sensitive:
             obj = AbstractObject(
                 alloc_site=c.alloc_site,
@@ -1011,19 +1095,20 @@ class PointerSolver:
 
             if self.config.debug_inheritance and c.alloc_site.kind == AllocKind.CLASS:
                 logger.info(
-                    f"[ALLOC] Adding class object to variable: {c.target.name} = {obj.alloc_site.stmt.name if hasattr(obj.alloc_site.stmt, 'name') else obj}"
+                    f"[ALLOC] Adding class object to variable: {c.target.name} = {obj.ir.name if isinstance(obj, ClassObject) else obj}"
                 )
                 logger.info(f"  Target variable: {target}")
 
             # Debug monitoring: record object allocation
             if (
                 self._debug_monitor
-                and self._debug_monitor.enabled
-                and self._debug_monitor.track_object_flow
+                and debug_boundary.feature(self._debug_monitor, "enabled")
+                and debug_boundary.feature(self._debug_monitor, "track_object_flow")
             ):
                 obj_id = f"{c.alloc_site.kind.value}:{id(obj)}"
                 location = str(c.alloc_site)
-                self._debug_monitor.record_object_allocated(
+                debug_boundary.record_object_allocated(
+                    self._debug_monitor,
                     obj_id=obj_id,
                     obj_kind=c.alloc_site.kind.value,
                     location=location,
@@ -1032,11 +1117,15 @@ class PointerSolver:
             self.state.obj_scope[obj] = scope
             self.handle_new_points_to(target, scope, pts)
 
-    def handle_new_points_to(self, target: "Ctx[Any]", scope: "Scope", pts: "PointsToSet") -> None:
+    def handle_new_points_to(
+        self, target: NativeWatchedVariable, scope: Scope, pts: PointsToSet
+    ) -> None:
         if not self.processor.handle_new_points_to(self, target, scope, pts):
             self._enqueue_points_to(scope, NormalNode(target), pts)
 
-    def _enqueue_points_to(self, scope, node, points):
+    def _enqueue_points_to(
+        self, scope: Scope | None, node: PointerFlowNode, points: PointsToSet
+    ) -> None:
         """Queue only facts not yet processed at this exact PFG node.
 
         Do not subtract Ctx-only facts or pending work: those may still require
@@ -1061,20 +1150,27 @@ class PointerSolver:
             self._diagnostics.bump("points_enqueue_accepted")
 
     def _alloc_constant(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"
-    ) -> "ConstantObject":
-        stmt: "IRAssign" = c.alloc_site.stmt
+        self, scope: Scope, context: NativeContext, c: AllocConstraint
+    ) -> ConstantObject:
+        stmt = c.alloc_site.stmt
         assert isinstance(stmt, IRAssign), (
             f"alloc_site.stmt must be an IRAssign, but got {type(stmt)}"
         )
-        obj = ConstantObject(
+        literal = stmt.get_rval()
+        assert isinstance(literal, ast.Constant), "Constant allocation requires ast.Constant"
+        raw_value: object = literal.value
+        if (
+            not isinstance(raw_value, (str, bytes, int, float, complex, type(Ellipsis)))
+            and raw_value is not None
+        ):
+            raise TypeError("Constant allocation has an unsupported literal value")
+        return ConstantObject(
             self.state.select_allocation_context(context, c.alloc_site, identity="canonical"),
             c.alloc_site,
-            stmt.get_rval().value,
+            raw_value,
         )
-        return obj
 
-    def _infer_free_vars(self, ir_func: "IRFunc") -> Set[str]:
+    def _infer_free_vars(self, ir_func: IRFunc) -> set[str]:
         ir = self.state.scope_manager.get_ir(ir_func, "ir")
         if ir is None:
             return set()
@@ -1092,7 +1188,7 @@ class PointerSolver:
         free_vars.difference_update(ir_func.get_nonlocal_vars())
         return {name for name in free_vars if name and name.isidentifier()}
 
-    def _resolve_outer_var_kind(self, scope: "Scope", var_name: str) -> VariableKind:
+    def _resolve_outer_var_kind(self, scope: Scope, var_name: str) -> VariableKind:
         stmt = getattr(scope, "stmt", None)
         if isinstance(stmt, IRModule):
             return VariableKind.GLOBAL
@@ -1108,14 +1204,18 @@ class PointerSolver:
         return VariableKind.LOCAL
 
     @staticmethod
-    def is_entrance(ir_func: "IRFunc") -> bool:
+    def is_entrance(ir_func: IRFunc) -> bool:
         # return True
         name = ir_func.name
-        if name.startswith("test") or name.startswith("__init__") or name.startswith("main"):
-            return True
-        return False
+        return name.startswith(("test", "__init__", "main"))
 
-    def _capture_lexical_environment(self, obj, scope, context, ir):
+    def _capture_lexical_environment(
+        self,
+        obj: FunctionObject | ClassObject,
+        scope: Scope,
+        context: NativeContext,
+        ir: IRScope,
+    ) -> None:
         """Join lexical environments when finite allocation contexts coincide.
 
         Existing captured variables remain stable aliases. Persistent edges
@@ -1166,21 +1266,21 @@ class PointerSolver:
             setter(obj, captured)
 
     def _alloc_method(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"
-    ) -> "MethodObject":
+        self, scope: Scope, context: NativeContext, c: AllocConstraint
+    ) -> MethodObject:
         ir_func = c.alloc_site.stmt
         assert isinstance(ir_func, IRFunc), (
             f"AllocSite to be allocated as function {c.alloc_site} should be IRFunc, {type(ir_func)} got!"
         )
 
+        assert isinstance(scope.obj, ClassObject), "Method allocation requires a class owner"
         heap_context = self.state.select_allocation_context(context, c.alloc_site)
         identity = ("method", heap_context, c.alloc_site, scope.obj)
         obj = self._definition_objects.get(identity)
         if obj is None:
-            obj = MethodObject(
-                heap_context, c.alloc_site, scope, c.alloc_site.stmt, scope.obj, None
-            )
+            obj = MethodObject(heap_context, c.alloc_site, scope, ir_func, scope.obj, None)
             self._definition_objects[identity] = obj
+        assert isinstance(obj, MethodObject)
 
         self._capture_lexical_environment(obj, scope, context, ir_func)
 
@@ -1188,32 +1288,37 @@ class PointerSolver:
 
         func_obj = obj
         func_ir = ir_func
-        call_context = self.context_selector.select_call_context(ir_func, context, scope.obj, None)
+        selector = self.context_selector
+        if selector is None:
+            raise AttributeError("No Native context selector is installed")
+        call_context = selector.select_call_context(ir_func, context, scope.obj, None)
         # func_ir = self.function_registry[func_name]
-        alloc_site = func_obj.alloc_site
         # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
         callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
-        old_scope = self.ir_translator._current_scope
-        # old_context = self.ir_translator._current_context
-        self.ir_translator._current_scope = alloc_site.stmt
-        # self.ir_translator._current_context = call_context
+        translator = self.ir_translator
+        if translator is None:
+            raise AttributeError("No Native IR translator is installed")
+        old_scope = translator._current_scope
+        # old_context = translator._current_context
+        translator._current_scope = ir_func
+        # translator._current_context = call_context
 
-        if self.is_entrance(func_ir):
+        if (self.entrance_predicate or self.is_entrance)(func_ir):
             try:
-                body_constraints = self.ir_translator.translate_function(func_ir)
-            except Exception as e:
+                body_constraints = translator.translate_function(func_ir)
+            except Exception:
                 body_constraints = []
             finally:
-                self.ir_translator._current_scope = old_scope
-                # self.ir_translator._current_context = old_context
+                translator._current_scope = old_scope
+                # translator._current_context = old_context
             for constraint in body_constraints:
                 self.add_constraint(callee_scope, call_context, constraint)
 
         return obj
 
     def _alloc_function(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"
-    ) -> "FunctionObject":
+        self, scope: Scope, context: NativeContext, c: AllocConstraint
+    ) -> FunctionObject:
         ir_func = c.alloc_site.stmt
         # logger.info(f"alloc function {c}")
         assert isinstance(ir_func, IRFunc), (
@@ -1224,37 +1329,41 @@ class PointerSolver:
         identity = ("function", heap_context, c.alloc_site)
         obj = self._definition_objects.get(identity)
         if obj is None:
-            obj = FunctionObject(heap_context, c.alloc_site, scope, c.alloc_site.stmt)
+            obj = FunctionObject(heap_context, c.alloc_site, scope, ir_func)
             self._definition_objects[identity] = obj
+        assert isinstance(obj, FunctionObject)
 
         self._capture_lexical_environment(obj, scope, context, ir_func)
 
         # Processing contents at once
         func_obj = obj
         func_ir = ir_func
-        call_context = self.context_selector.select_call_context(ir_func, context, None, None)
-        alloc_site = func_obj.alloc_site
+        selector = self.context_selector
+        if selector is None:
+            raise AttributeError("No Native context selector is installed")
+        call_context = selector.select_call_context(ir_func, context, None, None)
         callee_scope = Scope.new(func_obj, scope.module, call_context, func_ir, scope)
-        old_scope = self.ir_translator._current_scope
-        self.ir_translator._current_scope = alloc_site.stmt
+        translator = self.ir_translator
+        if translator is None:
+            raise AttributeError("No Native IR translator is installed")
+        old_scope = translator._current_scope
+        translator._current_scope = ir_func
 
-        if self.is_entrance(ir_func):
+        if (self.entrance_predicate or self.is_entrance)(ir_func):
             try:
-                body_constraints = self.ir_translator.translate_function(func_ir)
-            except Exception as e:
+                body_constraints = translator.translate_function(func_ir)
+            except Exception:
                 body_constraints = []
             finally:
-                self.ir_translator._current_scope = old_scope
-                # self.ir_translator._current_context = old_context
+                translator._current_scope = old_scope
+                # translator._current_context = old_context
 
             for constraint in body_constraints:
                 self.add_constraint(callee_scope, call_context, constraint)
 
         return obj
 
-    def _alloc_class(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"
-    ) -> "ClassObject":
+    def _alloc_class(self, scope: Scope, context: NativeContext, c: AllocConstraint) -> ClassObject:
         ir_cls = c.alloc_site.stmt
         # logger.info(f"alloc class {c}")
         assert isinstance(ir_cls, IRClass), (
@@ -1265,8 +1374,9 @@ class PointerSolver:
         identity = ("class", heap_context, c.alloc_site)
         obj = self._definition_objects.get(identity)
         if obj is None:
-            obj = ClassObject(heap_context, c.alloc_site, scope, c.alloc_site.stmt)
+            obj = ClassObject(heap_context, c.alloc_site, scope, ir_cls)
             self._definition_objects[identity] = obj
+        assert isinstance(obj, ClassObject)
         from .processor.class_protocol import record_class_residual
 
         record_class_residual(
@@ -1278,6 +1388,7 @@ class PointerSolver:
         )
 
         cls_context = obj.context
+        assert cls_context is not None, "Source class allocation requires a Native context"
 
         self._capture_lexical_environment(obj, scope, context, ir_cls)
 
@@ -1289,8 +1400,11 @@ class PointerSolver:
         # self.state._worklist.add((scope, NormalNode(inner_var), PointsToSet.singleton(obj)))
 
         # translate the IRs in the imported module
-        constraints = self.ir_translator.translate_class(ir_cls)
-        own_variables = tuple(self.ir_translator.used_variables)
+        translator = self.ir_translator
+        if translator is None:
+            raise AttributeError("No Native IR translator is installed")
+        constraints = translator.translate_class(ir_cls)
+        own_variables = tuple(translator.used_variables)
         for constraint in constraints:
             self.add_constraint(ctx_scope, cls_context, constraint)
 
@@ -1300,7 +1414,7 @@ class PointerSolver:
             self.state._add_var_points_flow(ctx_inner_var, ctx_field)
             if self.config.debug_inheritance:
                 logger.info(
-                    f"[CLASS] Storing field {obj.alloc_site.stmt.name}.{inner_var.name}: {ctx_inner_var} -> {ctx_field}"
+                    f"[CLASS] Storing field {ir_cls.name}.{inner_var.name}: {ctx_inner_var} -> {ctx_field}"
                 )
 
         from .processor.construction_hooks import install_class_statement_hooks
@@ -1309,21 +1423,22 @@ class PointerSolver:
         return obj
 
     def _alloc_module(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocConstraint"
-    ) -> "ModuleObject":
+        self, scope: Scope, context: NativeContext, c: AllocConstraint
+    ) -> ModuleObject | UnknownValue:
         assert c.alloc_site.kind == AllocKind.MODULE, (
             "AllocSite kind in module allocation should be Module"
         )
-        assert c.alloc_site.stmt is not None, "AllocSite should have IRImport as stmt"
-
-        from pythonstan.ir import IRModule
+        import_source = c.alloc_site.stmt
+        assert isinstance(import_source, (IRImport, IRModule)), (
+            "Module allocation requires IR import/module"
+        )
+        owner_module = scope.module.stmt
+        assert isinstance(owner_module, IRModule), "Module scope must contain an IRModule"
 
         module_ir = (
-            c.alloc_site.stmt
-            if isinstance(c.alloc_site.stmt, IRModule)
-            else self.state.scope_manager.module_graph.get_succ_module(
-                scope.module.stmt, c.alloc_site.stmt
-            )
+            import_source
+            if isinstance(import_source, IRModule)
+            else self.state.scope_manager.module_graph.get_succ_module(owner_module, import_source)
         )
 
         if module_ir is None:
@@ -1337,11 +1452,10 @@ class PointerSolver:
             if self.config.verbose:
                 logger.warning(f"[UNKNOWN] Module not found at {c.alloc_site}")
 
-            unknown_obj = UnknownValue(
+            return UnknownValue(
                 context=scope.context,
                 alloc_site=AllocSite(stmt=c.alloc_site.stmt, kind=AllocKind.UNKNOWN),
             )
-            return unknown_obj
 
         self._modules.add(module_ir)
         if self.state.scope_manager.get_ir(module_ir, "ir") is None:
@@ -1377,24 +1491,30 @@ class PointerSolver:
             # Register before translating to close import cycles.
             self.state.set_internal_scope(existing, ctx_scope)
             self._canonical_module_objects[module_ir] = existing
-            for constraint in self.ir_translator.translate_module(module_ir, c.alloc_site.stmt):
+            translator = self.ir_translator
+            if translator is None:
+                raise AttributeError("No Native IR translator is installed")
+            for constraint in translator.translate_module(module_ir, import_source):
                 self.add_constraint(ctx_scope, module_ctx, constraint)
         self._bind_package_modules()
         return existing
 
-    def _bind_package_modules(self):
+    def _bind_package_modules(self) -> None:
         """Expose imported submodules through the shared parent package object."""
-        if self._package_binding_version == len(self._canonical_module_objects):
+        module_objects = self._canonical_module_objects
+        if module_objects is None:
+            raise TypeError("Canonical module objects are unavailable")
+        if self._package_binding_version == len(module_objects):
             return
         modules = {
             ir.get_qualname(): (obj, self.state.get_internal_scope(obj))
-            for ir, obj in self._canonical_module_objects.items()
+            for ir, obj in module_objects.items()
         }
         self._package_binding_version = len(modules)
         bound = getattr(self, "_package_module_bindings", None)
         if bound is None:
             bound = self._package_module_bindings = set()
-        for name, (obj, internal) in modules.items():
+        for name, (obj, _internal) in modules.items():
             parent_name, separator, local_name = name.rpartition(".")
             if not separator or parent_name not in modules:
                 continue
@@ -1403,6 +1523,8 @@ class PointerSolver:
             if identity in bound:
                 continue
             bound.add(identity)
+            if parent_scope is None:
+                raise AttributeError("Parent module has no internal scope")
             self.state.register_module_export(parent_scope, local_name)
             variable = self.state.get_variable(
                 parent_scope, parent_scope.context, Variable(local_name, VariableKind.GLOBAL)
@@ -1410,8 +1532,12 @@ class PointerSolver:
             self.handle_new_points_to(variable, parent_scope, PointsToSet.singleton(obj))
 
     def _apply_inheritance(
-        self, scope: "Scope", variable: "Ctx", c: "InheritanceConstraint", pts: "PointsToSet"
-    ):
+        self,
+        scope: Scope,
+        variable: NativeWatchedVariable,
+        c: InheritanceConstraint,
+        pts: PointsToSet,
+    ) -> None:
         """Apply inheritance constraint: resolve field from base class.
 
         For each base class object in pts, get the field and create PFG edge
@@ -1421,29 +1547,33 @@ class PointerSolver:
         from .object import ClassObject
 
         for base_obj in pts:
+            field = c.field
+            assert field is not None, "Inheritance field is required for a base lookup"
             # For class inheritance, use the base class's internal scope
             if isinstance(base_obj, ClassObject):
                 base_internal_scope = self.state.get_internal_scope(base_obj)
                 field_access = self.state.get_field(
-                    base_internal_scope, base_obj.context, base_obj, c.field
+                    base_internal_scope, base_obj.context, base_obj, field
                 )
                 if self.config.debug_inheritance:
                     logger.info(
-                        f"[INHERIT] Applying inheritance: {base_obj.alloc_site.stmt.name if hasattr(base_obj.alloc_site.stmt, 'name') else base_obj}.{c.field} -> selector"
+                        f"[INHERIT] Applying inheritance: {base_obj.ir.name}.{c.field} -> selector"
                     )
-                    logger.info(
-                        f"  Base internal scope: {base_internal_scope.stmt.get_qualname() if hasattr(base_internal_scope.stmt, 'get_qualname') else base_internal_scope.stmt}"
-                    )
+                    if base_internal_scope is None:
+                        raise AttributeError("Base class has no internal scope")
+                    logger.info(f"  Base internal scope: {base_internal_scope.stmt.get_qualname()}")
                     logger.info(f"  Field access: {field_access}")
                     logger.info(f"  Field pts: {self.state.get_points_to(field_access)}")
             else:
-                field_access = self.state.get_field(scope, scope.context, base_obj, c.field)
+                field_access = self.state.get_field(scope, scope.context, base_obj, field)
             edge = PointerFlowEdge(NormalNode(field_access), c.target, PointerFlowKind.NORMAL)
             # Register the edge with the selector node with its inheritance index
             c.target.add_edge(edge, c.index)
             self.state._add_points_flow_edge(edge)
 
-    def _apply_special_method_lookup(self, scope, constraint, objects):
+    def _apply_special_method_lookup(
+        self, scope: Scope, constraint: SpecialMethodLookupConstraint, objects: PointsToSet
+    ) -> bool:
         target = self.state.get_variable(scope, scope.context, constraint.target)
         for receiver in objects:
             if isinstance(receiver, InstanceObject):
@@ -1463,7 +1593,9 @@ class PointerSolver:
                 )
         return True
 
-    def _apply_load(self, scope: "Scope", variable: "Ctx", c: "LoadConstraint", pts: "PointsToSet"):
+    def _apply_load(
+        self, scope: Scope, variable: NativeWatchedVariable, c: LoadConstraint, pts: PointsToSet
+    ) -> None:
         """Apply load constraint: target = base.field or target = base[index]."""
         context = scope.context
         target_var = self.state.get_variable(scope, context, c.target)
@@ -1526,8 +1658,6 @@ class PointerSolver:
                         builtin_type = "str"
                     elif isinstance(base_obj.value, bytes):
                         builtin_type = "bytes"
-                    elif isinstance(base_obj.value, bytearray):
-                        builtin_type = "bytearray"
                 elif isinstance(base_obj, BuiltinInstanceObject):
                     builtin_type = base_obj.builtin_type
                 elif isinstance(base_obj, GeneratorObject):
@@ -1557,7 +1687,9 @@ class PointerSolver:
                         continue
 
             # Default behavior: use field access for classes, instances, etc.
-            field_access = self.state.get_field(scope, context, base_obj, c.field)
+            field = c.field
+            assert field is not None, "A field is required for the default load"
+            field_access = self.state.get_field(scope, context, base_obj, field)
             self.state._add_var_points_flow(field_access, target_var)
             if c.field and c.field.kind == FieldKind.KEY:
                 if isinstance(base_obj, DictObject):
@@ -1572,14 +1704,16 @@ class PointerSolver:
                     self.state._add_var_points_flow(aggregate, target_var)
 
     def _apply_store(
-        self, scope: "Scope", variable: "Ctx", c: "StoreConstraint", pts: "PointsToSet"
-    ):
+        self, scope: Scope, variable: NativeWatchedVariable, c: StoreConstraint, pts: PointsToSet
+    ) -> None:
         """Apply store constraint: base.field = source or base[index] = source."""
         context = scope.context
         source_var = self.state.get_variable(scope, context, c.source)
 
         for base_obj in pts:
-            field_access = self.state.get_write_field(scope, context, base_obj, c.field)
+            field = c.field
+            assert field is not None, "A field is required for a store"
+            field_access = self.state.get_write_field(scope, context, base_obj, field)
             self.state._add_var_points_flow(source_var, field_access)
             if (
                 isinstance(base_obj, ModuleObject)
@@ -1588,6 +1722,7 @@ class PointerSolver:
             ):
                 module_scope = self.state.get_internal_scope(base_obj)
                 if module_scope is not None:
+                    assert c.field.name is not None, "Module export attribute requires a name"
                     self.state.register_module_export(module_scope, c.field.name)
                     exported = self.state.get_variable(
                         module_scope,
@@ -1607,21 +1742,25 @@ class PointerSolver:
                     self.state._add_var_points_flow(source_var, aggregate)
 
     def _apply_call(
-        self, scope: "Scope", variable: "Ctx", c: "CallConstraint", pts: "PointsToSet"
+        self, scope: Scope, variable: NativeWatchedVariable, c: CallConstraint, pts: PointsToSet
     ) -> bool:
         """Apply call constraint: target = callee(args...)."""
         # logger.info(f"Applying call constraint: {c.call_site} -> {pts}")
 
         # Debug monitoring: record call constraint processing
-        if self._debug_monitor and self._debug_monitor.enabled:
-            self._debug_monitor.record_call_constraint_processed(
-                call_site=str(c.call_site), callee_var=str(variable), callee_pts_size=len(pts)
+        if self._debug_monitor and debug_boundary.feature(self._debug_monitor, "enabled"):
+            debug_boundary.record_call_constraint_processed(
+                self._debug_monitor,
+                call_site=str(c.call_site),
+                callee_var=str(variable),
+                callee_pts_size=len(pts),
             )
 
         # Check for empty callee
         if len(pts) == 0:
-            if self._debug_monitor and self._debug_monitor.enabled:
-                self._debug_monitor.record_call_failed(
+            if self._debug_monitor and debug_boundary.feature(self._debug_monitor, "enabled"):
+                debug_boundary.record_call_failed(
+                    self._debug_monitor,
                     call_site=str(c.call_site),
                     reason="empty_callee",
                     details="Callee points-to set is empty",
@@ -1656,8 +1795,9 @@ class PointerSolver:
                     )
 
                 # Debug monitoring: record non-callable
-                if self._debug_monitor and self._debug_monitor.enabled:
-                    self._debug_monitor.record_call_failed(
+                if self._debug_monitor and debug_boundary.feature(self._debug_monitor, "enabled"):
+                    debug_boundary.record_call_failed(
+                        self._debug_monitor,
                         call_site=str(c.call_site),
                         reason="non_callable",
                         details=f"Object kind: {callee_obj.kind.value}",
@@ -1669,10 +1809,10 @@ class PointerSolver:
 
     def _record_non_callable_evidence(
         self,
-        scope: "Scope",
-        variable: "Ctx[Any]",
-        call: "CallConstraint",
-        callee_obj: "AbstractObject",
+        scope: Scope,
+        variable: NativeWatchedVariable,
+        call: CallConstraint,
+        callee_obj: AbstractObject,
     ) -> None:
         """Collect non-callable evidence during solving without reporting."""
         if not self.config.track_unknowns:
@@ -1681,7 +1821,7 @@ class PointerSolver:
         observed = self._non_callable_evidence.setdefault(key, set())
         observed.add(callee_obj.kind.value)
 
-    def _mark_unknown_call(self, scope, call, reason):
+    def _mark_unknown_call(self, scope: Scope, call: CallConstraint, reason: str) -> None:
         """Publish real state havoc and wildcard events for an arbitrary call."""
         identity = (scope, call)
         self.state._residual_effects[identity] = {
@@ -1706,9 +1846,7 @@ class PointerSolver:
             target = self.state.get_variable(scope, scope.context, call.target)
             self.handle_new_points_to(target, scope, PointsToSet.singleton(obj))
 
-    def _is_callable_for_constraint(
-        self, call: "CallConstraint", callee_obj: "AbstractObject"
-    ) -> bool:
+    def _is_callable_for_constraint(self, call: CallConstraint, callee_obj: AbstractObject) -> bool:
         """Side-effect-free check for callability consistent with call handling."""
         if (
             isinstance(
@@ -1729,9 +1867,7 @@ class PointerSolver:
         if isinstance(callee_obj, ClassObject):
             return True
         callee_name = getattr(call.callee, "name", str(call.callee))
-        if callee_name.startswith("$call@"):
-            return False
-        return True
+        return not callee_name.startswith("$call@")
 
     @staticmethod
     def _is_internal_helper_callee_name(callee_name: str) -> bool:
@@ -1791,10 +1927,10 @@ class PointerSolver:
 
     def _handle_class_instantiation(
         self,
-        scope: "Scope",
-        context: "AbstractContext",
-        call: "CallConstraint",
-        class_obj: "AbstractObject",
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        class_obj: AbstractObject,
     ) -> bool:
         """Handle class instantiation: call __new__, then __init__ conditionally."""
         # logger.info(f"Handling class instantiation: {call.call_site} -> {class_obj.alloc_site.stmt}")
@@ -1816,9 +1952,12 @@ class PointerSolver:
             alloc_context = self.state.select_allocation_context(context, instance_alloc, class_obj)
         else:
             alloc_context = context
+        assert isinstance(class_obj, ClassObject), "Class instantiation requires a source class"
         instance_obj = InstanceObject(alloc_context, instance_alloc, class_obj)
 
         cls_scope = self.state.get_internal_scope(class_obj)
+        if cls_scope is None:
+            raise AttributeError("Class allocation has no internal scope")
         params = ordered_binding_token(
             [instance_obj] + [self.state.get_variable(scope, context, arg) for arg in call.args],
             [(k, self.state.get_variable(scope, context, arg)) for k, arg in call.kwargs],
@@ -1826,14 +1965,15 @@ class PointerSolver:
 
         instance_parent = cls_scope.parent
         assert instance_parent, f"{cls_scope} : {class_obj} has no parent"
-        instance_ctx = self.context_selector.select_call_context(
-            call.call_site, context, instance_obj, params
-        )
+        selector = self.context_selector
+        if selector is None:
+            raise AttributeError("No Native context selector is installed")
+        instance_ctx = selector.select_call_context(call.call_site, context, instance_obj, params)
         instance_scope = Scope.new(
             instance_obj,
             instance_parent.module,
             instance_ctx,
-            class_obj.alloc_site.stmt,
+            cls_scope.stmt,
             instance_parent,
         )
         self.state.set_internal_scope(instance_obj, instance_scope)
@@ -1916,10 +2056,10 @@ class PointerSolver:
 
     def _handle_builtin_call(
         self,
-        scope: "Scope",
-        context: "AbstractContext",
-        call: "CallConstraint",
-        builtin_obj: "AbstractObject",
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        builtin_obj: AbstractObject,
     ) -> bool:
         """Handle builtin call: use builtin API handler to generate constraints.
 
@@ -1947,7 +2087,6 @@ class PointerSolver:
             return len(constraints) > 0
         finally:
             pass
-        return False
 
     def set_global_work_limit(self, limit: int | None) -> None:
         if self.work_ledger.used or self._work_iteration_started:
@@ -2007,12 +2146,17 @@ class PointerSolver:
     def intrinsic_counter(self, event: Literal["attempts", "applied", "deferred"]) -> None:
         if event not in {"attempts", "applied", "deferred"}:
             raise ValueError("Unknown intrinsic counter")
-        key = "ai_intrinsic_" + event
-        statistics: dict[str, object] = self._stats
-        previous = statistics[key]
+        key: Literal["ai_intrinsic_attempts", "ai_intrinsic_applied", "ai_intrinsic_deferred"] = (
+            "ai_intrinsic_attempts"
+            if event == "attempts"
+            else "ai_intrinsic_applied"
+            if event == "applied"
+            else "ai_intrinsic_deferred"
+        )
+        previous: object = self._stats[key]
         if type(previous) is not int:
             raise TypeError("Intrinsic counters require integer storage")
-        statistics[key] = previous + 1
+        self._stats[key] = previous + 1
 
     def intrinsic_fallback(self, scope: Scope, call: CallConstraint, reason: str) -> None:
         self._record_ai_fallback(scope, call, reason)
@@ -2059,11 +2203,10 @@ class PointerSolver:
         self.handle_new_points_to(variable, scope, PointsToSet.from_objects(objects))
 
     def _record_ai_fallback(self, scope: Scope, call: CallConstraint, reason: str) -> None:
-        statistics: dict[str, object] = self._stats
-        previous = statistics["ai_intrinsic_fallbacks"]
+        previous: object = self._stats["ai_intrinsic_fallbacks"]
         if type(previous) is not int:
             raise TypeError("Intrinsic counters require integer storage")
-        statistics["ai_intrinsic_fallbacks"] = previous + 1
+        self._stats["ai_intrinsic_fallbacks"] = previous + 1
         self._unknown_tracker.record(
             UnknownKind.AI_FALLBACK,
             str(call.call_site),
@@ -2079,10 +2222,6 @@ class PointerSolver:
             class_hierarchy=self.class_hierarchy,
             solver=self,
         )
-
-
-# Legacy import surface delegates to the single query implementation.
-from .query import SolverQuery
 
 
 # Capture the native entry points once, before an application can install

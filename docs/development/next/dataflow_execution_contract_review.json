@@ -1,0 +1,61 @@
+{
+  "author": "core_types",
+  "status": "bounded_actual_execution_migration_not_parent_acceptance",
+  "source_sha256": {
+    "pythonstan/analysis/dataflow/analysis.py": "89c27ff34a55d0b43b23bfa7fd2f57ef0e5013955bd6733825dd4a05c4daa8cd",
+    "pythonstan/analysis/dataflow/driver.py": "9e1137e1f1f7532649df73b9b8b22240e7097d8135744ed5e014cf8083be2d57",
+    "pythonstan/analysis/dataflow/solver.py": "6c811dd86939d34529252f0e23bcd8e5da988260d076b4f2f4ea6e5602d86822",
+    "pythonstan/analysis/dataflow/execution.py": "7aee8633a02038a2439bad18eb393f2c8e6202c489b846f67fdd487213540f98",
+    "pythonstan/analysis/closure.py": "396f13120874c7ef5e3d070520cc0c6a2f53272336565aed703ada1fef0c8077"
+  },
+  "contracts": [
+    "DataflowExecution exposes a fact-erased execution service. Registry subclass validation proves execution capability, never DataflowAnalysis[Fact].",
+    "DataflowAnalysis[Fact] directly runs WorklistSolver[Fact] under its own fact parameter. Domain operations and iteration order are unchanged.",
+    "Existing injected/plugin solve services execute only through a finite dynamic boundary; their returned pair and BaseBlock mapping keys are checked without copying maps or facts. Opaque facts are not asserted to have an arbitrary generic type.",
+    "Public results remains the actual dict. Last-run and per-scope aliases reference the same underlying incoming/outgoing maps, including compact lazy views and ordinary mutable dicts. clear_results replaces owned containers and leaves retained observer objects intact.",
+    "Closure independently validates variable-name entry facts, preserves compact fallback/retention and explicitly injected solver selection.",
+    "Standard Analysis and Solver subclass hooks now delegate to super before registering the unchanged class name; PEP695 classes receive actual Generic initialization."
+  ],
+  "checks": {
+    "ruff": {
+      "exit_code": 0,
+      "format_clean": true,
+      "files": 6
+    },
+    "mypy": {
+      "normal_imports": true,
+      "command_exit": 1,
+      "all_records": 1486,
+      "own_records": [],
+      "whole_tree_clean": false
+    },
+    "strong_any_expression": {
+      "normal_imports": true,
+      "command_exit": 1,
+      "own_records": 32,
+      "scope_note": "Historical exploratory scan before final subclass-hook addition retains CFG edge/IR get_ir Any provenance. Its32 rows are not a final source-bound strict qualification; current ordinary scan is the acceptance-scoped result."
+    },
+    "regression": {
+      "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/round11_liveness/test_compact_closure.py tests/round9_frontend/test_liveness_retention.py tests/round9_frontend/test_dataflow_pending_work.py tests/round11_formal/test_compact_liveness_reference.py tests/round10_frontend/test_module_closure_lifetime.py tests/regression/audit3/test_dataflow_execution_contracts.py",
+      "result": "........................................................................ [ 69%]\n...............................                                          [100%]\n103 passed in 1.14s",
+      "provenance_note": "The103-case slice passed before the separately reviewed legacy-pair compatibility expansion in execution.py. That final helper-only expansion passed7 focused execution/pair controls, then19 combined host/actual-consumer/execution controls; root fixed-source integration owns the current full-checkpoint result."
+    },
+    "final_legacy_pair": {
+      "result": "7 passed in0.09s",
+      "fix": "Actual builtin iterator protocol replaces the over-restrictive Iterable ABC guard; the existing manual next decoder retains mapping and fact identity."
+    }
+  },
+  "qualifications": {
+    "type_01_verified": false,
+    "release_qualified": false,
+    "whole_tree_strict": false,
+    "live_llm_requests": 0
+  },
+  "limits": [
+    "Generic driver subscription remains compatibility syntax; published facts are explicitly opaque.",
+    "Unmodified liveness/reaching-definition/compact implementation modules retain their own preexisting debt and are not declared strict.",
+    "External solver fact contents are opaque; capability validation is not a semantic proof of an external solver.",
+    "Raw logs include failed retries against concurrent incomplete IR and Native edits. Those failures were traced and retained rather than counted green.",
+    "Inherited unusual DataflowAnalysis.__init__ super expression does not establish self.config/valid_id on the actual instance; this is preexisting and initialization-contract completion is not claimed."
+  ]
+}

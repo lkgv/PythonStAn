@@ -1,0 +1,47 @@
+{
+  "reviewer": "context_legacy (not author of reviewed production modules)",
+  "status": "accepted_for_bounded_world_project_module_migration",
+  "source_hashes": {
+    "pythonstan/analysis/analysis.py": "0218f21d1c954765b4ec01123f2463eb1672937e301ef0198a6daa2e7db77e43",
+    "pythonstan/analysis/project/analysis.py": "40b2dfd2eef2bd27a687ee964e2556188d4ce86f8eb8f32067806b4629c76dc7",
+    "pythonstan/analysis/project/report_contracts.py": "e4cb746a4b2531c6c3b5f8ab7be68d88d0c807107b361141c24fad1920dbf8e9",
+    "pythonstan/analysis/project/frontend_lifetime.py": "d864054aa953a56a7b7c135c4c805ad7d797c4ab84fca90f0d455950c8b1f157",
+    "pythonstan/analysis/pointer/kcfa/module_analysis.py": "cf8a3d32767899c31fc1339905db28bc52cdc5d4a75199df8f33dcb2fdc84b86",
+    "pythonstan/analysis/pointer/kcfa/module_summary.py": "f4d889b7f9cdc0d20cdb287bc3235436909e7c1565ec358dd26d19a6fd83f5d4",
+    "tests/regression/audit3/test_project_reporting_contracts.py": "08175bf20dbada5f87774f507f4833b9b6fc2b821085c5fb14f90ae917b5bd1c"
+  },
+  "finding": {
+    "id": "MODULE-NULL-GRAPH",
+    "severity": "compatibility regression",
+    "before": "Explicit None module_graph accepted by exact31d0811closed-module facade; interrupted typed implementation raised AttributeError",
+    "resolution": "Author restored None guard; reviewer replay confirms both old/current export answer",
+    "status": "fixed_independently_verified"
+  },
+  "validation": {
+    "project_module_lifetime_tests_passed": 92,
+    "project_config_field_projection": "All dataclass fields/defaults match asdict, preserves immutable tuple shape",
+    "config_author_matrix": {
+      "cases": 335,
+      "differences": 0,
+      "note": "Reviewed author record and boundary source; not reclassified as independent335-case execution"
+    },
+    "independent_progress_mutation": "Inventory and statistics mutation cannot change final report/solver facts",
+    "independent_diagnostic_failure": "Both ordinary hook failures recorded as inspector failures; solver completion preserved",
+    "independent_control_interruption": "KeyboardInterrupt propagated",
+    "own_ordinary_mypy_errors": [],
+    "overall_mypy_exit": 1,
+    "mypy_qualification": "Imported historical debt retained; own7-file selection clean, strong AnyExpression not claimed"
+  },
+  "ownership_review": [
+    "ModuleClosureLifetime retains owner identity before prevalidating whole deletion set",
+    "Progress callbacks receive validated JSON copies",
+    "Trusted diagnostic callbacks still observe actual solver/report identities",
+    "Module summaries remain explicitly incomplete binding projections, never replacing heap/callback/exception semantics"
+  ],
+  "limits": [
+    "Not whole-program soundness, TYPE-01 or release qualification",
+    "Malformed multiple-error precedence and exotic invalid public values are not universally compared",
+    "Broader World registry/Inspector legacy debt remains separate"
+  ],
+  "evidence_root": "artifacts/next/evidence/review-world-project-resume"
+}

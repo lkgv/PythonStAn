@@ -1,10 +1,9 @@
-from typing import Set, Dict, List
-from collections.abc import Mapping, Sequence
 import os
+from collections.abc import Mapping, Sequence
+
 import yaml
 
-from pythonstan.analysis import AnalysisConfig
-from pythonstan.analysis.analysis import order_analysis_configs
+from pythonstan.analysis.analysis import AnalysisConfig, order_analysis_configs
 
 __all__ = ["Config"]
 
@@ -65,9 +64,9 @@ def _dependencies(value: object) -> list[str] | tuple[str, ...] | None:
 class Config:
     filename: str
     project_path: str
-    library_paths: List[str]
-    analysis: Dict[str, AnalysisConfig]
-    succ_analysis: Dict[str, Set[str]]
+    library_paths: list[str]
+    analysis: dict[str, AnalysisConfig]
+    succ_analysis: dict[str, set[str]]
     lazy_ir_construction: bool
     import_level: int
     time_count: bool
@@ -76,14 +75,14 @@ class Config:
 
     def __init__(
         self,
-        filename,
-        project_path=None,
+        filename: str | os.PathLike[str],
+        project_path: str | os.PathLike[str] | None = None,
         lazy_ir_construction: bool = False,
         import_level: int = -1,
         time_count: bool = False,
         mock_libs: bool = True,
         prefer_mock_libs: bool = False,
-    ):
+    ) -> None:
         try:
             self.filename = os.fspath(filename)
             self.project_path = (
@@ -193,11 +192,11 @@ class Config:
 
     @classmethod
     def from_file(cls, filename: str | os.PathLike[str]) -> "Config":
-        with open(filename, "r") as f:
+        with open(filename) as f:
             info: object = yaml.safe_load(f)
         return cls.from_dict(info)
 
-    def add_analysis(self, cfg: AnalysisConfig):
+    def add_analysis(self, cfg: AnalysisConfig) -> None:
         if cfg.name in self.analysis:
             raise ValueError(f"Duplicate analysis name: {cfg.name}")
         self.analysis[cfg.name] = cfg
@@ -207,7 +206,7 @@ class Config:
                 self.succ_analysis[prev_name] = {*()}
             self.succ_analysis[prev_name].add(cfg.name)
 
-    def add_library_path(self, path: str):
+    def add_library_path(self, path: str) -> None:
         try:
             path = os.fspath(path)
         except TypeError as exc:

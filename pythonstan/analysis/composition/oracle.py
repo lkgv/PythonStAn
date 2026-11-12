@@ -309,9 +309,10 @@ class IncrementalInclusionStore:
         # Replaying every producer is necessary even when its own value did not
         # change: an alias collision may create a new load/store destination.
         spend(len(self.queue) + len(result.facts) + len(self.errors))
-        result.queue = deque(
-            dict.fromkeys([*(_node(node, ops, mapping) for node in self.queue), *result.facts])
+        ordered_nodes: dict[Hashable, None] = dict.fromkeys(
+            [*(_node(node, ops, mapping) for node in self.queue), *result.facts], None
         )
+        result.queue = deque(ordered_nodes)
         result.queued = set(result.queue)
         result.version = self.version + 1
         result.work = self.work

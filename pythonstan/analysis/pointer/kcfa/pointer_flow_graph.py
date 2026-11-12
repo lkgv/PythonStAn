@@ -1,35 +1,16 @@
-from dataclasses import dataclass
-from typing import (
-    Dict,
-    FrozenSet,
-    Tuple,
-    Set,
-    Optional,
-    Iterable,
-    Any,
-    TYPE_CHECKING,
-    List,
-    Callable,
-    override,
-)
-from enum import Enum
 from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
+from typing import override
+
+from pythonstan.analysis.contracts.json_data import JsonObject
 
 from .context import Ctx
-from .object import InstanceObject, ClassObject
+from .debug_boundary import feature, record_pfg_edge_activated
+from .object import ClassObject, InstanceObject
 from .points_to_set import PointsToSet
 from .variable import FieldAccess, Variable
-
-if TYPE_CHECKING:
-    from .object import AbstractObject, AllocSite
-    from .variable import Variable, FieldAccess
-    from .heap_model import Field
-    from pythonstan.world.scope_manager import ScopeManager
-    from .constraints import ConstraintManager
-    from pythonstan.ir.ir_statements import IRModule, IRStatement
-    from .variable import VariableFactory, VariableKind
-    from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
-    from .context import CallSite, AbstractContext, Scope
 
 __all__ = [
     "PointerFlowGraph",
@@ -40,7 +21,24 @@ __all__ = [
     "SelectorNode",
     "InheritanceSelectorNode",
     "PointerFlowKind",
+    "propagation_pair",
 ]
+
+
+def propagation_pair(
+    row: "list[PointerFlowNode | PointsToSet]",
+) -> "tuple[PointerFlowNode, PointsToSet]":
+    """Decode the real mutable propagation row without changing its public shape."""
+    if len(row) != 2:
+        raise ValueError("Propagation row must contain exactly two items")
+    node, points = row
+    if not isinstance(node, PointerFlowNode) or not isinstance(points, PointsToSet):
+        raise TypeError("Propagation row must contain a node followed by its points-to set")
+    return node, points
+
+
+def _edge_count(item: "tuple[PointerFlowEdge, int]") -> int:
+    return item[1]
 
 
 class PointerFlowKind(Enum):
@@ -119,15 +117,18 @@ class GuardNode(PointerFlowNode):
     guard: Callable[[PointerFlowEdge, PointsToSet], PointsToSet] - the guard condition.
     """
 
-    def __init__(self, guard: "Callable[[PointerFlowEdge, PointsToSet], PointsToSet]"):
+    def __init__(self, guard: "Callable[[PointerFlowEdge, PointsToSet], PointsToSet]") -> None:
         self.guard = guard
 
-    def __hash__(self):
+    @override
+    def __hash__(self) -> int:
         return id(self)
 
-    def __eq__(self, other):
+    @override
+    def __eq__(self, other: object) -> bool:
         return self is other
 
+    @override
     def flow_through(self, edge: PointerFlowEdge, pts: "PointsToSet") -> "PointsToSet":
         return self.guard(edge, pts)
 
@@ -138,22 +139,25 @@ class SelectorNode(PointerFlowNode):
     least_index: int - the least index of the edges.
     """
 
-    edges: Dict[PointerFlowEdge, int]
+    edges: dict[PointerFlowEdge, int]
     least_index: int
 
-    def __init__(self, least_index: int = -1):
+    def __init__(self, least_index: int = -1) -> None:
         self.edges = {}
         self.least_index = least_index
 
-    def __hash__(self):
+    @override
+    def __hash__(self) -> int:
         return id(self)
 
-    def __eq__(self, other):
+    @override
+    def __eq__(self, other: object) -> bool:
         return self is other
 
-    def add_edge(self, edge: PointerFlowEdge, index: int):
+    def add_edge(self, edge: PointerFlowEdge, index: int) -> None:
         self.edges[edge] = index
 
+    @override
     def flow_through(self, edge: PointerFlowEdge, pts: "PointsToSet") -> "PointsToSet":
         """Allow flow from edges with minimum index (MRO semantics).
 
@@ -178,9 +182,8 @@ class SelectorNode(PointerFlowNode):
             if self.least_index == -1 or index < self.least_index:
                 self.least_index = index
             return pts
-        else:
-            # Block flow from higher-index edges (lower priority in MRO)
-            return PointsToSet.empty()
+        # Block flow from higher-index edges (lower priority in MRO)
+        return PointsToSet.empty()
 
 
 class InheritanceSelectorNode(SelectorNode):
@@ -192,6 +195,7 @@ class InheritanceSelectorNode(SelectorNode):
     before using it to remove candidates.
     """
 
+    @override
     def flow_through(self, edge: PointerFlowEdge, pts: "PointsToSet") -> "PointsToSet":
         assert edge in self.edges
         return pts
@@ -202,12 +206,12 @@ class PointerFlowGraph:
 
     # TODO maybe object can be grouped by age, and too old objects should not be propagated.
 
-    succs: Dict[PointerFlowNode, Set[PointerFlowEdge]]
-    preds: Dict[PointerFlowNode, Set[PointerFlowEdge]]
-    nodes: Set[PointerFlowNode]
-    edges: Set[PointerFlowEdge]
+    succs: dict[PointerFlowNode, set[PointerFlowEdge]]
+    preds: dict[PointerFlowNode, set[PointerFlowEdge]]
+    nodes: set[PointerFlowNode]
+    edges: set[PointerFlowEdge]
 
-    def __init__(self, debug_monitor=None):
+    def __init__(self, debug_monitor: object | None = None) -> None:
         """Initialize pointer flow graph.
 
         Args:
@@ -220,14 +224,14 @@ class PointerFlowGraph:
 
         # Debug monitoring
         self._debug_monitor = debug_monitor
-        self._edge_activation_counts: Dict[PointerFlowEdge, int] = {}
-        self._edge_object_flow: Dict[PointerFlowEdge, int] = {}
+        self._edge_activation_counts: dict[PointerFlowEdge, int] = {}
+        self._edge_object_flow: dict[PointerFlowEdge, int] = {}
 
     def propagate(
         self, node: PointerFlowNode, pts: "PointsToSet"
-    ) -> "List[Tuple[PointerFlowNode, PointsToSet]]":
+    ) -> "list[list[PointerFlowNode | PointsToSet]]":
         assert isinstance(node, PointerFlowNode), f"node must be a PFNode, but got {type(node)}"
-        result = []
+        result: list[list[PointerFlowNode | PointsToSet]] = []
         for succ_edge in self.succs.get(node, frozenset()):
             succ_pts = succ_edge.flow_through(pts)
             if succ_pts.is_empty():
@@ -248,11 +252,11 @@ class PointerFlowGraph:
             # Debug monitoring
             if (
                 self._debug_monitor
-                and self._debug_monitor.enabled
-                and self._debug_monitor.track_pfg
+                and feature(self._debug_monitor, "enabled")
+                and feature(self._debug_monitor, "track_pfg")
             ):
                 edge_id = f"{id(succ_edge.source)}->{id(succ_edge.target)}"
-                self._debug_monitor.record_pfg_edge_activated(edge_id, num_objects)
+                record_pfg_edge_activated(self._debug_monitor, edge_id, num_objects)
 
             result.append([succ_edge.target, succ_pts])
         return result
@@ -265,25 +269,24 @@ class PointerFlowGraph:
             self.nodes.add(edge.target)
             self.edges.add(edge)
             return True
-        else:
-            return False
+        return False
 
     def flow_through_edge(self, edge: PointerFlowEdge, pts: "PointsToSet") -> "PointsToSet":
         return edge.target.flow_through(edge, edge.flow_through(pts))
 
-    def get_succs(self, var: PointerFlowNode) -> Set[PointerFlowEdge]:
+    def get_succs(self, var: PointerFlowNode) -> set[PointerFlowEdge]:
         return self.succs.get(var, {*()})
 
-    def get_preds(self, var: PointerFlowNode) -> Set[PointerFlowEdge]:
+    def get_preds(self, var: PointerFlowNode) -> set[PointerFlowEdge]:
         return self.preds.get(var, {*()})
 
-    def get_nodes(self) -> Set[PointerFlowNode]:
+    def get_nodes(self) -> set[PointerFlowNode]:
         return self.nodes
 
-    def get_edges(self) -> Set[PointerFlowEdge]:
+    def get_edges(self) -> set[PointerFlowEdge]:
         return self.edges
 
-    def get_edge_statistics(self) -> Dict[str, Any]:
+    def get_edge_statistics(self) -> JsonObject:
         """Get PFG edge activation statistics.
 
         Returns:
@@ -301,11 +304,11 @@ class PointerFlowGraph:
 
         # Sort by activation count
         sorted_by_count = sorted(
-            self._edge_activation_counts.items(), key=lambda x: x[1], reverse=True
+            self._edge_activation_counts.items(), key=_edge_count, reverse=True
         )
 
         # Sort by object flow
-        sorted_by_flow = sorted(self._edge_object_flow.items(), key=lambda x: x[1], reverse=True)
+        sorted_by_flow = sorted(self._edge_object_flow.items(), key=_edge_count, reverse=True)
 
         return {
             "total_edges": len(self.edges),

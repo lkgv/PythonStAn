@@ -4,15 +4,22 @@ Native points-to objects do not encode sort-restricted Top. Such inputs widen to
 UnknownValue and retain an explicit projection obligation, never one sample.
 """
 
-from copy import deepcopy
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
-from typing import TypeGuard
+from copy import deepcopy
+from typing import TYPE_CHECKING, TypeGuard
+
+if TYPE_CHECKING:
+    from .context import NativeContext, Scope
+    from .solver import PointerSolver
 import math
+
 from .allocation import canonical_constant
-from .object import AllocSite, AllocKind, UnknownValue
+from .object import AbstractObject, AllocKind, AllocSite, UnknownValue
+from .pointer_flow_graph import NormalNode
 from .points_to_set import PointsToSet
 from .variable import Variable, VariableKind
-from .pointer_flow_graph import NormalNode
 
 
 def alternatives(descriptor: object) -> tuple[tuple[object, ...], object | None]:
@@ -68,7 +75,7 @@ def validate_input_bindings(bindings: object) -> dict[str, object]:
     return result
 
 
-def seed_module_input_bindings(solver, scope, context):
+def seed_module_input_bindings(solver: PointerSolver, scope: Scope, context: NativeContext) -> None:
     state = solver.state
     if scope in state._input_seeded:
         return
@@ -93,6 +100,7 @@ def seed_module_input_bindings(solver, scope, context):
                 ("initial_input", module, symbol, ordinal),
                 AllocKind.UNKNOWN if top else AllocKind.CONSTANT,
             )
+            obj: AbstractObject
             if top is not None:
                 obj = UnknownValue(state.select_allocation_context(context, site), site)
                 state._heap.set_obj(scope, context, site, obj)
@@ -105,6 +113,8 @@ def seed_module_input_bindings(solver, scope, context):
                     "effects": ["unknown_initial_value"],
                 }
             else:
+                if value is not None and not isinstance(value, (str, bool, int, float)):
+                    raise ValueError("Native initial bindings require finite scalar inputs")
                 obj = canonical_constant(state, context, site, value)
             variable = state.get_variable(scope, context, Variable(symbol, VariableKind.GLOBAL))
             # Publish the initial fact through the actual Native transfer, not

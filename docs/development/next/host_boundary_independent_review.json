@@ -1,0 +1,36 @@
+{
+  "reviewer": "core_types; root builtin/host changes reviewed read-only; only independent tests authored",
+  "status": "accepted_for_bounded_typing_and_host_protocol_preservation_after_three_independent_red_controls",
+  "parent_acceptance": false,
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/builtin_api_handler.py": "c31eded4986840b9b28e41dbdf622a11e7769b1ba2a9a01749358f91eb3dc3b4",
+    "pythonstan/analysis/pointer/kcfa/native_mapping.py": "f8788859154b16fdb8ed6249ef558cc2576cdd6714a044d8b36a20f08c6d9749",
+    "pythonstan/compat/host_iteration.py": "a9ba0ccf53b64d5eaf25a876824bbc06c91aed82863e38453984cae9a8b1f3b0",
+    "pythonstan/compat/legacy_ai/value_domain.py": "e527f209dc664ee63cf686ffa739cf08b82a85044a7dd92d04674bbd790e9b42",
+    "pythonstan/analysis/dataflow/execution.py": "7aee8633a02038a2439bad18eb393f2c8e6202c489b846f67fdd487213540f98"
+  },
+  "findings_fixed": [
+    "Outer get_args iterator was entered twice by preiterating followed by a for loop; a self-iterator with a second-entry error reproduced the regression.",
+    "Each opaque metadata pair was iterated twice by preiterating followed by tuple unpack; direct Python unpack entered it once.",
+    "Actual legacy AbsVal string construction entered a self-iterator twice after the host primitive changed; direct frozenset consumption succeeded once.",
+    "Root changed actual metadata/string consumers to next-driven iteration and a finite pair decoder. Metadata any/generator exception routing remains in a generator as previously."
+  ],
+  "accepted_design": [
+    "Finite nullable NativeContext annotations describe the established internal context families and add no runtime rejection branches.",
+    "Builtin dispatch tables have separate typed function/method callables and real list[Constraint] return contracts; no whole-solver Protocol or unchecked fact cast was introduced.",
+    "NativeMappingProtocolConstraint fields now describe actual Variable/CallSite consumers; exact_native_mapping retains identical runtime predicate.",
+    "host_iteration casts only the captured builtin iter primitive to its actual partial object-to-iterator capability. Python validates iteration slots, including getitem fallback. No user algorithm or callback is given a fabricated solver capability.",
+    "Existing duplicate update dictionary entry was removed but the remaining value is the identical method handler; other inspected changes are local variable/type/format adjustments or the explicit metadata decoder."
+  ],
+  "controls": {
+    "red": "3 failed in0.29s; direct Python baselines succeed, actual root consumers fail",
+    "green": "19 passed in0.19s across actual host consumers, primitive, dataflow injection and legacy pair",
+    "test_file": "tests/regression/audit3/test_host_iteration_consumers_independent.py",
+    "old_user_tests_edited": false
+  },
+  "limits": [
+    "Finite controls and source comparison do not prove Native or whole-program semantic soundness.",
+    "Root reports8 builtin-arity failures reproduce at exact clean31d0811; this independent review did not independently rerun that baseline and does not count them green.",
+    "Whole-tree quality/frontier debt and current fixed-source integration remain owned by root; no release/type completion is claimed."
+  ]
+}

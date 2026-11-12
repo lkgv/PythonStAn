@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from typing import (
     TYPE_CHECKING,
     Protocol,
+    override,
     runtime_checkable,
 )
 
@@ -31,12 +32,13 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pythonstan.analysis.pointer.ai.solver import SolverConfig
-    from pythonstan.analysis.pointer.kcfa.context import AbstractContext, NativeContext, Scope
+    from pythonstan.analysis.pointer.kcfa.context import NativeContext, OrderedBindingToken, Scope
     from pythonstan.analysis.pointer.kcfa.heap_model import Field
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject
     from pythonstan.analysis.pointer.kcfa.points_to_set import PointsToSet
     from pythonstan.analysis.pointer.kcfa.variable import Variable
     from pythonstan.compat.legacy_ai.state import AbsVal, AIState
+    from pythonstan.ir.ir_statements import IRScope
 
 __all__ = [
     "PtaQuery",
@@ -62,7 +64,7 @@ class PtaQuery(Protocol):
     attribute access, subscript operations, and call resolution.
     """
 
-    def points_to(self, var: Variable, scope: Scope, context: AbstractContext) -> PointsToSet:
+    def points_to(self, var: Variable, scope: Scope, context: NativeContext) -> PointsToSet:
         """Get points-to set for a variable in given scope/context.
 
         Args:
@@ -80,7 +82,7 @@ class PtaQuery(Protocol):
         obj: AbstractObject,
         field: Field,
         scope: Scope | None,
-        context: AbstractContext,
+        context: NativeContext | None,
     ) -> PointsToSet:
         """Get points-to set for an object's field.
 
@@ -111,7 +113,7 @@ class PtaQuery(Protocol):
         obj: AbstractObject,
         attr_name: str,
         scope: Scope,
-        context: AbstractContext,
+        context: NativeContext,
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
 
@@ -130,10 +132,10 @@ class PtaQuery(Protocol):
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: AbstractContext,
+        caller_ctx: NativeContext,
         receiver_obj: AbstractObject | None,
-        params: tuple[AbstractObject, ...] | None = None,
-    ) -> AbstractContext | None:
+        params: tuple[AbstractObject, ...] | OrderedBindingToken | None = None,
+    ) -> NativeContext | None:
         """Select context for a call site (kcfa policy aware).
 
         Returns None if context selection is not available.
@@ -196,6 +198,7 @@ class FieldWrite:
     value_addrs: frozenset[AbstractObject]
     value: AbsVal | None = None
 
+    @override
     def __str__(self) -> str:
         objs = ", ".join(str(o) for o in self.obj_addrs)
         vals = ", ".join(str(v) for v in self.value_addrs)
@@ -219,6 +222,7 @@ class UnknownEffect:
     target_addrs: frozenset[AbstractObject]
     field_key: Field | None = None
 
+    @override
     def __str__(self) -> str:
         targets = ", ".join(str(t) for t in self.target_addrs)
         field_str = f".{self.field_key}" if self.field_key else ".*"
@@ -311,6 +315,7 @@ class AISummary:
             ),
         )
 
+    @override
     def __str__(self) -> str:
         parts = []
         if self.ret:
@@ -381,13 +386,13 @@ class AISummaryEngine:
 
     def analyze_callee(
         self,
-        scope_ir,
-        call_context,
-        arg_bindings,
-        caller_scope=None,
-        recursion_depth=0,
-        caller_state=None,
-    ):
+        scope_ir: IRScope,
+        call_context: NativeContext | None,
+        arg_bindings: list[ArgBinding],
+        caller_scope: Scope | None = None,
+        recursion_depth: int = 0,
+        caller_state: AIState | None = None,
+    ) -> AISummary:
         from pythonstan.compat.legacy_ai.state import AIState
         from pythonstan.compat.shared_ai import execute_scope
 
@@ -455,7 +460,7 @@ class AISummaryEngine:
                 reason=type(error).__name__ + ":" + str(error),
             )
 
-    def invalidate_cache(self):
+    def invalidate_cache(self) -> None:
         self._summary_cache.clear()
 
     def _conservative_summary(

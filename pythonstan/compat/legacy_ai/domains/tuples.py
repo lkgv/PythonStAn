@@ -16,12 +16,14 @@ Design notes:
 - Widening caps number of alternatives and max probed length
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, FrozenSet, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, override
 
 if TYPE_CHECKING:
+    from pythonstan.analysis.pointer.kcfa.context import NativeContext, Scope
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject
-    from pythonstan.analysis.pointer.kcfa.context import AbstractContext, Scope
     from pythonstan.compat.legacy_ai.state import AIState
     from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
@@ -50,28 +52,27 @@ class TupleExact:
         elems: Tuple of abstract values for each element position
     """
 
-    elems: Tuple["AbsVal", ...]
+    elems: tuple[AbsVal, ...]
 
     @property
     def length(self) -> int:
         """Return the tuple length."""
         return len(self.elems)
 
-    def get(self, index: int) -> Optional["AbsVal"]:
+    def get(self, index: int) -> AbsVal | None:
         """Get element at index, or None if out of bounds."""
         if 0 <= index < len(self.elems):
             return self.elems[index]
         return None
 
-    def join(self, other: "TupleExact") -> Optional["TupleExact"]:
+    def join(self, other: TupleExact) -> TupleExact | None:
         """Join two exact tuples of same length, None if lengths differ."""
         if len(self.elems) != len(other.elems):
             return None
-        joined_elems = tuple(
-            a.join(b) for a, b in zip(self.elems, other.elems)
-        )
+        joined_elems = tuple(a.join(b) for a, b in zip(self.elems, other.elems, strict=True))
         return TupleExact(elems=joined_elems)
 
+    @override
     def __str__(self) -> str:
         return f"TupleExact({len(self.elems)} elems)"
 
@@ -95,17 +96,17 @@ class TupleSummary:
         max_len: Maximum known length (None = unbounded)
     """
 
-    prefix: Tuple["AbsVal", ...]
-    elem: "AbsVal"
+    prefix: tuple[AbsVal, ...]
+    elem: AbsVal
     min_len: int
-    max_len: Optional[int]
+    max_len: int | None
 
     @property
     def prefix_len(self) -> int:
         """Return prefix length."""
         return len(self.prefix)
 
-    def get(self, index: int) -> Optional["AbsVal"]:
+    def get(self, index: int) -> AbsVal | None:
         """Get element at index.
 
         Returns precise value for prefix indices, elem for tail indices,
@@ -119,13 +120,11 @@ class TupleSummary:
             return None
         return self.elem
 
-    def join(self, other: "TupleSummary") -> "TupleSummary":
+    def join(self, other: TupleSummary) -> TupleSummary:
         """Join two tuple summaries."""
         # Use shorter prefix, join common elements
         common_len = min(len(self.prefix), len(other.prefix))
-        new_prefix = tuple(
-            self.prefix[i].join(other.prefix[i]) for i in range(common_len)
-        )
+        new_prefix = tuple(self.prefix[i].join(other.prefix[i]) for i in range(common_len))
 
         # Join tail elements including extra prefix elements
         new_elem = self.elem.join(other.elem)
@@ -135,7 +134,7 @@ class TupleSummary:
             new_elem = new_elem.join(other.prefix[i])
 
         new_min_len = min(self.min_len, other.min_len)
-        new_max_len: Optional[int] = None
+        new_max_len: int | None = None
         if self.max_len is not None and other.max_len is not None:
             new_max_len = max(self.max_len, other.max_len)
 
@@ -146,12 +145,13 @@ class TupleSummary:
             max_len=new_max_len,
         )
 
+    @override
     def __str__(self) -> str:
         return f"TupleSummary(prefix={len(self.prefix)}, len=[{self.min_len},{self.max_len}])"
 
 
 # Union type for tuple shapes
-TupleShape = Union[TupleExact, TupleSummary]
+TupleShape = TupleExact | TupleSummary
 
 
 # =============================================================================
@@ -170,7 +170,7 @@ class TupleDisj:
         alts: Tuple of alternative shapes (TupleExact or TupleSummary)
     """
 
-    alts: Tuple[TupleShape, ...]
+    alts: tuple[TupleShape, ...]
 
     @property
     def num_alts(self) -> int:
@@ -185,24 +185,23 @@ class TupleDisj:
         """Check if single exact alternative."""
         return len(self.alts) == 1 and isinstance(self.alts[0], TupleExact)
 
-    def get_exact_alts(self) -> List[TupleExact]:
+    def get_exact_alts(self) -> list[TupleExact]:
         """Get all TupleExact alternatives."""
         return [alt for alt in self.alts if isinstance(alt, TupleExact)]
 
-    def get_all_lengths(self) -> FrozenSet[int]:
+    def get_all_lengths(self) -> frozenset[int]:
         """Get all possible lengths from exact alternatives."""
-        lengths: set = set()
+        lengths: set[int] = set()
         for alt in self.alts:
             if isinstance(alt, TupleExact):
                 lengths.add(alt.length)
-            elif isinstance(alt, TupleSummary):
-                # Add known lengths from summary range
-                if alt.max_len is not None:
-                    for i in range(alt.min_len, alt.max_len + 1):
-                        lengths.add(i)
+            elif isinstance(alt, TupleSummary) and alt.max_len is not None:
+                # Add known lengths from summary range.
+                for i in range(alt.min_len, alt.max_len + 1):
+                    lengths.add(i)
         return frozenset(lengths)
 
-    def get(self, index: int) -> Optional["AbsVal"]:
+    def get(self, index: int) -> AbsVal | None:
         """Get element at index (joined across all alternatives).
 
         Returns joined value from all alternatives where index is valid.
@@ -216,7 +215,7 @@ class TupleDisj:
                 result = result.join(elem)
         return result if not result.is_bottom() else None
 
-    def join(self, other: "TupleDisj", max_alts: int = 4) -> "TupleDisj":
+    def join(self, other: TupleDisj, max_alts: int = 4) -> TupleDisj:
         """Join two TupleDisj, capping alternatives."""
         combined = list(self.alts) + list(other.alts)
 
@@ -226,30 +225,31 @@ class TupleDisj:
         # Need to merge: group by length for exact, then join element-wise
         return _merge_tuple_alts(combined, max_alts)
 
-    def widen(self, other: "TupleDisj", max_alts: int = 4) -> "TupleDisj":
+    def widen(self, other: TupleDisj, max_alts: int = 4) -> TupleDisj:
         """Widen: similar to join but more aggressive collapse."""
         return self.join(other, max_alts)
 
     @classmethod
-    def empty(cls) -> "TupleDisj":
+    def empty(cls) -> TupleDisj:
         """Create empty disjunction (unknown)."""
         return cls(alts=())
 
     @classmethod
-    def from_exact(cls, exact: TupleExact) -> "TupleDisj":
+    def from_exact(cls, exact: TupleExact) -> TupleDisj:
         """Create from single exact tuple."""
         return cls(alts=(exact,))
 
     @classmethod
-    def from_summary(cls, summary: TupleSummary) -> "TupleDisj":
+    def from_summary(cls, summary: TupleSummary) -> TupleDisj:
         """Create from single summary tuple."""
         return cls(alts=(summary,))
 
+    @override
     def __str__(self) -> str:
         return f"TupleDisj({len(self.alts)} alts)"
 
 
-def _merge_tuple_alts(alts: List[TupleShape], max_alts: int) -> TupleDisj:
+def _merge_tuple_alts(alts: list[TupleShape], max_alts: int) -> TupleDisj:
     """Merge tuple alternatives to stay within cap.
 
     Strategy:
@@ -260,8 +260,8 @@ def _merge_tuple_alts(alts: List[TupleShape], max_alts: int) -> TupleDisj:
     from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
     # Group exact tuples by length
-    by_length: dict = {}
-    summaries: List[TupleSummary] = []
+    by_length: dict[int, list[TupleExact]] = {}
+    summaries: list[TupleSummary] = []
 
     for alt in alts:
         if isinstance(alt, TupleExact):
@@ -273,28 +273,28 @@ def _merge_tuple_alts(alts: List[TupleShape], max_alts: int) -> TupleDisj:
             summaries.append(alt)
 
     # Join each length group into single TupleExact
-    merged_exact: List[TupleExact] = []
+    merged_exact: list[TupleExact] = []
     for length in sorted(by_length.keys()):
         group = by_length[length]
         if len(group) == 1:
             merged_exact.append(group[0])
         else:
             # Join all elements element-wise
-            result_elems: List[AbsVal] = [AbsVal.bottom()] * length
+            result_elems: list[AbsVal] = [AbsVal.bottom()] * length
             for exact in group:
                 for i, elem in enumerate(exact.elems):
                     result_elems[i] = result_elems[i].join(elem)
             merged_exact.append(TupleExact(elems=tuple(result_elems)))
 
     # Merge summaries
-    merged_summary: Optional[TupleSummary] = None
+    merged_summary: TupleSummary | None = None
     if summaries:
         merged_summary = summaries[0]
         for s in summaries[1:]:
             merged_summary = merged_summary.join(s)
 
     # Build result
-    result_alts: List[TupleShape] = list(merged_exact)
+    result_alts: list[TupleShape] = list(merged_exact)
     if merged_summary is not None:
         result_alts.append(merged_summary)
 
@@ -302,26 +302,24 @@ def _merge_tuple_alts(alts: List[TupleShape], max_alts: int) -> TupleDisj:
     while len(result_alts) > max_alts:
         # Find shortest exact tuple to collapse
         exact_indices = [
-            i for i, a in enumerate(result_alts) if isinstance(a, TupleExact)
+            index
+            for _, index in sorted(
+                (shape.length, index)
+                for index, shape in enumerate(result_alts)
+                if isinstance(shape, TupleExact)
+            )
         ]
         if len(exact_indices) < 2:
             break
 
-        # Pick two shortest and merge to summary
-        exact_indices.sort(
-            key=lambda i: result_alts[i].length  # type: ignore
-            if isinstance(result_alts[i], TupleExact)
-            else 0
-        )
+        # Pick two shortest exact alternatives and merge to summary.
         i1, i2 = exact_indices[0], exact_indices[1]
         alt1, alt2 = result_alts[i1], result_alts[i2]
         assert isinstance(alt1, TupleExact) and isinstance(alt2, TupleExact)
 
         # Merge into summary
         common_len = min(alt1.length, alt2.length)
-        prefix = tuple(
-            alt1.elems[i].join(alt2.elems[i]) for i in range(common_len)
-        )
+        prefix = tuple(alt1.elems[i].join(alt2.elems[i]) for i in range(common_len))
         elem = AbsVal.bottom()
         for i in range(common_len, alt1.length):
             elem = elem.join(alt1.elems[i])
@@ -347,12 +345,12 @@ def _merge_tuple_alts(alts: List[TupleShape], max_alts: int) -> TupleDisj:
 
 
 def materialize_tuple_shape(
-    obj: "AbstractObject",
-    state: "AIState",
-    caller_scope: Optional["Scope"],
-    call_context: Optional["AbstractContext"],
+    obj: AbstractObject,
+    state: AIState,
+    caller_scope: Scope | None,
+    call_context: NativeContext | None,
     max_len: int = 8,
-) -> Optional[TupleShape]:
+) -> TupleShape | None:
     """Materialize tuple shape from a single abstract object.
 
     Probes key(0), key(1), ... until getting bottom or reaching max_len.
@@ -369,17 +367,14 @@ def materialize_tuple_shape(
         TupleShape (TupleExact or TupleSummary) or None if not materializable
     """
     from pythonstan.analysis.pointer.kcfa.heap_model import key
-    from pythonstan.compat.legacy_ai.value_domain import AbsVal
 
-    elems: List[AbsVal] = []
+    elems: list[AbsVal] = []
     saw_havoc = False
     found_any = False
 
     for i in range(max_len):
         field_key = key(str(i))
-        elem_val, havoc = state.read_field_value(
-            obj, field_key, caller_scope, call_context
-        )
+        elem_val, havoc = state.read_field_value(obj, field_key, caller_scope, call_context)
         if havoc:
             saw_havoc = True
 
@@ -397,9 +392,7 @@ def materialize_tuple_shape(
         # Can't be sure about length, use summary
         from pythonstan.analysis.pointer.kcfa.heap_model import elem as elem_field
 
-        tail_val, _ = state.read_field_value(
-            obj, elem_field(), caller_scope, call_context
-        )
+        tail_val, _ = state.read_field_value(obj, elem_field(), caller_scope, call_context)
         return TupleSummary(
             prefix=tuple(elems),
             elem=tail_val,
@@ -411,10 +404,10 @@ def materialize_tuple_shape(
 
 
 def materialize_tuple_disj(
-    val: "AbsVal",
-    state: "AIState",
-    caller_scope: Optional["Scope"],
-    call_context: Optional["AbstractContext"],
+    val: AbsVal,
+    state: AIState,
+    caller_scope: Scope | None,
+    call_context: NativeContext | None,
     max_len: int = 8,
     max_alts: int = 4,
 ) -> TupleDisj:
@@ -434,12 +427,10 @@ def materialize_tuple_disj(
     Returns:
         TupleDisj with materialized shapes (may be empty if not materializable)
     """
-    shapes: List[TupleShape] = []
+    shapes: list[TupleShape] = []
 
     for obj in val.addrs:
-        shape = materialize_tuple_shape(
-            obj, state, caller_scope, call_context, max_len
-        )
+        shape = materialize_tuple_shape(obj, state, caller_scope, call_context, max_len)
         if shape is not None:
             shapes.append(shape)
 
@@ -453,13 +444,13 @@ def materialize_tuple_disj(
 
 
 def expand_starred_arg(
-    val: "AbsVal",
-    state: "AIState",
-    caller_scope: Optional["Scope"],
-    call_context: Optional["AbstractContext"],
+    val: AbsVal,
+    state: AIState,
+    caller_scope: Scope | None,
+    call_context: NativeContext | None,
     max_expand_len: int = 8,
     max_expand_alts: int = 4,
-) -> Optional[List[Tuple[Tuple["AbsVal", ...], int]]]:
+) -> list[tuple[tuple[AbsVal, ...], int]] | None:
     """Expand a starred argument value into possible element sequences.
 
     If the value can be materialized as small TupleExact alternatives,

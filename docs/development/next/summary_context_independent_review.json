@@ -1,0 +1,43 @@
+{
+  "reviewer": "requirements_audit",
+  "role": "independent read-only review; no implementation/test edits",
+  "status": "accepted_bounded_neutral_DTO_move_and_import_timing",
+  "parent_type_verified": false,
+  "source_sha256": {
+    "pythonstan/analysis/composition/summary_context.py": "c1169f7ad18225e7753d95536736eb4f430da3ee0e92badbdab4900d25f7193f",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "4da2650c82a72c9925e93012fcf551b5e623583a9b16a3b344c46cfb32118679",
+    "pythonstan/analysis/engines/abstract/driver.py": "5c736c511e9c22bbf72b112ebfb4dee03f39ae13e0ad799eba41f86625e1cb59"
+  },
+  "observed_before_span_parity": {
+    "before_provenance": "Exact original span transcribed by root from untruncated pre-move tool output; not an original full-file byte capture",
+    "before_span_sha256": "7d58d56ef783e8a16e86e72389d583bfb775cac7312147f44a044f9e981950d3",
+    "after_file_sha256": "c1169f7ad18225e7753d95536736eb4f430da3ee0e92badbdab4900d25f7193f",
+    "definitions_equal": {
+      "SummaryApplicationContext": true,
+      "SummaryChargeCategory": true,
+      "SummaryChargePort": true,
+      "SummaryHostId": true
+    }
+  },
+  "before_provenance_limit": "Before text is root transcription of an untruncated observed pre-move tool span. No original full-file copy/hash was retained, so no full-file byte-equality claim is made.",
+  "actual_reexports_same_identity": {
+    "SummaryHostId": true,
+    "SummaryChargeCategory": true,
+    "SummaryApplicationContext": true,
+    "SummaryChargePort": true
+  },
+  "independent_tests": "22 passed in0.70s, exact two-path lifecycle/family selection",
+  "checks": [
+    "All four class/type definitions, dataclass constructor fields and __post_init__ AST match observed pre-move span exactly.",
+    "The record still owns read-only live MappingProxy views, live epoch/work callbacks, existing host marker and narrow event/charge capabilities; no new provider or summary semantics.",
+    "Actual guarded_dispatch imports reexport the exact same neutral class/aliases. Driver local import now targets neutral module.",
+    "Cold ordinary baseline test forbids optional verification/guarded_dispatch imports and remains green.",
+    "Candidate arm fake clock adds exactly17.0seconds at actual optional import; complete measured arm timer includes it, then explicit prepare and driver run.",
+    "Constructor does not propose; successful prepare is idempotent; failed/reentrant preparations reject reuse; existing epoch detached/charged controls remain green."
+  ],
+  "limits": [
+    "Only the observed four-definition move and current import/timing/lifecycle boundary are accepted; this is not a new summary-semantic qualification.",
+    "No parent TYPE/core/scale/release status is promoted."
+  ],
+  "raw_evidence": "artifacts/next/evidence/reviewer-W1/neutral-summary-context/"
+}

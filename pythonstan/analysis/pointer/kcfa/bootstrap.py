@@ -1,50 +1,58 @@
 """Opt-in, guarded builtin initialization; native stores remain canonical."""
 
+from __future__ import annotations
+
+from collections import Counter, OrderedDict, defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import fields
-from collections import defaultdict, deque, OrderedDict, Counter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from pythonstan.analysis.contracts.json_data import JsonObject
 
 if TYPE_CHECKING:
     from .solver import PointerSolver
 
+from pythonstan.analysis.contracts.work import SharedWorkLedger
+
 from . import points_to_set
 from .config import Config
 from .constraints import ConstraintManager
 from .context import (
     CallStringContext,
-    ObjectContext,
-    TypeContext,
-    ReceiverContext,
-    ParamContext,
-    HybridContext,
-    SummaryContext,
     Ctx,
+    HybridContext,
+    NativeContext,
+    ObjectContext,
+    ParamContext,
+    ReceiverContext,
     Scope,
+    SummaryContext,
+    TypeContext,
 )
+from .diagnostics import pure_counter_signature
 from .heap_model import HeapModel
 from .object import AllocKind, AllocSite, BuiltinFunctionObject
 from .pointer_flow_graph import NormalNode, PointerFlowGraph
 from .points_to_set import PointsToSet
 from .processor import (
-    Processor,
-    ComposeProcessor,
-    GeneratorProcessor,
     AttributeSemanticsProcessor,
     ClassProtocolProcessor,
-    NormalCallProcessor,
+    ComposeProcessor,
     ContainerProcessor,
+    GeneratorProcessor,
+    NormalCallProcessor,
+    Processor,
     SuperResolveProcessor,
 )
+from .scheduler import NativeScheduler
 from .state import PointerAnalysisState, Worklist
 from .variable import Variable, VariableFactory, VariableKind
 from .worklist import ConsumerFairWorklist
-from .diagnostics import pure_counter_signature
-from .scheduler import NativeScheduler
-from pythonstan.analysis.contracts.work import SharedWorkLedger
 
-_WORK_REMAINING_FGET = SharedWorkLedger.remaining.fget
+_WORK_REMAINING_PROPERTY: object = vars(SharedWorkLedger)["remaining"]
+if not isinstance(_WORK_REMAINING_PROPERTY, property):
+    raise TypeError("work remaining must be a property")
+_WORK_REMAINING_FGET = _WORK_REMAINING_PROPERTY.fget
 
 
 _LEAVES = (
@@ -63,7 +71,7 @@ _HOOKS = (
     "handle_call",
     "handle_allocation",
 )
-_METHOD_NAMES = {
+_METHOD_NAMES: dict[type[object], tuple[str, ...]] = {
     PointerAnalysisState: (
         "get_points_to",
         "set_points_to",
@@ -82,17 +90,17 @@ _METHOD_NAMES = {
     NativeScheduler: ("select", "pop", "pending"),
     Processor: _HOOKS,
     ComposeProcessor: (*_HOOKS, "_call_processors"),
-    **{kind: _HOOKS for kind in _LEAVES},
+    **dict.fromkeys(_LEAVES, _HOOKS),
 }
 _METHODS = {
     kind: tuple((name, getattr(kind, name), getattr(kind, name).__code__) for name in names)
     for kind, names in _METHOD_NAMES.items()
 }
-_SOLVER_CLASS = None
-_SOLVER_METHODS = ()
+_SOLVER_CLASS: type[PointerSolver] | None = None
+_SOLVER_METHODS: tuple[tuple[str, object, object], ...] = ()
 
 
-def bind_native_solver_contract(kind):
+def bind_native_solver_contract(kind: type[PointerSolver]) -> None:
     """Bind at native solver module initialization, before client overrides."""
     global _SOLVER_CLASS, _SOLVER_METHODS
     if _SOLVER_CLASS is not None:
@@ -113,10 +121,11 @@ def bind_native_solver_contract(kind):
     )
 
 
-def native_context(context):
-    while type(context) is SummaryContext:
-        context = context.inner
-    return type(context) in (
+def native_context(context: NativeContext | None) -> bool:
+    candidate: object = context
+    while type(candidate) is SummaryContext:
+        candidate = candidate.inner
+    return type(candidate) in (
         CallStringContext,
         ObjectContext,
         TypeContext,
@@ -126,7 +135,7 @@ def native_context(context):
     )
 
 
-def pure_builtin_singleton(variable, points, context):
+def pure_builtin_singleton(variable: object, points: object, context: NativeContext | None) -> bool:
     if (
         type(variable) is not Variable
         or variable.kind is not VariableKind.GLOBAL
@@ -151,11 +160,11 @@ def pure_builtin_singleton(variable, points, context):
     )
 
 
-def valid_seed_rows(rows, names, context):
+def valid_seed_rows(rows: object, names: Sequence[str], context: NativeContext) -> bool:
     """Do not queue a malformed cache merely because eager admission failed."""
     if type(rows) is not tuple or len(rows) != len(names):
         return False
-    for row, name in zip(rows, names):
+    for row, name in zip(rows, names, strict=False):
         if (
             type(row) is not tuple
             or len(row) != 2
@@ -167,7 +176,7 @@ def valid_seed_rows(rows, names, context):
     return True
 
 
-def _methods_match(obj, expected):
+def _methods_match(obj: object, expected: tuple[tuple[str, object, object], ...]) -> bool:
     attributes = vars(obj)
     for name, function, code in expected:
         if name in attributes:
@@ -181,17 +190,17 @@ def _methods_match(obj, expected):
     return True
 
 
-def _freeze(value):
+def _freeze(value: object) -> tuple[type[object], object]:
     if value is None or type(value) in (str, int, bool, float):
         return (type(value), value)
-    if type(value) in (tuple, list):
+    if isinstance(value, (tuple, list)) and type(value) in (tuple, list):
         return (type(value), tuple(_freeze(item) for item in value))
-    if type(value) is dict:
+    if isinstance(value, dict) and type(value) is dict:
         return (dict, tuple(sorted((key, _freeze(item)) for key, item in value.items())))
     raise TypeError("custom bootstrap configuration value")
 
 
-def _signature(solver):
+def _signature(solver: PointerSolver) -> tuple[object, ...] | None:
     if (
         _SOLVER_CLASS is None
         or type(solver) is not _SOLVER_CLASS
@@ -206,8 +215,8 @@ def _signature(solver):
         type(ledger) is not SharedWorkLedger
         or type(solver.scheduler) is not NativeScheduler
         or type(solver.scheduler.policy) is not str
-        or type(SharedWorkLedger.remaining) is not property
-        or SharedWorkLedger.remaining.fget is not _WORK_REMAINING_FGET
+        or type(vars(SharedWorkLedger)["remaining"]) is not property
+        or vars(SharedWorkLedger)["remaining"].fget is not _WORK_REMAINING_FGET
         or ledger.limit is not None
         and (type(ledger.limit) is not int or ledger.limit < 0)
         or type(ledger.used) is not int
@@ -247,7 +256,7 @@ def _signature(solver):
         or solver._inspector_cold_checkpoint is not None
     ):
         return None
-    objects = [
+    objects: list[object] = [
         state,
         state.pointer_flow_graph,
         state.constraints,
@@ -259,7 +268,7 @@ def _signature(solver):
         ledger,
     ]
     if type(solver.processor) is Processor:
-        processors = [solver.processor]
+        processors: list[Processor] = [solver.processor]
         processor_container = None
     elif type(solver.processor) is ComposeProcessor:
         if type(solver.processor.processors) is not list:
@@ -286,7 +295,7 @@ def _signature(solver):
     # Native methods can still dispatch user callbacks through dict subclasses.
     # Seal directly accessed storage types and identities, without traversing
     # any growing fact/edge inventory or keeping a second copy of its contents.
-    storage = [
+    storage: list[tuple[object, type[object]]] = [
         (state._env, dict),
         (graph.succs, dict),
         (graph.preds, dict),
@@ -315,6 +324,8 @@ def _signature(solver):
         storage.extend(((queue._hot, OrderedDict), (queue._cold, OrderedDict)))
     if (
         any(type(value) is not kind for value, kind in storage)
+        or not isinstance(constraints._by_variable, defaultdict)
+        or not isinstance(constraints._by_type, defaultdict)
         or constraints._by_variable.default_factory is not list
         or constraints._by_type.default_factory is not list
         or type(solver._stats) is not dict
@@ -349,14 +360,14 @@ def _signature(solver):
     )
 
 
-def _refuse(solver, reason):
+def _refuse(solver: PointerSolver, reason: str) -> NoReturn:
     solver._bootstrap_invalid = True
     solver._inspector_tainted = True
     solver._stats["converged"] = 0
     raise RuntimeError("bootstrap contract refused: " + reason)
 
 
-def validate_bootstrap_contract(solver):
+def validate_bootstrap_contract(solver: PointerSolver) -> None:
     if getattr(solver, "_bootstrap_invalid", False):
         _refuse(solver, "sticky taint")
     expected = getattr(solver, "_bootstrap_contract_signature", None)
@@ -364,12 +375,14 @@ def validate_bootstrap_contract(solver):
         _refuse(solver, "native component, configuration, hook or arena mutation")
 
 
-def _seed_decision(solver, reason):
+def _seed_decision(solver: PointerSolver, reason: str) -> None:
     if solver._diagnostics is not None:
         solver._diagnostics.seed_decision(reason)
 
 
-def try_publish_builtin_seed(solver, scope, variable, points):
+def try_publish_builtin_seed(
+    solver: PointerSolver, scope: Scope, variable: Ctx[Variable], points: PointsToSet
+) -> bool:
     if solver.config.builtin_bootstrap_policy != "eager_inert":
         if solver._diagnostics is not None:
             _seed_decision(solver, "queued_requested")
@@ -461,7 +474,7 @@ def try_publish_builtin_seed(solver, scope, variable, points):
     return True
 
 
-def bootstrap_statistics(solver: "PointerSolver") -> JsonObject:
+def bootstrap_statistics(solver: PointerSolver) -> JsonObject:
     selected = solver._iteration
     publications = solver._bootstrap_publications
     return {

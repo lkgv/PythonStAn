@@ -5,35 +5,62 @@ no reader, index, query implementation, engine callback or live handle crosses
 the capture boundary. Raw storage is read instead of nominal query helpers,
 which may create variables, fields, edges, or abstract objects.
 """
+
+from __future__ import annotations
+
 import ast
-from collections import deque
 import math
 import time
 import uuid
+import weakref
+from collections import deque
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
+from .capture_dto import (
+    CaptureScalar,
+    CaptureView,
+    EntityDescription,
+    OwnerCoverage,
+    TraceReferenceMapping,
+)
+from .collector_view import export_kwargs_model
 from .contract import CaptureRequest, InspectorError, SealedSnapshot, canonical_bytes
 from .native_identity_projection import project_identity
-from .collector_view import export_kwargs_model
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.contracts.json_data import JsonObject
+    from pythonstan.analysis.pointer.kcfa.solver import PointerSolver
+    from pythonstan.analysis.pointer.kcfa.state import NativePointsKey, PointerAnalysisState
 
 from pythonstan.analysis.pointer.kcfa import points_to_set as pts_storage
 from pythonstan.analysis.pointer.kcfa.context import (
-    AbstractContext, CallSite, Ctx, Scope, SummaryContext,
+    AbstractContext,
+    CallSite,
+    Ctx,
+    Scope,
+    SummaryContext,
 )
 from pythonstan.analysis.pointer.kcfa.object import AbstractObject, AllocSite
-from pythonstan.analysis.pointer.kcfa.protocol_context import KeywordPartition, ProtocolKeyContext
 from pythonstan.analysis.pointer.kcfa.pointer_flow_graph import (
-    PointerFlowNode, NormalNode, SelectorNode, PointerFlowKind,
+    NormalNode,
+    PointerFlowKind,
+    PointerFlowNode,
+    SelectorNode,
 )
-from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind, FieldAccess
-from pythonstan.ir.ir_statements import IRStatement, IRScope, IRModule
-
+from pythonstan.analysis.pointer.kcfa.protocol_context import KeywordPartition, ProtocolKeyContext
+from pythonstan.analysis.pointer.kcfa.variable import FieldAccess, Variable, VariableKind
+from pythonstan.ir.ir_statements import IRModule, IRScope, IRStatement
 
 _VIEWS = ("node_points", "ctx_points", "pfg_edges", "call_edges")
-_LANES = (("objects", "objs_mask"), ("classmethods", "classmethods_mask"),
-          ("instancemethods", "instancemethods_mask"))
+_LANES = (
+    ("objects", "objs_mask"),
+    ("classmethods", "classmethods_mask"),
+    ("instancemethods", "instancemethods_mask"),
+)
 
 
-def _text(value, limit=512):
+def _text(value: object, limit: int = 512) -> str | None:
     """Descriptions never invoke repr/str on engine or user values."""
     if type(value) is not str:
         return None
@@ -45,25 +72,25 @@ def _text(value, limit=512):
     return bounded
 
 
-def _scalar(value):
-    if value is None or type(value) in (bool, int):
+def _scalar(value: object) -> CaptureScalar:
+    if value is None or isinstance(value, (bool, int)) and type(value) in (bool, int):
         # Avoid materializing arbitrarily large integers in diagnostic JSON.
-        return value if value is None or type(value) is bool or -(2 ** 63) <= value < 2 ** 63 else None
+        return value if value is None or type(value) is bool or -(2**63) <= value < 2**63 else None
     if type(value) is float:
         return value if math.isfinite(value) else None
     return _text(value)
 
 
-def _described_text(target, name, value):
+def _described_text(target: dict[str, CaptureScalar], name: str, value: object) -> None:
     target[name] = _text(value)
     if value is not None:
         if target[name] is None:
             target[name + "_coverage"] = "opaque"
-        elif len(value) > 512:
+        elif isinstance(value, str) and len(value) > 512:
             target[name + "_coverage"] = "partial"
 
 
-def _described_scalar(target, name, value):
+def _described_scalar(target: dict[str, CaptureScalar], name: str, value: object) -> None:
     target[name] = _scalar(value)
     if value is not None:
         if target[name] is None:
@@ -72,19 +99,24 @@ def _described_scalar(target, name, value):
             target[name + "_coverage"] = "partial"
 
 
-def _variable_description(variable):
+def _variable_description(variable: Variable) -> dict[str, CaptureScalar]:
     # Translator temporaries can embed id(stmt). Their native names are neither
     # durable identities nor safe alignment keys; local entity refs preserve
     # distinctions without exporting those process addresses.
     opaque = variable.kind == VariableKind.TEMPORARY or not variable.name.isidentifier()
     projected_name = "<synthetic>" if opaque else _text(variable.name)
-    return {"name": projected_name,
-            "variable_kind": variable.kind.value,
-            "name_coverage": "opaque" if opaque or projected_name is None else
-                             "partial" if len(variable.name) > 512 else "exact"}
+    return {
+        "name": projected_name,
+        "variable_kind": variable.kind.value,
+        "name_coverage": "opaque"
+        if opaque or projected_name is None
+        else "partial"
+        if len(variable.name) > 512
+        else "exact",
+    }
 
 
-def _metadata_tree(value, request, deadline):
+def _metadata_tree(value: object, request: CaptureRequest, deadline: float) -> dict[str, object]:
     """Own a bounded caller DTO, never walk arbitrary objects or mappings.
 
     The byte budget includes JSON punctuation/escaping. Cooperative deadline
@@ -98,21 +130,20 @@ def _metadata_tree(value, request, deadline):
     used_bytes = 0
     nodes = 0
 
-    def account(size):
+    def account(size: int) -> None:
         nonlocal used_bytes
         used_bytes += size
         if used_bytes > byte_limit:
             raise InspectorError("capture metadata byte budget exhausted")
 
-    def own(item, depth):
+    def own(item: object, depth: int) -> object:
         nonlocal nodes
         nodes += 1
         if nodes > 4096 or depth > 32:
             raise InspectorError("capture metadata node or depth budget exhausted")
         if time.monotonic() > deadline:
             raise InspectorError("capture metadata deadline exhausted")
-        kind = type(item)
-        if kind is dict:
+        if type(item) is dict:
             if len(item) > 4096:
                 raise InspectorError("capture metadata node budget exhausted")
             account(2 + max(0, len(item) - 1))
@@ -128,21 +159,21 @@ def _metadata_tree(value, request, deadline):
                 account(len(encoded_key) + 1)
                 result[key] = own(child, depth + 1)
             return result
-        if kind in (list, tuple):
+        if isinstance(item, (list, tuple)) and type(item) in (list, tuple):
             if len(item) > 4096:
                 raise InspectorError("capture metadata node budget exhausted")
             account(2 + max(0, len(item) - 1))
             return [own(child, depth + 1) for child in item]
-        if not (item is None or kind in (str, int, bool, float)):
+        if not (item is None or type(item) in (str, int, bool, float)):
             raise InspectorError("capture metadata contains a non-primitive value")
-        if kind is str and len(item) > byte_limit:
+        if type(item) is str and len(item) > byte_limit:
             raise InspectorError("capture metadata string byte budget exhausted")
-        if kind is int and not -(2 ** 63) <= item < 2 ** 63:
+        if type(item) is int and not -(2**63) <= item < 2**63:
             raise InspectorError("capture metadata integer exceeds signed64 range")
-        if kind is float and not math.isfinite(item):
+        if type(item) is float and not math.isfinite(item):
             raise InspectorError("capture metadata float must be finite")
         try:
-            if kind is str:
+            if type(item) is str:
                 item.encode("utf-8")
             encoded_item = canonical_bytes(item)
         except UnicodeError as exc:
@@ -150,17 +181,21 @@ def _metadata_tree(value, request, deadline):
         account(len(encoded_item))
         return item
 
-    return own(value, 0)
+    owned = own(value, 0)
+    if not isinstance(owned, dict):
+        raise InspectorError("capture metadata must be a primitive dict tree")
+    result: dict[str, object] = owned
+    return result
 
 
-def _ast_of(stmt):
+def _ast_of(stmt: object) -> ast.AST | None:
     """Known IR wrappers keep their already-lowered AST in .stmt."""
     node = vars(stmt).get("stmt") if isinstance(stmt, (IRStatement, IRScope)) else None
     return node if isinstance(node, ast.AST) else None
 
 
-def _origin(stmt, scope=None):
-    result = {}
+def _origin(stmt: object, scope: object = None) -> dict[str, CaptureScalar]:
+    result: dict[str, CaptureScalar] = {}
     if isinstance(stmt, (IRScope, IRStatement)):
         raw = vars(stmt)
         for name in ("qualname", "name"):
@@ -168,8 +203,12 @@ def _origin(stmt, scope=None):
                 _described_text(result, name, raw[name])
         node = _ast_of(stmt)
         if node is not None:
-            for source, target in (("lineno", "line"), ("col_offset", "column"),
-                                   ("end_lineno", "end_line"), ("end_col_offset", "end_column")):
+            for source, target in (
+                ("lineno", "line"),
+                ("col_offset", "column"),
+                ("end_lineno", "end_line"),
+                ("end_col_offset", "end_column"),
+            ):
                 value = vars(node).get(source)
                 if type(value) is int:
                     _described_scalar(result, target, value)
@@ -182,7 +221,11 @@ def _origin(stmt, scope=None):
             _described_text(result, "file", filename)
         qualname = vars(scope.stmt).get("qualname")
         _described_text(result, "scope", qualname)
-    losses = [value for key, value in result.items() if key.endswith("_coverage") and value in ("partial", "opaque")]
+    losses = [
+        value
+        for key, value in result.items()
+        if key.endswith("_coverage") and value in ("partial", "opaque")
+    ]
     if losses:
         result["description_coverage"] = "opaque" if "opaque" in losses else "partial"
     return result
@@ -191,18 +234,18 @@ def _origin(stmt, scope=None):
 class _Projection:
     """Capture-lifetime identity map, never retained by the engine or DTO."""
 
-    def __init__(self, request):
-        self.request = request
-        self.deadline = time.monotonic() + request.deadline_seconds
-        self.entities = []
-        self.ids = {}
-        self.pending = deque()
-        self.bytes_used = 2048
-        self.rows_used = 0
-        self.omissions = []
-        self.stopped = None
+    def __init__(self, request: CaptureRequest) -> None:
+        self.request: CaptureRequest = request
+        self.deadline: float = time.monotonic() + request.deadline_seconds
+        self.entities: list[EntityDescription] = []
+        self.ids: dict[tuple[type[object], object], int] = {}
+        self.pending: deque[tuple[int, object]] = deque()
+        self.bytes_used: int = 2048
+        self.rows_used: int = 0
+        self.omissions: list[dict[str, object]] = []
+        self.stopped: str | None = None
 
-    def available(self, size=0):
+    def available(self, size: int = 0) -> bool:
         if self.stopped:
             return False
         if time.monotonic() > self.deadline:
@@ -211,16 +254,29 @@ class _Projection:
             self.stopped = "byte_budget"
         return self.stopped is None
 
-    def omit(self, view, reason, owner=None):
+    def omit(self, view: str, reason: str, owner: int | None = None) -> None:
         # A bounded reason list suffices; it is not a second relation ledger.
         if len(self.omissions) < 32:
             self.omissions.append({"view": view, "reason": reason, "owner": owner})
 
-    def entity(self, obj):
+    def entity(self, obj: object) -> int | None:
         if obj is None:
             return None
-        if not isinstance(obj, (PointerFlowNode, Ctx, AbstractObject, Scope,
-                                AbstractContext, KeywordPartition, AllocSite, CallSite, IRScope, IRStatement)):
+        if not isinstance(
+            obj,
+            (
+                PointerFlowNode,
+                Ctx,
+                AbstractObject,
+                Scope,
+                AbstractContext,
+                KeywordPartition,
+                AllocSite,
+                CallSite,
+                IRScope,
+                IRStatement,
+            ),
+        ):
             return None
         existing = self.ids.get((type(obj), obj))
         if existing is not None:
@@ -230,19 +286,34 @@ class _Projection:
             return None
         local_id = len(self.entities) + 1
         self.ids[(type(obj), obj)] = local_id
-        self.entities.append({"id": local_id, "kind": "pending", "label": "",
-                              "origin": {}, "attributes": {}, "links": {}})
+        self.entities.append(
+            {
+                "id": local_id,
+                "kind": "pending",
+                "label": "",
+                "origin": {},
+                "attributes": {},
+                "links": {},
+            }
+        )
         self.pending.append((local_id, obj))
         self.bytes_used += 256
         return local_id
 
-    def link(self, record, name, obj):
+    def link(self, record: EntityDescription, name: str, obj: object) -> None:
         ref = self.entity(obj)
-        record["links"][name] = ({"ref": ref, "status": "resolved"} if ref is not None else
-            {"ref": None, "status": "omitted_by_capture" if obj is not None else "not_captured",
-             "reason": self.stopped or ("entity_budget" if obj is not None else "no_native_reference")})
+        record["links"][name] = (
+            {"ref": ref, "status": "resolved"}
+            if ref is not None
+            else {
+                "ref": None,
+                "status": "omitted_by_capture" if obj is not None else "not_captured",
+                "reason": self.stopped
+                or ("entity_budget" if obj is not None else "no_native_reference"),
+            }
+        )
 
-    def row(self, target, row):
+    def row(self, target: list[dict[str, object]], row: dict[str, object]) -> bool:
         if self.rows_used >= self.request.max_rows or not self.available(128):
             return False
         target.append(row)
@@ -250,13 +321,13 @@ class _Projection:
         self.bytes_used += len(canonical_bytes(row))
         return True
 
-    def finish_entities(self):
+    def finish_entities(self) -> None:
         # IDs can participate in cycles; descriptors are filled iteratively.
         while self.pending:
             local_id, obj = self.pending.popleft()
             record = self.entities[local_id - 1]
             _described_text(record["attributes"], "engine_class", type(obj).__name__)
-            record["label"] = record["attributes"]["engine_class"] or "entity"
+            record["label"] = _text(record["attributes"]["engine_class"]) or "entity"
             if not self.available():
                 record["kind"] = "opaque"
                 record["attributes"]["description_coverage"] = "not_captured"
@@ -265,28 +336,38 @@ class _Projection:
             project_identity(self, record, obj)
             # Source and attribute descriptions share the same loss markers.
             # Alignment must not turn a bounded prefix into an exact identity.
-            losses = [value for mapping in (record["origin"], record["attributes"])
-                      for key, value in mapping.items()
-                      if key.endswith("_coverage") and value in ("partial", "opaque", "not_captured")]
+            losses = [
+                value
+                for mapping in (record["origin"], record["attributes"])
+                for key, value in mapping.items()
+                if key.endswith("_coverage") and value in ("partial", "opaque", "not_captured")
+            ]
             if losses:
                 record["attributes"]["description_coverage"] = (
-                    "not_captured" if "not_captured" in losses else "opaque" if "opaque" in losses else "partial")
+                    "not_captured"
+                    if "not_captured" in losses
+                    else "opaque"
+                    if "opaque" in losses
+                    else "partial"
+                )
             else:
                 record["attributes"].setdefault("description_coverage", "complete")
             self.bytes_used += max(0, len(canonical_bytes(record)) - 256)
 
-    def describe(self, record, obj):
+    def describe(self, record: EntityDescription, obj: object) -> None:
         attrs = record["attributes"]
         if isinstance(obj, PointerFlowNode):
             record["kind"] = "node"
-            _described_text(attrs, "node_kind", "normal" if isinstance(obj, NormalNode) else type(obj).__name__)
+            _described_text(
+                attrs, "node_kind", "normal" if isinstance(obj, NormalNode) else type(obj).__name__
+            )
             if isinstance(obj, NormalNode):
                 self.link(record, "variable", obj.var)
                 if isinstance(obj.var.scope, Scope):
                     record["origin"] = _origin(obj.var.scope.stmt, obj.var.scope)
                 if isinstance(obj.var.content, Variable):
                     attrs.update(_variable_description(obj.var.content))
-                    record["label"] = "node:" + (attrs["name"] or "")
+                    record["label"] = "node:" + (_text(attrs["name"]) or "")
             else:
                 attrs["transfer_semantics"] = "opaque"
                 if isinstance(obj, SelectorNode):
@@ -296,10 +377,12 @@ class _Projection:
             record["kind"] = "ctx"
             self.link(record, "scope", obj.scope)
             self.link(record, "context", obj.context)
-            record["origin"] = _origin(obj.scope.stmt, obj.scope) if isinstance(obj.scope, Scope) else {}
+            record["origin"] = (
+                _origin(obj.scope.stmt, obj.scope) if isinstance(obj.scope, Scope) else {}
+            )
             if isinstance(obj.content, Variable):
                 attrs.update(_variable_description(obj.content))
-                record["label"] = attrs["name"] or "variable"
+                record["label"] = _text(attrs["name"]) or "variable"
             elif isinstance(obj.content, FieldAccess):
                 attrs["content_kind"] = "field"
                 self.link(record, "object", obj.content.obj)
@@ -308,7 +391,9 @@ class _Projection:
                 _described_text(attrs, "field_name", field.name)
                 _described_scalar(attrs, "field_index", field.index)
                 _described_text(attrs, "field_key_type", field.key_type)
-                record["label"] = "field:" + (attrs["field_name"] or attrs["field_kind"])
+                record["label"] = "field:" + (
+                    _text(attrs["field_name"]) or _text(attrs["field_kind"]) or ""
+                )
             elif isinstance(obj.content, CallSite):
                 attrs["content_kind"] = "callsite"
                 record["label"] = "callsite"
@@ -333,15 +418,20 @@ class _Projection:
             scope = raw.get("container_scope")
             record["origin"] = _origin(obj.alloc_site.stmt, scope)
             if record["origin"].get("qualname"):
-                record["label"] = record["origin"]["qualname"]
+                record["label"] = _text(record["origin"]["qualname"]) or "origin"
             return
         if isinstance(obj, Scope):
             record["kind"] = "scope"
             _described_text(attrs, "qualname", vars(obj.stmt).get("qualname"))
-            record["label"] = attrs["qualname"] or "scope"
+            record["label"] = _text(attrs["qualname"]) or "scope"
             record["origin"] = _origin(obj.stmt, obj)
-            for name, value in (("definition", obj.stmt), ("object", obj.obj),
-                                ("context", obj.context), ("parent", obj._parent), ("module", obj._module)):
+            for name, value in (
+                ("definition", obj.stmt),
+                ("object", obj.obj),
+                ("context", obj.context),
+                ("parent", obj._parent),
+                ("module", obj._module),
+            ):
                 if value is not None:
                     self.link(record, name, value)
             return
@@ -401,29 +491,53 @@ class _Projection:
             return
         record["kind"] = "origin"
         record["origin"] = _origin(obj)
-        record["label"] = record["origin"].get("qualname") or attrs["engine_class"] or "origin"
+        record["label"] = (
+            _text(record["origin"].get("qualname")) or _text(attrs["engine_class"]) or "origin"
+        )
 
 
-def _descriptor(name):
+def _descriptor(name: str) -> CaptureView:
     points = name in ("node_points", "ctx_points")
-    return {"version": 1, "fidelity": "exact", "dimensions":
-            ["owner", "object", "lane"] if points else ["callsite", "callee", "call_kind"]
-            if name == "call_edges" else ["source", "target", "edge_kind"],
-            "operations": ["enumerate", "contains"] if points or name == "call_edges" else ["enumerate"],
-            "semantic_version": "raw_native_storage_v1",
-            "authority": ("PointerAnalysisState._env[PointerFlowNode] plus existing PFG node owners"
-                          if name == "node_points" else
-                          "PointerAnalysisState._env[Ctx] plus existing HeapModel.heap variable owners"
-                          if name == "ctx_points" else "PointerCallGraph.edges" if name == "call_edges"
-                          else "PointerFlowGraph.edges"),
-            "owner_fields": ["facts"] if points else ["edges"] if name == "call_edges"
-                            else ["source", "target", "edge_kind"],
-            "dependencies": ["current_object_table_generation", "single_threaded_owned_boundary"],
-            "coverage": {"registry": "complete", "owners": {},
-                         "enumerated_owners": 0, "enumerated_rows": 0}, "rows": []}
+    return {
+        "version": 1,
+        "fidelity": "exact",
+        "dimensions": ["owner", "object", "lane"]
+        if points
+        else ["callsite", "callee", "call_kind"]
+        if name == "call_edges"
+        else ["source", "target", "edge_kind"],
+        "operations": ["enumerate", "contains"]
+        if points or name == "call_edges"
+        else ["enumerate"],
+        "semantic_version": "raw_native_storage_v1",
+        "authority": (
+            "PointerAnalysisState._env[PointerFlowNode] plus existing PFG node owners"
+            if name == "node_points"
+            else "PointerAnalysisState._env[Ctx] plus existing HeapModel.heap variable owners"
+            if name == "ctx_points"
+            else "PointerCallGraph.edges"
+            if name == "call_edges"
+            else "PointerFlowGraph.edges"
+        ),
+        "owner_fields": ["facts"]
+        if points
+        else ["edges"]
+        if name == "call_edges"
+        else ["source", "target", "edge_kind"],
+        "dependencies": ["current_object_table_generation", "single_threaded_owned_boundary"],
+        "coverage": {
+            "registry": "complete",
+            "owners": {},
+            "enumerated_owners": 0,
+            "enumerated_rows": 0,
+        },
+        "rows": [],
+    }
 
 
-def _trace_reference_mapping(solver, projection, run_id, generation):
+def _trace_reference_mapping(
+    solver: PointerSolver, projection: _Projection, run_id: str, generation: int
+) -> TraceReferenceMapping | None:
     """Join only existing capture objects to live, arena-qualified weak refs.
 
     Native equality and coincident integers are insufficient for this join.
@@ -434,22 +548,32 @@ def _trace_reference_mapping(solver, projection, run_id, generation):
     if port is None:
         return None
     from pythonstan.analysis.pointer.kcfa.diagnostics import NativeDiagnostics
-    result = {"version": 1, "semantic_version": "native_weak_identity_to_snapshot_v1",
-              "scope": "already_projected_exact_objects", "rows": [],
-              "coverage": {"registry": "complete", "examined": 0, "mapped": 0,
-                           "unmapped": 0, "reason_counts": {}}}
+
+    result: TraceReferenceMapping = {
+        "version": 1,
+        "semantic_version": "native_weak_identity_to_snapshot_v1",
+        "scope": "already_projected_exact_objects",
+        "rows": [],
+        "coverage": {
+            "registry": "complete",
+            "examined": 0,
+            "mapped": 0,
+            "unmapped": 0,
+            "reason_counts": {},
+        },
+    }
     coverage = result["coverage"]
 
-    def missing(reason):
+    def missing(reason: str) -> None:
         coverage["unmapped"] += 1
         reasons = coverage["reason_counts"]
         reasons[reason] = reasons.get(reason, 0) + 1
 
     if type(port) is not NativeDiagnostics:
-        coverage.update(registry="unsupported")
+        coverage["registry"] = "unsupported"
         coverage["reason_counts"]["unrecognized_native_port"] = 1
         return result
-    wanted = {}
+    wanted: dict[int, list[tuple[JsonObject, weakref.ReferenceType[object]]]] = {}
     bindings = port.reference_bindings()
     coverage["registered_refs"] = len(bindings)
     for run_ref, weak, epoch in bindings:
@@ -477,7 +601,7 @@ def _trace_reference_mapping(solver, projection, run_id, generation):
         if not projection.available():
             coverage["registry"] = "partial"
             break
-        candidates = wanted.pop(id(obj), ())
+        candidates = wanted.pop(id(obj), [])
         for run_ref, weak in candidates:
             if weak() is not obj:
                 missing("object_identity_mismatch")
@@ -488,13 +612,35 @@ def _trace_reference_mapping(solver, projection, run_id, generation):
                 missing("mapping_row_budget")
     for candidates in wanted.values():
         for _ in candidates:
-            missing("projection_scan_incomplete" if coverage["registry"] == "partial"
-                    else "not_captured_as_same_native_object")
+            missing(
+                "projection_scan_incomplete"
+                if coverage["registry"] == "partial"
+                else "not_captured_as_same_native_object"
+            )
     coverage["unexamined"] = coverage["registered_refs"] - coverage["examined"]
     return result
 
 
-def capture(solver, request=None, run_metadata=None):
+def _fact_owners(state: PointerAnalysisState, view_name: str) -> Iterator[NativePointsKey]:
+    """Enumerate existing fact owners without invoking native lazy constructors."""
+    for owner in state._env:
+        if (
+            view_name == "node_points"
+            and isinstance(owner, PointerFlowNode)
+            or view_name != "node_points"
+            and isinstance(owner, Ctx)
+        ):
+            yield owner
+    if view_name == "node_points":
+        yield from state._pointer_flow_graph.nodes
+    else:
+        for registers in state._heap.heap.values():
+            yield from registers.values()
+
+
+def capture(
+    solver: PointerSolver, request: CaptureRequest | None = None, run_metadata: object = None
+) -> SealedSnapshot:
     """Capture a completed single-threaded solver-control boundary.
 
     Callers must own solver control while capturing; the engine has no parallel
@@ -503,10 +649,14 @@ def capture(solver, request=None, run_metadata=None):
     this control contract. Stable invariant violations are intentionally valid.
     """
     request = request or CaptureRequest()
-    if len(request.views) > 64 or any(type(view) is not str or len(view) > 128 for view in request.views):
+    if len(request.views) > 64 or any(
+        type(view) is not str or len(view) > 128 for view in request.views
+    ):
         raise InspectorError("unsupported capture view request")
     if not getattr(solver, "_inspector_enabled", False):
-        raise InspectorError("unsupported: solver boundary observation was not enabled before solving")
+        raise InspectorError(
+            "unsupported: solver boundary observation was not enabled before solving"
+        )
     if getattr(solver, "_inspector_tainted", False):
         raise InspectorError("unsafe_boundary: an earlier aborted work item tainted this run")
     if request.scope != "all_current_state":
@@ -524,7 +674,7 @@ def capture(solver, request=None, run_metadata=None):
     metadata = _metadata_tree(run_metadata, request, started + request.deadline_seconds)
     projection = _Projection(request)
     projection.deadline = started + request.deadline_seconds
-    views = {}
+    views: dict[str, CaptureView] = {}
     state = solver.state
     table = pts_storage._global_table
 
@@ -536,27 +686,21 @@ def capture(solver, request=None, run_metadata=None):
             # when a caller lists it before ctx_points in the request.
             continue
         if name not in _VIEWS:
-            views[name] = {"version": 1, "fidelity": "opaque", "dimensions": [],
-                           "operations": [], "coverage": {"registry": "unsupported", "owners": {}},
-                           "rows": [], "diagnostics": ["unsupported view"]}
+            views[name] = {
+                "version": 1,
+                "fidelity": "opaque",
+                "dimensions": [],
+                "operations": [],
+                "coverage": {"registry": "unsupported", "owners": {}},
+                "rows": [],
+                "diagnostics": ["unsupported view"],
+            }
             continue
         view = views[name] = _descriptor(name)
         complete = True
         if name in ("node_points", "ctx_points"):
-            owner_type = PointerFlowNode if name == "node_points" else Ctx
-            # Never create a NormalNode, Ctx, field or variable to complete a view.
-            def owners():
-                for owner in state._env:
-                    if isinstance(owner, owner_type):
-                        yield owner
-                if name == "node_points":
-                    yield from state._pointer_flow_graph.nodes
-                else:
-                    for registers in state._heap.heap.values():
-                        yield from registers.values()
-
             seen = set()
-            for owner in owners():
+            for owner in _fact_owners(state, name):
                 if owner in seen:
                     continue
                 if not projection.available():
@@ -567,14 +711,14 @@ def capture(solver, request=None, run_metadata=None):
                 if owner_id is None:
                     complete = False
                     break
-                coverage = {"fields": {"facts": "complete"}}
+                coverage: OwnerCoverage = {"fields": {"facts": "complete"}}
                 view["coverage"]["owners"][str(owner_id)] = coverage
                 points = state._env.get(owner)
                 if points is None:
                     continue
                 owner_complete = True
                 for lane, field in _LANES:
-                    mask = getattr(points, field)
+                    mask: object = getattr(points, field)
                     if type(mask) is not int or mask < 0:
                         projection.omit(name, "invalid_engine_bitmask", owner_id)
                         owner_complete = False
@@ -591,8 +735,9 @@ def capture(solver, request=None, run_metadata=None):
                             owner_complete = False
                             continue
                         obj_id = projection.entity(table._id_to_obj[index])
-                        if obj_id is None or not projection.row(view["rows"], {
-                                "owner": owner_id, "object": obj_id, "lane": lane}):
+                        if obj_id is None or not projection.row(
+                            view["rows"], {"owner": owner_id, "object": obj_id, "lane": lane}
+                        ):
                             owner_complete = False
                             break
                     if not owner_complete:
@@ -609,30 +754,51 @@ def capture(solver, request=None, run_metadata=None):
                     break
                 source = projection.entity(edge.source)
                 target = projection.entity(edge.target)
-                if source is None or target is None or not projection.row(view["rows"], {
-                    "source": source, "target": target, "edge_kind": edge.kind.value,
-                    "identity_copy": edge.kind == PointerFlowKind.NORMAL and
-                        isinstance(edge.source, NormalNode) and isinstance(edge.target, NormalNode)}):
+                if (
+                    source is None
+                    or target is None
+                    or not projection.row(
+                        view["rows"],
+                        {
+                            "source": source,
+                            "target": target,
+                            "edge_kind": edge.kind.value,
+                            "identity_copy": edge.kind == PointerFlowKind.NORMAL
+                            and isinstance(edge.source, NormalNode)
+                            and isinstance(edge.target, NormalNode),
+                        },
+                    )
+                ):
                     complete = False
                     break
         else:
             view["call_kind_encoding"] = "CallKind.name.lower()"
-            for edge in state._call_graph.edges:
+            for call_edge in state._call_graph.edges:
                 if not projection.available():
                     complete = False
                     break
-                callsite = projection.entity(edge.callsite)
-                callee = projection.entity(edge.callee)
-                if callsite is None or callee is None or not projection.row(view["rows"], {
-                    "callsite": callsite, "callee": callee, "call_kind": edge.kind.name.lower()}):
+                callsite = projection.entity(call_edge.callsite)
+                callee = projection.entity(call_edge.callee)
+                if (
+                    callsite is None
+                    or callee is None
+                    or not projection.row(
+                        view["rows"],
+                        {
+                            "callsite": callsite,
+                            "callee": callee,
+                            "call_kind": call_edge.kind.name.lower(),
+                        },
+                    )
+                ):
                     complete = False
                     break
                 view["coverage"]["owners"][str(callsite)] = {"fields": {"edges": "complete"}}
             if not complete:
                 # Set enumeration has no per-owner frontier: an unvisited edge
                 # might share any observed callsite, so no local negative yet.
-                for owner in view["coverage"]["owners"].values():
-                    owner["fields"]["edges"] = "partial"
+                for owner_coverage in view["coverage"]["owners"].values():
+                    owner_coverage["fields"]["edges"] = "partial"
         if not complete:
             view["coverage"]["registry"] = "partial"
             projection.omit(name, projection.stopped or "capture_budget_or_missing_reference")
@@ -647,42 +813,77 @@ def capture(solver, request=None, run_metadata=None):
         raise InspectorError("run_id must be a bounded nonempty string")
     trace_mapping = _trace_reference_mapping(solver, projection, run_id, generation)
     metadata.setdefault("observer_mode", "capture")
-    metadata["stop_reason"] = ("completed" if stage == "stopped" and solver._stats.get("converged") else
-                               "iteration_limit" if stage == "stopped" else "paused_between_work_items")
+    metadata["stop_reason"] = (
+        "completed"
+        if stage == "stopped" and solver._stats.get("converged")
+        else "iteration_limit"
+        if stage == "stopped"
+        else "paused_between_work_items"
+    )
     # Only audited scalar stats and the four finite queue lengths cross the cut.
-    stats = {}
+    scalar_stats: dict[str, CaptureScalar] = {}
     for key, value in solver._stats.items():
         if type(key) is not str or _text(key) != key:
             projection.omit("stats", "unsupported_stat_name")
             continue
         if type(value) in (bool, int, float, str):
-            _described_scalar(stats, key, value)
+            _described_scalar(scalar_stats, key, value)
+    stats: dict[str, object] = dict(scalar_stats)
     stats["pending_work_by_kind"] = solver._pending_work_by_kind()
     stats["capture_projection_seconds"] = time.monotonic() - started
     stats["capture_timing_scope"] = "projection_before_sealing; full capture measured by runner"
     stats["capture_accounted_bytes"] = projection.bytes_used
     stats["capture_entities"] = len(projection.entities)
     stats["capture_rows"] = projection.rows_used
-    result = {"schema": {"major": 1, "minor": 0}, "run": metadata, "snapshot": {
-        "run_id": run_id, "snapshot_id": uuid.uuid4().hex,
-        "boundary": {"coherent": True, "stage": stage,
-                     "control_contract": "single_threaded_owned_solver_boundary", "iteration": clock},
-        "scope": request.scope, "entities": projection.entities, "views": views,
-        "stats": stats, "omissions": projection.omissions,
-        "capture": {"status": "sealed", "requested_scope": request.scope,
-                    "requested_views": list(request.views),
-                    "requested_fields": {name: list(views[name].get("owner_fields", [])) for name in request.views},
-                    "limits": {"entities": request.max_entities, "rows_total_across_views": request.max_rows,
-                               "bytes": request.max_bytes, "deadline_seconds": request.deadline_seconds,
-                               "caller_metadata_bytes": min(65536, request.max_bytes // 4),
-                               "caller_metadata_nodes": 4096, "caller_metadata_depth": 32},
-                    "relation_coverage": "exact_for_named_relations" if all(
-                        view["coverage"]["registry"] == "complete" for view in views.values()) else "partial",
-                    "ownership": "all_descriptions_and_rows_encoded_before_leaving_boundary"}}}
+    snapshot_result: dict[str, object] = {
+        "run_id": run_id,
+        "snapshot_id": uuid.uuid4().hex,
+        "boundary": {
+            "coherent": True,
+            "stage": stage,
+            "control_contract": "single_threaded_owned_solver_boundary",
+            "iteration": clock,
+        },
+        "scope": request.scope,
+        "entities": projection.entities,
+        "views": views,
+        "stats": stats,
+        "omissions": projection.omissions,
+        "capture": {
+            "status": "sealed",
+            "requested_scope": request.scope,
+            "requested_views": list(request.views),
+            "requested_fields": {
+                name: list(views[name].get("owner_fields", [])) for name in request.views
+            },
+            "limits": {
+                "entities": request.max_entities,
+                "rows_total_across_views": request.max_rows,
+                "bytes": request.max_bytes,
+                "deadline_seconds": request.deadline_seconds,
+                "caller_metadata_bytes": min(65536, request.max_bytes // 4),
+                "caller_metadata_nodes": 4096,
+                "caller_metadata_depth": 32,
+            },
+            "relation_coverage": "exact_for_named_relations"
+            if all(view["coverage"]["registry"] == "complete" for view in views.values())
+            else "partial",
+            "ownership": "all_descriptions_and_rows_encoded_before_leaving_boundary",
+        },
+    }
+    result: dict[str, object] = {
+        "schema": {"major": 1, "minor": 0},
+        "run": metadata,
+        "snapshot": snapshot_result,
+    }
     if trace_mapping is not None:
-        result["snapshot"]["trace_reference_mapping"] = trace_mapping
-    if (solver._iteration != clock or solver._inspector_step_depth or solver._inspector_boundary != stage
-            or pts_storage._object_table_generation != generation):
+        snapshot_result["trace_reference_mapping"] = trace_mapping
+    if (
+        solver._iteration != clock
+        or solver._inspector_step_depth
+        or solver._inspector_boundary != stage
+        or pts_storage._object_table_generation != generation
+    ):
         raise InspectorError("unsafe_boundary: solver changed during capture")
     sealed = SealedSnapshot.seal(result)
     if len(sealed.encoded) > request.max_bytes:

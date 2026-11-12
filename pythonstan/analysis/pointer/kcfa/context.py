@@ -4,22 +4,19 @@ This module defines context representations for different context sensitivity
 policies including call-string, object, type, receiver, and hybrid contexts.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
-    Any,
-    Dict,
-    Generic,
     Literal,
-    Optional,
+    Never,
     Protocol,
-    Tuple,
     TypeGuard,
     TypeVar,
-    Union,
     overload,
     override,
     runtime_checkable,
@@ -72,7 +69,7 @@ class CallSite:
     """Call site identifier bound to an IR statement."""
 
     statement: IRStatement
-    scope_name: Optional[str] = None
+    scope_name: str | None = None
     index: int = 0
 
     def __post_init__(self) -> None:
@@ -94,14 +91,13 @@ class CallSite:
             return f"{id(self.statement)}:{self.index}"
         return f"{line}:{col}:{self.index}"
 
-    def _location(self) -> Tuple[Optional[int], Optional[int]]:
-        ast_node = self.statement.get_ast()
-        if ast_node is None:
-            return None, None
-        line = getattr(ast_node, "lineno", None)
-        col = getattr(ast_node, "col_offset", None)
-        return line, col
+    def _location(self) -> tuple[int | None, int | None]:
+        decoded = _decode_native_metadata(self.statement.get_ast(), "location")
+        if not isinstance(decoded, _MetadataLocation):
+            raise TypeError("Malformed source location metadata")
+        return decoded.line, decoded.column
 
+    @override
     def __str__(self) -> str:
         return self.site_id
 
@@ -125,6 +121,13 @@ type FiniteContextKey = (
     | frozenset[FiniteContextKey]
 )
 type BindingAtom = FiniteContextAtom | CallSite | str | int | None
+
+type CallContextSite = CallSite | IRStatement
+type ContextSeed = AbstractObject | FiniteContextKey
+type ParameterValue = AbstractObject | Ctx[object] | FiniteContextKey
+type ParameterContextInput = (
+    CallSite | OrderedBindingToken | tuple[ParameterValue, ...] | frozenset[ParameterValue]
+)
 
 
 @runtime_checkable
@@ -224,17 +227,34 @@ class _MetadataMissing:
 
 
 @dataclass(frozen=True)
+class _MetadataLocation:
+    line: int | None
+    column: int | None
+
+
+@dataclass(frozen=True)
+class _MetadataCallHistory:
+    values: tuple[CallSite, ...]
+
+
+@dataclass(frozen=True)
 class _MetadataOrigins:
     values: tuple[SourceIdentity, ...]
 
 
 _METADATA_MISSING = _MetadataMissing()
 type _MetadataDecoded = (
-    SourceIdentity | FiniteContextAtom | OrderedBindingToken | _MetadataOrigins | _MetadataMissing
+    SourceIdentity
+    | FiniteContextAtom
+    | OrderedBindingToken
+    | _MetadataOrigins
+    | _MetadataLocation
+    | _MetadataCallHistory
+    | _MetadataMissing
 )
 
 
-def _context_record(value: object) -> "TypeGuard[Ctx[object]]":
+def _context_record(value: object) -> TypeGuard[Ctx[object]]:
     return isinstance(value, _CTX_RUNTIME)
 
 
@@ -354,10 +374,26 @@ def _origin_sources(context: object, limit: int = 2) -> tuple[SourceIdentity, ..
     raise TypeError("Malformed Native origin metadata")
 
 
+def native_call_history(context: object) -> tuple[CallSite, ...]:
+    """Read only actual call sites in the old four-field heap projection."""
+    decoded = _decode_native_metadata(context, "calls")
+    if isinstance(decoded, _MetadataCallHistory):
+        return decoded.values
+    raise TypeError("Malformed Native call history metadata")
+
+
 def _decode_native_metadata(
     item: object,
     mode: Literal[
-        "source", "allocation_source", "allocation", "field", "variable", "origins", "keywords"
+        "location",
+        "calls",
+        "source",
+        "allocation_source",
+        "allocation",
+        "field",
+        "variable",
+        "origins",
+        "keywords",
     ],
     *,
     depth: int = 3,
@@ -368,9 +404,15 @@ def _decode_native_metadata(
     Fixed field reads are an external compatibility boundary. Raw objects never
     leave it: every result is projected/validated into the finite vocabulary.
     """
-    if mode == "origins":
+    if mode == "location":
+        line: object = getattr(item, "lineno", None)
+        column: object = getattr(item, "col_offset", None)
+        if not isinstance(line, (int, type(None))) or not isinstance(column, (int, type(None))):
+            raise ValueError("Source coordinates must be integers or None")
+        return _MetadataLocation(line, column)
+    if mode in {"origins", "calls"}:
         seen: set[int] = set()
-        while True:
+        while mode == "origins":
             inner: object = (
                 item.inner
                 if isinstance(item, _WrappedContext)
@@ -394,16 +436,20 @@ def _decode_native_metadata(
         receivers: object = (
             item.receivers if isinstance(item, _ReceiverOrigins) else getattr(item, "receivers", ())
         )
-        parameters: object = (
-            item.params if isinstance(item, _ParameterOrigins) else getattr(item, "params", ())
-        )
-        items = (
+        call_items = (
             _origin_items(calls)
             + _origin_items(allocations)
             + _origin_items(types)
             + _origin_items(receivers)
-            + _origin_items(parameters)
         )
+        if mode == "calls":
+            return _MetadataCallHistory(
+                tuple(value for value in call_items if isinstance(value, CallSite))
+            )
+        parameters: object = (
+            item.params if isinstance(item, _ParameterOrigins) else getattr(item, "params", ())
+        )
+        items = call_items + _origin_items(parameters)
         sources: list[SourceIdentity] = []
         for origin in items[-limit:]:
             if isinstance(origin, FiniteContextAtom):
@@ -573,16 +619,16 @@ def ordered_binding_token(
 
 
 max_idx: int = 0
-context_pool: Dict["AbstractContext", int] = {}
+context_pool: dict[Hashable, int] = {}
 
 
 T = TypeVar("T")
 
 
-class AbstractContext(ABC, Generic[T]):
+class AbstractContext[InputT](ABC):
     """Base class for all context implementations."""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         global max_idx
         if self not in context_pool:
             context_pool[self] = max_idx
@@ -591,37 +637,39 @@ class AbstractContext(ABC, Generic[T]):
     @abstractmethod
     def to_string(self) -> str:
         """String representation for hashing/comparison."""
-        pass
 
     @abstractmethod
     def is_empty(self) -> bool:
         """Check if context is empty."""
-        pass
 
     @abstractmethod
-    def append(self, call_site: T) -> "AbstractContext[T]":
+    def append(self, call_site: InputT) -> AbstractContext[InputT]:
         """Append a call site to the context."""
-        pass
 
+    @override
     @abstractmethod
     def __hash__(self) -> int:
         """Hash for use in dictionaries/sets."""
-        pass
 
     # @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         """Equality comparison."""
-        context_pool[self] == context_pool[other]
+        if not isinstance(other, AbstractContext):
+            return False
+        return context_pool[self] == context_pool[other]
 
+    @override
     def __str__(self) -> str:
         return f"Ctx[{context_pool[self]}]"
 
+    @override
     def __repr__(self) -> str:
         return str(self)
 
 
 @dataclass(frozen=True)
-class CallStringContext(AbstractContext["CallSite"]):
+class CallStringContext(AbstractContext[CallContextSite]):
     """Call-string sensitivity (k-CFA).
 
     Context is a sequence of call sites representing the call string.
@@ -631,18 +679,21 @@ class CallStringContext(AbstractContext["CallSite"]):
         k: Maximum context length
     """
 
-    call_sites: Tuple[CallSite, ...] = ()
+    call_sites: tuple[CallContextSite, ...] = ()
     k: int = 2
 
+    @override
     def to_string(self) -> str:
         if not self.call_sites:
             return "[]"
         return "[" + " → ".join(str(cs) for cs in self.call_sites) + "]"
 
+    @override
     def is_empty(self) -> bool:
         return len(self.call_sites) == 0
 
-    def append(self, call_site: CallSite) -> "CallStringContext":
+    @override
+    def append(self, call_site: CallContextSite) -> CallStringContext:
         """Create new context by appending call site."""
         if self.k == 0:
             return self
@@ -652,17 +703,19 @@ class CallStringContext(AbstractContext["CallSite"]):
     def __len__(self) -> int:
         return len(self.call_sites)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.call_sites, self.k))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, CallStringContext):
             return False
         return self.call_sites == other.call_sites and self.k == other.k
 
 
 @dataclass(frozen=True)
-class ObjectContext(AbstractContext[Union["CallSite", "AbstractObject", FiniteContextAtom]]):
+class ObjectContext(AbstractContext[ContextSeed]):
     """Object sensitivity: allocation site chain.
 
     Attributes:
@@ -670,44 +723,50 @@ class ObjectContext(AbstractContext[Union["CallSite", "AbstractObject", FiniteCo
         depth: Maximum depth for object context
     """
 
-    alloc_sites: Tuple[Union["CallSite", "AbstractObject", FiniteContextAtom], ...] = ()
+    alloc_sites: tuple[ContextSeed, ...] = ()
     depth: int = 2
 
-    def __post_init__(self):
+    @override
+    def __post_init__(self) -> None:
         if type(self.depth) is not int or self.depth < 0:
             raise ValueError("depth must be a nonnegative integer")
         values = tuple(finite_context_atom(value) for value in self.alloc_sites)
         object.__setattr__(self, "alloc_sites", values[-self.depth :] if self.depth else ())
         super().__post_init__()
 
+    @override
     def to_string(self) -> str:
         if not self.alloc_sites:
             return "<>"
         shortened = [str(s) for s in self.alloc_sites]
         return "<" + ",".join(shortened) + ">"
 
+    @override
     def is_empty(self) -> bool:
         return len(self.alloc_sites) == 0
 
-    def append(self, item: Union["CallSite", "AbstractObject"]) -> "ObjectContext":
+    @override
+    def append(self, item: ContextSeed) -> ObjectContext:
         """Create new context by appending allocation site."""
-        item = finite_context_atom(item)
+        projected = finite_context_atom(item)
         if self.depth == 0:
             return self
-        new_sites = (self.alloc_sites + (item,))[-self.depth :]
+        new_sites = (self.alloc_sites + (projected,))[-self.depth :]
         return ObjectContext(new_sites, self.depth)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.alloc_sites, self.depth))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ObjectContext):
             return False
         return self.alloc_sites == other.alloc_sites and self.depth == other.depth
 
 
 @dataclass(frozen=True)
-class TypeContext(AbstractContext[Union["CallSite", "AbstractObject"]]):
+class TypeContext(AbstractContext[ContextSeed]):
     """Type sensitivity: receiver type chain.
 
     Attributes:
@@ -715,42 +774,48 @@ class TypeContext(AbstractContext[Union["CallSite", "AbstractObject"]]):
         depth: Maximum depth for type context
     """
 
-    types: Tuple[Union["CallSite", "AbstractObject"], ...] = ()
+    types: tuple[ContextSeed, ...] = ()
     depth: int = 2
 
-    def __post_init__(self):
+    @override
+    def __post_init__(self) -> None:
         if type(self.depth) is not int or self.depth < 0:
             raise ValueError("depth must be a nonnegative integer")
         values = tuple(finite_context_atom(value) for value in self.types)
         object.__setattr__(self, "types", values[-self.depth :] if self.depth else ())
         super().__post_init__()
 
+    @override
     def to_string(self) -> str:
         if not self.types:
             return "<:>"
         return "<" + ":".join(str(t) for t in self.types) + ">"
 
+    @override
     def is_empty(self) -> bool:
         return len(self.types) == 0
 
-    def append(self, item: Union["CallSite", "AbstractObject"]) -> "TypeContext":
+    @override
+    def append(self, item: ContextSeed) -> TypeContext:
         """Create new context by appending type."""
         if self.depth == 0:
             return self
         new_types = (self.types + (finite_context_atom(item),))[-self.depth :]
         return TypeContext(new_types, self.depth)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.types, self.depth))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, TypeContext):
             return False
         return self.types == other.types and self.depth == other.depth
 
 
 @dataclass(frozen=True)
-class ReceiverContext(AbstractContext[Union["CallSite", "AllocSite"]]):
+class ReceiverContext(AbstractContext[ContextSeed]):
     """Receiver-object sensitivity: self/receiver allocation sites.
 
     Attributes:
@@ -758,43 +823,49 @@ class ReceiverContext(AbstractContext[Union["CallSite", "AllocSite"]]):
         depth: Maximum depth for receiver context
     """
 
-    receivers: Tuple[Union["CallSite", "AllocSite"], ...] = ()
+    receivers: tuple[ContextSeed, ...] = ()
     depth: int = 2
 
-    def __post_init__(self):
+    @override
+    def __post_init__(self) -> None:
         if type(self.depth) is not int or self.depth < 0:
             raise ValueError("depth must be a nonnegative integer")
         values = tuple(finite_context_atom(value) for value in self.receivers)
         object.__setattr__(self, "receivers", values[-self.depth :] if self.depth else ())
         super().__post_init__()
 
+    @override
     def to_string(self) -> str:
         if not self.receivers:
             return "<rcv:>"
         shortened = [str(r).split(":")[-1] for r in self.receivers]
         return "<rcv:" + ",".join(shortened) + ">"
 
+    @override
     def is_empty(self) -> bool:
         return len(self.receivers) == 0
 
-    def append(self, item: Union["CallSite", "AllocSite"]) -> "ReceiverContext":
+    @override
+    def append(self, item: ContextSeed) -> ReceiverContext:
         """Create new context by appending receiver allocation site."""
         if self.depth == 0:
             return self
         new_receivers = (self.receivers + (finite_context_atom(item),))[-self.depth :]
         return ReceiverContext(new_receivers, self.depth)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.receivers, self.depth))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ReceiverContext):
             return False
         return self.receivers == other.receivers and self.depth == other.depth
 
 
 @dataclass(frozen=True)
-class ParamContext(AbstractContext[Tuple["AbstractObject", ...]]):
+class ParamContext(AbstractContext[ParameterContextInput]):
     """Receiver-object sensitivity: self/receiver allocation sites.
 
     Attributes:
@@ -802,46 +873,56 @@ class ParamContext(AbstractContext[Tuple["AbstractObject", ...]]):
         depth: Maximum depth for receiver context
     """
 
-    params: Tuple[Union[CallSite, Tuple["AbstractObject", ...]], ...] = ()
+    params: tuple[FiniteContextKey | ParameterContextInput, ...] = ()
     depth: int = 2
 
-    def __post_init__(self):
+    @override
+    def __post_init__(self) -> None:
         if type(self.depth) is not int or self.depth < 0:
             raise ValueError("depth must be a nonnegative integer")
-        values = []
-        for value in self.params:
-            if isinstance(value, (CallSite, OrderedBindingToken, frozenset)):
-                value = finite_context_atom(value)
+        values: list[FiniteContextKey] = []
+        for raw_value in self.params:
+            if isinstance(raw_value, (CallSite, OrderedBindingToken, frozenset)):
+                projected = finite_context_atom(raw_value)
             else:
-                value = ordered_binding_token(value)
-            values.append(value)
-        object.__setattr__(self, "params", tuple(values[-self.depth :]) if self.depth else ())
+                projected = ordered_binding_token(_origin_items(raw_value))
+            values.append(projected)
+        normalized: tuple[FiniteContextKey, ...] = (
+            tuple(values[-self.depth :]) if self.depth else ()
+        )
+        object.__setattr__(self, "params", normalized)
         super().__post_init__()
 
+    @override
     def to_string(self) -> str:
         if not self.params:
             return "<param:>"
         return "<param:" + ",".join(str(p) for p in self.params) + ">"
 
+    @override
     def is_empty(self) -> bool:
         return len(self.params) == 0
 
-    def append(self, params: Union[CallSite, Tuple["AbstractObject", ...]]) -> "ParamContext":
+    @override
+    def append(self, params: ParameterContextInput) -> ParamContext:
         """Create new context by appending parameters."""
         if self.depth == 0:
             return self
+        normalized: FiniteContextKey | ParameterContextInput = params
         if not isinstance(params, (CallSite, OrderedBindingToken)):
             if isinstance(params, frozenset):
-                params = finite_context_atom(params)
+                normalized = finite_context_atom(params)
             else:
-                params = ordered_binding_token(params)
-        new_params = (self.params + (params,))[-self.depth :]
+                normalized = ordered_binding_token(params)
+        new_params = (self.params + (normalized,))[-self.depth :]
         return ParamContext(new_params, self.depth)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.params, self.depth))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, ParamContext):
             return False
         return self.params == other.params and self.depth == other.depth
@@ -851,7 +932,7 @@ class _MissingHybridReceiver(Enum):
     TOKEN = "missing_hybrid_receiver"
 
 
-type HybridContextInput = tuple[CallSite, AbstractObject | None]
+type HybridContextInput = tuple[CallContextSite, AbstractObject | None]
 
 
 @dataclass(frozen=True)
@@ -865,12 +946,13 @@ class HybridContext(AbstractContext[HybridContextInput]):
         obj_depth: Maximum object context depth
     """
 
-    call_sites: Tuple["CallSite", ...] = ()
+    call_sites: tuple[CallContextSite, ...] = ()
     alloc_sites: tuple[AbstractObject | FiniteContextKey, ...] = ()
     call_k: int = 1
     obj_depth: int = 1
 
-    def __post_init__(self):
+    @override
+    def __post_init__(self) -> None:
         if any(type(value) is not int or value < 0 for value in (self.call_k, self.obj_depth)):
             raise ValueError("context depths must be nonnegative integers")
         values = tuple(finite_context_atom(value) for value in self.alloc_sites)
@@ -880,6 +962,7 @@ class HybridContext(AbstractContext[HybridContextInput]):
         )
         super().__post_init__()
 
+    @override
     def to_string(self) -> str:
         call_part = (
             "[" + ",".join(str(cs) for cs in self.call_sites) + "]" if self.call_sites else "[]"
@@ -888,17 +971,18 @@ class HybridContext(AbstractContext[HybridContextInput]):
         obj_part = "<" + ",".join(shortened) + ">" if self.alloc_sites else "<>"
         return call_part + obj_part
 
+    @override
     def is_empty(self) -> bool:
         return len(self.call_sites) == 0 and len(self.alloc_sites) == 0
 
-    def append_call(self, call_site: CallSite) -> "HybridContext":
+    def append_call(self, call_site: CallContextSite) -> HybridContext:
         """Create new context by appending call site."""
         if self.call_k == 0:
             return self
         new_calls = (self.call_sites + (call_site,))[-self.call_k :]
         return HybridContext(new_calls, self.alloc_sites, self.call_k, self.obj_depth)
 
-    def append_object(self, alloc_site: "AbstractObject") -> "HybridContext":
+    def append_object(self, alloc_site: ContextSeed) -> HybridContext:
         """Create new context by appending allocation site."""
         if self.obj_depth == 0:
             return self
@@ -906,17 +990,19 @@ class HybridContext(AbstractContext[HybridContextInput]):
         return HybridContext(self.call_sites, new_allocs, self.call_k, self.obj_depth)
 
     @overload
-    def append(self, call_site: HybridContextInput) -> "HybridContext": ...
+    def append(self, call_site: HybridContextInput) -> HybridContext: ...
 
     @overload
-    def append(self, call_site: CallSite, alloc_site: AbstractObject | None) -> "HybridContext": ...
+    def append(
+        self, call_site: CallContextSite, alloc_site: AbstractObject | None
+    ) -> HybridContext: ...
 
     @override
     def append(
         self,
-        call_site: CallSite | HybridContextInput,
+        call_site: CallContextSite | HybridContextInput,
         alloc_site: AbstractObject | None | _MissingHybridReceiver = _MissingHybridReceiver.TOKEN,
-    ) -> "HybridContext":
+    ) -> HybridContext:
         if isinstance(alloc_site, _MissingHybridReceiver):
             if not isinstance(call_site, tuple) or len(call_site) != 2:
                 raise TypeError(
@@ -933,10 +1019,12 @@ class HybridContext(AbstractContext[HybridContextInput]):
         )
         return HybridContext(new_calls, new_allocs, self.call_k, self.obj_depth)
 
+    @override
     def __hash__(self) -> int:
         return hash((self.call_sites, self.alloc_sites, self.call_k, self.obj_depth))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, HybridContext):
             return False
         return (
@@ -951,32 +1039,43 @@ class HybridContext(AbstractContext[HybridContextInput]):
 class SummaryContext(AbstractContext[T]):
     """Explicit marker for summary objects produced by widening."""
 
-    inner: AbstractContext[T]
+    inner: AbstractContext[T] | None
 
+    @override
     def to_string(self) -> str:
+        if self.inner is None:
+            raise AttributeError("'NoneType' object has no attribute 'to_string'")
         return f"S[{self.inner.to_string()}]"
 
+    @override
     def is_empty(self) -> bool:
+        if self.inner is None:
+            raise AttributeError("'NoneType' object has no attribute 'is_empty'")
         return self.inner.is_empty()
 
     @override
-    def append(self, call_site: T) -> "SummaryContext[T]":
+    def append(self, call_site: T) -> SummaryContext[T]:
+        if self.inner is None:
+            raise AttributeError("'NoneType' object has no attribute 'append'")
         return SummaryContext(self.inner.append(call_site))
 
+    @override
     def __hash__(self) -> int:
         return hash(("summary", self.inner))
 
-    def __eq__(self, other: Any) -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, SummaryContext):
             return False
         return self.inner == other.inner
 
 
-CtxContentT = TypeVar("CtxContentT", covariant=True)
+def is_summary_context[ItemT](context: AbstractContext[ItemT]) -> TypeGuard[SummaryContext[ItemT]]:
+    return isinstance(context, SummaryContext)
 
 
 @dataclass(frozen=True)
-class Ctx(Generic[CtxContentT]):
+class Ctx[CtxContentT]:
     """Content with context.
 
     Attributes:
@@ -984,15 +1083,17 @@ class Ctx(Generic[CtxContentT]):
         content: CtxContentT
     """
 
-    context: "NativeContext | None"
-    scope: "Scope | None"
+    context: NativeContext | None
+    scope: Scope | None
     content: CtxContentT
 
+    @override
     def __hash__(self) -> int:
         return hash((self.content, self.scope, self.context))
 
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, Ctx):
+    @override
+    def __eq__(self, other: object) -> bool:
+        if not _context_record(other):
             return False
         return (
             self.content == other.content
@@ -1000,6 +1101,7 @@ class Ctx(Generic[CtxContentT]):
             and self.scope == other.scope
         )
 
+    @override
     def __str__(self) -> str:
         return f"{self.context}:{self.content}"
 
@@ -1021,12 +1123,12 @@ class Scope:
     """
 
     stmt: IRScope
-    obj: "AbstractObject"
-    context: "NativeContext"
-    _parent: Optional["Scope"]
-    _module: Optional["Scope"]
+    obj: AbstractObject
+    context: NativeContext
+    _parent: Scope | None
+    _module: Scope | None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.stmt, IRScope):
             raise ValueError(f"Scope must be an IRScope, {self.stmt} got")
         if not isinstance(self.stmt, IRModule) and self._parent is None:
@@ -1034,26 +1136,29 @@ class Scope:
         if self._module is not None and not isinstance(self._module.stmt, IRModule):
             raise ValueError(f"Module shoud be IRModule, but got {type(self._module.stmt)}!")
 
+    @override
     def __hash__(self) -> int:
         return hash((self.stmt, self.context, self.obj))
 
-    def __eq__(self, other: "Scope") -> bool:
+    @override
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Scope):
             return False
         return self.stmt == other.stmt and self.context == other.context and self.obj == other.obj
 
+    @override
     def __str__(self) -> str:
         return f"Scope[{self.stmt}:<{self.obj}>@{self.context}]"
 
     @classmethod
     def new(
         cls,
-        obj: "AbstractObject",
-        module: "Scope | None",
-        context: "NativeContext",
+        obj: AbstractObject,
+        module: Scope | None,
+        context: NativeContext,
         stmt: IRScope,
-        parent: Optional["Scope"] = None,
-    ) -> "Scope":
+        parent: Scope | None = None,
+    ) -> Scope:
         if isinstance(stmt, IRModule) and parent is not None:
             parent = None
         return cls(stmt, obj, context, parent, module)
@@ -1063,60 +1168,64 @@ class Scope:
         return self.stmt.get_qualname()
 
     @property
-    def module(self) -> "Scope":
+    def module(self) -> Scope:
         if self._module:
             return self._module
-        else:
-            return self
+        return self
 
     @property
-    def parent(self) -> "Scope":
+    def parent(self) -> Scope:
         if self._parent is None:
             if self._module is None:
                 return self
-            else:
-                return self._module
-        else:
-            return self._parent
+            return self._module
+        return self._parent
 
     @property
     def kind(
         self,
-    ) -> Literal["function", "instance_method", "class_method", "static_method", "module", "class"]:
+    ) -> (
+        Literal["function", "instance_method", "class_method", "static_method", "module", "class"]
+        | None
+    ):
         from pythonstan.ir.ir_statements import IRClass, IRFunc, IRModule
 
         if isinstance(self.stmt, IRFunc):
             if self.stmt.is_instance_method:
                 return "instance_method"
-            elif self.stmt.is_class_method:
+            if self.stmt.is_class_method:
                 return "class_method"
-            elif self.stmt.is_static_method:
+            if self.stmt.is_static_method:
                 return "static_method"
-            else:
-                return "function"
-        elif isinstance(self.stmt, IRClass):
+            return "function"
+        if isinstance(self.stmt, IRClass):
             return "class"
-        elif isinstance(self.stmt, IRModule):
+        if isinstance(self.stmt, IRModule):
             return "module"
+        return None
 
 
 # Actual policy families admitted at the Native boundary. No custom root context
 # is silently treated as one of these implementations.
+type NativeBaseContext = (
+    CallStringContext | ObjectContext | TypeContext | ReceiverContext | ParamContext | HybridContext
+)
 type NativeSummaryContext = (
-    SummaryContext[CallSite]
-    | SummaryContext[CallSite | AbstractObject | FiniteContextAtom]
-    | SummaryContext[CallSite | AbstractObject]
-    | SummaryContext[CallSite | AllocSite]
-    | SummaryContext[tuple[AbstractObject, ...]]
-    | SummaryContext[tuple[CallSite, AbstractObject | None]]
+    SummaryContext[Never]
+    | SummaryContext[CallContextSite]
+    | SummaryContext[ContextSeed]
+    | SummaryContext[ContextSeed]
+    | SummaryContext[ContextSeed]
+    | SummaryContext[ParameterContextInput]
+    | SummaryContext[HybridContextInput]
 )
 type NativeProtocolContext = (
-    ProtocolKeyContext[CallSite]
-    | ProtocolKeyContext[CallSite | AbstractObject | FiniteContextAtom]
-    | ProtocolKeyContext[CallSite | AbstractObject]
-    | ProtocolKeyContext[CallSite | AllocSite]
-    | ProtocolKeyContext[tuple[AbstractObject, ...]]
-    | ProtocolKeyContext[tuple[CallSite, AbstractObject | None]]
+    ProtocolKeyContext[CallContextSite]
+    | ProtocolKeyContext[ContextSeed]
+    | ProtocolKeyContext[ContextSeed]
+    | ProtocolKeyContext[ContextSeed]
+    | ProtocolKeyContext[ParameterContextInput]
+    | ProtocolKeyContext[HybridContextInput]
 )
 type NativeContext = (
     CallStringContext
@@ -1147,7 +1256,10 @@ def is_native_context(value: object) -> TypeGuard[NativeContext]:
         if identity in seen or not isinstance(current, _WrappedContext):
             return False
         seen.add(identity)
-        current = current.inner
+        inner = current.inner
+        if inner is None:
+            return isinstance(current, SummaryContext)
+        current = inner
     return isinstance(
         current,
         (
@@ -1159,3 +1271,15 @@ def is_native_context(value: object) -> TypeGuard[NativeContext]:
             HybridContext,
         ),
     )
+
+
+def make_native_summary(context: NativeContext | None) -> NativeSummaryContext:
+    """Construct the real wrapper, preserving its exact inner identity.
+
+    The general wrapper remains generic. This factory validates the emitted
+    registered profile, including the historically admitted absent inner.
+    """
+    result = SummaryContext(context)
+    if is_native_context(result) and isinstance(result, SummaryContext):
+        return result
+    raise ValueError("Summary context is outside the registered Native profile")

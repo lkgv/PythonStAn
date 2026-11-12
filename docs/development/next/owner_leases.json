@@ -40,55 +40,31 @@
       "docs/development/next/client_query*"
     ]
   },
-  "phase": "W1 integrated checkpoint frozen",
+  "phase": "W1 resumed; all production writers held for final snapshot",
   "owners": {
     "root": [
-      "pythonstan/analysis/engines/abstract/driver.py",
-      "pythonstan/analysis/engines/abstract/runtime_options.py",
-      "pythonstan/analysis/contracts/__init__.py",
-      "scripts/quality/",
-      "docs/development/next/task_board.json",
-      "docs/development/next/gate_manifest.json",
-      "docs/development/next/owner_leases.json"
+      "checkpoint/publication/integration",
+      "builtin_api_handler.py",
+      "compat/host_iteration.py",
+      "legacy_ai/value_domain.py iteration consumer"
     ],
-    "domain_native_baseline": [
-      "pythonstan/analysis/state/store.py",
-      "pythonstan/analysis/state/flow.py",
-      "pythonstan/analysis/state/handles.py",
-      "pythonstan/analysis/state/bindings.py",
-      "pythonstan/analysis/state/dependencies.py",
-      "pythonstan/analysis/state/continuation.py",
-      "pythonstan/analysis/engines/abstract/transfer.py",
-      "pythonstan/analysis/engines/abstract/continuations.py"
+    "native_types": [
+      "kcfa Native/driver/translator/bootstrap/protocols"
     ],
-    "semantic_baseline": [
-      "pythonstan/analysis/state/metadata.py",
-      "pythonstan/analysis/state/transform.py",
-      "pythonstan/analysis/state/boundary.py",
-      "pythonstan/analysis/composition/state_adapter.py",
-      "pythonstan/analysis/domains/",
-      "pythonstan/analysis/composition/guarded_dispatch.py"
+    "native_types/world_types": [
+      "world/project/module/report lifecycle"
     ],
-    "quality_tools": [
-      "pythonstan/analysis/contracts/budgets.py",
-      "pythonstan/analysis/contracts/engine.py",
-      "pythonstan/analysis/contracts/outcomes.py",
-      "pythonstan/analysis/contracts/wire.py",
-      "pythonstan/analysis/contracts/oracle.py",
-      "pythonstan/analysis/composition/oracle.py",
-      "pythonstan/analysis/engines/abstract/dictionaries.py",
-      "pythonstan/analysis/engines/abstract/dictionary_views.py"
+    "core_types": [
+      "Dataflow/closure execution"
     ],
-    "input_typing": [
-      "pythonstan/analysis/contracts/arguments.py",
-      "pythonstan/analysis/semantics/binding.py",
-      "pythonstan/analysis/semantics/names.py",
-      "pythonstan/analysis/semantics/scalar_strings.py",
-      "pythonstan/analysis/engines/abstract/attributes.py"
+    "context_legacy": [
+      "context/identity/legacy/IR producers"
     ],
-    "client_preregistration": [
-      "pythonstan/analysis/engines/abstract/publication.py",
-      "pythonstan/analysis/engines/abstract/namespaces.py"
+    "quality_triage": [
+      "Inspector capture chain and quality evidence"
+    ],
+    "integration_review": [
+      "IR transformer and global tests"
     ]
   },
   "checkpoint_source_snapshot_sha256": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
@@ -111,5 +87,11 @@
     "root": [
       "quality policy/frontier, canonical contracts, integration, reviewed evidence and publication"
     ]
+  },
+  "recovery": {
+    "remote_interruption_commit": "e126cf9db8e37c060cad78814cb51e2c2641169d",
+    "workspace_preserved": true,
+    "source_reset": false,
+    "debt_ledger_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7"
   }
 }

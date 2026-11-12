@@ -1,15 +1,15 @@
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
+from pythonstan.ir import IRModule
 from pythonstan.utils.common import Singleton
-from pythonstan.ir import IRModule, IRScope, IRImport
 
 if TYPE_CHECKING:
     from .analysis_manager import AnalysisManager
+    from .class_hierarchy import ClassHierarchy
+    from .config import Config
+    from .import_manager import ImportManager
     from .namespace import Namespace, NamespaceManager
     from .scope_manager import ScopeManager
-    from .config import Config
-    from .class_hierarchy import ClassHierarchy
-    from .import_manager import ImportManager
 
 
 class World(Singleton):
@@ -19,14 +19,14 @@ class World(Singleton):
     entry_module: IRModule | None
     class_hierarchy: "ClassHierarchy"
     import_manager: "ImportManager"
-    module2ns: Dict[IRModule, "Namespace"]
+    module2ns: dict[IRModule, "Namespace"]
 
     @classmethod
     def setup(cls) -> None:
-        from .scope_manager import ScopeManager
         from .class_hierarchy import ClassHierarchy
         from .import_manager import ImportManager
         from .namespace import NamespaceManager
+        from .scope_manager import ScopeManager
 
         # Services are read through the singleton instance. Resetting only the
         # class attributes leaves any instance-level replacement in force and
@@ -39,7 +39,7 @@ class World(Singleton):
         world.module2ns = {}
         world.entry_module = None
 
-    def build(self, config: "Config"):
+    def build(self, config: "Config") -> None:
         self.scope_manager.build()
         self.import_manager.build()
         self.namespace_manager.build(
@@ -49,7 +49,7 @@ class World(Singleton):
             prefer_mock_libs=config.prefer_mock_libs,
         )
 
-    def set_entry_module(self, module: IRModule):
+    def set_entry_module(self, module: IRModule) -> None:
         self.entry_module = module
 
     def get_entry_module(self) -> IRModule | None:

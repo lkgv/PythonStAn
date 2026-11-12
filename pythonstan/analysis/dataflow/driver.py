@@ -1,45 +1,88 @@
-from typing import TypeVar, Generic, Dict, Type
+"""Execute a dynamically registered analysis without inventing its fact type."""
 
+from collections.abc import Mapping
+from typing import Literal, NotRequired, Required, TypedDict, override
+
+from pythonstan.graph.cfg import BaseBlock, ControlFlowGraph
 from pythonstan.ir import IRScope
-from ..analysis import Analysis, AnalysisDriver, AnalysisConfig, get_scope_result
+
+from ..analysis import AnalysisConfig, AnalysisDriver, get_scope_result
 from .analysis import DataflowAnalysis
+from .execution import DataflowExecution
 from .solver import Solver, WorklistSolver
 
-Fact = TypeVar('Fact')
+ScopeResults = TypedDict(
+    "ScopeResults", {"in": Mapping[BaseBlock, object], "out": Mapping[BaseBlock, object]}
+)
+DataflowResults = TypedDict(
+    "DataflowResults",
+    {
+        "per_scope": Required[dict[IRScope, ScopeResults]],
+        "in": NotRequired[Mapping[BaseBlock, object]],
+        "out": NotRequired[Mapping[BaseBlock, object]],
+    },
+)
 
 
-class DataflowAnalysisDriver(Generic[Fact], AnalysisDriver):
-    analysis: Type[DataflowAnalysis]
-    solver: Solver
-    results: Dict
+class DataflowAnalysisDriver[Fact](AnalysisDriver):
+    """The legacy generic subscription is compatibility syntax, not a fact witness."""
 
-    def __init__(self, config: AnalysisConfig):
+    analysis: type[DataflowExecution]
+    solver: object
+    _published: DataflowResults
+    _per_scope: dict[IRScope, ScopeResults]
+
+    def __init__(self, config: AnalysisConfig) -> None:
         super().__init__(config)
-        self.retain_scope_results = config.options.get("retain_scope_results", True)
-        if type(self.retain_scope_results) is not bool:
+        retain = config.options.get("retain_scope_results", True)
+        if type(retain) is not bool:
             raise ValueError("retain_scope_results must be Boolean")
-        self.analysis = DataflowAnalysis.get_analysis(config.id)
-        if 'solver' in config.options:
-            self.solver = Solver.get_solver(config.options['solver'])[Fact]
+        self.retain_scope_results: bool = retain
+        analysis = DataflowAnalysis.get_analysis(config.id)
+        if not issubclass(analysis, DataflowExecution):
+            raise TypeError("dataflow analysis must implement DataflowExecution")
+        self.analysis = analysis
+        if "solver" in config.options:
+            solver_name = config.options["solver"]
+            if not isinstance(solver_name, str):
+                raise ValueError("dataflow solver must name a registered solver")
+            self.solver = Solver.get_solver(solver_name)
         else:
-            self.solver = WorklistSolver[Fact]
-        self.results = {"per_scope": {}}
+            self.solver = WorklistSolver
+        self.clear_results()
 
-    def analyze(self, scope: IRScope, prev_results):
-        from pythonstan.world import World
+    def clear_results(self) -> None:
+        """Release owned containers while observers may retain their exact old maps."""
+        self._per_scope = {}
+        self._published = {"per_scope": self._per_scope}
+        self.results = self._published
+
+    def facts(self, direction: Literal["in", "out"]) -> Mapping[BaseBlock, object]:
+        """Read the latest map without copying it or asserting a particular Fact."""
+        return self._published[direction]
+
+    @override
+    def analyze(self, scope: IRScope, prev_results: object) -> None:
+        from pythonstan.world.world import World
+
         ir_name = self.config.options.get("ir", "cfg")
+        if not isinstance(ir_name, str):
+            raise ValueError("dataflow ir must name a representation")
         cfg = World().scope_manager.get_ir(scope, ir_name)
-
+        if not isinstance(cfg, ControlFlowGraph):
+            raise TypeError("dataflow analysis requires a ControlFlowGraph representation")
         analyzer = self.analysis(scope, cfg, self.config)
         for prev in self.config.prev_analysis:
-            if prev in prev_results:
-                analyzer.set_input(prev, get_scope_result(prev_results[prev], scope, prev))
-
-        facts_in, facts_out = self.solver.solve(analyzer)
-
-        scope_result = {"in": facts_in, "out": facts_out}
+            if not isinstance(prev_results, Mapping):
+                raise TypeError("dataflow dependencies must be a mapping")
+            dependencies: Mapping[object, object] = prev_results
+            if prev in dependencies:
+                analyzer.set_input(prev, get_scope_result(dependencies[prev], scope, prev))
+        facts = analyzer.execute_scope(self.solver)
+        scope_result: ScopeResults = {"in": facts.incoming, "out": facts.outgoing}
         if self.retain_scope_results:
-            self.results["per_scope"][scope] = scope_result
-        # Preserve the established single-scope interface. Multi-scope clients
-        # must select per_scope explicitly; these aliases describe the last run.
-        self.results.update(scope_result)
+            self._per_scope[scope] = scope_result
+        # These last-run aliases and per-scope history point to the exact same
+        # maps. Compact diagnostic views and ordinary mutable dicts stay intact.
+        self._published["in"] = facts.incoming
+        self._published["out"] = facts.outgoing

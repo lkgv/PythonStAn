@@ -30,34 +30,35 @@ def json_bytes(value):
                       separators=(",", ":"), allow_nan=False).encode("ascii")
 
 
-def bounded_tree(value, *, max_nodes=8192, max_depth=20, max_string=4096):
+def bounded_tree(
+    value: object, *, max_nodes: int = 8192, max_depth: int = 20, max_string: int = 4096
+) -> None:
     """Validate only an owned primitive tree, without invoking foreign code."""
-    pending = [(value, 0)]
+    pending: list[tuple[object, int]] = [(value, 0)]
     nodes = 0
     while pending:
         item, depth = pending.pop()
         nodes += 1
         if nodes > max_nodes or depth > max_depth:
             raise InspectorError("incident JSON node/depth limit exceeded")
-        kind = type(item)
-        if kind is dict:
+        if type(item) is dict:
             for key, child in item.items():
                 if type(key) is not str or len(key) > 128:
                     raise InspectorError("invalid incident JSON key")
                 pending.append((child, depth + 1))
-        elif kind in (list, tuple):
+        elif isinstance(item, (list, tuple)) and type(item) in (list, tuple):
             pending.extend((child, depth + 1) for child in item)
-        elif kind is str:
+        elif type(item) is str:
             if len(item) > max_string:
                 raise InspectorError("incident string limit exceeded")
             item.encode("utf-8", errors="strict")
-        elif kind is int:
+        elif type(item) is int:
             if not -(2 ** 63) <= item < 2 ** 63:
                 raise InspectorError("incident integer limit exceeded")
-        elif kind is float:
+        elif type(item) is float:
             if not math.isfinite(item):
                 raise InspectorError("incident nonfinite number")
-        elif item is not None and kind is not bool:
+        elif item is not None and type(item) is not bool:
             raise InspectorError("incident requires primitive JSON data")
 
 

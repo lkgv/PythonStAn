@@ -8,26 +8,19 @@ This module defines AIState which tracks:
 - exn: Exception state (optional)
 """
 
+from builtins import dict as Dict
+from builtins import list as List
+from builtins import tuple as Tuple
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterator, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Optional
 
-from pythonstan.compat.legacy_ai.heap import (
-    AIAddr,
-    AbsObj,
-    SlotMap,
-    Slot,
-    Presence,
-    ContainerSlots,
-    ObjKind,
-    AddrSet,
-    FieldStore,
+from pythonstan.analysis.domains.base import AddrSet
+from pythonstan.compat.legacy_ai.domains.mapslots import field_to_keysig
+from pythonstan.compat.legacy_ai.heap import AbsObj, AIAddr, Presence, Slot
+from pythonstan.compat.legacy_ai.value_domain import (
+    AbsVal,
+    DomainRegistry,
 )
-from pythonstan.compat.legacy_ai.domains.mapslots import (
-    field_to_keysig,
-    keysig_to_field,
-    make_str_keysig,
-)
-
 
 # =============================================================================
 # PredicateInfo - Info about TAC temporaries holding predicate results
@@ -51,29 +44,19 @@ class PredicateInfo:
 
     kind: str
     dict_var: str
-    key_var: Optional[str] = None
-    key_literal: Optional[Any] = None
+    key_var: str | None = None
+    key_literal: "NativeLiteralKey" = None
     negated: bool = False
 
 
-from pythonstan.compat.legacy_ai.value_domain import (
-    AbsVal,
-    DomainRegistry,
-    get_default_registry,
-    STRING_DOMAIN,
-    BOOL_DOMAIN,
-    NONE_DOMAIN,
-    INT_DOMAIN,
-)
-
 if TYPE_CHECKING:
+    from pythonstan.analysis.pointer.kcfa.context import NativeContext, Scope
+    from pythonstan.analysis.pointer.kcfa.heap_model import Field, NativeLiteralKey
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject
-    from pythonstan.analysis.pointer.kcfa.heap_model import Field
-    from pythonstan.analysis.pointer.kcfa.context import AbstractContext, Scope
-    from pythonstan.compat.legacy_ai.api import PtaQuery, ArgBinding, AnalysisBudget
+    from pythonstan.compat.legacy_ai.api import AnalysisBudget, ArgBinding, PtaQuery
 
 
-def _has_object_alternatives(value):
+def _has_object_alternatives(value: AbsVal) -> bool:
     from pythonstan.analysis.pointer.kcfa.object import ConstantObject
 
     return value.addr_top or any(not isinstance(obj, ConstantObject) for obj in value.addrs)
@@ -101,19 +84,19 @@ class AIState:
         budget: Analysis budget for widening caps
     """
 
-    env: Dict[str, AbsVal] = field(default_factory=dict)
-    heap: Dict[AIAddr, AbsObj] = field(default_factory=dict)
-    overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = field(default_factory=dict)
-    overlay_havoc: Set["AbstractObject"] = field(default_factory=set)
-    predicates: Dict[str, PredicateInfo] = field(default_factory=dict)
-    exn: Optional[AbsVal] = None
-    pta_query: Optional["PtaQuery"] = None
-    budget: Optional["AnalysisBudget"] = None
-    registry: Optional[DomainRegistry] = None
+    env: dict[str, AbsVal] = field(default_factory=dict)
+    heap: dict[AIAddr, AbsObj] = field(default_factory=dict)
+    overlay: dict[tuple["AbstractObject", "Field"], AbsVal] = field(default_factory=dict)
+    overlay_havoc: set["AbstractObject"] = field(default_factory=set)
+    predicates: dict[str, PredicateInfo] = field(default_factory=dict)
+    exn: AbsVal | None = None
+    pta_query: "PtaQuery | None" = None
+    budget: "AnalysisBudget | None" = None
+    registry: DomainRegistry | None = None
     # Shared cell/global slots are state, not mutable interpreter services.
-    shared_bindings: Dict[Tuple[str, str], AbsVal] = field(default_factory=dict)
+    shared_bindings: dict[tuple[str, str], AbsVal] = field(default_factory=dict)
     # Persistent canonicalization makes future accesses through old aliases work.
-    address_remaps: Dict["AbstractObject", "AbstractObject"] = field(default_factory=dict)
+    address_remaps: dict["AbstractObject", "AbstractObject"] = field(default_factory=dict)
     remap_generation: int = 0
 
     def __post_init__(self):
@@ -318,7 +301,7 @@ class AIState:
         obj: "AbstractObject",
         field_key: "Field",
         caller_scope: Optional["Scope"],
-        call_context: Optional["AbstractContext"],
+        call_context: "NativeContext | None",
         *,
         unknown_is_residual: bool = False,
     ) -> Tuple[AbsVal, bool]:
@@ -381,8 +364,8 @@ class AIState:
         obj: "AbstractObject",
         field_key: "Field",
         caller_scope: Optional["Scope"],
-        call_context: Optional["AbstractContext"],
-    ) -> Tuple[FrozenSet["AbstractObject"], bool]:
+        call_context: "NativeContext | None",
+    ) -> Tuple[AddrSet, bool]:
         """Read field points-to with overlay, returning (pts, is_havoc)."""
         val, havoc = self.read_field_value(obj, field_key, caller_scope, call_context)
         return val.addrs, havoc
@@ -412,8 +395,8 @@ class AIState:
                     new_state = new_state.set_obj(ai_addr, ai_obj.with_slots(new_slots))
         return new_state
 
-    def canonical_object(self, obj):
-        seen = set()
+    def canonical_object(self, obj: "AbstractObject") -> "AbstractObject":
+        seen: set[AbstractObject] = set()
         while obj in self.address_remaps and obj not in seen:
             seen.add(obj)
             obj = self.address_remaps[obj]
@@ -434,6 +417,7 @@ class AIState:
     def _remap_payload(value, mapping, record_induced=False):
         """Map references inside values, keys and token payloads, never source IR."""
         from dataclasses import fields, is_dataclass, replace
+
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject
 
         def remap(item):
@@ -560,10 +544,12 @@ class AIState:
         result.predicates = {} if mapping else dict(self.predicates)
         return result
 
-    def _widen_address_mapping(self, other, max_addrs):
+    def _widen_address_mapping(
+        self, other: "AIState", max_addrs: int
+    ) -> "dict[AbstractObject, AbstractObject]":
         from pythonstan.analysis.pointer.kcfa.object import AbstractObject, summarize_object
 
-        mapping = {}
+        mapping: dict[AbstractObject, AbstractObject] = {}
         joined = self.join(other)
         values = (
             list(joined.env.values())
@@ -572,14 +558,14 @@ class AIState:
         )
         if joined.exn is not None:
             values.append(joined.exn)
-        for obj in joined.heap.values():
-            for slot in list(obj.slots.partitions.values()) + [obj.slots.default]:
+        for heap_object in joined.heap.values():
+            for slot in list(heap_object.slots.partitions.values()) + [heap_object.slots.default]:
                 values.append(slot.val)
                 if slot.key_rep is not None:
                     values.append(slot.key_rep)
-            if obj.container_slots is not None:
-                values.append(obj.container_slots.elem_bucket)
-                values.extend(obj.container_slots.tracked_indices.values())
+            if heap_object.container_slots is not None:
+                values.append(heap_object.container_slots.elem_bucket)
+                values.extend(heap_object.container_slots.tracked_indices.values())
         for value in values:
             if len(value.addrs) > max_addrs:
                 for obj in value.addrs:
@@ -652,7 +638,7 @@ class AIState:
                 new_heap[a] = other.heap[a]
 
         # Join overlays
-        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
+        new_overlay: Dict[Tuple[AbstractObject, Field], AbsVal] = {}
         all_overlay_keys = set(self.overlay.keys()) | set(other.overlay.keys())
         for k in all_overlay_keys:
             v1 = self.overlay.get(k, AbsVal.bottom(self.registry))
@@ -663,9 +649,9 @@ class AIState:
 
         # Join predicates (keep common predicates)
         new_predicates: Dict[str, PredicateInfo] = {}
-        for k in self.predicates:
-            if k in other.predicates and self.predicates[k] == other.predicates[k]:
-                new_predicates[k] = self.predicates[k]
+        for name in self.predicates:
+            if name in other.predicates and self.predicates[name] == other.predicates[name]:
+                new_predicates[name] = self.predicates[name]
 
         # Join exceptions
         new_exn = None
@@ -782,7 +768,7 @@ class AIState:
                 new_heap[a] = other.heap[a]
 
         # Widen overlays (use join semantics)
-        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
+        new_overlay: Dict[Tuple[AbstractObject, Field], AbsVal] = {}
         all_overlay_keys = set(self.overlay.keys()) | set(other.overlay.keys())
         for k in all_overlay_keys:
             v1 = self.overlay.get(k, AbsVal.bottom(self.registry))
@@ -792,9 +778,9 @@ class AIState:
 
         # Widen predicates (keep common predicates)
         new_predicates: Dict[str, PredicateInfo] = {}
-        for k in self.predicates:
-            if k in other.predicates and self.predicates[k] == other.predicates[k]:
-                new_predicates[k] = self.predicates[k]
+        for name in self.predicates:
+            if name in other.predicates and self.predicates[name] == other.predicates[name]:
+                new_predicates[name] = self.predicates[name]
 
         return AIState(
             env=new_env,
@@ -842,12 +828,12 @@ class AIState:
                 new_heap[a] = self.heap[a]
 
         # Narrow overlays (intersection where possible)
-        new_overlay: Dict[Tuple["AbstractObject", "Field"], AbsVal] = {}
-        for k, v in self.overlay.items():
+        new_overlay: Dict[Tuple[AbstractObject, Field], AbsVal] = {}
+        for k, value in self.overlay.items():
             if k in other.overlay:
-                new_overlay[k] = v.meet(other.overlay[k])
+                new_overlay[k] = value.meet(other.overlay[k])
             else:
-                new_overlay[k] = v
+                new_overlay[k] = value
         new_overlay_havoc = self.overlay_havoc & other.overlay_havoc
 
         # Narrow predicates (union - keep all predicates from both)

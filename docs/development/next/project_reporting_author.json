@@ -1,0 +1,46 @@
+{
+  "status": "author_ready_pending_independent_review",
+  "parent_type_qualified": false,
+  "files": {
+    "pythonstan/analysis/analysis.py": "0218f21d1c954765b4ec01123f2463eb1672937e301ef0198a6daa2e7db77e43",
+    "pythonstan/analysis/project/analysis.py": "40b2dfd2eef2bd27a687ee964e2556188d4ce86f8eb8f32067806b4629c76dc7",
+    "pythonstan/analysis/project/report_contracts.py": "e4cb746a4b2531c6c3b5f8ab7be68d88d0c807107b361141c24fad1920dbf8e9",
+    "pythonstan/analysis/project/frontend_lifetime.py": "d864054aa953a56a7b7c135c4c805ad7d797c4ab84fca90f0d455950c8b1f157",
+    "pythonstan/analysis/pointer/kcfa/module_analysis.py": "62cac012020911775580260cc687059e50442645b8913943b95b2a976093fafb",
+    "pythonstan/analysis/pointer/kcfa/module_summary.py": "f4d889b7f9cdc0d20cdb287bc3235436909e7c1565ec358dd26d19a6fd83f5d4",
+    "tests/regression/audit3/test_project_reporting_contracts.py": "825a7a05eaf2ade1779ab0601642aaf7d9edbb5c20475e31bfdfe32021092312",
+    "pythonstan/analysis/project/entry_contracts.py": "eb21b50567b24cea06822be1cddae6942c0ba11f2e53c70c4ce6bad0cfadd0ac",
+    "pythonstan/analysis/closure.py": "396f13120874c7ef5e3d070520cc0c6a2f53272336565aed703ada1fef0c8077",
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "915ce8f8be4b64a9722fdf65eb2fead4c0a825c7bdf7a76da3694dcd43347603",
+    "pythonstan/analysis/pointer/kcfa/solver.py": "8cef4466cbc0cf9733db8b6886918f0556725a411045a8cdfd8f364fca28f2e6",
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "85a33adf8c276bfb9e2faf349d3d3e0d9b5917b1e33c8decdeab9b7e9e9b35a7",
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": "7056478ffed95244202cdcac44ac10abd3a3323d0ae194da7d715fad91558938",
+    "pythonstan/world/scope_manager.py": "06bb7255e8e2dd71a04cf8c0c850c6e086c3bc4e83c5ffcfc2f30a6d17dc3512"
+  },
+  "validation": {
+    "runtime_summary": "91 passed in 3.44s",
+    "ruff_exit": 0,
+    "format_exit": 0,
+    "mypy_command_exit": 1,
+    "selected_errors": [],
+    "all_imported_errors_retained": 1491,
+    "measured_sources_stable": true
+  },
+  "config_differential": {
+    "baseline": "31d0811",
+    "cases": 335,
+    "accepted": 45,
+    "exact_outcome_differences": 0,
+    "limit": "Canonical ProjectConfig, one malformed field at a time; multiple malformed field error precedence is not proved equivalent."
+  },
+  "raw_receipt": "artifacts/next/evidence/resume-world-project/receipt.json",
+  "raw_config_differential": "artifacts/next/evidence/resume-world-project/config-differential.json",
+  "review_focus": [
+    "Real function/constraint/fixpoint hooks replace monkey-patched methods; preserve invocation ordering and shared iteration budget.",
+    "Project progress payload JSON validation creates owned snapshots; trusted diagnostic retains actual solver/report identities.",
+    "Missing report caller scope remains explicit analysis_error; exact accidental AttributeError wording changed.",
+    "ModuleSummary projects canonical Ctx bindings; structural third-party env wrappers were not in runtime acceptance.",
+    "Whole World/Namespace/Native graph and parent TYPE remain unqualified; imported diagnostics retained."
+  ],
+  "separate_historical_test_notes": "An earlier broad tests/configuration scan found6 historical/profile tests outside these revised controls:3 retired-budget CLI cases,1 legacy scalar projection assertion,2 missing benchmark.empirical imports. No test or expected answer was modified."
+}

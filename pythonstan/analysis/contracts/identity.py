@@ -163,7 +163,7 @@ class EntryScenario:
                     {
                         "module": self.root_module,
                         "qualname": self.entry_qualname,
-                    "arguments": thaw_json(args),
+                        "arguments": thaw_json(args),
                         "coverage": self.coverage,
                     }
                 )[:24],

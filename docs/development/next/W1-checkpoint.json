@@ -1,51 +1,52 @@
 {
-  "phase": "W1 actual TYPE integrated checkpoint",
+  "phase": "W1 resumed actual execution contracts",
   "api_card": "verified",
   "type_card": "running_not_verified",
-  "current_record": "docs/development/next/TYPE_CHECKPOINT_20261112.json",
-  "historical_recovery_record": "docs/development/next/RECOVERY_CHECKPOINT_20261112.json",
-  "source_snapshot_sha256": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
+  "current_record": "docs/development/next/RESUMED_CHECKPOINT_20261112.json",
+  "historical_record": "docs/development/next/TYPE_CHECKPOINT_20261112.json",
   "original_stage": {
     "passed": 1001,
-    "seconds": 63.077,
-    "exit_code": 0
+    "exit_code": 0,
+    "seconds": 88.51,
+    "source_stable": true
   },
   "new_controls": {
-    "passed": 4001,
-    "seconds": 22.818,
+    "passed": 4114,
     "exit_code": 0,
-    "excluded_frozen_red_suites": [
+    "seconds": 39.197,
+    "source_stable": true,
+    "separate_frozen_red_suites": [
       "test_domain_mandatory.py",
       "test_native_mandatory.py"
     ],
-    "exclusion_reason": "Separate unchanged W0 red repair witnesses, not deleted, skipped, relabelled or counted green."
+    "scope_note": "Mandatory red repair obligations remain unchanged and are not counted green."
   },
   "quality": {
     "passed": false,
     "diagnostic_counts": {
-      "format": 156,
-      "ruff": 6741,
-      "mypy": 6027
+      "format": 109,
+      "ruff": 3715,
+      "mypy": 3431
     },
-    "added_diagnostics": 431,
-    "modified_unit_diagnostics": 515,
-    "resolved_diagnostics": 10603,
+    "added_diagnostics": 43,
+    "modified_unit_diagnostics": 136,
+    "resolved_diagnostics": 15884,
     "negative_controls_passed": true,
     "whole_tree_mypy_clean": false
   },
   "canonical_core": {
     "modules": 98,
     "source_stable": true,
-    "diagnostics": {
+    "checks": {
       "ordinary": {
         "exit_code": 1,
-        "all_errors": 3588,
+        "all_errors": 1412,
         "core_errors": 0
       },
       "any_expr": {
         "exit_code": 1,
-        "all_errors": 10970,
-        "core_errors": 12
+        "all_errors": 4947,
+        "core_errors": 0
       },
       "ruff": {
         "exit_code": 0,
@@ -53,7 +54,7 @@
         "core_errors": 0
       }
     },
-    "scope_note": "Own-module filtering with normal imports; imported diagnostics are retained and command exit1 is not called whole-tree success."
+    "scope_note": "Own-module zero with normal imported diagnostics retained; not whole-tree strict."
   },
   "qualifications": {
     "type_01_verified": false,
@@ -61,13 +62,5 @@
     "scale_qualified": false,
     "release_qualified": false,
     "live_llm_requests": 0
-  },
-  "remaining_type_obligations": [
-    "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
-    "Clear12 canonical Any-expression diagnostics in dictionary bytecode boundary and oracle queue construction; extend reviewed whole-module frontier",
-    "Complete independent final integration and mandatory semantic/domain/state/Native repair gates; no later card inferred complete from local controls",
-    "Retain explicit open profiles, graph-memo provenance, unsupported custom contexts and existing frozen red witnesses",
-    "Run real LLM only after offline verification and independent audit; credentials only from environment"
-  ],
-  "remote_target": "dev-cocktail-analysis; exact tree publication only"
+  }
 }

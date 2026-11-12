@@ -1,0 +1,80 @@
+{
+  "owner": "context_legacy",
+  "status": "ready_for_parent_integration_not_TYPE_01_qualified",
+  "strong_scanned_modules": [
+    "pythonstan/analysis/pointer/kcfa/context.py",
+    "pythonstan/analysis/pointer/kcfa/context_selector.py",
+    "pythonstan/analysis/pointer/kcfa/object.py",
+    "pythonstan/analysis/pointer/kcfa/variable.py",
+    "pythonstan/analysis/pointer/kcfa/points_to_set.py",
+    "pythonstan/analysis/pointer/kcfa/pointer_flow_graph.py",
+    "pythonstan/utils/var_collector.py",
+    "pythonstan/utils/ast_rename.py",
+    "pythonstan/compat/legacy_ai/domains/tuples.py"
+  ],
+  "own_strong_errors": [],
+  "overall_mypy_exit": 1,
+  "overall_scope_note": "Imported historical diagnostics retained; whole-tree clean is not claimed.",
+  "source_hashes": {
+    "pythonstan/analysis/pointer/kcfa/context.py": "0cfc2d14e0d8c49fb0b5fb0283d8ff524b086815c9ca9a0a67cc74b3e7999e5e",
+    "pythonstan/analysis/pointer/kcfa/context_selector.py": "cdf9a7ae372697f76b3c2189b5a8232dd91f05e54029a3eca07bbdabd582315e",
+    "pythonstan/analysis/pointer/kcfa/object.py": "4834678a71ef091dae0ddab48f762551fa8b2d417f2fd0793cdeada61ac85538",
+    "pythonstan/analysis/pointer/kcfa/variable.py": "39c295a80e85320799bc24d2c3bd84b0bf07d1ec446e58234b3e19c81821a662",
+    "pythonstan/analysis/pointer/kcfa/points_to_set.py": "a78766eb233993e4c65e8f8a1d2ba7c006d74cb704f37635ffb944a2a6ad6b3b",
+    "pythonstan/analysis/pointer/kcfa/pointer_flow_graph.py": "fc624fd4444e673191d7eee6be10b5ac4fa15c92d3485a31ccde61176b02f15f",
+    "pythonstan/utils/var_collector.py": "7d21bd100dfdf84cb13636d761f82c3401353e1636f4160dae56ff23a2548b12",
+    "pythonstan/utils/ast_rename.py": "051d45e8af47f3364ca46c57abd9d58fa6d71f999155d8f8df8d947e6515fa77",
+    "pythonstan/compat/legacy_ai/domains/tuples.py": "b2ef44a76c1a03bde71227f6c21e2880b06ee113f893a68cd4d0744dd6c5b86d"
+  },
+  "context_baseline_differentials": 152,
+  "config_baseline_differentials": 46,
+  "baseline": "0f19ceb",
+  "runtime_controls_passed": 84,
+  "historical_broad_runs": {
+    "current_passed": 276,
+    "current_failed": 11,
+    "baseline_selected_failed": 11,
+    "baseline_exits": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "current_error_signatures": {
+      "pythonstan.compat.shared_ai.BoundaryUnavailable: Private source-less TAC transfer is retired; use source-backed AISolver": 2,
+      "AttributeError: 'NoneType' object has no attribute 'blks'": 1,
+      "AssertionError: assert inf in set()": 1,
+      "pythonstan.compat.shared_ai.BoundaryUnavailable: Retired private TAC service; use source-backed AISummaryEngine/Driver": 2,
+      "pythonstan.compat.legacy_ai.value_domain.LegacyDomainContractError: Native heap addresses require a registered context": 5
+    },
+    "baseline_error_signatures": {
+      "pythonstan.compat.shared_ai.BoundaryUnavailable: Private source-less TAC transfer is retired; use source-backed AISolver": 2,
+      "AttributeError: 'NoneType' object has no attribute 'blks'": 1,
+      "AssertionError: assert inf in set()": 1,
+      "pythonstan.compat.shared_ai.BoundaryUnavailable: Retired private TAC service; use source-backed AISummaryEngine/Driver": 2,
+      "pythonstan.compat.legacy_ai.value_domain.LegacyDomainContractError: Native heap addresses require a registered context": 5
+    },
+    "signatures_equal": true,
+    "baseline": "0f19ceb",
+    "note": "First classification attempt importlib mode broke historical local support imports; rerun used original default pytest import mode; only final rerun is classified."
+  },
+  "remaining": [
+    "ProtocolKeyContext.append untouched untyped legacy passthrough",
+    "Partial IR/Legacy AIState historical diagnostic debt",
+    "LegacyConfig strong Any-expression scan not claimed"
+  ],
+  "semantic_deltas": [
+    "ContextSelector restores custom root projection rejected by interrupted finite split",
+    "VarCollector.find positional dict.get repairs existing TypeError",
+    "AbstractContext.__eq__ returns its existing pool equality comparison instead of implicit None"
+  ],
+  "evidence_root": "artifacts/next/evidence/resumed-context-legacy",
+  "cold_import_orders_passed": 5
+}

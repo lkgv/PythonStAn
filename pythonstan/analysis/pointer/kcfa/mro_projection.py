@@ -3,38 +3,66 @@
 A list with unresolved order is a union of known ancestor candidates, not a
 linearization. It may be used for union reads, never first-match exclusion.
 """
-from .class_hierarchy import MROError, _c3_merge
+
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING
+
+from .class_hierarchy import ClassHierarchyManager, MROError, _c3_merge
+from .context import Ctx
+from .variable import FieldAccess, Variable
+
+if TYPE_CHECKING:
+    from .state import PointerAnalysisState
 from .heap_model import Field, FieldKind
-from .object import ClassObject, BuiltinClassObject, BuiltinFunctionObject
+from .object import AbstractObject, BuiltinClassObject, BuiltinFunctionObject, ClassObject
 
 
-class MROProjection(list):
-    def __init__(self, values, *, order_resolved, reasons=()):
+class MROProjection(list[AbstractObject]):
+    def __init__(
+        self,
+        values: Iterable[AbstractObject],
+        *,
+        order_resolved: bool,
+        reasons: Iterable[str] = (),
+    ) -> None:
         super().__init__(values)
         self.order_resolved = order_resolved
         self.residual_reasons = tuple(reasons)
         self.is_live_projection = True
 
 
-def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=False):
+def project_class_mro(
+    state: PointerAnalysisState,
+    root: AbstractObject,
+    hierarchy: ClassHierarchyManager | None = None,
+    on_read: Callable[[Ctx[Variable | FieldAccess] | None], None] | None = None,
+    *,
+    read_only: bool = False,
+) -> MROProjection:
     """Project ordered source slots, declining order for merged alternatives.
 
     No cross-query cache is used: later base objects must immediately expand a
     previous query. Exact ordering remains conditional on ordinary class/MRO
     semantics; this function never certifies class construction effects.
     """
-    known, seen, active, cache, reasons = [], set(), set(), {}, []
+    known: list[AbstractObject] = []
+    seen: set[AbstractObject] = set()
+    active: set[AbstractObject] = set()
+    cache: dict[AbstractObject, tuple[list[AbstractObject], bool]] = {}
+    reasons: list[str] = []
 
-    def remember(value):
+    def remember(value: AbstractObject) -> None:
         if value not in seen:
             seen.add(value)
             known.append(value)
 
-    def unresolved(reason):
+    def unresolved(reason: str) -> None:
         if reason not in reasons:
             reasons.append(reason)
 
-    def visit(cls):
+    def visit(cls: AbstractObject) -> tuple[list[AbstractObject], bool]:
         remember(cls)
         if cls in active:
             unresolved("cyclic base relation")
@@ -45,21 +73,30 @@ def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=Fa
             return [cls], isinstance(cls, BuiltinClassObject)
         active.add(cls)
         ordered = True
-        slots = []
-        variables = getattr(cls.ir, "_kcfa_base_variables", None)
+        slots: list[list[AbstractObject]] = []
+        variables: tuple[Variable, ...] | None
+        try:
+            variables = cls.ir._kcfa_base_variables
+        except AttributeError:
+            variables = None
         if variables is not None:
             owner = cls.container_scope
-            if getattr(cls.ir, "_kcfa_dynamic_bases", False) or any(
-                    var.name.startswith("$dynamic_bases_") for var in variables):
+            dynamic_bases: object = getattr(cls.ir, "_kcfa_dynamic_bases", False)
+            if dynamic_bases or any(var.name.startswith("$dynamic_bases_") for var in variables):
                 unresolved("dynamic bases were aggregated without tuple order")
                 ordered = False
             for variable in variables:
-                binding = (state.find_variable(owner, owner.context, variable) if read_only
-                           else state.get_variable(owner, owner.context, variable))
+                binding = (
+                    state.find_variable(owner, owner.context, variable)
+                    if read_only
+                    else state.get_variable(owner, owner.context, variable)
+                )
                 if on_read is not None:
                     on_read(binding)
                 points = list(state.get_points_to(binding))
-                candidates = [obj for obj in points if isinstance(obj, (ClassObject, BuiltinClassObject))]
+                candidates: list[AbstractObject] = [
+                    obj for obj in points if isinstance(obj, (ClassObject, BuiltinClassObject))
+                ]
                 if len(points) != 1 or len(candidates) != 1:
                     unresolved("base slot has missing, unknown or multiple candidates")
                     ordered = False
@@ -71,7 +108,6 @@ def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=Fa
             if explicit_meta or (cls, meta) in state._field_accesses:
                 if read_only:
                     access = state.has_field(owner, owner.context, cls, meta)
-                    from .context import Ctx
                     location = Ctx(cls.context, None, access) if access is not None else None
                 else:
                     location = state.get_field(owner, owner.context, cls, meta)
@@ -82,8 +118,11 @@ def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=Fa
                     unresolved("explicit metaclass binding has no resolved value")
                     ordered = False
                 for value in metaclasses:
-                    builtin_type = (isinstance(value, BuiltinClassObject) and value.builtin_name == "type") or (
-                        isinstance(value, BuiltinFunctionObject) and value.function_name == "type")
+                    builtin_type = (
+                        isinstance(value, BuiltinClassObject) and value.builtin_name == "type"
+                    ) or (
+                        isinstance(value, BuiltinFunctionObject) and value.function_name == "type"
+                    )
                     if not builtin_type:
                         unresolved("custom or unknown metaclass MRO")
                         ordered = False
@@ -93,7 +132,9 @@ def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=Fa
             unresolved("class has no source-bound base variable metadata")
             ordered = False
 
-        bases, parents = [], []
+        bases: list[AbstractObject] = []
+        parents: list[list[AbstractObject]] = []
+        result: list[AbstractObject]
         for candidates in slots:
             for base in candidates:
                 parent, parent_ordered = visit(base)
@@ -124,8 +165,10 @@ def project_class_mro(state, root, hierarchy=None, on_read=None, *, read_only=Fa
         # that missing semantic obligation regardless of diagnostic settings.
         if not read_only:
             state._residual_effects[(root, "mro_projection")] = {
-                "origin": str(root), "context": str(getattr(root, "context", "")),
-                "reason": "; ".join(reasons), "return_target": None,
+                "origin": str(root),
+                "context": str(root.context),
+                "reason": "; ".join(reasons),
+                "return_target": None,
                 "effects": ["unresolved_mro_order", "unknown_inherited_attribute", "may_raise"],
             }
         result = known

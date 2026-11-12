@@ -4,21 +4,20 @@ This module defines the abstraction of heap storage including field keys
 for attribute access, container elements, and dictionary values.
 """
 
+from collections.abc import ValuesView
 from dataclasses import dataclass
 from enum import Enum
-from re import T
-from typing import Optional, Dict, Tuple, Set, TYPE_CHECKING
+from types import EllipsisType
+from typing import TYPE_CHECKING, Optional
 
-from yaml import NodeEvent
-
-from .variable import VariableKind
 from pythonstan.analysis.state.keys import FieldKey as SourceFieldKey
+from .variable import VariableKind
 
 if TYPE_CHECKING:
-    from pythonstan.ir.ir_statements import IRModule, IRScope
-    from .object import AbstractObject, FunctionObject
-    from .variable import Variable, FieldAccess
-    from .context import AbstractContext, Ctx, Scope, AllocSite, NativeContext
+    from pythonstan.ir.ir_statements import IRScope
+    from .context import Ctx, NativeContext, Scope
+    from .object import AbstractObject, AllocationSource, AllocKind, AllocSite, ClassObject, FunctionObject
+    from .variable import FieldAccess, Variable
 
 __all__ = [
     "NativeLiteralKey",
@@ -52,6 +51,13 @@ class FieldKind(Enum):
     OWN_UNKNOWN = "own_unknown"
 
 
+def _field_kind_value(kind: FieldKind) -> str:
+    value: object = kind.value
+    if not isinstance(value, str):
+        raise TypeError("Native field kind must have a string value")
+    return value
+
+
 @dataclass(frozen=True)
 class Field:
     """Heap field key for object field access.
@@ -68,11 +74,11 @@ class Field:
     """
 
     kind: FieldKind
-    name: Optional[str] = None
-    index: Optional[int] = None
-    key_type: Optional[str] = None
+    name: str | None = None
+    index: int | None = None
+    key_type: str | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate field constraints."""
         if self.kind in {FieldKind.ATTRIBUTE, FieldKind.OWN_ATTRIBUTE} and self.name is None:
             raise ValueError("ATTRIBUTE field must have name")
@@ -88,7 +94,7 @@ class Field:
             FieldKind.OWN_UNKNOWN,
         ]:
             if self.name is not None or self.index is not None:
-                raise ValueError(f"{self.kind.value} field should not have name or index")
+                raise ValueError(f"{_field_kind_value(self.kind)} field should not have name or index")
 
     def __str__(self) -> str:
         """String representation for debugging."""
@@ -103,7 +109,18 @@ class Field:
         return f".{self.kind.value}"
 
 
-type NativeLiteralKey = str | int | float | bool | complex | None | tuple[NativeLiteralKey, ...]
+type NativeLiteralKey = (
+    str
+    | bytes
+    | int
+    | float
+    | bool
+    | complex
+    | EllipsisType
+    | None
+    | tuple[NativeLiteralKey, ...]
+    | frozenset[NativeLiteralKey]
+)
 
 type NativeFieldKey = NativeLiteralKey | SourceFieldKey
 
@@ -200,8 +217,11 @@ def wildcard_key() -> Field:
 
 
 type HeapRegisterKey = (
-    tuple[NativeContext, IRScope | AbstractObject] | tuple[IRModule] | tuple[Scope]
+    tuple[NativeContext | None, IRScope | AbstractObject] | tuple[IRScope] | tuple[Scope]
 )
+
+type HeapObjectKey = tuple[NativeContext | None, AllocationSource, AllocKind]
+type CaptureOwner = FunctionObject | ClassObject
 
 
 class HeapModel:
@@ -210,23 +230,23 @@ class HeapModel:
     Maintains the heap and field accesses.
     """
 
-    heap: "Dict[HeapRegisterKey, Dict[str, Ctx[Variable]]]"
-    prev_scope: "Dict[Scope, Scope]"
-    objects: "Dict[Tuple[Scope, AbstractContext, AllocSite], AbstractObject]"
-    cell_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
-    global_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
-    nonlocal_vars: "Dict[FunctionObject, Dict[str, Ctx[Variable]]]"
+    heap: "dict[HeapRegisterKey, dict[str, Ctx[Variable]]]"
+    prev_scope: "dict[Scope, Scope]"
+    objects: "dict[HeapObjectKey, AbstractObject]"
+    cell_vars: "dict[CaptureOwner, dict[str, Ctx[Variable]]]"
+    global_vars: "dict[CaptureOwner, dict[str, Ctx[Variable]]]"
+    nonlocal_vars: "dict[CaptureOwner, dict[str, Ctx[Variable]]]"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.heap = {}
-        self.field_accesses = {}
+        self.field_accesses: dict[tuple[AbstractObject, Field], FieldAccess] = {}
         self.objects = {}
         self.cell_vars = {}
         self.global_vars = {}
         self.nonlocal_vars = {}
 
     def get_variable(
-        self, scope: "Scope", context: "AbstractContext", var: "Variable"
+        self, scope: "Scope", context: "NativeContext | None", var: "Variable"
     ) -> Optional["Ctx[Variable]"]:
         ctx_key = self._get_var_key(scope, context, var)
 
@@ -234,8 +254,12 @@ class HeapModel:
         return registers.get(var.name, None)
 
     def set_variable(
-        self, scope: "Scope", context: "AbstractContext", var: "Variable", ctx_var: "Ctx[Variable]"
-    ):
+        self,
+        scope: "Scope",
+        context: "NativeContext | None",
+        var: "Variable",
+        ctx_var: "Ctx[Variable]",
+    ) -> None:
         ctx_key = self._get_var_key(scope, context, var)
 
         registers = self.heap.get(ctx_key, None)
@@ -244,7 +268,9 @@ class HeapModel:
             self.heap[ctx_key] = registers
         registers[var.name] = ctx_var  # TODO whether use context or scope.context?
 
-    def _get_var_key(self, scope: "Scope", context: "AbstractContext", var: "Variable"):
+    def _get_var_key(
+        self, scope: "Scope", context: "NativeContext | None", var: "Variable"
+    ) -> HeapRegisterKey:
         # if var.kind == VariableKind.GLOBAL:
         #     return (scope.module.stmt,)
         # return (context, scope.stmt)
@@ -252,37 +278,39 @@ class HeapModel:
         if var.kind == VariableKind.TEMPORARY:
             if var.name in _FUNCTION_TEMPORARY_NAMES:
                 # Distinct call contexts must not exchange returned closures.
-                func_obj = getattr(scope, "obj", None)
-                if func_obj is not None:
-                    return (context, func_obj)
-                # For module-level temporaries
-                return (context, scope.module.stmt if scope.module else scope.stmt)
+                return (context, scope.obj)
             return (context, scope.stmt)
 
         if var.kind == VariableKind.GLOBAL:
             return (scope.module.stmt,)
         return (context, scope.stmt)
 
-    def get_all_variables(self, scope: "Scope", context: "AbstractContext") -> Set["Ctx[Variable]"]:
+    def get_all_variables(
+        self, scope: "Scope", context: "NativeContext | None"
+    ) -> "ValuesView[Ctx[Variable]]":
         ctx_key = (scope,)
         return self.heap.get(ctx_key, {}).values()
 
     def set_obj(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocSite", o: "AbstractObject"
-    ):
+        self,
+        scope: "Scope | None",
+        context: "NativeContext | None",
+        c: "AllocSite",
+        o: "AbstractObject",
+    ) -> None:
         # print(f"New object: {o}")
         self.objects[(context, c.stmt, c.kind)] = o
 
     def get_obj(
-        self, scope: "Scope", context: "AbstractContext", c: "AllocSite"
+        self, scope: "Scope | None", context: "NativeContext | None", c: "AllocSite"
     ) -> Optional["AbstractObject"]:
         return self.objects.get((context, c.stmt, c.kind), None)
 
-    def get_cell_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
+    def get_cell_vars(self, obj: "CaptureOwner") -> "dict[str, Ctx[Variable]]":
         return self.cell_vars.get(obj, {})
 
-    def get_global_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
+    def get_global_vars(self, obj: "CaptureOwner") -> "dict[str, Ctx[Variable]]":
         return self.global_vars.get(obj, {})
 
-    def get_nonlocal_vars(self, obj: "FunctionObject") -> "dict[str, Ctx[Variable]]":
+    def get_nonlocal_vars(self, obj: "CaptureOwner") -> "dict[str, Ctx[Variable]]":
         return self.nonlocal_vars.get(obj, {})

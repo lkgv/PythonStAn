@@ -1,17 +1,17 @@
-from pythonstan.ir import IRModule
-from pythonstan.analysis.contracts.identity import SourceModule
-from pythonstan.analysis import AnalysisConfig, AnalysisDriver
-from .namespace import Namespace
-from .world import World
-from .config import Config
-from .scope_manager import ModuleGraph
-from .analysis_manager import AnalysisManager
-
-from typing import List, Tuple, Generator
-from collections import deque
-from collections.abc import Mapping
-from os import PathLike
 import logging
+from collections import deque
+from collections.abc import Generator, Mapping
+from os import PathLike
+
+from pythonstan.analysis.analysis import AnalysisDriver
+from pythonstan.analysis.contracts.identity import SourceModule
+from pythonstan.ir import IRModule
+
+from .analysis_manager import AnalysisManager
+from .config import Config
+from .namespace import Namespace
+from .scope_manager import ModuleGraph
+from .world import World
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 class Pipeline:
     config: Config
     analysis_manager: AnalysisManager
+    _preprocessed_modules: set[IRModule] | None = None
 
     def __init__(
         self,
@@ -46,14 +47,16 @@ class Pipeline:
         World().analysis_manager = self.analysis_manager
         self.build_scope_graph(self.config.filename)
 
-    def get_world(self):
+    def get_world(self) -> World:
         return World()
 
-    def build_scope_graph(self, entry_path: str):
+    def build_scope_graph(self, entry_path: str) -> None:
         entry_ns = World().namespace_manager.set_entry_module(entry_path, self.config.project_path)
         entry_mod = World().scope_manager.add_module(entry_ns, entry_path)
+        if entry_mod is None:
+            raise ValueError(f"Entry module could not be loaded: {entry_path}")
         World().entry_module = entry_mod
-        q = deque([(entry_ns, entry_mod, 0)])
+        q: deque[tuple[Namespace, IRModule, int]] = deque([(entry_ns, entry_mod, 0)])
         g = ModuleGraph()
         g.add_node(entry_mod)
         self._preprocessed_modules = set()
@@ -69,7 +72,7 @@ class Pipeline:
             self.analysis_manager.analysis("ir", mod)
             self.analysis_manager.analysis("block cfg", mod)
             self.analysis_manager.analysis("cfg", mod)
-            imports = World().scope_manager.get_ir(mod, "imports") or []
+            imports = World().scope_manager.get_import_ir(mod) or ()
             for stmt in imports:
                 get_import = World().namespace_manager.get_import(ns, stmt)
                 if get_import is not None:
@@ -106,13 +109,14 @@ class Pipeline:
         # ClosureAnalysis traverses all built scopes internally; invoke it once.
         self.analysis_manager.analysis("closure", entry_mod)
 
-    def _modules_once(self):
+    def _modules_once(self) -> Generator[IRModule, None, None]:
         """Visit built modules exactly once, including cyclic import graphs."""
         graph = World().scope_manager.get_module_graph()
         modules = sorted(graph.get_modules(), key=lambda mod: mod.get_qualname())
-        queue = deque([World().get_entry_module(), *modules])
-        seen = set()
-        built = getattr(self, "_preprocessed_modules", None)
+        entry = self._require_entry_module()
+        queue = deque([entry, *modules])
+        seen: set[IRModule] = set()
+        built = self._preprocessed_modules
         while queue:
             module = queue.popleft()
             if module in seen:
@@ -122,19 +126,26 @@ class Pipeline:
             if built is None or module in built:
                 yield module
 
-    def analyse_intra_procedure(self, analyzer):
+    def analyse_intra_procedure(self, analyzer: AnalysisDriver) -> None:
         for module in self._modules_once():
             self.analysis_manager.do_analysis(analyzer, module)
 
-    def analyse_inter_procedure(self, analyzer: AnalysisDriver):
+    @staticmethod
+    def _require_entry_module() -> IRModule:
         entry_mod = World().get_entry_module()
+        if entry_mod is None:
+            raise ValueError("Entry module has not been loaded")
+        return entry_mod
+
+    def analyse_inter_procedure(self, analyzer: AnalysisDriver) -> None:
+        entry_mod = self._require_entry_module()
         self.analysis_manager.do_analysis(analyzer, entry_mod)
 
-    def do_transform(self, analyzer):
+    def do_transform(self, analyzer: AnalysisDriver) -> None:
         for module in self._modules_once():
             self.analysis_manager.do_analysis(analyzer, module)
 
-    def do_analysis(self, analyzer_generator: Generator[AnalysisDriver, None, None]):
+    def do_analysis(self, analyzer_generator: Generator[AnalysisDriver, None, None]) -> None:
         for analyzer in analyzer_generator:
             if analyzer.config.type == "dataflow analysis":
                 if analyzer.config.inter_procedure:
@@ -143,14 +154,13 @@ class Pipeline:
                     self.analyse_intra_procedure(analyzer)
             elif analyzer.config.type == "transform":
                 self.do_transform(analyzer)
-            elif analyzer.config.type == "closure analysis":
-                self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == "pointer analysis":
+            elif analyzer.config.type in {
+                "closure analysis",
+                "pointer analysis",
+                "ai analysis",
+                "certified analysis",
+            }:
                 # Pointer analysis is typically inter-procedural
-                self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == "ai analysis":
-                self.analyse_inter_procedure(analyzer)
-            elif analyzer.config.type == "certified analysis":
                 self.analyse_inter_procedure(analyzer)
             else:
                 raise ValueError(f"Unsupported pipeline analysis type: {analyzer.config.type}")

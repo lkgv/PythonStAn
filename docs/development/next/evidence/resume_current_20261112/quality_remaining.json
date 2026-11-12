@@ -1,0 +1,43 @@
+{
+  "passed": false,
+  "diagnostic_counts": {
+    "format": 109,
+    "ruff": 3715,
+    "mypy": 3431
+  },
+  "added_diagnostics": 43,
+  "modified_unit_diagnostics": 136,
+  "resolved_diagnostics": 15884,
+  "negative_controls_passed": true,
+  "whole_tree_mypy_clean": false,
+  "added_by_path": {
+    "pythonstan/analysis/pointer/kcfa/heap_model.py": 4,
+    "pythonstan_inspector/contract.py": 1,
+    "pythonstan_inspector/incident.py": 1,
+    "pythonstan/analysis/pointer/kcfa/class_hierarchy.py": 4,
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": 8,
+    "pythonstan/analysis/pointer/kcfa/state.py": 7,
+    "pythonstan/compat/legacy_ai/analysis.py": 9,
+    "pythonstan/ir/ir_statements.py": 1,
+    "pythonstan/world/namespace.py": 2,
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": 2,
+    "pythonstan/analysis/compact_liveness.py": 2,
+    "pythonstan/analysis/defuse.py": 1,
+    "pythonstan_inspector/project_runner.py": 1
+  },
+  "modified_by_path": {
+    "pythonstan/analysis/pointer/kcfa/class_hierarchy.py": 7,
+    "pythonstan/analysis/pointer/kcfa/heap_model.py": 3,
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": 56,
+    "pythonstan/analysis/pointer/kcfa/processor/container.py": 6,
+    "pythonstan/analysis/pointer/kcfa/processor/normal_call.py": 8,
+    "pythonstan/analysis/pointer/kcfa/state.py": 15,
+    "pythonstan/compat/legacy_ai/analysis.py": 8,
+    "pythonstan/ir/ir_statements.py": 4,
+    "pythonstan/world/namespace.py": 22,
+    "pythonstan/analysis/project/entry_contracts.py": 1,
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": 2,
+    "pythonstan/analysis/pointer/kcfa/solver.py": 4
+  },
+  "other_failures": []
+}

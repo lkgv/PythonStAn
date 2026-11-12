@@ -1,0 +1,25 @@
+{
+  "reviewer": "root",
+  "author": "integration_review; IR producer ports context_legacy",
+  "source_sha256": {
+    "pythonstan/analysis/transform/ir.py": "78cf066060cc3c8ee66ad2ca5ddc55a7d2b50e47d361c78037ebcd4438b268b6",
+    "pythonstan/ir/ir_statements.py": "61a1c2312d7470548f0b35f7d4004e2844e30f6a03903ac0b2d52a74638af63a"
+  },
+  "result": "accepted bounded runtime contract migration; no parent TYPE qualification",
+  "observations": [
+    "Function nodes reach add_func; class nodes reach add_class, preserving father/subscope/source ownership.",
+    "Finite finally/with/except-target cleanup producers match consumers; restoration remains in finally with original cleanup ordering and return/break/continue crossing rules.",
+    "Pending values remain saved before cleanup; finally exception and handler-target deletion IR retain prior labels and payloads.",
+    "Explicit AST and IR imports remove the List name collision; emit retains exact statement subtype.",
+    "New IR metadata declarations are actual producer/consumer ports; no Any/cast/suppression or alternate interpreter introduced."
+  ],
+  "checks": [
+    "Independent registration red/green witness",
+    "Nine old/new IR graph snapshots match in author differential evidence",
+    "Root-read final source and frozen1001 stage+4114 audit3 integration receipts"
+  ],
+  "limits": [
+    "Malformed TAC input now receives explicit type error at the actual boundary; supported module input profile is unchanged.",
+    "This review is not a proof of Python semantics or whole-tree strict typing."
+  ]
+}

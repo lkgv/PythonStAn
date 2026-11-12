@@ -1,11 +1,10 @@
-from typing import Dict, List
 from pythonstan.ir import IRClass
 
 
 class ClassHierarchy:
-    bases: Dict[IRClass, List[IRClass]]
-    subclasses: Dict[IRClass, List[IRClass]]
-    classes: Dict[str, IRClass]
+    bases: dict[IRClass, list[IRClass]]
+    subclasses: dict[IRClass, list[IRClass]]
+    classes: dict[str, IRClass]
 
     def __init__(self) -> None:
         self.bases = {}
@@ -23,10 +22,10 @@ class ClassHierarchy:
             self._add_item(self.bases, sub_cls, cls)
             self._add_item(self.subclasses, cls, sub_cls)
 
-    def get_subclasses(self, cls: IRClass) -> List[IRClass]:
+    def get_subclasses(self, cls: IRClass) -> list[IRClass]:
         return self.subclasses.get(cls, [])
 
-    def get_bases(self, cls: IRClass) -> List[IRClass]:
+    def get_bases(self, cls: IRClass) -> list[IRClass]:
         return self.bases.get(cls, [])
 
     def add_class(self, class_name: str, ir_class: IRClass):

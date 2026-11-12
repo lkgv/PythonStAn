@@ -1,26 +1,36 @@
-from typing import Dict, Type, Any
+from collections.abc import MutableMapping
+from typing import override
 
 from pythonstan.ir import IRScope
-from ..analysis import Analysis, AnalysisConfig, AnalysisDriver, get_scope_result
+
+from ..analysis import AnalysisConfig, AnalysisDriver, get_scope_result
 from .transform import Transform
 
 
 class TransformDriver(AnalysisDriver):
-    transform: Type[Transform]
-    results: Any
+    transform: type[Transform]
 
-    def __init__(self, config):
+    @override
+    def __init__(self, config: AnalysisConfig) -> None:
         self.config = config
-        self.transform = Transform.get_analysis(config.id)
-        self.results = {}
+        candidate = Transform.get_analysis(config.id)
+        if not issubclass(candidate, Transform):
+            raise TypeError("Transform id must refer to a registered Transform subclass")
+        self.transform = candidate
+        results: dict[object, object] = {}
+        self.results = results
 
-    def analyze(self, scope: IRScope, prev_results):
+    @override
+    def analyze(self, scope: IRScope, prev_results: dict[str, object]) -> None:
         analyzer = self.transform(self.config)
         for prev in self.config.prev_analysis:
             if prev in prev_results:
                 analyzer.set_input(prev, get_scope_result(prev_results[prev], scope, prev))
         analyzer.transform(scope)
+        if not isinstance(self.results, MutableMapping):
+            raise TypeError("Transform results must be a mutable mapping")
+        results: MutableMapping[object, object] = self.results
         if hasattr(analyzer, "results"):
-            self.results[scope] = analyzer.results
+            results[scope] = analyzer.results
         else:
-            self.results[scope] = None
+            results[scope] = None

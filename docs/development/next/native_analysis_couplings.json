@@ -1,0 +1,109 @@
+{
+  "status": "author_ready_pending_independent_review_not_parent_verified",
+  "author": "requirements_audit",
+  "independent_review": "pending",
+  "parent_type_qualified": false,
+  "whole_changed_modules_qualified": false,
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "5660c90fdc41f6115e9f7b7f4e4df5fc2030535aa2dc32e05d12098941e92aa3",
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "ad40fddb35b6ff301d7c737b1ab889c092e47f3418543f70dc6ef82387abaf97",
+    "pythonstan/compat/legacy_ai/config.py": "81013294c6902ea97e4028a84625dc54f6971ee9d15639d6bc56de512c733506",
+    "tests/regression/audit3/test_native_analysis_contracts.py": "f8eeb783f739f76798ae86e43c188a736a10a1c0a65294478510ef46554ff312"
+  },
+  "scope": [
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/analysis.py",
+      "qualname": "module._source_scope_key",
+      "line_start": 44,
+      "line_end": 63,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/analysis.py",
+      "qualname": "PointerAnalysis._create_synthetic_method_contexts",
+      "line_start": 368,
+      "line_end": 597,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/analysis.py",
+      "qualname": "PointerAnalysis._get_module_for_scope",
+      "line_start": 637,
+      "line_end": 646,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "qualname": "IRTranslator.__init__",
+      "line_start": 100,
+      "line_end": 115,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "qualname": "IRTranslator.translate_module",
+      "line_start": 135,
+      "line_end": 155,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "qualname": "IRTranslator._translate_assign",
+      "line_start": 517,
+      "line_end": 687,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "qualname": "IRTranslator._residual",
+      "line_start": 1109,
+      "line_end": 1118,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "qualname": "IRTranslator._translate_import",
+      "line_start": 1323,
+      "line_end": 1442,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/config.py",
+      "qualname": "Config.to_budget",
+      "line_start": 72,
+      "line_end": 101,
+      "mypy_diagnostics": 0,
+      "ruff_diagnostics": 0
+    }
+  ],
+  "runtime": {
+    "exit": 0,
+    "result": "22 passed in 0.41s",
+    "direct_source_and_dependencies_stable": true
+  },
+  "parity": {
+    "translator_cases": 39,
+    "translator_all_equal": true,
+    "budget_cases": 132,
+    "budget_all_equal": true,
+    "comparison": "Exact nominal constraints/cache behavior or exact exception type/message; exact configuration/budget/solver projections vs immutable ad5f raw source with actual current providers"
+  },
+  "review_fix": "Independent real custom IRScope red witness fixed by genuine base source service; nominal IRStatement gate removed; valid custom source control retained",
+  "receipt": "artifacts/next/evidence/N4-TYPE-01/native-analysis-couplings/receipt.final.json",
+  "limits": [
+    "Nine actual changed functions and new test module only; ordinary imports and all inherited diagnostics retained",
+    "Whole modules and parent TYPE remain unqualified; no frontier/baseline/gold changes",
+    "Input and selector owners held direct providers for this capture; final root integration must bind wider source graph",
+    "Source coordinates reject malformed nontext/noninteger metadata; valid custom IRScope get_ast implementations are preserved",
+    "Concrete IRScope default-unavailable method preserves older partial scope instantiability; it never fabricates AST",
+    "Actual IR statement getters validate nominal list/tuple rows at read boundary; opaque generic IR registrations remain outside this profile"
+  ]
+}

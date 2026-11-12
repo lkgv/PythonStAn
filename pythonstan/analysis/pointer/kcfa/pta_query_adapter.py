@@ -21,7 +21,7 @@ from .context import CallSite, Ctx
 
 if TYPE_CHECKING:
     from .class_hierarchy import ClassHierarchyManager
-    from .context import AbstractContext, Scope
+    from .context import NativeContext, OrderedBindingToken, Scope
     from .context_selector import ContextSelector
     from .heap_model import Field
     from .object import AbstractObject
@@ -44,7 +44,7 @@ class PtaQueryAdapter:
         state: PointerAnalysisState,
         class_hierarchy: ClassHierarchyManager | None = None,
         context_selector: ContextSelector | None = None,
-        on_field_read: Callable[[Ctx[FieldAccess]], None] | None = None,
+        on_field_read: Callable[[Ctx[Variable | FieldAccess]], None] | None = None,
     ) -> None:
         """Initialize the adapter.
 
@@ -62,7 +62,10 @@ class PtaQueryAdapter:
     def _get_call_site(self, callsite_id: str) -> CallSite:
         if callsite_id in self._callsite_cache:
             return self._callsite_cache[callsite_id]
-        call_stmt = IRCall(ast.parse("callsite()").body[0].value)
+        statement = ast.parse("callsite()").body[0]
+        if not isinstance(statement, ast.Expr) or not isinstance(statement.value, ast.Call):
+            raise ValueError("Synthetic call-site parser did not produce a call")
+        call_stmt = IRCall(statement.value)
         call_site = CallSite(statement=call_stmt, scope_name=callsite_id)
         self._callsite_cache[callsite_id] = call_site
         return call_site
@@ -71,7 +74,7 @@ class PtaQueryAdapter:
         self,
         var: Variable,
         scope: Scope,
-        context: AbstractContext,
+        context: NativeContext,
     ) -> PointsToSet:
         """Get points-to set for a variable in given scope/context.
 
@@ -92,7 +95,7 @@ class PtaQueryAdapter:
         obj: AbstractObject,
         field: Field,
         scope: Scope | None,
-        context: AbstractContext,
+        context: NativeContext | None,
     ) -> PointsToSet:
         """Get points-to set for an object's field.
 
@@ -110,7 +113,10 @@ class PtaQueryAdapter:
 
         # A value-top receiver can select any field value; creating an empty
         # concrete slot for it would incorrectly turn unknown into bottom.
-        if getattr(obj, "is_top_value", False):
+        # A legacy/custom object may expose this optional marker. Its truth
+        # value is observed once here; no dynamic payload enters the model.
+        top_marker: object = getattr(obj, "is_top_value", False)
+        if top_marker:
             return PointsToSet.singleton(obj)
 
         # Summary objects: union over all concrete objects that map to this summary
@@ -142,10 +148,21 @@ class PtaQueryAdapter:
         """
         from .mro_projection import project_class_mro
 
-        return project_class_mro(self._state, cls_obj, self._class_hierarchy, self.on_field_read)
+        callback = self.on_field_read
+
+        def on_read(location: Ctx[Variable | FieldAccess] | None) -> None:
+            # This adapter requests live reads, which always return a real
+            # field identity. The general read-only MRO projection also admits
+            # absent slots and must not manufacture an identity for them.
+            if callback is not None and location is not None:
+                callback(location)
+
+        return project_class_mro(
+            self._state, cls_obj, self._class_hierarchy, on_read if callback is not None else None
+        )
 
     def known_attribute_names(
-        self, obj: AbstractObject, scope: Scope, context: AbstractContext
+        self, obj: AbstractObject, scope: Scope, context: NativeContext
     ) -> frozenset[str]:
         """Return observed attribute names, never a proof of field absence."""
         from .heap_model import FieldKind
@@ -160,7 +177,7 @@ class PtaQueryAdapter:
         return frozenset(
             field.name
             for owner, field in self._state._field_accesses
-            if owner in owners and field.kind == FieldKind.ATTRIBUTE
+            if owner in owners and field.kind == FieldKind.ATTRIBUTE and field.name is not None
         )
 
     def may_have_attr(
@@ -168,7 +185,7 @@ class PtaQueryAdapter:
         obj: AbstractObject,
         attr_name: str,
         scope: Scope,
-        context: AbstractContext,
+        context: NativeContext,
     ) -> bool:
         """Check if an object may have an attribute (for descriptor checks).
 
@@ -190,7 +207,8 @@ class PtaQueryAdapter:
         field_access = self._state.has_field(scope, context, obj, attr(attr_name))
         if field_access is not None:
             # Field exists, check if it has any points-to
-            pts = self._state.get_points_to(field_access)
+            qualified_field = Ctx(obj.context, None, field_access)
+            pts = self._state.get_points_to(qualified_field)
             if not pts.is_empty():
                 return True
 
@@ -201,10 +219,10 @@ class PtaQueryAdapter:
         self,
         callsite_id: str,
         argc: int,
-        caller_ctx: AbstractContext,
+        caller_ctx: NativeContext,
         receiver_obj: AbstractObject | None,
-        params: tuple[AbstractObject, ...] | None = None,
-    ) -> AbstractContext | None:
+        params: tuple[AbstractObject, ...] | OrderedBindingToken | None = None,
+    ) -> NativeContext | None:
         """Delegate call context selection to kcfa ContextSelector when available."""
         if self._context_selector is None:
             return None
@@ -245,13 +263,10 @@ class PtaQueryAdapter:
             return result
 
         # Try to get the IRFunc from the scope
-        ir_func = None
-        if hasattr(scope, "stmt"):
-            ir_stmt = scope.stmt
-            from pythonstan.ir.ir_statements import IRFunc
+        from pythonstan.ir.ir_statements import IRFunc
 
-            if isinstance(ir_stmt, IRFunc):
-                ir_func = ir_stmt
+        ir_stmt = scope.stmt
+        ir_func = ir_stmt if isinstance(ir_stmt, IRFunc) else None
 
         if ir_func is None:
             return result
@@ -313,13 +328,10 @@ class PtaQueryAdapter:
             return result
 
         # Try to get the IRFunc from the scope
-        ir_func = None
-        if hasattr(scope, "stmt"):
-            ir_stmt = scope.stmt
-            from pythonstan.ir.ir_statements import IRFunc
+        from pythonstan.ir.ir_statements import IRFunc
 
-            if isinstance(ir_stmt, IRFunc):
-                ir_func = ir_stmt
+        ir_stmt = scope.stmt
+        ir_func = ir_stmt if isinstance(ir_stmt, IRFunc) else None
 
         if ir_func is None:
             return result

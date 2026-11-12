@@ -1,33 +1,30 @@
 import sys
-from typing import *
+from collections.abc import Collection, Hashable, Mapping, Sequence
 from typing import ClassVar, Self
 
 
-class Singleton(object):
+class Singleton:
     _instances: ClassVar[dict[type["Singleton"], "Singleton"]] = {}
 
     def __new__(class_: type[Self], *args: object, **kwargs: object) -> Self:
         if class_ not in class_._instances:
-            class_._instances[class_] = super(Singleton, class_).__new__(class_, *args, **kwargs)
+            class_._instances[class_] = super().__new__(class_, *args, **kwargs)
         instance = class_._instances[class_]
         if not isinstance(instance, class_):
             raise TypeError("Singleton cache entry has a different concrete class")
         return instance
 
 
-T = TypeVar("T")
-
-
-class Box(Generic[T]):
+class Box[T]:
     __slots__ = ["val"]
     val: T
 
-    def __init__(self, content: T):
+    def __init__(self, content: T) -> None:
         self.val = content
 
 
-def topo_sort(succ: Dict[Any, Collection[Any]]) -> List[Any]:
-    in_degree = {node: 0 for node in succ.keys()}
+def topo_sort[Node: Hashable](succ: Mapping[Node, Collection[Node]]) -> list[Node]:
+    in_degree = dict.fromkeys(succ, 0)
     for _, tgts in succ.items():
         for tgt in tgts:
             in_degree[tgt] += 1
@@ -50,29 +47,21 @@ def srcfile_to_name(srcfile: str) -> str:
     return srcfile
 
 
-def builtin_module_names():
+def builtin_module_names() -> Sequence[str]:
     return sys.builtin_module_names
 
 
-T = TypeVar("T")
-
-
-def deoptional(v: Optional[T], default: T) -> T:
+def deoptional[T](v: T | None, default: T) -> T:
     if v is None:
         return default
-    else:
-        return v
+    return v
 
 
-def set_deoptional(v: Optional[Set[T]]) -> Set[T]:
+def set_deoptional[T](v: set[T] | None) -> set[T]:
     return deoptional(v, {*()})
 
 
-K = TypeVar("K")
-V = TypeVar("V")
-
-
-def multimap_add(m: Dict[K, Set[V]], k: K, v: V):
+def multimap_add[K, V](m: dict[K, set[V]], k: K, v: V) -> None:
     if k not in m:
         m[k] = {*()}
     m[k].add(v)

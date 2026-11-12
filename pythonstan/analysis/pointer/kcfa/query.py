@@ -1,52 +1,102 @@
 """Native query implementation; imported by the legacy solver facade."""
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Iterable
+from typing import (
+    TYPE_CHECKING,
+    Literal,
+    TypedDict,
+    TypeGuard,
+    overload,
+    override,
+)
+
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
     require_object,
     validate_json_object,
 )
-from typing import Any, Dict, List, Set, Tuple, Optional, Union, Iterable, TYPE_CHECKING, override
+from pythonstan.graph.call_graph.call_edge import CallEdge
 from pythonstan.ir.ir_statements import (
-    IRScope,
-    IRModule,
-    IRFunc,
-    IRClass,
-    IRCall,
-    IRLoadAttr,
-    IRStoreAttr,
-    IRLoadSubscr,
     IRAssign,
+    IRCall,
+    IRClass,
     IRCopy,
+    IRFunc,
+    IRLoadAttr,
+    IRLoadSubscr,
+    IRModule,
+    IRScope,
+    IRStatement,
+    IRStoreAttr,
 )
-from .solver_interface import ISolverQuery
-from .state import PointerAnalysisState
-from .context import Ctx, Scope, CallSite, AbstractContext
-from .object import *
-from .variable import Variable, VariableKind
-from .heap_model import Field, FieldKind, attr, key, elem, value
-from .points_to_set import PointsToSet
+
 from .bootstrap import bootstrap_statistics
+from .context import CallSite, Ctx, NativeContext, Scope
+from .heap_model import Field, FieldKind, attr, elem, key, value
+from .object import (
+    AbstractObject,
+    AllocKind,
+    BuiltinClassObject,
+    BuiltinFunctionObject,
+    BuiltinInstanceObject,
+    BuiltinMethodObject,
+    ClassObject,
+    ConstantObject,
+    FunctionObject,
+    InstanceObject,
+    MethodObject,
+    ObjectFactory,
+)
+from .points_to_set import PointsToSet
+from .solver_interface import ISolverQuery
+from .solver_statistics import NativeSolverStatistics
+from .state import PointerAnalysisState
+from .variable import FieldAccess, Variable, VariableKind
 
 if TYPE_CHECKING:
+    from pythonstan.graph.call_graph.call_graph import AbstractCallGraph
+
     from .class_hierarchy import ClassHierarchyManager
+    from .mro_projection import MROProjection
     from .solver import PointerSolver
     from .unknown_tracker import UnknownTracker
-    from pythonstan.graph.call_graph import AbstractCallGraph
+
+
+class FieldObservation(TypedDict):
+    status: Literal["unknown", "materialized", "not_requested"]
+    points_to: PointsToSet
+
+
+def _is_variable_binding(
+    binding: Ctx[Variable | FieldAccess],
+) -> TypeGuard[Ctx[Variable]]:
+    # Ctx is frozen, so checking its actual content establishes this refinement.
+    return isinstance(binding.content, Variable)
+
+
+def _callsite_owner(callsite: Ctx[CallSite]) -> Scope:
+    owner = callsite.scope
+    if owner is None:
+        # Preserve the existing failure for a malformed scope-less call edge.
+        raise AttributeError("'NoneType' object has no attribute 'stmt'")
+    return owner
 
 
 class SolverQuery(ISolverQuery):
     _state: PointerAnalysisState
-    _class_hierarchy: Optional["ClassHierarchyManager"]
+    _class_hierarchy: ClassHierarchyManager | None
 
     def __init__(
         self,
-        state: "PointerAnalysisState",
-        stats: Dict[str, int],
-        unknown_tracker: "UnknownTracker",
-        class_hierarchy: Optional["ClassHierarchyManager"] = None,
-        solver: Optional["PointerSolver"] = None,
-    ):
+        state: PointerAnalysisState,
+        stats: NativeSolverStatistics,
+        unknown_tracker: UnknownTracker,
+        class_hierarchy: ClassHierarchyManager | None = None,
+        solver: PointerSolver | None = None,
+    ) -> None:
         self._state = state
         self._stats = stats
         self._unknown_tracker = unknown_tracker
@@ -55,9 +105,8 @@ class SolverQuery(ISolverQuery):
         self._entry_module = state.entry_module
 
     def _scope_label(self, scope: IRScope) -> str:
-        if isinstance(scope, IRModule):
-            if scope is self._entry_module:
-                return "__main__"
+        if isinstance(scope, IRModule) and scope is self._entry_module:
+            return "__main__"
         return scope.get_qualname()
 
     def _resolve_var_kind(self, var_name: str, ir_scope: IRScope) -> VariableKind:
@@ -79,25 +128,35 @@ class SolverQuery(ISolverQuery):
     def _resolve_scopes(
         self,
         ir_scope: IRScope,
-        context: Optional["AbstractContext"],
-    ) -> List["Scope"]:
+        context: NativeContext | None,
+    ) -> list[Scope]:
         scopes = self._state.get_scopes_for_ir(ir_scope)
         if context is None:
             return scopes
         return [scope for scope in scopes if scope.context == context]
 
-    def _require_scope(self, ir_scope: IRScope, context: "AbstractContext") -> "Scope":
+    def _require_scope(self, ir_scope: IRScope, context: NativeContext) -> Scope:
         scopes = self._resolve_scopes(ir_scope, context)
         if not scopes:
             raise ValueError(f"No scope found for {ir_scope.get_qualname()} in context {context}")
         return scopes[0]
 
+    @overload
+    def _resolve_var_to_ctx(
+        self, var_name: str, ir_scope: IRScope, context: None
+    ) -> list[Ctx[Variable]]: ...
+
+    @overload
+    def _resolve_var_to_ctx(
+        self, var_name: str, ir_scope: IRScope, context: NativeContext
+    ) -> Ctx[Variable] | None: ...
+
     def _resolve_var_to_ctx(
         self,
         var_name: str,
         ir_scope: IRScope,
-        context: Optional["AbstractContext"],
-    ) -> Union["Ctx[Variable]", List["Ctx[Variable]"]]:
+        context: NativeContext | None,
+    ) -> Ctx[Variable] | list[Ctx[Variable]] | None:
         var_kind = self._resolve_var_kind(var_name, ir_scope)
         var = Variable(name=var_name, kind=var_kind)
         if context is None:
@@ -110,7 +169,7 @@ class SolverQuery(ISolverQuery):
         scope = self._require_scope(ir_scope, context)
         return self._state.find_variable(scope, context, var)
 
-    def _field_points_to(self, obj: "AbstractObject", field: Field) -> "PointsToSet":
+    def _field_points_to(self, obj: AbstractObject, field: Field) -> PointsToSet:
         if obj.kind == AllocKind.UNKNOWN:
             return PointsToSet.singleton(obj)
         scope = self._state.get_internal_scope(obj) or self._state.obj_scope.get(obj)
@@ -131,7 +190,7 @@ class SolverQuery(ISolverQuery):
             result = result.union(self._state.get_points_to(effects.source))
         return result
 
-    def field_observation(self, obj: "AbstractObject", field: Field) -> Dict[str, Any]:
+    def field_observation(self, obj: AbstractObject, field: Field) -> FieldObservation:
         """Passive materialization status; an empty set is not an absence proof."""
         scope = self._state.get_internal_scope(obj) or self._state.obj_scope.get(obj)
         access = (
@@ -139,15 +198,17 @@ class SolverQuery(ISolverQuery):
         )
         points = self._field_points_to(obj, field)
         unknown = any(value.kind == AllocKind.UNKNOWN for value in points)
-        status = "unknown" if unknown else "materialized" if access is not None else "not_requested"
+        status: Literal["unknown", "materialized", "not_requested"] = (
+            "unknown" if unknown else "materialized" if access is not None else "not_requested"
+        )
         return {"status": status, "points_to": points}
 
     def _callsite_ctx(
         self,
         call_stmt: IRCall,
         scope: IRScope,
-        context: "AbstractContext",
-    ) -> "Ctx[CallSite]":
+        context: NativeContext,
+    ) -> Ctx[CallSite]:
         internal_scope = self._require_scope(scope, context)
         call_site = CallSite(statement=call_stmt, scope_name=self._scope_label(scope))
         return Ctx(context, internal_scope, call_site)
@@ -156,8 +217,8 @@ class SolverQuery(ISolverQuery):
         self,
         call_stmt: IRCall,
         scope: IRScope,
-        context: Optional["AbstractContext"],
-    ) -> Set["CallEdge"]:
+        context: NativeContext | None,
+    ) -> set[CallEdge[Ctx[CallSite], Scope]]:
         expected_scope = self._scope_label(scope)
         edges = set()
         for edge in self._state.call_graph.get_edges():
@@ -166,13 +227,13 @@ class SolverQuery(ISolverQuery):
                 continue
             if callsite_ctx.content.scope_name != expected_scope:
                 continue
-            if callsite_ctx.scope.stmt != scope:
+            if _callsite_owner(callsite_ctx).stmt != scope:
                 continue
             if context is None or callsite_ctx.context == context:
                 edges.add(edge)
         return edges
 
-    def _iter_ctx_vars_by_name(self, var: "Variable") -> Iterable["Ctx[Variable]"]:
+    def _iter_ctx_vars_by_name(self, var: Variable) -> Iterable[Ctx[Variable]]:
         for ctx_var in self._state._env:
             if not isinstance(ctx_var, Ctx):
                 continue
@@ -181,15 +242,16 @@ class SolverQuery(ISolverQuery):
                 isinstance(content, Variable)
                 and content.name == var.name
                 and content.kind == var.kind
+                and _is_variable_binding(ctx_var)
             ):
                 yield ctx_var
 
     def _get_function_objects(
         self,
         func: IRFunc,
-        context: Optional["AbstractContext"],
-    ) -> List["AbstractObject"]:
-        objs = []
+        context: NativeContext | None,
+    ) -> list[FunctionObject]:
+        objs: list[FunctionObject] = []
         for obj in self._state._heap.objects.values():
             if getattr(obj.alloc_site, "stmt", None) != func:
                 continue
@@ -199,16 +261,17 @@ class SolverQuery(ISolverQuery):
                 objs.append(obj)
         return objs
 
+    @override
     def points_to_at(
         self,
         var_name: str,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> "PointsToSet":
+        context: NativeContext | None = None,
+    ) -> PointsToSet:
         if context is None:
             result = PointsToSet.empty()
-            for ctx_var in self._resolve_var_to_ctx(var_name, scope, None):
-                result = result.union(self._state.get_points_to(ctx_var))
+            for binding in self._resolve_var_to_ctx(var_name, scope, None):
+                result = result.union(self._state.get_points_to(binding))
         else:
             ctx_var = self._resolve_var_to_ctx(var_name, scope, context)
             result = self._state.get_points_to(ctx_var)
@@ -225,12 +288,13 @@ class SolverQuery(ISolverQuery):
             result = result.union(self._state.get_points_to(effects.source))
         return result
 
+    @override
     def points_to_of_target(
         self,
-        stmt: Union[IRAssign, IRCopy, IRLoadAttr, IRLoadSubscr, IRCall],
+        stmt: IRAssign | IRCopy | IRLoadAttr | IRLoadSubscr | IRCall,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> "PointsToSet":
+        context: NativeContext | None = None,
+    ) -> PointsToSet:
         if isinstance(stmt, IRCall):
             target = stmt.get_target()
             if target is None:
@@ -239,57 +303,59 @@ class SolverQuery(ISolverQuery):
         lval = stmt.get_lval()
         return self.points_to_at(lval.id, scope, context)
 
+    @override
     def load_attr_result(
         self,
         stmt: IRLoadAttr,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> "PointsToSet":
+        context: NativeContext | None = None,
+    ) -> PointsToSet:
         return self.points_to_of_target(stmt, scope, context)
 
+    @override
     def store_attr_value(
         self,
         stmt: IRStoreAttr,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> "PointsToSet":
+        context: NativeContext | None = None,
+    ) -> PointsToSet:
         return self.points_to_at(stmt.get_rval().id, scope, context)
 
+    @override
     def field_of_objects(
         self,
-        base_pts: "PointsToSet",
+        base_pts: PointsToSet,
         attr_name: str,
-    ) -> "PointsToSet":
+    ) -> PointsToSet:
         result = PointsToSet.empty()
         field = attr(attr_name)
         for obj in base_pts:
             result = result.union(self._field_points_to(obj, field))
         return result
 
+    @override
     def subscript_of_objects(
         self,
-        base_pts: "PointsToSet",
-        index: Optional[Union[int, str]] = None,
-    ) -> "PointsToSet":
+        base_pts: PointsToSet,
+        index: int | str | None = None,
+    ) -> PointsToSet:
         result = PointsToSet.empty()
         for obj in base_pts:
-            if index is None:
-                field = elem()
-            else:
-                field = key(index)
+            field = elem() if index is None else key(index)
             result = result.union(self._field_points_to(obj, field))
         return result
 
     @override
-    def call_graph(self) -> "AbstractCallGraph[Ctx[CallSite], Scope]":
+    def call_graph(self) -> AbstractCallGraph[Ctx[CallSite], Scope]:
         return self._state.call_graph
 
+    @override
     def callees_of(
         self,
         call_stmt: IRCall,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> Set["AbstractObject"]:
+        context: NativeContext | None = None,
+    ) -> set[AbstractObject]:
         callees = set()
         for edge in self._edges_for_call(call_stmt, scope, context):
             callee_scope = edge.get_callee()
@@ -297,38 +363,39 @@ class SolverQuery(ISolverQuery):
                 callees.add(callee_scope.obj)
         return callees
 
+    @override
     def callees_as_ir(
         self,
         call_stmt: IRCall,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> Set[Union[IRFunc, IRClass]]:
-        result: Set[Union[IRFunc, IRClass]] = set()
+        context: NativeContext | None = None,
+    ) -> set[IRFunc | IRClass]:
+        result: set[IRFunc | IRClass] = set()
         for obj in self.callees_of(call_stmt, scope, context):
-            if isinstance(obj, (FunctionObject, MethodObject)):
-                result.add(obj.ir)
-            elif isinstance(obj, ClassObject):
+            if isinstance(obj, (FunctionObject, MethodObject, ClassObject)):
                 result.add(obj.ir)
         return result
 
+    @override
     def callers_of(
         self,
-        callee: Union[IRFunc, IRClass],
-    ) -> Set[Tuple[IRCall, IRScope]]:
-        callers: Set[Tuple[IRCall, IRScope]] = set()
+        callee: IRFunc | IRClass,
+    ) -> set[tuple[IRStatement, IRScope]]:
+        callers: set[tuple[IRStatement, IRScope]] = set()
         for edge in self._state.call_graph.get_edges():
             callee_scope = edge.get_callee()
             if callee_scope.stmt == callee:
                 callsite_ctx = edge.get_callsite()
-                callers.add((callsite_ctx.content.statement, callsite_ctx.scope.stmt))
+                callers.add((callsite_ctx.content.statement, _callsite_owner(callsite_ctx).stmt))
         return callers
 
+    @override
     def receiver_objects(
         self,
         call_stmt: IRCall,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> "PointsToSet":
+        context: NativeContext | None = None,
+    ) -> PointsToSet:
         ir = self._state.scope_manager.get_ir(scope, "ir")
         if not ir:
             return PointsToSet.empty()
@@ -347,12 +414,13 @@ class SolverQuery(ISolverQuery):
             return PointsToSet.empty()
         return self.points_to_at(receiver_name, scope, context)
 
+    @override
     def may_alias(
         self,
         var1: str,
         var2: str,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
+        context: NativeContext | None = None,
     ) -> bool:
         pts1 = self.points_to_at(var1, scope, context)
         pts2 = self.points_to_at(var2, scope, context)
@@ -360,14 +428,15 @@ class SolverQuery(ISolverQuery):
             return True
         return not pts1.intersection(pts2).is_empty()
 
+    @override
     def may_alias_field(
         self,
         var1: str,
         attr1: str,
         var2: str,
-        attr2: Optional[str],
+        attr2: str | None,
         scope: IRScope,
-        context: Optional["AbstractContext"] = None,
+        context: NativeContext | None = None,
     ) -> bool:
         pts1 = self.field_of_objects(self.points_to_at(var1, scope, context), attr1)
         if attr2 is None:
@@ -378,29 +447,32 @@ class SolverQuery(ISolverQuery):
             return True
         return not pts1.intersection(pts2).is_empty()
 
+    @override
     def get_class_mro(
         self,
-        cls_obj: "AbstractObject",
-    ) -> List["AbstractObject"]:
+        cls_obj: AbstractObject,
+    ) -> MROProjection:
         from .mro_projection import project_class_mro
 
         return project_class_mro(self._state, cls_obj, self._class_hierarchy, read_only=True)
 
+    @override
     def resolve_method(
         self,
-        receiver_pts: "PointsToSet",
+        receiver_pts: PointsToSet,
         method_name: str,
-    ) -> "PointsToSet":
+    ) -> PointsToSet:
         result = PointsToSet.empty()
         field = attr(method_name)
         for obj in receiver_pts:
             result = result.union(self._field_points_to(obj, field))
         return result
 
+    @override
     def get_instance_class(
         self,
-        instance_obj: "AbstractObject",
-    ) -> Optional["AbstractObject"]:
+        instance_obj: AbstractObject,
+    ) -> AbstractObject | None:
         if isinstance(instance_obj, InstanceObject):
             return instance_obj.class_obj
         if isinstance(instance_obj, BuiltinInstanceObject):
@@ -409,22 +481,24 @@ class SolverQuery(ISolverQuery):
             )
         return None
 
+    @override
     def get_bound_receiver(
         self,
-        method_obj: "AbstractObject",
-    ) -> Optional["AbstractObject"]:
+        method_obj: AbstractObject,
+    ) -> AbstractObject | None:
         if isinstance(method_obj, MethodObject):
             return method_obj.instance_obj
         if isinstance(method_obj, BuiltinMethodObject):
             return method_obj.receiver
         return None
 
+    @override
     def get_captured_vars(
         self,
         func: IRFunc,
-        context: Optional["AbstractContext"] = None,
-    ) -> Dict[str, "PointsToSet"]:
-        result: Dict[str, PointsToSet] = {}
+        context: NativeContext | None = None,
+    ) -> dict[str, PointsToSet]:
+        result: dict[str, PointsToSet] = {}
         for func_obj in self._get_function_objects(func, context):
             cell_vars = self._state.get_cell_vars(func_obj)
             nonlocal_vars = self._state.get_nonlocal_vars(func_obj)
@@ -436,9 +510,10 @@ class SolverQuery(ISolverQuery):
                     result[var_name] = pts
         return result
 
+    @override
     def may_have_attr(
         self,
-        obj: "AbstractObject",
+        obj: AbstractObject,
         attr_name: str,
     ) -> bool:
         scope = self._state.get_internal_scope(obj) or self._state.obj_scope.get(obj)
@@ -449,16 +524,18 @@ class SolverQuery(ISolverQuery):
             return True
         return not self._state.get_points_to(field_access).is_empty()
 
+    @override
     def list_elements(
         self,
-        list_obj: "AbstractObject",
-    ) -> "PointsToSet":
+        list_obj: AbstractObject,
+    ) -> PointsToSet:
         return self._field_points_to(list_obj, elem())
 
+    @override
     def dict_keys(
         self,
-        dict_obj: "AbstractObject",
-    ) -> "PointsToSet":
+        dict_obj: AbstractObject,
+    ) -> PointsToSet:
         keys = []
         for (obj, field), _ in self._state._field_accesses.items():
             if obj != dict_obj:
@@ -470,38 +547,43 @@ class SolverQuery(ISolverQuery):
                     keys.append(heap_obj)
         return PointsToSet.from_objects(keys)
 
+    @override
     def dict_values(
         self,
-        dict_obj: "AbstractObject",
-    ) -> "PointsToSet":
+        dict_obj: AbstractObject,
+    ) -> PointsToSet:
         return self._field_points_to(dict_obj, value()).union(
             self._field_points_to(dict_obj, elem())
         )
 
+    @override
     def dict_get(
         self,
-        dict_obj: "AbstractObject",
+        dict_obj: AbstractObject,
         key_name: str,
-    ) -> "PointsToSet":
+    ) -> PointsToSet:
         return self._field_points_to(dict_obj, key(key_name))
 
+    @override
     def tuple_element(
         self,
-        tuple_obj: "AbstractObject",
+        tuple_obj: AbstractObject,
         index: int,
-    ) -> "PointsToSet":
+    ) -> PointsToSet:
         return self._field_points_to(tuple_obj, key(index))
 
+    @override
     def set_elements(
         self,
-        set_obj: "AbstractObject",
-    ) -> "PointsToSet":
+        set_obj: AbstractObject,
+    ) -> PointsToSet:
         return self._field_points_to(set_obj, elem())
 
+    @override
     def get_object_type(
         self,
-        obj: "AbstractObject",
-    ) -> Optional["AbstractObject"]:
+        obj: AbstractObject,
+    ) -> AbstractObject | None:
         if isinstance(obj, InstanceObject):
             return obj.class_obj
         if isinstance(obj, BuiltinInstanceObject):
@@ -516,10 +598,11 @@ class SolverQuery(ISolverQuery):
             return ObjectFactory.create_builtin_class("type", obj.context)
         return None
 
+    @override
     def is_instance_of(
         self,
-        obj: "AbstractObject",
-        cls: "AbstractObject",
+        obj: AbstractObject,
+        cls: AbstractObject,
     ) -> bool:
         obj_type = self.get_object_type(obj)
         if obj_type is None:
@@ -535,24 +618,29 @@ class SolverQuery(ISolverQuery):
             return cls in mro or not mro.order_resolved
         return False
 
+    @override
     def objects_of_type(
         self,
-        cls: "AbstractObject",
-    ) -> "PointsToSet":
+        cls: AbstractObject,
+    ) -> PointsToSet:
         objs = [obj for obj in self.get_all_objects() if self.is_instance_of(obj, cls)]
         return PointsToSet.from_objects(objs)
 
-    def get_reachable_scopes(self) -> Set[IRScope]:
+    @override
+    def get_reachable_scopes(self) -> set[IRScope]:
         scopes = {scope.stmt for scope in self._state.call_graph.get_nodes()}
         scopes.update(scope.stmt for scope in self._state._internal_scope.values())
         return scopes
 
-    def get_reachable_functions(self) -> Set[IRFunc]:
+    @override
+    def get_reachable_functions(self) -> set[IRFunc]:
         return {scope for scope in self.get_reachable_scopes() if isinstance(scope, IRFunc)}
 
-    def get_reachable_classes(self) -> Set[IRClass]:
+    @override
+    def get_reachable_classes(self) -> set[IRClass]:
         return {scope for scope in self.get_reachable_scopes() if isinstance(scope, IRClass)}
 
+    @override
     def is_reachable(
         self,
         scope: IRScope,
@@ -611,14 +699,20 @@ class SolverQuery(ISolverQuery):
             }
         )
 
-    def get_all_objects(self) -> Iterable["AbstractObject"]:
+    @override
+    def get_all_objects(self) -> Iterable[AbstractObject]:
         return self._state._heap.objects.values()
 
-    def get_unknown_summary(self) -> Dict[str, int]:
+    @override
+    def get_unknown_summary(self) -> dict[str, int]:
         return self._unknown_tracker.get_summary()
 
-    def get_unknown_details(self) -> List[Dict[str, Any]]:
-        return self._unknown_tracker.get_detailed_report()
+    @override
+    def get_unknown_details(self) -> list[JsonObject]:
+        records: object = self._unknown_tracker.get_detailed_report()
+        if not isinstance(records, list):
+            raise TypeError("Unknown detail report must be an array")
+        return [validate_json_object(record) for record in records]
 
     @override
     def get_unknown_effect_events(self) -> list[JsonObject]:
@@ -661,7 +755,8 @@ class SolverQuery(ISolverQuery):
             "certificate_eligible": False,
         }
 
-    def points_to(self, var: "Variable") -> "PointsToSet":
+    @override
+    def points_to(self, var: Variable) -> PointsToSet:
         warnings.warn(
             "points_to(Variable) is deprecated. Use points_to_at(var_name, scope, context).",
             DeprecationWarning,
@@ -672,7 +767,8 @@ class SolverQuery(ISolverQuery):
             result = result.union(self._state.get_points_to(ctx_var))
         return result
 
-    def get_field(self, obj: "AbstractObject", field: "Field") -> "PointsToSet":
+    @override
+    def get_field(self, obj: AbstractObject, field: Field) -> PointsToSet:
         warnings.warn(
             "get_field(AbstractObject, Field) is deprecated. Use field_of_objects() or container-specific methods.",
             DeprecationWarning,

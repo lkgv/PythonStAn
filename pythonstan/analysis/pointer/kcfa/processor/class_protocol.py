@@ -4,40 +4,68 @@ This module restores value/call propagation. It deliberately leaves class
 creation ordering, metaclass conflict resolution and custom hooks as residual
 obligations rather than certifying Python's complete construction protocol.
 """
-import ast
 
-from .processor import Processor
-from ..constraints import LoadConstraint, CallConstraint
-from ..context import Scope
+from __future__ import annotations
+
+import ast
+from collections.abc import Hashable
+from typing import TYPE_CHECKING, override
+
+from pythonstan.ir.ir_statements import IRClass, IRStatement
+
+from ..constraints import CallConstraint, LoadConstraint
+from ..context import CallSite, Ctx, NativeContext, Scope
 from ..heap_model import Field, FieldKind, attr, elem, unknown
 from ..object import (
-    AllocKind, AllocSite, BuiltinClassObject, BuiltinFunctionObject,
-    BuiltinMethodObject, ClassObject, DictObject, FunctionObject, MethodObject,
+    AbstractObject,
+    AllocKind,
+    AllocSite,
+    BuiltinClassObject,
+    BuiltinFunctionObject,
+    BuiltinMethodObject,
+    ClassObject,
+    DictObject,
+    FunctionObject,
+    MethodObject,
 )
-from ..points_to_set import PointsToSet
 from ..pointer_flow_graph import GuardNode, NormalNode, PointerFlowEdge, PointerFlowKind
-from ..variable import VariableKind
-from pythonstan.ir.ir_statements import IRClass
+from ..points_to_set import PointsToSet
+from ..variable import FieldAccess, Variable, VariableKind
+from .processor import Processor
+
+if TYPE_CHECKING:
+    from ..solver import PointerSolver
 
 
 METACLASS_FIELD = Field(FieldKind.CLASS_METADATA, "metaclass")
 
 
-def record_class_residual(solver, scope, origin, reason):
+def record_class_residual(
+    solver: PointerSolver, scope: Scope, origin: Hashable, reason: str
+) -> None:
     solver.state._residual_effects[(scope, "class_protocol", origin)] = {
-        "origin": str(origin), "reason": reason, "context": str(scope.context),
+        "origin": str(origin),
+        "reason": reason,
+        "context": str(scope.context),
         "return_target": None,
         "effects": ["metaclass_selection", "class_creation_hooks", "may_raise"],
     }
 
 
-def is_type_builtin(obj):
+def is_type_builtin(obj: AbstractObject) -> bool:
     return (isinstance(obj, BuiltinClassObject) and obj.builtin_name == "type") or (
         isinstance(obj, BuiltinFunctionObject) and obj.function_name == "type"
     )
 
 
-def apply_class_metaclass_read(solver, scope, class_obj, attr_field, target_var, call_site):
+def apply_class_metaclass_read(
+    solver: PointerSolver,
+    scope: Scope,
+    class_obj: ClassObject,
+    attr_field: Field,
+    target_var: Variable,
+    call_site: CallSite,
+) -> None:
     """Join metaclass method candidates bound to the actual class receiver.
 
     Both relation and method loads are persistent PFG dependencies. We retain
@@ -45,7 +73,7 @@ def apply_class_metaclass_read(solver, scope, class_obj, attr_field, target_var,
     """
     if attr_field.kind != FieldKind.ATTRIBUTE:
         return
-    installed = getattr(solver, "_class_metaclass_reads", None)
+    installed = solver._class_metaclass_reads if hasattr(solver, "_class_metaclass_reads") else None
     if installed is None:
         installed = solver._class_metaclass_reads = set()
     identity = (scope, class_obj, attr_field, target_var, call_site)
@@ -62,26 +90,50 @@ def apply_class_metaclass_read(solver, scope, class_obj, attr_field, target_var,
     solver.add_constraint(scope, scope.context, LoadConstraint(meta_var, attr_field, method_var))
     method_ctx = state.get_variable(scope, scope.context, method_var)
     target_ctx = state.get_variable(scope, scope.context, target_var)
-    def bind(_edge, pts):
-        result = []
+
+    def bind(_edge: PointerFlowEdge, pts: PointsToSet) -> PointsToSet:
+        result: list[AbstractObject] = []
         for obj in pts:
             if isinstance(obj, MethodObject):
                 result.append(obj.deliver_into(class_obj))
             elif isinstance(obj, FunctionObject):
                 # A function installed later on a metaclass is a descriptor too.
-                result.append(MethodObject(obj.context, obj.alloc_site, obj.container_scope,
-                                           obj.ir, class_obj, class_obj))
+                result.append(
+                    MethodObject(
+                        obj.context,
+                        obj.alloc_site,
+                        obj.container_scope,
+                        obj.ir,
+                        class_obj,
+                        class_obj,
+                    )
+                )
             else:
                 result.append(obj)
-                record_class_residual(solver, scope, call_site,
-                                      "Metaclass descriptor/attribute precedence is not discharged")
+                record_class_residual(
+                    solver,
+                    scope,
+                    call_site,
+                    "Metaclass descriptor/attribute precedence is not discharged",
+                )
         return PointsToSet.from_objects(result)
+
     binder = GuardNode(bind)
-    state._add_points_flow_edge(PointerFlowEdge(NormalNode(method_ctx), binder, PointerFlowKind.NORMAL))
-    state._add_points_flow_edge(PointerFlowEdge(binder, NormalNode(target_ctx), PointerFlowKind.NORMAL))
+    state._add_points_flow_edge(
+        PointerFlowEdge(NormalNode(method_ctx), binder, PointerFlowKind.NORMAL)
+    )
+    state._add_points_flow_edge(
+        PointerFlowEdge(binder, NormalNode(target_ctx), PointerFlowKind.NORMAL)
+    )
 
 
-def install_metaclass_call(solver, scope, context, call, class_obj):
+def install_metaclass_call(
+    solver: PointerSolver,
+    scope: Scope,
+    context: NativeContext,
+    call: CallConstraint,
+    class_obj: ClassObject,
+) -> None:
     """Subscribe to metaclass __call__ without creating an empty fake call.
 
     Metaclass relations and attributes can arrive after the class invocation.
@@ -89,7 +141,11 @@ def install_metaclass_call(solver, scope, context, call, class_obj):
     when a user function actually reaches it. Keep ordinary construction as a
     may-path: exact metaclass/descriptor precedence has not been established.
     """
-    subscriptions = getattr(solver, "_metaclass_call_subscriptions", None)
+    subscriptions = (
+        solver._metaclass_call_subscriptions
+        if hasattr(solver, "_metaclass_call_subscriptions")
+        else None
+    )
     if subscriptions is None:
         subscriptions = solver._metaclass_call_subscriptions = set()
     identity = (scope, call, class_obj)
@@ -97,32 +153,48 @@ def install_metaclass_call(solver, scope, context, call, class_obj):
         return
     subscriptions.add(identity)
     suffix = f"{call.call_site.short_id()}@{id(class_obj)}@{len(subscriptions)}"
-    observed = solver.variable_factory.make_variable(f"$metaclass_call_observed@{suffix}", VariableKind.TEMPORARY)
-    active = solver.variable_factory.make_variable(f"$metaclass_call_active@{suffix}", VariableKind.TEMPORARY)
+    observed = solver.variable_factory.make_variable(
+        f"$metaclass_call_observed@{suffix}", VariableKind.TEMPORARY
+    )
+    active = solver.variable_factory.make_variable(
+        f"$metaclass_call_active@{suffix}", VariableKind.TEMPORARY
+    )
     observed_ctx = solver.state.get_variable(scope, context, observed)
     active_ctx = solver.state.get_variable(scope, context, active)
     apply_class_metaclass_read(solver, scope, class_obj, attr("__call__"), observed, call.call_site)
     invocation = CallConstraint(active, call.args, call.kwargs, call.target, call.call_site)
     registered = False
 
-    def activate(_edge, pts):
+    def activate(_edge: PointerFlowEdge, pts: PointsToSet) -> PointsToSet:
         nonlocal registered
         functions = []
         for obj in pts:
             if isinstance(obj, FunctionObject):
                 functions.append(obj)
-            elif isinstance(obj, BuiltinMethodObject) and obj.method_name == "__call__" and is_type_builtin(obj.receiver):
+            elif (
+                isinstance(obj, BuiltinMethodObject)
+                and obj.method_name == "__call__"
+                and is_type_builtin(obj.receiver)
+            ):
                 # The default type constructor path below already models this.
                 continue
             else:
-                solver._mark_unknown_call(scope, call,
-                                          "Unmodeled metaclass __call__ descriptor or callable value")
+                solver._mark_unknown_call(
+                    scope, call, "Unmodeled metaclass __call__ descriptor or callable value"
+                )
         if functions:
             solver.state._residual_effects[(scope, "metaclass_call", call, class_obj)] = {
                 "origin": str(call.call_site),
                 "reason": "Metaclass __call__ and ordinary construction remain may-paths; precedence is unproved",
-                "context": str(context), "return_target": call.target.name if call.target else None,
-                "effects": ["metaclass_call_dispatch", "construction_precedence", "may_mutate_heap", "may_invoke_callbacks", "may_raise"],
+                "context": str(context),
+                "return_target": call.target.name if call.target else None,
+                "effects": [
+                    "metaclass_call_dispatch",
+                    "construction_precedence",
+                    "may_mutate_heap",
+                    "may_invoke_callbacks",
+                    "may_raise",
+                ],
             }
             if not registered:
                 registered = True
@@ -130,42 +202,76 @@ def install_metaclass_call(solver, scope, context, call, class_obj):
         return PointsToSet.from_objects(functions)
 
     gate = GuardNode(activate)
-    solver.state._add_points_flow_edge(PointerFlowEdge(NormalNode(observed_ctx), gate, PointerFlowKind.NORMAL))
-    solver.state._add_points_flow_edge(PointerFlowEdge(gate, NormalNode(active_ctx), PointerFlowKind.NORMAL))
+    solver.state._add_points_flow_edge(
+        PointerFlowEdge(NormalNode(observed_ctx), gate, PointerFlowKind.NORMAL)
+    )
+    solver.state._add_points_flow_edge(
+        PointerFlowEdge(gate, NormalNode(active_ctx), PointerFlowKind.NORMAL)
+    )
 
 
 class ClassProtocolProcessor(Processor):
-    def __init__(self):
-        self._dynamic_classes = {}
-        self._namespace_edges = set()
+    def __init__(self) -> None:
+        self._dynamic_classes: dict[tuple[Scope, CallSite], tuple[ClassObject, Ctx[Variable]]] = {}
+        self._namespace_edges: set[tuple[DictObject, Field, ClassObject, Field]] = set()
 
-    def handle_call(self, solver, target, scope, call, callee_obj):
+    @override
+    def handle_call(
+        self,
+        solver: PointerSolver,
+        target: Ctx[Variable | FieldAccess],
+        scope: Scope,
+        call: CallConstraint,
+        callee_obj: AbstractObject,
+    ) -> bool:
         if is_type_builtin(callee_obj) and len(call.args) == 3:
             return self._construct(solver, scope, call, callee_obj, 0)
-        if (isinstance(callee_obj, BuiltinMethodObject)
-                and callee_obj.method_name == "__new__" and is_type_builtin(callee_obj.receiver)
-                and len(call.args) >= 4):
+        if (
+            isinstance(callee_obj, BuiltinMethodObject)
+            and callee_obj.method_name == "__new__"
+            and is_type_builtin(callee_obj.receiver)
+            and len(call.args) >= 4
+        ):
             return self._construct(solver, scope, call, callee_obj, 1)
         return False
 
-    def _construct(self, solver, scope, call, builtin_obj, offset):
+    def _construct(
+        self,
+        solver: PointerSolver,
+        scope: Scope,
+        call: CallConstraint,
+        builtin_obj: AbstractObject,
+        offset: int,
+    ) -> bool:
         state, context = solver.state, scope.context
         invocation = solver._register_builtin_dependencies(scope, context, call, builtin_obj)
-        record_class_residual(solver, scope, call.call_site,
-                              "Dynamic class may model retains namespace flows and ordinary exact-string-key "
-                              "__set_name__ calls; namespace timing, non-string/unknown names, custom hook descriptors, "
-                              "__init_subclass__, metaclass selection and exceptional exits remain open")
+        record_class_residual(
+            solver,
+            scope,
+            call.call_site,
+            "Dynamic class may model retains namespace flows and ordinary exact-string-key "
+            "__set_name__ calls; namespace timing, non-string/unknown names, custom hook descriptors, "
+            "__init_subclass__, metaclass selection and exceptional exits remain open",
+        )
         identity = (scope, call.call_site)
         entry = self._dynamic_classes.get(identity)
         if entry is None:
             label = f"$dynamic_class_{call.call_site.short_id()}"
             base_name = f"$dynamic_bases_{len(self._dynamic_classes)}"
-            tree = ast.ClassDef(name=label, bases=[ast.Name(id=base_name, ctx=ast.Load())],
-                                keywords=[], body=[ast.Pass()], decorator_list=[])
+            tree = ast.ClassDef(
+                name=label,
+                bases=[ast.Name(id=base_name, ctx=ast.Load())],
+                keywords=[],
+                body=[ast.Pass()],
+                decorator_list=[],
+                type_params=[],
+            )
             ast.fix_missing_locations(tree)
             ir = IRClass(f"{scope.stmt.get_qualname()}.{label}", tree)
             site = AllocSite(ir, AllocKind.CLASS)
-            cls = ClassObject(solver.state.select_allocation_context(context, site), site, scope, ir)
+            cls = ClassObject(
+                solver.state.select_allocation_context(context, site), site, scope, ir
+            )
             internal = Scope.new(cls, scope.module, context, ir, scope)
             state.set_internal_scope(cls, internal)
             state.obj_scope[cls] = scope
@@ -202,15 +308,24 @@ class ClassProtocolProcessor(Processor):
         for namespace in state.get_points_to(namespace_ctx):
             solver._builtin_object_dependencies.setdefault(namespace, set()).add(invocation)
             if not isinstance(namespace, DictObject):
-                record_class_residual(solver, scope, call.call_site,
-                                      "Unknown/non-dict class namespace and custom mapping effects")
-                solver.handle_new_points_to(state.get_field(scope, context, cls, unknown()),
-                                            scope, PointsToSet.singleton(namespace))
+                record_class_residual(
+                    solver,
+                    scope,
+                    call.call_site,
+                    "Unknown/non-dict class namespace and custom mapping effects",
+                )
+                solver.handle_new_points_to(
+                    state.get_field(scope, context, cls, unknown()),
+                    scope,
+                    PointsToSet.singleton(namespace),
+                )
                 continue
             for obj, field in list(state._field_accesses):
                 if obj != namespace:
                     continue
                 if field.kind == FieldKind.KEY and field.key_type is None:
+                    if field.name is None:
+                        raise ValueError("ATTRIBUTE field must have name")
                     cls_field = attr(field.name)
                 elif field.kind in {FieldKind.WILDCARD_KEY, FieldKind.UNKNOWN} or (
                     not solver.config.index_sensitive and field.kind == FieldKind.ELEMENT
@@ -218,30 +333,56 @@ class ClassProtocolProcessor(Processor):
                     cls_field = unknown()
                 else:
                     continue
-                self._install_namespace_field(solver, scope, namespace, field, cls, cls_field,
-                                              call.call_site.statement)
+                self._install_namespace_field(
+                    solver, scope, namespace, field, cls, cls_field, call.call_site.statement
+                )
         return True
 
-    def _install_namespace_field(self, solver, scope, namespace, source_field, cls, target_field, origin):
+    def _install_namespace_field(
+        self,
+        solver: PointerSolver,
+        scope: Scope,
+        namespace: DictObject,
+        source_field: Field,
+        cls: ClassObject,
+        target_field: Field,
+        origin: IRStatement,
+    ) -> None:
         identity = (namespace, source_field, cls, target_field)
         if identity in self._namespace_edges:
             return
         self._namespace_edges.add(identity)
         state = solver.state
         source = state.get_field(scope, scope.context, namespace, source_field)
-        if (source_field.kind == FieldKind.KEY and source_field.key_type is None
-                and type(source_field.name) is str):
+        if (
+            source_field.kind == FieldKind.KEY
+            and source_field.key_type is None
+            and type(source_field.name) is str
+        ):
             from .construction_hooks import install_set_name_source
+
             # Observe original own namespace values before function-to-method
             # conversion. Logical class fields may also contain inherited
             # descriptors and must not supply construction-hook inputs.
             install_set_name_source(solver, scope, cls, source, source_field.name, origin)
         target = state.get_field(scope, scope.context, cls, target_field)
-        def as_class_member(_edge, pts):
-            return PointsToSet.from_objects([
-                MethodObject(obj.context, obj.alloc_site, obj.container_scope, obj.ir, cls, None)
-                if isinstance(obj, FunctionObject) else obj for obj in pts
-            ])
+
+        def as_class_member(_edge: PointerFlowEdge, pts: PointsToSet) -> PointsToSet:
+            return PointsToSet.from_objects(
+                [
+                    MethodObject(
+                        obj.context, obj.alloc_site, obj.container_scope, obj.ir, cls, None
+                    )
+                    if isinstance(obj, FunctionObject)
+                    else obj
+                    for obj in pts
+                ]
+            )
+
         binder = GuardNode(as_class_member)
-        state._add_points_flow_edge(PointerFlowEdge(NormalNode(source), binder, PointerFlowKind.NORMAL))
-        state._add_points_flow_edge(PointerFlowEdge(binder, NormalNode(target), PointerFlowKind.NORMAL))
+        state._add_points_flow_edge(
+            PointerFlowEdge(NormalNode(source), binder, PointerFlowKind.NORMAL)
+        )
+        state._add_points_flow_edge(
+            PointerFlowEdge(binder, NormalNode(target), PointerFlowKind.NORMAL)
+        )

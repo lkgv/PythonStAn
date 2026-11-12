@@ -5,9 +5,18 @@ World. Only unambiguous statement CFGs are consumed early. ScopeManager's
 historical qualified-name cache can alias distinct scopes, so ambiguous trees
 remain on the legacy all-frontend-before-closure path.
 """
+
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Iterable
+from typing import NoReturn
+
+from pythonstan.analysis.closure import ClosureAnalysis
+from pythonstan.ir import IRModule, IRScope
+from pythonstan.world.scope_manager import ScopeManager
+
+from .report_contracts import FrontendLifetimeReport
 
 
 class FrontendLifetimeError(RuntimeError):
@@ -15,29 +24,44 @@ class FrontendLifetimeError(RuntimeError):
 
 
 class ModuleClosureLifetime:
-    def __init__(self, closure, inventory_module_names, report):
-        self.closure = closure
-        self.sm = closure.world.scope_manager
-        self.module_names = frozenset(inventory_module_names)
-        self.owners = {}
-        self.completed = set()
-        self.retired_names = set()
-        self.report = report
-        self.report.update(module_closure_modules=0, module_closure_scopes=0,
-                           retired_statement_cfgs=0, deferred_modules=[],
-                           final_closure_scopes=0, ownership_valid=True)
+    def __init__(
+        self,
+        closure: ClosureAnalysis,
+        inventory_module_names: Iterable[str],
+        report: FrontendLifetimeReport,
+    ) -> None:
+        self.closure: ClosureAnalysis = closure
+        self.sm: ScopeManager = closure.world.scope_manager
+        self.module_names: frozenset[str] = frozenset(inventory_module_names)
+        self.owners: dict[str, IRScope] = {}
+        self.completed: set[IRScope] = set()
+        self.retired_names: set[str] = set()
+        self.report: FrontendLifetimeReport = report
+        self.report.update(
+            {
+                "module_closure_modules": 0,
+                "module_closure_scopes": 0,
+                "retired_statement_cfgs": 0,
+                "deferred_modules": [],
+                "final_closure_scopes": 0,
+                "ownership_valid": True,
+            }
+        )
 
-    def _fail(self, message):
+    def _fail(self, message: str) -> NoReturn:
         self.report["ownership_valid"] = False
         raise FrontendLifetimeError(message)
 
-    def consume(self, module):
+    def consume(self, module: IRModule) -> bool:
         scopes = self.closure.module_scopes(module)
         if self.completed.intersection(scopes):
-            self._fail("module closure attempted to consume a retired scope twice: " + module.get_qualname())
+            self._fail(
+                "module closure attempted to consume a retired scope twice: "
+                + module.get_qualname()
+            )
         counts = Counter(scope.get_qualname() for scope in scopes)
         previous_owners = {name: self.owners.get(name) for name in counts}
-        reasons = set()
+        reasons: set[str] = set()
         for scope in scopes:
             name = scope.get_qualname()
             previous = previous_owners[name]
@@ -53,9 +77,13 @@ class ModuleClosureLifetime:
             # through a newer scope that merely has the same qualified name.
             self.owners.setdefault(name, scope)
         if reasons:
-            self.report["deferred_modules"].append({
-                "module": module.get_qualname(), "reasons": sorted(reasons),
-                "scope_count": len(scopes)})
+            self.report["deferred_modules"].append(
+                {
+                    "module": module.get_qualname(),
+                    "reasons": sorted(reasons),
+                    "scope_count": len(scopes),
+                }
+            )
             return False
 
         cfgs = {scope: self.sm.get_ir(scope, "cfg") for scope in scopes}
@@ -79,14 +107,16 @@ class ModuleClosureLifetime:
         self.report["module_closure_scopes"] += len(scopes)
         return True
 
-    def finish(self):
+    def finish(self) -> None:
         # One final World scan includes deferred and partially lowered trees.
         # No scan is performed per module; common-case traversal is linear in
         # the number of lexical scopes rather than modules times World size.
         remaining = self.sm.get_scopes() - self.completed
         for scope in self.completed:
             if any(child not in self.completed for child in self.sm.get_subscopes(scope)):
-                self._fail("lexical child appeared after parent CFG retirement: " + scope.get_qualname())
+                self._fail(
+                    "lexical child appeared after parent CFG retirement: " + scope.get_qualname()
+                )
         for scope in remaining:
             if scope.get_qualname() in self.retired_names:
                 self._fail("late scope aliases a retired statement CFG: " + scope.get_qualname())

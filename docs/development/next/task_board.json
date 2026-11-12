@@ -413,7 +413,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-TYPE-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "blocked_external",
+      "status": "running",
       "implementation_record": {
         "owner": "root integration; domain_native_baseline runtime; semantic_baseline graph/provider/context; input_typing bridge/inputs; quality_tools contracts/oracle/intrinsics; client_preregistration worker/API",
         "reviewer": "requirements_audit",
@@ -421,14 +421,15 @@
         "evidence": [
           "docs/development/next/TYPE_CHECKPOINT_20261112.json",
           "docs/development/next/evidence/type_checkpoint_20261112",
-          "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
+          "docs/development/next/RESUMED_CHECKPOINT_20261112.json"
         ],
         "remaining_obligations": [
-          "Clear every new and modified-unit quality diagnostic without debt reset, frontier retreat or source suppressions",
-          "Clear12 canonical Any-expression diagnostics in dictionary bytecode boundary and oracle queue construction; extend reviewed whole-module frontier",
-          "Complete independent final integration and mandatory semantic/domain/state/Native repair gates; no later card inferred complete from local controls",
-          "Retain explicit open profiles, graph-memo provenance, unsupported custom contexts and existing frozen red witnesses",
-          "Run real LLM only after offline verification and independent audit; credentials only from environment"
+          "Clear43 new and136 modified-unit quality diagnostics without baseline reset or suppressions",
+          "Finish actual Native state/heap/IRTranslator and legacy driver consumers",
+          "Finish Inspector cold-batch consumer and modified helper formatting",
+          "Expand reviewed whole-module frontier and complete TYPE-01 acceptance before dependent repair cards",
+          "Preserve frozen mandatory semantic/domain/Native repair witnesses and execute remaining task dependencies",
+          "Keep live LLM behind offline semantic and independent audit gates; read future credentials only from environment"
         ],
         "scope": "Integrated actual TYPE contracts and checked-summary/Native boundary checkpoint; parent TYPE-01 remains unverified",
         "review_records": [
@@ -443,11 +444,10 @@
           "docs/development/next/reviews/W1-effect-slice.md",
           "docs/development/next/reviews/W1-low-contracts-ports.md"
         ],
-        "external_blocker": {
-          "date": "2026-11-12",
-          "reason": "Execution environment unavailable; exec-server transport disconnected/recovery timed out; no usable execution environment.",
-          "resume_status": "running",
-          "handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
+        "recovery": {
+          "external_blocker_resolved": true,
+          "prior_handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json",
+          "new_checkpoint": "docs/development/next/RESUMED_CHECKPOINT_20261112.json"
         }
       }
     },
@@ -3521,8 +3521,8 @@
     "tree": "13a79f550daf75445f9529e5d5a89d70adabb1c6",
     "dirty_at_clone": false
   },
-  "status_note": "W0 and API acceptances retained. TYPE is externally blocked; later uncommitted workspace results are not published-source acceptance.",
-  "current_phase": "W1 TYPE implementation; externally blocked by unavailable execution environment",
+  "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
+  "current_phase": "W1 actual execution contracts; resumed",
   "qualification": {
     "core_qualified": false,
     "scale_qualified": false,
@@ -3540,22 +3540,7 @@
     "previous_published_tree": "00bc89c85fbf885b40fff426abf6a1e77add2bbf",
     "publication_mode": "Exact local candidate tree compared with connector tree before expected-SHA ref update; containing commit identifies this snapshot.",
     "history_note": "Original local formatting/implementation history is retained under checkpoint refs; connector publication commit identities can differ while trees match.",
-    "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged.",
-    "last_verified_code_checkpoint": {
-      "commit": "0f19ceb3a9418bf0a745f833a847fffcb2f9d8fd",
-      "tree": "3f2be48c00525c2fe29a805351f1e507087ff03b",
-      "original_stage_passed": 1001,
-      "new_controls_passed": 4001,
-      "canonical_modules": 98,
-      "canonical_ordinary_errors": 0,
-      "canonical_ruff_errors": 0,
-      "canonical_any_expression_errors": 12,
-      "quality_new_diagnostics": 431,
-      "quality_modified_unit_diagnostics": 515,
-      "quality_negative_controls_passed": true,
-      "qualification": false
-    },
-    "unpublished_workspace_handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_20261112.json"
+    "payload_review": "Source, synthetic controls and reviewed static evidence only; frozen debt ledger unchanged."
   },
-  "checkpoint_note": "Public code0f19ceb is preserved. Later local1001+4048/98core strong0 snapshot and additional partial edits are uncommitted; environment is unavailable, so recovery and final checks are pending."
+  "checkpoint_note": "Resumed fixed source:1001 stage+4114 audit3 pass;98 core ordinary/AnyExpr/Ruff own0. Full quality43new136modified, negative guards pass. TYPE-01 remains running; no final qualification."
 }

@@ -1,0 +1,28 @@
+{
+  "snapshot_records": 776,
+  "computed_inventory_digests": {
+    "json_default_sorted": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
+    "json_compact_sorted": "07830eac0c78591a9e35e676e3e849f70ef45f56473fdfad86594f58dc8efc8e"
+  },
+  "declared_snapshot_digest": "049c00055fa978cab6c16873ad0a5e6ae2023e1edaf16f8c285228dfef0f7599",
+  "commit_checked": "ad5f04eef96003638490b02ca5f6abb5c1c479a8",
+  "commit_source_hash_mismatches": [],
+  "quality_summary_matches_report": true,
+  "frozen_ledger_matches": true,
+  "core_ordinary_source_count": 98,
+  "qualifications": {
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "live_llm_requests": 0
+  },
+  "changed_file_count": 139,
+  "changed_raw_artifacts": [],
+  "changed_outside_code_test_docs_tools_benchmark": [],
+  "reviewer": "requirements_audit",
+  "status": "consistent_partial_checkpoint_summary_and_payload_scope",
+  "not_release_acceptance": true,
+  "payload_scope_note": "139 changed paths are only code/tests/docs/tools/benchmark; no raw ignored artifact paths are in the commit delta. This is a file-scope and metadata consistency check, not a credential scan of every code byte or permission override.",
+  "summary_facts": "Original1001/new4001 positive selections stay distinct from retained mandatory reds;98core ordinary/lint own0 coexists with12strong/core records and failed overall quality431new/515modified. All qualifications remain false."
+}

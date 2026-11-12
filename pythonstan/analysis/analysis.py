@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Iterable, Mapping
-from typing import Dict, Any, Type, Literal, List
+from typing import ClassVar, Literal, override
 
 from pythonstan.ir import IRScope
 
@@ -19,7 +19,7 @@ class AnalysisConfig:
         "certified analysis",
     ]
     inter_procedure: bool
-    prev_analysis: List[str]  # previous analysis name
+    prev_analysis: list[str]  # previous analysis name
     options: dict[object, object]
 
     def __init__(
@@ -29,7 +29,7 @@ class AnalysisConfig:
         description: str = "",
         prev_analysis: list[str] | tuple[str, ...] | None = None,
         inter_procedure: bool = False,
-        options: Mapping[object, object] | None = None,
+        options: Mapping[str, object] | Mapping[object, object] | None = None,
     ) -> None:
         if not isinstance(name, str) or not name or not isinstance(id, str) or not id:
             raise ValueError("analysis name and id must be nonempty strings")
@@ -66,10 +66,14 @@ class AnalysisConfig:
         self.description = description
         self.type = kind
         self.inter_procedure = inter_procedure
-        self.options = dict(options)
+        copied_options: dict[object, object] = {}
+        for key, value in dict(options).items():
+            copied_options[key] = value
+        self.options = copied_options
         self.prev_analysis = list(dependencies)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         return f"""
 AnalysisConfig(
     name={self.name},
@@ -82,7 +86,8 @@ AnalysisConfig(
 )
 """
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -118,7 +123,7 @@ def order_analysis_configs(configs: Iterable[AnalysisConfig]) -> list[AnalysisCo
     return ordered
 
 
-def get_scope_result(result, scope, dependency="analysis"):
+def get_scope_result(result: object, scope: IRScope, dependency: str = "analysis") -> object:
     """Select predecessor facts without confusing another module's results.
 
     Maintained dataflow drivers expose ``per_scope`` alongside their historical
@@ -127,50 +132,56 @@ def get_scope_result(result, scope, dependency="analysis"):
     """
     if not isinstance(result, Mapping):
         raise ValueError(f"Dependency {dependency!r} does not expose per-scope results")
-    if "per_scope" in result:
-        scoped = result["per_scope"]
-        if not isinstance(scoped, Mapping) or scope not in scoped:
+    result_map: Mapping[object, object] = result
+    if "per_scope" in result_map:
+        scoped = result_map["per_scope"]
+        if not isinstance(scoped, Mapping):
             raise ValueError(f"Dependency {dependency!r} has no result for scope {scope!r}")
-        return scoped[scope]
-    if scope in result:
-        return result[scope]
-    if "in" in result and "out" in result:
-        return {"in": result["in"], "out": result["out"]}
+        scope_map: Mapping[object, object] = scoped
+        if scope not in scope_map:
+            raise ValueError(f"Dependency {dependency!r} has no result for scope {scope!r}")
+        return scope_map[scope]
+    if scope in result_map:
+        return result_map[scope]
+    if "in" in result_map and "out" in result_map:
+        return {"in": result_map["in"], "out": result_map["out"]}
     raise ValueError(f"Dependency {dependency!r} has no result for scope {scope!r}")
 
 
 class Analysis(ABC):
-    analysis_dict: "Dict[str, Type[Analysis]]" = {}
+    analysis_dict: ClassVar[dict[str, type["Analysis"]]] = {}
     config: AnalysisConfig
 
     @abstractmethod
-    def __init__(self, config: AnalysisConfig):
+    def __init__(self, config: AnalysisConfig) -> None:
         self.config = config
         self.valid_id()
 
-    def __init_subclass__(cls):
+    @override
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
         cls.analysis_dict[cls.__name__] = cls
 
     @classmethod
-    def get_analysis(cls, id):
+    def get_analysis(cls, id: str) -> type["Analysis"]:
         return cls.analysis_dict[id]
 
-    def get_id(self):
+    def get_id(self) -> str:
         return self.config.id
 
-    def valid_id(self):
+    def valid_id(self) -> None:
         cls_name = self.__class__.__name__
         assert cls_name == self.get_id(), "Invalid id for current Analysis"
 
 
 class AnalysisDriver(ABC):
     config: AnalysisConfig
-    results: Any
+    results: object
 
     @abstractmethod
-    def __init__(self, config):
+    def __init__(self, config: AnalysisConfig) -> None:
         self.config = config
 
     @abstractmethod
-    def analyze(self, scope: IRScope, prev_results: Dict[str, Any]):
+    def analyze(self, scope: IRScope, prev_results: dict[str, object]) -> object:
         pass

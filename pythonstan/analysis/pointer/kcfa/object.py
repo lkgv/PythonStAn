@@ -4,19 +4,27 @@ This module defines the representation of heap objects in the k-CFA pointer anal
 Objects are context-sensitive and identified by their allocation site and context.
 """
 
+import ast
 from dataclasses import dataclass, replace
 from enum import Enum
-import ast
-from typing import Optional, Tuple, Union, Dict, TYPE_CHECKING
+from types import EllipsisType
+from typing import TYPE_CHECKING, Optional, Union, overload, override
 
 if TYPE_CHECKING:
-    from pythonstan.ir.ir_statements import *
-    from .context import AbstractContext, Scope, Ctx, CallSite, NativeContext
+    from pythonstan.ir.ir_statements import IRClass, IRFunc, IRModule, IRScope, IRStatement
+
+    from .context import (
+        AbstractContext,
+        CallSite,
+        NativeContext,
+        Scope,
+    )
     from .heap_model import Field
     from .variable import Variable
 
 __all__ = [
     "AllocationSource",
+    "NativeConstantValue",
     "AllocKind",
     "AllocSite",
     "AbstractObject",
@@ -50,6 +58,7 @@ __all__ = [
 
 type AllocationSource = (
     IRStatement
+    | IRScope
     | None
     | str
     | int
@@ -60,6 +69,8 @@ type AllocationSource = (
     | Field
     | tuple[AllocationSource, ...]
 )
+
+type NativeConstantValue = str | bytes | int | float | complex | bool | EllipsisType | None
 
 
 class AllocKind(Enum):
@@ -79,7 +90,7 @@ class AllocKind(Enum):
     CLASS = "class"
     INSTANCE = "instance"
     MODULE = "module"
-    BOUND_METHOD = "method"
+    BOUND_METHOD = METHOD
     BUILTIN = "builtin"
     CELL = "cell"
     CONSTANT = "constant"
@@ -107,7 +118,7 @@ class AllocSite:
     stmt: AllocationSource
     kind: AllocKind
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from pythonstan.ir.ir_statements import IRStatement
 
         assert isinstance(self.kind, AllocKind), (
@@ -121,6 +132,7 @@ class AllocSite:
                 f"stmt must be an IRStatement, but got {type(self.stmt)}"
             )
 
+    @override
     def __str__(self) -> str:
         from pythonstan.ir.ir_statements import IRStatement
 
@@ -137,13 +149,33 @@ class AllocSite:
 
     @property
     def line(self) -> int:
-        node = self.stmt.get_ast() if hasattr(self.stmt, "get_ast") else None
-        return getattr(node, "lineno", 0)
+        from pythonstan.frontend.source import source_position
+        from pythonstan.ir.ir_statements import IRStatement
+
+        return source_position(self.stmt.get_ast())[0] if isinstance(self.stmt, IRStatement) else 0
 
     @property
     def col(self) -> int:
-        node = self.stmt.get_ast() if hasattr(self.stmt, "get_ast") else None
-        return getattr(node, "col_offset", 0)
+        from pythonstan.frontend.source import source_position
+        from pythonstan.ir.ir_statements import IRStatement
+
+        return source_position(self.stmt.get_ast())[1] if isinstance(self.stmt, IRStatement) else 0
+
+    def require_function_source(self) -> "IRFunc":
+        """Read the actual allocation statement under the function-site invariant."""
+        from pythonstan.ir.ir_statements import IRFunc
+
+        if not isinstance(self.stmt, IRFunc):
+            raise TypeError("Function allocation source must be IRFunc")
+        return self.stmt
+
+    def require_class_source(self) -> "IRClass":
+        """Read the actual allocation statement under the class-site invariant."""
+        from pythonstan.ir.ir_statements import IRClass
+
+        if not isinstance(self.stmt, IRClass):
+            raise TypeError("Class allocation source must be IRClass")
+        return self.stmt
 
     @staticmethod
     def from_ir_node(stmt: "IRStatement", kind: AllocKind) -> "AllocSite":
@@ -191,6 +223,7 @@ class AbstractObject:
     context: "NativeContext | None"
     alloc_site: AllocSite
 
+    @override
     def __str__(self) -> str:
         """String representation showing site and context."""
         return f"{self.alloc_site}@{self.context}"
@@ -210,7 +243,7 @@ class AbstractObject:
             AllocKind.BUILTIN,
         )
 
-    def get_type(self) -> "AbstractObject":
+    def get_type(self) -> AllocSite:
         """Get the type of the object."""
         return self.alloc_site
 
@@ -225,7 +258,7 @@ class UnknownValue(AbstractObject):
     """
 
     @property
-    def is_top_value(self):
+    def is_top_value(self) -> bool:
         return True
 
 
@@ -240,9 +273,9 @@ class FunctionObject(AbstractObject):
 @dataclass(frozen=True)
 class MethodObject(FunctionObject):
     class_obj: "ClassObject"
-    instance_obj: Optional["InstanceObject"]
+    instance_obj: "InstanceObject | ClassObject | None"
 
-    def deliver_into(self, inst: "InstanceObject") -> "MethodObject":
+    def deliver_into(self, inst: "InstanceObject | ClassObject") -> "MethodObject":
         return MethodObject(
             self.context, self.alloc_site, self.container_scope, self.ir, self.class_obj, inst
         )
@@ -274,49 +307,37 @@ class InstanceObject(AbstractObject):
 
 @dataclass(frozen=True)
 class ConstantObject(AbstractObject):
-    value: Union[str, int, float, bool, None]
+    value: NativeConstantValue
 
 
 @dataclass(frozen=True)
 class BuiltinObject(AbstractObject):
     """Builtin object (e.g., built-in functions)."""
 
-    pass
-
 
 @dataclass(frozen=True)
 class ListObject(AbstractObject):
     """List object with mutable elements tracked via elem() field."""
-
-    pass
 
 
 @dataclass(frozen=True)
 class TupleObject(AbstractObject):
     """Tuple object with immutable elements tracked via position(i) fields."""
 
-    pass
-
 
 @dataclass(frozen=True)
 class MappingItemObject(TupleObject):
     """An exact two-slot mapping item; its aggregate is not either slot."""
-
-    pass
 
 
 @dataclass(frozen=True)
 class DictObject(AbstractObject):
     """Dictionary object with values tracked via key(k) and value() fields."""
 
-    pass
-
 
 @dataclass(frozen=True)
 class SetObject(AbstractObject):
     """Set object with elements tracked via elem() field."""
-
-    pass
 
 
 @dataclass(frozen=True)
@@ -329,6 +350,7 @@ class BuiltinClassObject(AbstractObject):
 
     builtin_name: str  # Name of the builtin (e.g., "list", "dict", "str")
 
+    @override
     def __str__(self) -> str:
         return f"<builtin_class '{self.builtin_name}' at {self.alloc_site}>"
 
@@ -342,6 +364,7 @@ class BuiltinInstanceObject(AbstractObject):
 
     builtin_type: str  # Type name (e.g., "list", "dict", "str")
 
+    @override
     def __str__(self) -> str:
         return f"<builtin_instance of '{self.builtin_type}' at {self.alloc_site}>"
 
@@ -359,6 +382,7 @@ class BuiltinMethodObject(AbstractObject):
         None  # The variable holding the receiver (for constraint generation)
     )
 
+    @override
     def __str__(self) -> str:
         return f"<builtin_method '{self.method_name}' of {self.receiver}>"
 
@@ -372,6 +396,7 @@ class BuiltinFunctionObject(AbstractObject):
 
     function_name: str  # Function name (e.g., "len", "iter", "sorted")
 
+    @override
     def __str__(self) -> str:
         return f"<builtin_function '{self.function_name}'>"
 
@@ -396,6 +421,7 @@ class SuperObject(AbstractObject):
     current_class: Optional["ClassObject"]  # Class to skip in MRO lookup
     instance_obj: Optional["AbstractObject"]  # Instance for binding methods
 
+    @override
     def __str__(self) -> str:
         if self.current_class:
             return f"<super of {self.current_class}>"
@@ -424,8 +450,12 @@ class GeneratorObject(AbstractObject):
     func_obj: "FunctionObject"
     container_scope: "Scope"
 
+    @override
     def __str__(self) -> str:
-        func_name = getattr(self.func_obj.ir, "name", "<unknown>")
+        try:
+            func_name = self.func_obj.ir.name
+        except AttributeError:
+            func_name = "<unknown>"
         return f"<generator object {func_name} at {self.alloc_site}>"
 
 
@@ -464,8 +494,12 @@ class CoroutineObject(AbstractObject):
     func_obj: "FunctionObject"
     container_scope: "Scope"
 
+    @override
     def __str__(self) -> str:
-        func_name = getattr(self.func_obj.ir, "name", "<unknown>")
+        try:
+            func_name = self.func_obj.ir.name
+        except AttributeError:
+            func_name = "<unknown>"
         return f"<coroutine object {func_name} at {self.alloc_site}>"
 
 
@@ -476,12 +510,13 @@ class ObjectFactory:
     including builtin objects that require special handling.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize object factory."""
-        pass
 
     @staticmethod
-    def create_builtin_class(builtin_name: str, context: "AbstractContext") -> BuiltinClassObject:
+    def create_builtin_class(
+        builtin_name: str, context: "NativeContext | None"
+    ) -> BuiltinClassObject:
         """Create a builtin class object.
 
         Args:
@@ -502,7 +537,7 @@ class ObjectFactory:
 
     @staticmethod
     def create_builtin_instance(
-        builtin_type: str, context: "AbstractContext", stmt: Union[str, "IRStatement"]
+        builtin_type: str, context: "NativeContext | None", stmt: Union[str, "IRStatement"]
     ) -> BuiltinInstanceObject:
         """Create a builtin instance object.
 
@@ -530,7 +565,7 @@ class ObjectFactory:
 
     @staticmethod
     def create_builtin_method(
-        method_name: str, receiver: "AbstractObject", context: "AbstractContext"
+        method_name: str, receiver: "AbstractObject", context: "NativeContext | None"
     ) -> BuiltinMethodObject:
         """Create a builtin method object bound to a receiver.
 
@@ -549,7 +584,7 @@ class ObjectFactory:
 
     @staticmethod
     def create_builtin_function(
-        function_name: str, context: "AbstractContext"
+        function_name: str, context: "NativeContext | None"
     ) -> BuiltinFunctionObject:
         """Create a builtin function object.
 
@@ -566,7 +601,9 @@ class ObjectFactory:
         )
 
     @staticmethod
-    def create_list(context: "AbstractContext", stmt: Union[str, "IRStatement"]) -> "ListObject":
+    def create_list(
+        context: "NativeContext | None", stmt: Union[str, "IRStatement"]
+    ) -> "ListObject":
         """Create a list object.
 
         Args:
@@ -580,7 +617,9 @@ class ObjectFactory:
         return ListObject(context=context, alloc_site=alloc_site)
 
     @staticmethod
-    def create_dict(context: "AbstractContext", stmt: Union[str, "IRStatement"]) -> "DictObject":
+    def create_dict(
+        context: "NativeContext | None", stmt: Union[str, "IRStatement"]
+    ) -> "DictObject":
         """Create a dict object.
 
         Args:
@@ -594,7 +633,9 @@ class ObjectFactory:
         return DictObject(context=context, alloc_site=alloc_site)
 
     @staticmethod
-    def create_tuple(context: "AbstractContext", stmt: Union[str, "IRStatement"]) -> "TupleObject":
+    def create_tuple(
+        context: "NativeContext | None", stmt: Union[str, "IRStatement"]
+    ) -> "TupleObject":
         """Create a tuple object.
 
         Args:
@@ -608,7 +649,7 @@ class ObjectFactory:
         return TupleObject(context=context, alloc_site=alloc_site)
 
     @staticmethod
-    def create_set(context: "AbstractContext", stmt: Union[str, "IRStatement"]) -> "SetObject":
+    def create_set(context: "NativeContext | None", stmt: Union[str, "IRStatement"]) -> "SetObject":
         """Create a set object.
 
         Args:
@@ -623,8 +664,8 @@ class ObjectFactory:
 
     @staticmethod
     def create_super(
-        context: "AbstractContext",
-        stmt: Union[str, "IRStatement"],
+        context: "NativeContext | None",
+        stmt: AllocationSource,
         current_class: Optional["ClassObject"] = None,
         instance_obj: Optional["AbstractObject"] = None,
     ) -> "SuperObject":
@@ -649,7 +690,7 @@ class ObjectFactory:
 
     @staticmethod
     def create_generator(
-        context: "AbstractContext",
+        context: "NativeContext | None",
         stmt: Union[str, "IRStatement"],
         func_obj: "FunctionObject",
         container_scope: "Scope",
@@ -675,7 +716,7 @@ class ObjectFactory:
 
     @staticmethod
     def create_coroutine(
-        context: "AbstractContext",
+        context: "NativeContext | None",
         stmt: Union[str, "IRStatement"],
         func_obj: "FunctionObject",
         container_scope: "Scope",
@@ -705,36 +746,44 @@ class ObjectFactory:
 # =============================================================================
 
 
-def truncate_context(ctx: "AbstractContext") -> "AbstractContext":
-    """Truncate an analysis context to depth 0 for summary objects."""
-    try:
-        from .context import SummaryContext
-    except Exception:
-        SummaryContext = None  # type: ignore
+@overload
+def truncate_context[InputT](ctx: "AbstractContext[InputT]") -> "AbstractContext[InputT]": ...
 
-    if SummaryContext is not None and isinstance(ctx, SummaryContext):
-        inner_truncated = truncate_context(ctx.inner)
-        # Preserve the summary wrapper while truncating the inner context
-        if inner_truncated == ctx.inner:
+
+@overload
+def truncate_context(ctx: None) -> None: ...
+
+
+def truncate_context[InputT](
+    ctx: "AbstractContext[InputT] | None",
+) -> "AbstractContext[InputT] | None":
+    """Truncate known histories while retaining general-purpose wrapper behavior."""
+    from .context import SummaryContext, is_summary_context
+    from .protocol_context import ProtocolKeyContext, is_protocol_context
+
+    if ctx is None:
+        return None
+    if is_summary_context(ctx):
+        inner = ctx.inner
+        inner_truncated = truncate_context(inner)
+        if inner_truncated == inner:
             return ctx
         return SummaryContext(inner_truncated)
-    from .protocol_context import ProtocolKeyContext, apply_protocol_partition
+    if is_protocol_context(ctx):
+        return ProtocolKeyContext(truncate_context(ctx.inner), ctx.partition)
+    return _truncate_context_leaf(ctx)
 
-    if isinstance(ctx, ProtocolKeyContext):
-        return apply_protocol_partition(truncate_context(ctx.inner), ctx.partition)
-    try:
-        from .context import (
-            CallStringContext,
-            ObjectContext,
-            TypeContext,
-            ReceiverContext,
-            ParamContext,
-            HybridContext,
-        )
-    except Exception:
-        # If context module fails to import (should not in normal runtime),
-        # return original context to remain sound.
-        return ctx
+
+def _truncate_context_leaf[ContextT](ctx: ContextT) -> ContextT:
+    """Dataclass replacement preserves each concrete registered leaf class."""
+    from .context import (
+        CallStringContext,
+        HybridContext,
+        ObjectContext,
+        ParamContext,
+        ReceiverContext,
+        TypeContext,
+    )
 
     if isinstance(ctx, CallStringContext):
         return replace(ctx, call_sites=(), k=0)
@@ -748,27 +797,21 @@ def truncate_context(ctx: "AbstractContext") -> "AbstractContext":
         return replace(ctx, params=(), depth=0)
     if isinstance(ctx, HybridContext):
         return replace(ctx, call_sites=(), alloc_sites=(), call_k=0, obj_depth=0)
-
-    # Fallback: return the same context when we do not know how to truncate
     return ctx
 
 
 def summarize_object(obj: "AbstractObject") -> "AbstractObject":
-    """Create a summary object by truncating context and tagging with SummaryContext."""
+    """Rebuild the real summary wrapper, retaining nullable context identity."""
     from .context import SummaryContext
 
     base_ctx = obj.context
-
-    # If already a summary, keep the wrapper but re-truncate the inner context
     if isinstance(base_ctx, SummaryContext):
-        inner_truncated = truncate_context(base_ctx.inner)
-        if inner_truncated == base_ctx.inner:
+        inner = base_ctx.inner
+        inner_truncated = truncate_context(inner)
+        if inner_truncated == inner:
             return obj
         return replace(obj, context=SummaryContext(inner_truncated))
-
-    truncated = truncate_context(base_ctx)
-    summary_ctx = SummaryContext(truncated)
-    return replace(obj, context=summary_ctx)
+    return replace(obj, context=SummaryContext(truncate_context(base_ctx)))
 
 
 def is_summary_object(obj: "AbstractObject") -> bool:

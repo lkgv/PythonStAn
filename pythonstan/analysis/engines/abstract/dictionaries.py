@@ -12,7 +12,8 @@ import dis
 import hashlib
 import sys
 import types
-from dataclasses import replace
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass, replace
 from itertools import product
 from typing import TYPE_CHECKING, Literal
 
@@ -34,6 +35,50 @@ type PairBuild = tuple[Literal["pairs"], tuple[int, ...]]
 type UnpackBuild = tuple[Literal["unpack"], int]
 type DictionaryBuild = PairBuild | UnpackBuild
 type BuildState = tuple[Store, dict[FieldKey, Value], Value]
+
+
+type DictionaryPosition = tuple[int | None, int | None, int | None, int | None]
+
+
+@dataclass(frozen=True)
+class DictionaryInstruction:
+    """The compiler metadata this qualified dictionary planner consumes."""
+
+    opname: str
+    arg: int | None
+    position: DictionaryPosition | None
+
+
+def _position_coordinate(value: object) -> int | None:
+    if value is None or type(value) is int:
+        return value
+    raise ValueError("dictionary compiler position coordinate is invalid")
+
+
+def _dictionary_instructions(code: types.CodeType) -> Iterator[DictionaryInstruction]:
+    # dis.Instruction.argval is dynamically typed by the stdlib. It is not a
+    # semantic input here: validate only the consumed metadata from the actual
+    # CPython instruction tuple, without importing that dynamic field inward.
+    instructions: Iterable[object] = dis.get_instructions(code)
+    for raw in instructions:
+        if not isinstance(raw, tuple) or len(raw) != 9:
+            raise ValueError("dictionary compiler instruction shape is invalid")
+        fields: tuple[object, ...] = raw
+        opname, arg, positions = fields[0], fields[2], fields[8]
+        if not isinstance(opname, str) or (arg is not None and type(arg) is not int):
+            raise ValueError("dictionary compiler instruction metadata is invalid")
+        position = None
+        if positions is not None:
+            if not isinstance(positions, tuple) or len(positions) != 4:
+                raise ValueError("dictionary compiler position shape is invalid")
+            coordinates: tuple[object, ...] = positions
+            position = (
+                _position_coordinate(coordinates[0]),
+                _position_coordinate(coordinates[1]),
+                _position_coordinate(coordinates[2]),
+                _position_coordinate(coordinates[3]),
+            )
+        yield DictionaryInstruction(opname, arg, position)
 
 
 def _string_index(text: str, index: JsonScalar) -> str:
@@ -65,7 +110,7 @@ class DictionaryOperations:
         digest = hashlib.sha256(ast.dump(node, include_attributes=True).encode()).hexdigest()
         if digest in self._plans:
             return self._plans[digest]
-        if sys.version_info[:2] != (3, 12):
+        if (sys.version_info.major, sys.version_info.minor) != (3, 12):
             raise ValueError("unqualified dictionary compiler profile")
         copied = copy.deepcopy(node)
         function = ast.FunctionDef(
@@ -77,20 +122,16 @@ class DictionaryOperations:
         )
         module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
         compiled = compile(module, "<static-dictionary-shape>", "exec")
-        code = next(item for item in compiled.co_consts if isinstance(item, types.CodeType))
+        constants: tuple[object, ...] = compiled.co_consts
+        code = next(item for item in constants if isinstance(item, types.CodeType))
         position = (node.lineno, node.end_lineno, node.col_offset, node.end_col_offset)
         operations: list[DictionaryBuild] = []
         cursor = 0
-        for item in dis.get_instructions(code):
-            positions = item.positions
+        for item in _dictionary_instructions(code):
+            positions = item.position
             if positions is None:
                 raise ValueError("dictionary compiler instruction has no source position")
-            if (
-                positions.lineno,
-                positions.end_lineno,
-                positions.col_offset,
-                positions.end_col_offset,
-            ) != position:
+            if positions != position:
                 continue
             if item.opname in {"BUILD_MAP", "BUILD_CONST_KEY_MAP"} and item.arg:
                 count = item.arg
@@ -116,7 +157,7 @@ class DictionaryOperations:
             raise ValueError("dictionary source/build cursor mismatch")
         self._plans[digest] = tuple(operations)
         self.d.stats["dictionary_build_profile"] = "cpython-" + ".".join(
-            map(str, sys.version_info[:3])
+            map(str, (sys.version_info.major, sys.version_info.minor, sys.version_info.micro))
         )
         return self._plans[digest]
 

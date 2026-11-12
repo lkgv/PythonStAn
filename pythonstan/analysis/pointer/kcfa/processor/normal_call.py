@@ -1,72 +1,111 @@
-from ..allocation import canonical_constant
-from abc import ABC, abstractmethod
+from __future__ import annotations
+
 import ast
 import logging
-from typing import TYPE_CHECKING, Any, Optional, Dict, Tuple
+from typing import TYPE_CHECKING, Literal, override
 
-from .processor import Processor
-from ..points_to_set import PointsToSet
-from ..constraints import CallConstraint, AllocConstraint, LoadConstraint, MappingCopyConstraint
+from pythonstan.frontend.source import SourceLiteral, make_source_constant, source_constant
+from pythonstan.graph.call_graph.call_edge import CallEdge, CallKind
+from pythonstan.ir.ir_statements import IRAssign, IRFunc
+
+from .. import debug_boundary
+from ..allocation import canonical_constant
+from ..constraints import AllocConstraint, CallConstraint, LoadConstraint, MappingCopyConstraint
+from ..context import Ctx, NativeContext, Scope, ordered_binding_token
+from ..context_selector import ContextSelector
+from ..heap_model import attr, elem, key
+from ..native_mapping import NATIVE_MAPPING_KEYS
 from ..object import (
     AllocKind,
-    FunctionObject,
-    MethodObject,
-    ClassObject,
-    InstanceObject,
-    BuiltinObject,
-    BuiltinFunctionObject,
-    BuiltinMethodObject,
-    BuiltinClassObject,
-    BuiltinInstanceObject,
     AllocSite,
-    TupleObject,
+    BuiltinClassObject,
+    BuiltinFunctionObject,
+    BuiltinInstanceObject,
+    BuiltinMethodObject,
+    BuiltinObject,
+    ClassObject,
     DictObject,
-    ConstantObject,
+    FunctionObject,
+    InstanceObject,
+    MethodObject,
+    TupleObject,
 )
-from ..context import Ctx, Scope, AbstractContext, ordered_binding_token
-from ..variable import VariableKind, Variable
+from ..points_to_set import PointsToSet
 from ..unknown_tracker import UnknownKind
-from ..heap_model import key, attr, elem
-from ..native_mapping import NATIVE_MAPPING_KEYS
-from pythonstan.graph.call_graph import CallEdge, CallKind
-from pythonstan.ir.ir_statements import IRFunc, IRAssign
+from ..variable import FieldAccess, Variable, VariableKind
+from .processor import Processor
 
 if TYPE_CHECKING:
-    from ..pointer_flow_graph import NormalNode
-    from ..solver import PointerSolver
-    from ..constraints import CallConstraint, Constraint
+    from ..ir_translator import IRTranslator
     from ..object import AbstractObject
+    from ..solver import PointerSolver
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["NormalCallProcessor"]
 
 
+def require_context_selector(
+    solver: PointerSolver, method: Literal["empty_context", "select_call_context"]
+) -> ContextSelector:
+    """Read the actual optional selector at the point an operation requires it."""
+    selector = solver.context_selector
+    if selector is None:
+        raise AttributeError(f"'NoneType' object has no attribute '{method}'")
+    return selector
+
+
+def require_ir_translator(solver: PointerSolver) -> IRTranslator:
+    """Read the installed translator without inventing a source provider."""
+    translator = solver.ir_translator
+    if translator is None:
+        raise AttributeError("'NoneType' object has no attribute '_current_scope'")
+    return translator
+
+
 class NormalCallProcessor(Processor):
     def __init__(self) -> None:
-        self._default_alloc_sites: Dict[Tuple[IRFunc, str, int, AllocKind], AllocSite] = {}
-        self._registered_bodies = set()
+        self._default_alloc_sites: dict[tuple[IRFunc, str, int, AllocKind], AllocSite] = {}
+        self._registered_bodies: set[Scope] = set()
 
-    def _connect_call_values(self, solver, function, call, caller_scope,
-                             callee_scope, context, call_context, receiver=None):
+    def _connect_call_values(
+        self,
+        solver: PointerSolver,
+        function: FunctionObject,
+        call: CallConstraint,
+        caller_scope: Scope,
+        callee_scope: Scope,
+        context: NativeContext,
+        call_context: NativeContext,
+        receiver: Ctx[Variable] | None = None,
+    ) -> None:
         """Each invocation has its own value slots, even for an existing edge."""
         self._dispatch_closure(solver, function, call_context, caller_scope, callee_scope)
-        self._match_parameters(solver, function, call, caller_scope, callee_scope,
-                               context, call_context, receiver)
+        self._match_parameters(
+            solver, function, call, caller_scope, callee_scope, context, call_context, receiver
+        )
         if call.target:
             ret = solver.variable_factory.make_variable("$return", VariableKind.TEMPORARY)
             ret_var = solver.state.get_variable(callee_scope, call_context, ret)
             target = solver.state.get_variable(caller_scope, context, call.target)
             solver.state._add_var_points_flow(ret_var, target)
 
-    def _register_body(self, solver, function, call, callee_scope, call_context):
+    def _register_body(
+        self,
+        solver: PointerSolver,
+        function: FunctionObject,
+        call: CallConstraint,
+        callee_scope: Scope,
+        call_context: NativeContext,
+    ) -> None:
         if callee_scope in self._registered_bodies:
             return
         self._registered_bodies.add(callee_scope)
-        old_scope = solver.ir_translator._current_scope
-        solver.ir_translator._current_scope = function.alloc_site.stmt
+        translator = require_ir_translator(solver)
+        old_scope = translator._current_scope
+        translator._current_scope = function.ir
         try:
-            constraints = solver.ir_translator.translate_function(function.ir)
+            constraints = translator.translate_function(function.ir)
         except Exception as exc:
             # Translation is deterministic for this frozen IR, so keep the
             # attempted-body memoization and an unconditional open obligation.
@@ -75,25 +114,51 @@ class NormalCallProcessor(Processor):
                 "origin": function.ir.get_qualname(),
                 "reason": f"function translation failed: {type(exc).__name__}: {exc}",
                 "context": str(call_context),
-                "effects": ["untranslated_source", "may_mutate_heap", "may_invoke_callbacks", "may_raise"],
+                "effects": [
+                    "untranslated_source",
+                    "may_mutate_heap",
+                    "may_invoke_callbacks",
+                    "may_raise",
+                ],
             }
             solver._unknown_tracker.record(
-                UnknownKind.TRANSLATION_ERROR, str(call.call_site),
+                UnknownKind.TRANSLATION_ERROR,
+                str(call.call_site),
                 f"Error translating function body: {exc}",
                 context=function.ir.get_qualname(),
             )
             constraints = []
         finally:
-            solver.ir_translator._current_scope = old_scope
+            translator._current_scope = old_scope
         for constraint in constraints:
             solver.add_constraint(callee_scope, call_context, constraint)
 
-    def handle_call(self, solver: 'PointerSolver', target: 'Ctx[Any]', scope: 'Scope', constraint: 'Constraint', callee_obj: 'AbstractObject') -> bool:
+    @override
+    def handle_call(
+        self,
+        solver: PointerSolver,
+        target: Ctx[Variable | FieldAccess],
+        scope: Scope,
+        constraint: CallConstraint,
+        callee_obj: AbstractObject,
+    ) -> bool:
         if isinstance(callee_obj, MethodObject):
             return self._handle_method_call(solver, scope, scope.context, constraint, callee_obj)
         if isinstance(callee_obj, FunctionObject):
             return self._handle_function_call(solver, scope, scope.context, constraint, callee_obj)
-        if isinstance(callee_obj, (BuiltinObject, BuiltinFunctionObject, BuiltinMethodObject, BuiltinClassObject, BuiltinInstanceObject)) or callee_obj.kind == AllocKind.BUILTIN:
+        if (
+            isinstance(
+                callee_obj,
+                (
+                    BuiltinObject,
+                    BuiltinFunctionObject,
+                    BuiltinMethodObject,
+                    BuiltinClassObject,
+                    BuiltinInstanceObject,
+                ),
+            )
+            or callee_obj.kind == AllocKind.BUILTIN
+        ):
             return self._handle_builtin_call(solver, scope, scope.context, constraint, callee_obj)
         if isinstance(callee_obj, ClassObject):
             return self._handle_class_call(solver, scope, scope.context, constraint, callee_obj)
@@ -103,11 +168,11 @@ class NormalCallProcessor(Processor):
 
     def _handle_builtin_call(
         self,
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        context: 'AbstractContext',
-        call: 'CallConstraint',
-        builtin_obj: 'AbstractObject',
+        solver: PointerSolver,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        builtin_obj: AbstractObject,
     ) -> bool:
         solver._register_builtin_dependencies(scope, context, call, builtin_obj)
         ai_handled = solver._try_ai_intrinsic(scope, context, call, builtin_obj)
@@ -118,23 +183,24 @@ class NormalCallProcessor(Processor):
 
     def _handle_class_call(
         self,
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        context: 'AbstractContext',
-        call: 'CallConstraint',
-        class_obj: 'ClassObject',
+        solver: PointerSolver,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        class_obj: ClassObject,
     ) -> bool:
         from .class_protocol import install_metaclass_call
+
         install_metaclass_call(solver, scope, context, call, class_obj)
         return solver._handle_class_instantiation(scope, context, call, class_obj)
 
     def _handle_object_call(
         self,
-        solver: 'PointerSolver',
-        scope: 'Scope',
-        context: 'AbstractContext',
-        call: 'CallConstraint',
-        callee_obj: 'AbstractObject',
+        solver: PointerSolver,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        callee_obj: AbstractObject,
     ) -> bool:
         if call.callee.name.startswith("$call@"):
             return False
@@ -162,7 +228,7 @@ class NormalCallProcessor(Processor):
         param_name: str,
         default_index: int,
         kind: AllocKind,
-        value: Any,
+        value: SourceLiteral,
     ) -> AllocSite:
         key = (func_ir, param_name, default_index, kind)
         alloc_site = self._default_alloc_sites.get(key)
@@ -171,7 +237,7 @@ class NormalCallProcessor(Processor):
             const_assign = IRAssign(
                 ast.Assign(
                     targets=[ast.Name(id=default_var_name, ctx=ast.Store())],
-                    value=ast.Constant(value=value),
+                    value=make_source_constant(value),
                 )
             )
             alloc_site = AllocSite.from_ir_node(const_assign, kind)
@@ -179,23 +245,29 @@ class NormalCallProcessor(Processor):
         return alloc_site
 
     @staticmethod
-    def _default_var_name(func_ir: IRFunc, param_name: str, default_index: int, kind: AllocKind) -> str:
+    def _default_var_name(
+        func_ir: IRFunc, param_name: str, default_index: int, kind: AllocKind
+    ) -> str:
         return f"$default_{kind.value}_{id(func_ir)}_{param_name}_{default_index}"
 
     def _materialize_default(
         self,
-        solver: 'PointerSolver',
+        solver: PointerSolver,
         func_ir: IRFunc,
         def_scope: Scope,
-        def_context: AbstractContext,
+        def_context: NativeContext,
         param_name: str,
         default_index: int,
         default_expr: ast.expr,
-    ) -> 'Ctx[Variable]':
-        default_var_name = self._default_var_name(func_ir, param_name, default_index, AllocKind.CONSTANT)
-        default_var = solver.variable_factory.make_variable(default_var_name, VariableKind.TEMPORARY)
+    ) -> Ctx[Variable]:
+        default_var_name = self._default_var_name(
+            func_ir, param_name, default_index, AllocKind.CONSTANT
+        )
+        default_var = solver.variable_factory.make_variable(
+            default_var_name, VariableKind.TEMPORARY
+        )
 
-        def defining_variable(name):
+        def defining_variable(name: str) -> Variable:
             # Defaults evaluate in the definition environment. TAC constants
             # are module bindings even when the definition is nested.
             if name.startswith("$const"):
@@ -205,6 +277,7 @@ class NormalCallProcessor(Processor):
             else:
                 kind = solver._resolve_outer_var_kind(def_scope, name)
             return solver.variable_factory.make_variable(name, kind)
+
         default_ctx_var = solver.state.get_variable(def_scope, def_context, default_var)
 
         if isinstance(default_expr, ast.Constant):
@@ -213,7 +286,7 @@ class NormalCallProcessor(Processor):
                 param_name=param_name,
                 default_index=default_index,
                 kind=AllocKind.CONSTANT,
-                value=default_expr.value,
+                value=source_constant(default_expr),
             )
             solver.add_constraint(
                 def_scope,
@@ -254,36 +327,48 @@ class NormalCallProcessor(Processor):
             AllocConstraint(target=default_var, alloc_site=alloc_site),
         )
         return default_ctx_var
-    
-    def _handle_method_call(self, solver: 'PointerSolver', scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', method_obj: 'MethodObject') -> bool:
+
+    def _handle_method_call(
+        self,
+        solver: PointerSolver,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        method_obj: AbstractObject,
+    ) -> bool:
         # logger.info(f"Handling method call: {call.call_site} -> {method_obj.alloc_site.stmt.get_qualname()}")
-        
+
         if not isinstance(method_obj, MethodObject):
             logger.info(f"is not method object, {type(method_obj)} got!")
             return False
-                
-        func_ir: IRFunc = method_obj.alloc_site.stmt
-        assert isinstance(func_ir, IRFunc), f"MethodObject alloc site stmt should be IRFunc, {type(func_ir)} got!"
+
+        func_ir: IRFunc = method_obj.alloc_site.require_function_source()
+        assert isinstance(func_ir, IRFunc), (
+            f"MethodObject alloc site stmt should be IRFunc, {type(func_ir)} got!"
+        )
         func_name = func_ir.get_qualname()
 
         if func_ir.is_static_method:
             return self._handle_function_call(solver, scope, context, call, method_obj)
-        
+
+        holder_obj: ClassObject | InstanceObject | None
         if func_ir.is_class_method:
             holder_obj = method_obj.class_obj
         else:
             holder_obj = method_obj.instance_obj
             if holder_obj is None:
                 return self._handle_function_call(solver, scope, context, call, method_obj)
-        
+
         if not holder_obj:
             logger.info(f"No holder got in {method_obj}")
             return False
-        
+
         self_var = solver.state.get_variable(
             scope,
             context,
-            solver.variable_factory.make_variable(f"$self@{call.call_site.short_id()}@{id(call.call_site.statement)}@{id(holder_obj)}")
+            solver.variable_factory.make_variable(
+                f"$self@{call.call_site.short_id()}@{id(call.call_site.statement)}@{id(holder_obj)}"
+            ),
         )
         solver.handle_new_points_to(self_var, scope, PointsToSet.singleton(holder_obj))
 
@@ -291,113 +376,154 @@ class NormalCallProcessor(Processor):
         args.insert(0, self_var)
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
 
-        call_context = solver.context_selector.select_call_context(
-            call.call_site,
-            context,
-            holder_obj,
-            params=ordered_binding_token(args, kwargs)
+        call_context = require_context_selector(solver, "select_call_context").select_call_context(
+            call.call_site, context, holder_obj, params=ordered_binding_token(args, kwargs)
         )
         if call.semantic_partition is not None:
-            from ..protocol_context import apply_protocol_partition
-            call_context = apply_protocol_partition(call_context, call.semantic_partition)
-        
+            from ..protocol_context import apply_native_protocol_partition
+
+            call_context = apply_native_protocol_partition(call_context, call.semantic_partition)
+
         logger.debug(f"Handling function call: {call.call_site} -> {method_obj.alloc_site.stmt}")
-        
+
         method_scope = solver.state.get_internal_scope(holder_obj)
-        callee_scope = Scope.new(method_obj, method_scope.module, call_context, func_ir, method_scope)
+        if method_scope is None:
+            raise AttributeError("'NoneType' object has no attribute 'module'")
+        callee_scope = Scope.new(
+            method_obj, method_scope.module, call_context, func_ir, method_scope
+        )
         assert holder_obj
 
         if func_ir.is_class_method:
             call_kind = CallKind.CLASS
         else:
             call_kind = CallKind.INSTANCE
-        call_edge = CallEdge(kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
-        self._connect_call_values(solver, method_obj, call, scope, callee_scope,
-                                  context, call_context, self_var)
+        call_edge = CallEdge(
+            kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope
+        )
+        self._connect_call_values(
+            solver, method_obj, call, scope, callee_scope, context, call_context, self_var
+        )
         if solver.state.call_graph.has_edge(call_edge):
             return True
         self._register_body(solver, method_obj, call, callee_scope, call_context)
         solver.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
-        
+
         # Debug monitoring: record call edge creation
-        if solver._debug_monitor and solver._debug_monitor.enabled:
-            caller_name = str(scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt)
-            callee_name = str(call_edge.callee.stmt.get_qualname() if hasattr(call_edge.callee.stmt, 'get_qualname') else call_edge.callee.stmt)
-            solver._debug_monitor.record_call_edge_created(
+        if solver._debug_monitor and debug_boundary.feature(solver._debug_monitor, "enabled"):
+            caller_name = str(
+                scope.stmt.get_qualname() if hasattr(scope.stmt, "get_qualname") else scope.stmt
+            )
+            callee_name = str(
+                call_edge.callee.stmt.get_qualname()
+                if hasattr(call_edge.callee.stmt, "get_qualname")
+                else call_edge.callee.stmt
+            )
+            debug_boundary.record_call_edge_created(
+                solver._debug_monitor,
                 caller=caller_name,
                 callee=callee_name,
                 call_site=str(call.call_site),
-                callee_type="method"
+                callee_type="method",
             )
 
         return True
-    
-    def _handle_function_call(self, solver: 'PointerSolver', scope: 'Scope', context: 'AbstractContext', call: 'CallConstraint', func_obj: 'AbstractObject') -> bool:
+
+    def _handle_function_call(
+        self,
+        solver: PointerSolver,
+        scope: Scope,
+        context: NativeContext,
+        call: CallConstraint,
+        func_obj: AbstractObject,
+    ) -> bool:
         """Handle function call: analyze function body with parameter bindings.
-            1. Selects calling context
-            2. Translates function body to constraints
-            3. Generates parameter passing constraints
-            4. Connects return value to caller
-            5. Adds call edge to call graph
+        1. Selects calling context
+        2. Translates function body to constraints
+        3. Generates parameter passing constraints
+        4. Connects return value to caller
+        5. Adds call edge to call graph
         """
         # logger.info(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
-        
+
         if not isinstance(func_obj, FunctionObject):
             logger.info(f"is not function object, {type(func_obj)} got!")
             return False
-        
-        func_ir: IRFunc = func_obj.alloc_site.stmt
+
+        func_ir: IRFunc = func_obj.alloc_site.require_function_source()
         func_name = func_ir.get_name()
         alloc_site = func_obj.alloc_site
         # logger.info(f"Handling function call: {call.call_site} -> {alloc_site}")
         args = [solver.state.get_variable(scope, context, arg) for arg in call.args]
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
-        
-        call_context = solver.context_selector.select_call_context(
+
+        call_context = require_context_selector(solver, "select_call_context").select_call_context(
             call.call_site,
             context,
             None,  # No receiver ffor regular functions
-            params=ordered_binding_token(args, kwargs)
+            params=ordered_binding_token(args, kwargs),
         )
         if call.semantic_partition is not None:
-            from ..protocol_context import apply_protocol_partition
-            call_context = apply_protocol_partition(call_context, call.semantic_partition)
-        
+            from ..protocol_context import apply_native_protocol_partition
+
+            call_context = apply_native_protocol_partition(call_context, call.semantic_partition)
+
         logger.debug(f"Handling function call: {call.call_site} -> {func_obj.alloc_site.stmt}")
-        
+
         # func_ir = self.function_registry[func_name]
         # method_scope = solver.state.obj_scope[func_obj]
         alloc_site = func_obj.alloc_site
         # callee_scope = Scope.new(func_obj, method_scope.module, call_context, func_ir, method_scope)
         defining_scope = func_obj.container_scope
         callee_scope = Scope.new(
-            func_obj, defining_scope.module, call_context, func_ir, defining_scope,
+            func_obj,
+            defining_scope.module,
+            call_context,
+            func_ir,
+            defining_scope,
         )
         call_kind = CallKind.STATIC if func_ir.is_static_method else CallKind.FUNCTION
-        call_edge = CallEdge(kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope)
-        self._connect_call_values(solver, func_obj, call, scope, callee_scope,
-                                  context, call_context)
+        call_edge = CallEdge(
+            kind=call_kind, callsite=Ctx(context, scope, call.call_site), callee=callee_scope
+        )
+        self._connect_call_values(
+            solver, func_obj, call, scope, callee_scope, context, call_context
+        )
         if solver.state.call_graph.has_edge(call_edge):
             return True
         self._register_body(solver, func_obj, call, callee_scope, call_context)
         solver.state.call_graph.add_edge(call_edge)
         logger.debug(f"Adding call edge: {call_edge}")
-        
+
         # Debug monitoring: record call edge creation
-        if solver._debug_monitor and solver._debug_monitor.enabled:
-            caller_name = str(scope.stmt.get_qualname() if hasattr(scope.stmt, 'get_qualname') else scope.stmt)
-            callee_name = str(call_edge.callee.stmt.get_qualname() if hasattr(call_edge.callee.stmt, 'get_qualname') else call_edge.callee.stmt)
-            solver._debug_monitor.record_call_edge_created(
+        if solver._debug_monitor and debug_boundary.feature(solver._debug_monitor, "enabled"):
+            caller_name = str(
+                scope.stmt.get_qualname() if hasattr(scope.stmt, "get_qualname") else scope.stmt
+            )
+            callee_name = str(
+                call_edge.callee.stmt.get_qualname()
+                if hasattr(call_edge.callee.stmt, "get_qualname")
+                else call_edge.callee.stmt
+            )
+            debug_boundary.record_call_edge_created(
+                solver._debug_monitor,
                 caller=caller_name,
                 callee=callee_name,
                 call_site=str(call.call_site),
-                callee_type="function"
+                callee_type="function",
             )
 
         return True
 
-    def _dispatch_closure(self, solver: 'PointerSolver', callee_obj: 'FunctionObject', call_context: 'AbstractContext', scope: 'Scope', callee_scope: 'Scope'):
+    def _dispatch_closure(
+        self,
+        solver: PointerSolver,
+        callee_obj: FunctionObject,
+        call_context: NativeContext,
+        scope: Scope,
+        callee_scope: Scope,
+    ) -> None:
         """Dispatch closure: dispatch closure variables to the callee."""
         state = solver.state
 
@@ -406,14 +532,22 @@ class NormalCallProcessor(Processor):
             # the lexical cells captured when the function was allocated.
             if callee_obj.kind == AllocKind.FUNCTION:
                 lexical_function = FunctionObject(
-                    callee_obj.context, callee_obj.alloc_site,
-                    callee_obj.container_scope, callee_obj.ir,
+                    callee_obj.context,
+                    callee_obj.alloc_site,
+                    callee_obj.container_scope,
+                    callee_obj.ir,
                 )
             else:
+                lexical_class = callee_obj.container_scope.obj
+                if not isinstance(lexical_class, ClassObject):
+                    raise TypeError("A lexical method definition must have a class owner")
                 lexical_function = MethodObject(
-                    callee_obj.context, callee_obj.alloc_site,
-                    callee_obj.container_scope, callee_obj.ir,
-                    callee_obj.container_scope.obj, None,
+                    callee_obj.context,
+                    callee_obj.alloc_site,
+                    callee_obj.container_scope,
+                    callee_obj.ir,
+                    lexical_class,
+                    None,
                 )
             state.set_cell_vars(callee_obj, state.get_cell_vars(lexical_function))
             state.set_nonlocal_vars(callee_obj, state.get_nonlocal_vars(lexical_function))
@@ -421,30 +555,33 @@ class NormalCallProcessor(Processor):
 
         cell_vars = state.get_cell_vars(callee_obj)
         for name, var in cell_vars.items():
-            target_var = state.get_variable(callee_scope, call_context, solver.variable_factory.make_variable(name))
+            target_var = state.get_variable(
+                callee_scope, call_context, solver.variable_factory.make_variable(name)
+            )
             state._add_var_points_flow(var, target_var)
-        
+
         nonlocal_vars = state.get_nonlocal_vars(callee_obj)
         for name, var in nonlocal_vars.items():
             state.set_variable(callee_scope, call_context, var.content, var)
-    
+
         global_vars = state.get_global_vars(callee_obj)
         for name, var in global_vars.items():
             state.set_variable(callee_scope, call_context, var.content, var)
-    
-    def _match_parameters(self,
-                          solver: 'PointerSolver',
-                          callee_obj: 'FunctionObject',
-                          call: 'CallConstraint',
-                          scope: 'Scope',
-                          callee_scope: 'Scope',
-                          context: 'AbstractContext',
-                          call_context: 'AbstractContext',                          
-                          self_var: Optional['Ctx[Variable]'] = None
-                          ) -> None:
+
+    def _match_parameters(
+        self,
+        solver: PointerSolver,
+        callee_obj: FunctionObject,
+        call: CallConstraint,
+        scope: Scope,
+        callee_scope: Scope,
+        context: NativeContext,
+        call_context: NativeContext,
+        self_var: Ctx[Variable] | None = None,
+    ) -> None:
         """Match parameters: match arguments to parameters."""
         state = solver.state
-        
+
         args = [state.get_variable(scope, context, arg) for arg in call.args]
         if self_var is not None:
             args.insert(0, self_var)
@@ -452,43 +589,72 @@ class NormalCallProcessor(Processor):
         kwargs = {k: state.get_variable(scope, context, arg) for k, arg in call.kwargs if k != "**"}
         if expanded:
             from .keyword_expansion import install_keyword_expansion
-            expanded = [install_keyword_expansion(solver, scope, mapping, call.call_site)
-                        for mapping in expanded]
+
+            expanded = [
+                install_keyword_expansion(solver, scope, mapping, call.call_site)
+                for mapping in expanded
+            ]
             state._residual_effects[(scope, call.call_site, "keyword_expansion")] = {
-                "origin": str(call.call_site), "context": str(context),
+                "origin": str(call.call_site),
+                "context": str(context),
                 "reason": "Keyword may-flows do not prove key presence, duplicate rejection, key validity or complete mapping protocol semantics",
-                "effects": ["argument_presence", "argument_collision", "mapping_protocol", "may_raise"],
+                "effects": [
+                    "argument_presence",
+                    "argument_collision",
+                    "mapping_protocol",
+                    "may_raise",
+                ],
             }
 
         method_obj = callee_obj
-        func_ir: IRFunc = method_obj.alloc_site.stmt
+        func_ir: IRFunc = method_obj.alloc_site.require_function_source()
         func_name = func_ir.get_qualname()
-                
-        if hasattr(func_ir, 'args'):
+
+        kwarg_parameter: Ctx[Variable] | None = None
+        kwarg_dict_obj: DictObject | None = None
+        if hasattr(func_ir, "args"):
             func_args = func_ir.args
-            diagnostics = getattr(solver, "_diagnostics", None)
-            observe_collector = (diagnostics is not None and func_args.kwarg is not None
-                                 and diagnostics.selected(scope, call, "keyword_collector"))
-            if observe_collector:
-                diagnostics.record("model_enter", scope, call, "keyword_collector",
-                    refs={"callee_scope": callee_scope, "callee_object": callee_obj,
-                          "call_context": call_context}, fields={"stage": "parameter_matching"})
+            diagnostics = solver._diagnostics
+            observe_collector = (
+                diagnostics is not None
+                and func_args.kwarg is not None
+                and diagnostics.selected(scope, call, "keyword_collector")
+            )
+            if observe_collector and diagnostics is not None:
+                diagnostics.record(
+                    "model_enter",
+                    scope,
+                    call,
+                    "keyword_collector",
+                    refs={
+                        "callee_scope": callee_scope,
+                        "callee_object": callee_obj,
+                        "call_context": call_context,
+                    },
+                    fields={"stage": "parameter_matching"},
+                )
             arg_vars = args  # Positional argument variables from call site
-            kwarg_vars = kwargs.copy()  # Keyword argument variables from call site (dict: name -> Variable)
+            kwarg_vars = (
+                kwargs.copy()
+            )  # Keyword argument variables from call site (dict: name -> Variable)
             # Named formals subscribe to mapping fields even before the mapping
             # object or its values exist. A literal '**' is never a parameter.
             for param in (*func_args.args, *func_args.kwonlyargs):
                 for index, mapping in enumerate(expanded):
                     temporary = solver.variable_factory.make_variable(
-                        f"$kwexpand:{call.call_site}:{index}:{param.arg}", VariableKind.TEMPORARY)
-                    solver.add_constraint(scope, context, LoadConstraint(mapping, key(param.arg), temporary))
+                        f"$kwexpand:{call.call_site}:{index}:{param.arg}", VariableKind.TEMPORARY
+                    )
+                    solver.add_constraint(
+                        scope, context, LoadConstraint(mapping, key(param.arg), temporary)
+                    )
                     source = state.get_variable(scope, context, temporary)
-                    target = state.get_variable(callee_scope, call_context,
-                                                solver.variable_factory.make_variable(param.arg))
+                    target = state.get_variable(
+                        callee_scope, call_context, solver.variable_factory.make_variable(param.arg)
+                    )
                     state._add_var_points_flow(source, target)
-            
+
             positional_params = []
-            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+            if hasattr(func_args, "posonlyargs") and func_args.posonlyargs:
                 positional_params.extend(func_args.posonlyargs)
             if func_args.args:
                 positional_params.extend(func_args.args)
@@ -503,18 +669,18 @@ class NormalCallProcessor(Processor):
             # Track which parameters have been bound
             arg_index = 0
             consumed_kwargs = set()  # Track which keyword arguments have been matched
-            
+
             # 1. Handle positional-only parameters (Python 3.8+)
             # These can ONLY be filled by positional arguments, not keywords
-            if hasattr(func_args, 'posonlyargs') and func_args.posonlyargs:
+            if hasattr(func_args, "posonlyargs") and func_args.posonlyargs:
                 for param in func_args.posonlyargs:
                     param_name = param.arg
                     param_var = state.get_variable(
-                        callee_scope, 
-                        call_context, 
-                        solver.variable_factory.make_variable(param_name)
+                        callee_scope,
+                        call_context,
+                        solver.variable_factory.make_variable(param_name),
                     )
-                    
+
                     if arg_index < len(arg_vars):
                         # Bind positional argument to parameter
                         state._add_var_points_flow(arg_vars[arg_index], param_var)
@@ -540,20 +706,20 @@ class NormalCallProcessor(Processor):
                                 UnknownKind.MISSING_ARGUMENT,
                                 str(call.call_site),
                                 f"Required positional-only parameter {param_name} not provided",
-                                context=func_name
+                                context=func_name,
                             )
-            
+
             # 2. Handle regular positional/keyword parameters
             # These can be filled by either positional OR keyword arguments
             if func_args.args:
                 for param_idx, param in enumerate(func_args.args):
                     param_name = param.arg
                     param_var = state.get_variable(
-                        callee_scope, 
-                        call_context, 
-                        solver.variable_factory.make_variable(param_name)
+                        callee_scope,
+                        call_context,
+                        solver.variable_factory.make_variable(param_name),
                     )
-                    
+
                     # First check if this parameter is provided as a keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
@@ -585,33 +751,39 @@ class NormalCallProcessor(Processor):
                                 UnknownKind.MISSING_ARGUMENT,
                                 str(call.call_site),
                                 f"Required parameter {param_name} not provided",
-                                context=func_name
+                                context=func_name,
                             )
-            
+
             # 3. Handle *args (vararg) - collects remaining positional arguments
             if func_args.vararg:
                 vararg_name = func_args.vararg.arg
                 vararg_var = state.get_variable(
-                    callee_scope,
-                    call_context,
-                    solver.variable_factory.make_variable(vararg_name)
+                    callee_scope, call_context, solver.variable_factory.make_variable(vararg_name)
                 )
-                
+
                 # Create a tuple object to hold the varargs
                 vararg_alloc = AllocSite(f"{call.call_site}:*args", AllocKind.TUPLE)
-                vararg_tuple_obj = TupleObject(state.select_allocation_context(call_context, vararg_alloc), vararg_alloc)
-                
+                vararg_tuple_obj = TupleObject(
+                    state.select_allocation_context(call_context, vararg_alloc), vararg_alloc
+                )
+
                 # Add the tuple to the vararg parameter
-                solver.handle_new_points_to(vararg_var, callee_scope, PointsToSet.singleton(vararg_tuple_obj))
+                solver.handle_new_points_to(
+                    vararg_var, callee_scope, PointsToSet.singleton(vararg_tuple_obj)
+                )
                 # Keep the tuple producer's aggregate relation persistent as
                 # later argument families can introduce new positional slots.
-                aggregate_var = state.get_field(callee_scope, call_context, vararg_tuple_obj, elem())
-                
+                aggregate_var = state.get_field(
+                    callee_scope, call_context, vararg_tuple_obj, elem()
+                )
+
                 # All remaining positional arguments go into *args
                 for i in range(arg_index, len(arg_vars)):
                     # Store each remaining argument as an element of the tuple
                     field = key(i - arg_index)
-                    element_var = state.get_field(callee_scope, call_context, vararg_tuple_obj, field)
+                    element_var = state.get_field(
+                        callee_scope, call_context, vararg_tuple_obj, field
+                    )
                     state._add_var_points_flow(arg_vars[i], element_var)
                     state._add_var_points_flow(arg_vars[i], aggregate_var)
             elif arg_index < len(arg_vars):
@@ -620,9 +792,9 @@ class NormalCallProcessor(Processor):
                     UnknownKind.MISSING_ARGUMENT,
                     str(call.call_site),
                     f"Too many positional arguments: expected {arg_index}, got {len(arg_vars)}",
-                    context=func_name
+                    context=func_name,
                 )
-            
+
             # 4. Handle keyword-only parameters
             # These MUST be provided by keyword arguments (or use defaults)
             if func_args.kwonlyargs:
@@ -631,9 +803,9 @@ class NormalCallProcessor(Processor):
                     param_var = state.get_variable(
                         callee_scope,
                         call_context,
-                        solver.variable_factory.make_variable(param_name)
+                        solver.variable_factory.make_variable(param_name),
                     )
-                    
+
                     # Check if provided as keyword argument
                     if param_name in kwarg_vars:
                         # Bind keyword argument to parameter
@@ -662,7 +834,7 @@ class NormalCallProcessor(Processor):
                                 UnknownKind.MISSING_ARGUMENT,
                                 str(call.call_site),
                                 f"Required keyword-only parameter {param_name} not provided",
-                                context=func_name
+                                context=func_name,
                             )
                     elif not expanded:
                         # Expanded mappings leave argument presence unresolved.
@@ -670,86 +842,163 @@ class NormalCallProcessor(Processor):
                             UnknownKind.MISSING_ARGUMENT,
                             str(call.call_site),
                             f"Required keyword-only parameter {param_name} not provided",
-                            context=func_name
+                            context=func_name,
                         )
-            
+
             # 5. Handle **kwargs (kwarg) - collects remaining keyword arguments
             remaining_kwargs = {k: v for k, v in kwarg_vars.items() if k not in consumed_kwargs}
-            
+
             if func_args.kwarg:
                 kwarg_name = func_args.kwarg.arg
-                kwarg_var = state.get_variable(
-                    callee_scope,
-                    call_context,
-                    solver.variable_factory.make_variable(kwarg_name)
+                kwarg_parameter = state.get_variable(
+                    callee_scope, call_context, solver.variable_factory.make_variable(kwarg_name)
                 )
-                
+
                 # Create a dict object to hold the kwargs
                 kwarg_alloc = AllocSite(f"{call.call_site}:**kwargs", AllocKind.DICT)
-                kwarg_dict_obj = DictObject(state.select_allocation_context(call_context, kwarg_alloc), kwarg_alloc)
-                
+                kwarg_dict_obj = DictObject(
+                    state.select_allocation_context(call_context, kwarg_alloc), kwarg_alloc
+                )
+
                 # Add the dict to the kwarg parameter
-                solver.handle_new_points_to(kwarg_var, callee_scope, PointsToSet.singleton(kwarg_dict_obj))
-                if observe_collector:
-                    diagnostics.record("collector_binding", scope, call, "keyword_collector",
-                        refs={"collector_parameter": kwarg_var, "collector_object": kwarg_dict_obj},
-                        fields={"stage": "publication_requested"})
+                solver.handle_new_points_to(
+                    kwarg_parameter, callee_scope, PointsToSet.singleton(kwarg_dict_obj)
+                )
+                if observe_collector and diagnostics is not None:
+                    diagnostics.record(
+                        "collector_binding",
+                        scope,
+                        call,
+                        "keyword_collector",
+                        refs={
+                            "collector_parameter": kwarg_parameter,
+                            "collector_object": kwarg_dict_obj,
+                        },
+                        fields={"stage": "publication_requested"},
+                    )
                 state.obj_scope[kwarg_dict_obj] = callee_scope
-                excluded = frozenset(param.arg for param in (*func_args.args, *func_args.kwonlyargs))
+                excluded = frozenset(
+                    param.arg for param in (*func_args.args, *func_args.kwonlyargs)
+                )
                 for mapping in expanded:
-                    solver.add_constraint(scope, context, MappingCopyConstraint(mapping, kwarg_dict_obj, excluded))
-                    if observe_collector:
-                        diagnostics.record("dependency_registration_returned", scope, call, "keyword_collector",
+                    solver.add_constraint(
+                        scope, context, MappingCopyConstraint(mapping, kwarg_dict_obj, excluded)
+                    )
+                    if observe_collector and diagnostics is not None:
+                        diagnostics.record(
+                            "dependency_registration_returned",
+                            scope,
+                            call,
+                            "keyword_collector",
                             refs={"source_mapping": mapping, "collector_object": kwarg_dict_obj},
-                            fields={"channel": "expanded_mapping_copy", "registration_kind": "mapping_constraint"})
-                
+                            fields={
+                                "channel": "expanded_mapping_copy",
+                                "registration_kind": "mapping_constraint",
+                            },
+                        )
+
                 # Store all remaining keyword arguments into the **kwargs dict
                 for kw_name, kw_var in remaining_kwargs.items():
                     # Use the keyword name as the dict key (field)
                     field = key(kw_name)
-                    dict_value_var = state.get_field(callee_scope, call_context, kwarg_dict_obj, field)
+                    dict_value_var = state.get_field(
+                        callee_scope, call_context, kwarg_dict_obj, field
+                    )
                     state._add_var_points_flow(kw_var, dict_value_var)
-                    if observe_collector:
-                        diagnostics.record("dependency_registration_returned", scope, call, "keyword_collector",
-                            refs={"source": kw_var, "target": dict_value_var,
-                                  "collector_object": kwarg_dict_obj},
-                            fields={"channel": "key", "keyword": kw_name, "registration_kind": "copy_flow"})
+                    if observe_collector and diagnostics is not None:
+                        diagnostics.record(
+                            "dependency_registration_returned",
+                            scope,
+                            call,
+                            "keyword_collector",
+                            refs={
+                                "source": kw_var,
+                                "target": dict_value_var,
+                                "collector_object": kwarg_dict_obj,
+                            },
+                            fields={
+                                "channel": "key",
+                                "keyword": kw_name,
+                                "registration_kind": "copy_flow",
+                            },
+                        )
                     # Native values()/iteration consumers read the aggregate.
                     # Keep a subscription so both old and future argument
                     # values reach it, exactly as they reach the keyed slot.
-                    aggregate_var = state.get_field(callee_scope, call_context, kwarg_dict_obj, elem())
+                    aggregate_var = state.get_field(
+                        callee_scope, call_context, kwarg_dict_obj, elem()
+                    )
                     state._add_var_points_flow(kw_var, aggregate_var)
-                    if observe_collector:
-                        diagnostics.record("dependency_registration_returned", scope, call, "keyword_collector",
-                            refs={"source": kw_var, "target": aggregate_var,
-                                  "collector_object": kwarg_dict_obj},
-                            fields={"channel": "aggregate", "keyword": kw_name, "registration_kind": "copy_flow"})
+                    if observe_collector and diagnostics is not None:
+                        diagnostics.record(
+                            "dependency_registration_returned",
+                            scope,
+                            call,
+                            "keyword_collector",
+                            refs={
+                                "source": kw_var,
+                                "target": aggregate_var,
+                                "collector_object": kwarg_dict_obj,
+                            },
+                            fields={
+                                "channel": "aggregate",
+                                "keyword": kw_name,
+                                "registration_kind": "copy_flow",
+                            },
+                        )
                     # The remaining explicit keyword has a known string name.
                     # Preserve that identity separately from dictionary values;
                     # keys() must never fabricate an Unknown from those values.
-                    key_site = AllocSite(("keyword_collector_key", call.call_site, kw_name), AllocKind.CONSTANT)
+                    key_site = AllocSite(
+                        ("keyword_collector_key", call.call_site, kw_name), AllocKind.CONSTANT
+                    )
                     key_object = state._heap.get_obj(callee_scope, call_context, key_site)
                     if key_object is None:
                         key_object = canonical_constant(state, call_context, key_site, kw_name)
                         state._heap.set_obj(callee_scope, call_context, key_site, key_object)
                         state.obj_scope[key_object] = callee_scope
-                    keys_var = state.get_field(callee_scope, call_context, kwarg_dict_obj, NATIVE_MAPPING_KEYS)
-                    solver.handle_new_points_to(keys_var, callee_scope, PointsToSet.singleton(key_object))
-                    if observe_collector:
-                        diagnostics.record("publication_requested", scope, call, "keyword_collector",
-                            refs={"target": keys_var, "object": key_object,
-                                  "collector_object": kwarg_dict_obj},
-                            fields={"channel": "native_keys", "keyword": kw_name})
+                    keys_var = state.get_field(
+                        callee_scope, call_context, kwarg_dict_obj, NATIVE_MAPPING_KEYS
+                    )
+                    solver.handle_new_points_to(
+                        keys_var, callee_scope, PointsToSet.singleton(key_object)
+                    )
+                    if observe_collector and diagnostics is not None:
+                        diagnostics.record(
+                            "publication_requested",
+                            scope,
+                            call,
+                            "keyword_collector",
+                            refs={
+                                "target": keys_var,
+                                "object": key_object,
+                                "collector_object": kwarg_dict_obj,
+                            },
+                            fields={"channel": "native_keys", "keyword": kw_name},
+                        )
             elif remaining_kwargs:
                 # Unexpected keyword arguments and no **kwargs to catch them
-                extra_kw_names = ', '.join(remaining_kwargs.keys())
+                extra_kw_names = ", ".join(remaining_kwargs.keys())
                 solver._unknown_tracker.record(
                     UnknownKind.MISSING_ARGUMENT,
                     str(call.call_site),
                     f"Unexpected keyword arguments: {extra_kw_names}",
-                    context=func_name
+                    context=func_name,
                 )
-            if observe_collector:
-                diagnostics.record("model_complete", scope, call, "keyword_collector",
-                    refs={"callee_scope": callee_scope, "collector_parameter": kwarg_var,
-                          "collector_object": kwarg_dict_obj}, fields={"stage": "parameter_matching_return"})
+            if observe_collector and diagnostics is not None:
+                if kwarg_parameter is None or kwarg_dict_obj is None:
+                    raise RuntimeError(
+                        "A keyword collector observation requires the allocated collector"
+                    )
+                diagnostics.record(
+                    "model_complete",
+                    scope,
+                    call,
+                    "keyword_collector",
+                    refs={
+                        "callee_scope": callee_scope,
+                        "collector_parameter": kwarg_parameter,
+                        "collector_object": kwarg_dict_obj,
+                    },
+                    fields={"stage": "parameter_matching_return"},
+                )

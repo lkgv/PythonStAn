@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 class AIAnalysisResult:
-    def __init__(self, summaries: Dict[str, AISummary], plan: AIPlan, config: Config, context_summaries=None):
+    def __init__(
+        self, summaries: Dict[str, AISummary], plan: AIPlan, config: Config, context_summaries=None
+    ):
         self.summaries = summaries
         self.plan = plan
         self.config = config
@@ -40,11 +42,11 @@ class AIAnalysisResult:
 class AIAnalysisDriver(AnalysisDriver):
     """AI analysis driver that consumes existing KCFA results."""
 
-    def __init__(self, analysis_config: AnalysisConfig):
+    def __init__(self, analysis_config: AnalysisConfig) -> None:
         super().__init__(analysis_config)
         self.ai_config = Config.from_dict(self.config.options or {})
         self._setup_logging()
-        self.results: Optional[AIAnalysisResult] = None
+        self.results = None
 
     def analyze(self, scope: IRScope, prev_results: Dict[str, Any]) -> AIAnalysisResult:
         logger.info("Starting AI analysis driver")
@@ -88,13 +90,27 @@ class AIAnalysisDriver(AnalysisDriver):
                 call_context = caller_scope.context if caller_scope is not None else entry_context
                 arg_bindings = self._build_arg_bindings(state, scope_ir, selected)
                 if not isinstance(scope_ir, IRFunc) or not arg_bindings:
-                    arg_bindings.extend(self._build_var_bindings_from_kcfa(state, scope_ir, selected))
-                part = engine.analyze_callee(scope_ir=scope_ir, call_context=call_context,
-                                            arg_bindings=arg_bindings, caller_scope=caller_scope)
+                    arg_bindings.extend(
+                        self._build_var_bindings_from_kcfa(state, scope_ir, selected)
+                    )
+                part = engine.analyze_callee(
+                    scope_ir=scope_ir,
+                    call_context=call_context,
+                    arg_bindings=arg_bindings,
+                    caller_scope=caller_scope,
+                )
                 if upstream_incomplete:
-                    part = part.merge(AISummary(is_complete=False, incomplete_reasons=("upstream_pta_incomplete",)))
+                    part = part.merge(
+                        AISummary(
+                            is_complete=False, incomplete_reasons=("upstream_pta_incomplete",)
+                        )
+                    )
                 if not contexts:
-                    part = part.merge(AISummary(is_complete=False, incomplete_reasons=("missing_upstream_context",)))
+                    part = part.merge(
+                        AISummary(
+                            is_complete=False, incomplete_reasons=("missing_upstream_context",)
+                        )
+                    )
                 parts.append((call_context, part))
             summary = parts[0][1]
             for _, part in parts[1:]:
@@ -151,12 +167,16 @@ class AIAnalysisDriver(AnalysisDriver):
             return
         expected = parse_policy(requested)
         if context_selector is not None and context_selector.policy != expected:
-            raise ValueError("AI context_policy must match its KCFA predecessor; use inherit or rerun KCFA")
+            raise ValueError(
+                "AI context_policy must match its KCFA predecessor; use inherit or rerun KCFA"
+            )
 
     def _get_entry_context(self, context_selector: Optional[Any]):
         if context_selector is not None:
             return context_selector.empty_context()
-        policy = parse_policy("2-cfa" if self.ai_config.context_policy == "inherit" else self.ai_config.context_policy)
+        policy = parse_policy(
+            "2-cfa" if self.ai_config.context_policy == "inherit" else self.ai_config.context_policy
+        )
         return ContextSelector(policy=policy).empty_context()
 
     def _get_scope_contexts(self, state: Any, scope_ir: IRScope) -> List[Any]:
@@ -194,7 +214,9 @@ class AIAnalysisDriver(AnalysisDriver):
             names.append(args.kwarg.arg)
         return names
 
-    def _build_arg_bindings(self, state: Any, scope_ir: IRScope, contexts: List[Any]) -> List[ArgBinding]:
+    def _build_arg_bindings(
+        self, state: Any, scope_ir: IRScope, contexts: List[Any]
+    ) -> List[ArgBinding]:
         if not isinstance(scope_ir, IRFunc):
             return []
 
@@ -207,7 +229,9 @@ class AIAnalysisDriver(AnalysisDriver):
             pts_union = set()
             const_strs = set()
             for ctx_scope in contexts:
-                ctx_var = state._get_variable_direct(ctx_scope, ctx_scope.context, name, VariableKind.LOCAL)
+                ctx_var = state._get_variable_direct(
+                    ctx_scope, ctx_scope.context, name, VariableKind.LOCAL
+                )
                 if ctx_var is None:
                     continue
                 pts = state.get_points_to(ctx_var)
@@ -217,41 +241,47 @@ class AIAnalysisDriver(AnalysisDriver):
                 pts_union.update(pts)
 
             abs_val = AbsVal.from_addrs(frozenset(pts_union))
-            if pts_union and all(isinstance(obj, ConstantObject) and type(obj.value) is str for obj in pts_union):
+            if pts_union and all(
+                isinstance(obj, ConstantObject) and type(obj.value) is str for obj in pts_union
+            ):
                 abs_val = AbsVal.from_strs(frozenset(const_strs))
 
-            bindings.append(ArgBinding(
-                param_name=name,
-                points_to=frozenset(pts_union),
-                value=abs_val,
-            ))
+            bindings.append(
+                ArgBinding(
+                    param_name=name,
+                    points_to=frozenset(pts_union),
+                    value=abs_val,
+                )
+            )
 
         return bindings
 
-    def _build_var_bindings_from_kcfa(self, state: Any, scope_ir: IRScope, contexts: List[Any]) -> List[ArgBinding]:
+    def _build_var_bindings_from_kcfa(
+        self, state: Any, scope_ir: IRScope, contexts: List[Any]
+    ) -> List[ArgBinding]:
         """Build variable bindings from KCFA points-to for non-parameter variables.
-        
+
         This seeds the AI initial state with KCFA results for module/class-level variables.
         """
         from pythonstan.analysis.pointer.kcfa.variable import Variable, VariableKind
         from pythonstan.analysis.pointer.kcfa.object import ConstantObject
         from pythonstan.analysis.pointer.kcfa.pointer_flow_graph import NormalNode
-        
+
         bindings: List[ArgBinding] = []
-        
+
         # If we have contexts, find the primary one (empty context preferred)
         ctx_scope = None
         if contexts:
             for c in contexts:
-                if hasattr(c, 'context') and c.context.is_empty():
+                if hasattr(c, "context") and c.context.is_empty():
                     ctx_scope = c
                     break
             if ctx_scope is None and contexts:
                 ctx_scope = contexts[0]
-        
+
         if ctx_scope is None:
             return bindings
-        
+
         var_names_seen = set()
         # Iterate through all context-variable pairs in KCFA state
         for node in state._env.keys():
@@ -260,47 +290,51 @@ class AIAnalysisDriver(AnalysisDriver):
             if not isinstance(node, NormalNode):
                 continue
             ctx_var = node.var
-            if not hasattr(ctx_var, 'content') or not hasattr(ctx_var, 'context'):
+            if not hasattr(ctx_var, "content") or not hasattr(ctx_var, "context"):
                 continue
-            
+
             # Check if this variable belongs to our scope
             content = ctx_var.content
             if not isinstance(content, Variable):
                 continue
-            
+
             # Match scope
-            var_scope = getattr(ctx_var, 'scope', None)
+            var_scope = getattr(ctx_var, "scope", None)
             if var_scope != ctx_scope:
                 continue
-            
+
             var_name = content.name
-            
+
             # Skip temporaries, duplicates, and parameters (already handled)
             if var_name.startswith("$") or var_name in var_names_seen:
                 continue
             if content.kind == VariableKind.PARAMETER:
                 continue
-            
+
             var_names_seen.add(var_name)
-            
+
             # Get points-to set
             pts = state.get_points_to(ctx_var)
             if not pts:
                 continue
-            
+
             const_strs = set()
             for obj in pts:
                 if isinstance(obj, ConstantObject) and isinstance(obj.value, str):
                     const_strs.add(obj.value)
-            
+
             abs_val = AbsVal.from_addrs(frozenset(pts))
-            if pts and all(isinstance(obj, ConstantObject) and type(obj.value) is str for obj in pts):
+            if pts and all(
+                isinstance(obj, ConstantObject) and type(obj.value) is str for obj in pts
+            ):
                 abs_val = AbsVal.from_strs(frozenset(const_strs))
-            
-            bindings.append(ArgBinding(
-                param_name=var_name,
-                points_to=frozenset(pts),
-                value=abs_val,
-            ))
-        
+
+            bindings.append(
+                ArgBinding(
+                    param_name=var_name,
+                    points_to=frozenset(pts),
+                    value=abs_val,
+                )
+            )
+
         return bindings

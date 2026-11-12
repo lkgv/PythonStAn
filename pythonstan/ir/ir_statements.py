@@ -1,14 +1,23 @@
-from abc import ABC, abstractmethod
-from typing import Set, Union, List, Optional, Tuple, Type, TYPE_CHECKING
 import ast
+from abc import ABC, abstractmethod
+from ast import ClassDef, Module
 from ast import stmt as Statement
-from ast import Module, ClassDef, Name
+from builtins import list as List
+from builtins import set as Set
+from builtins import tuple as Tuple
+from builtins import type as Type
+from typing import TYPE_CHECKING, Literal, Optional, TypeGuard, Union, override
 
-from pythonstan.utils.var_collector import VarCollector
 from pythonstan.utils.ast_rename import RenameTransformer
+from pythonstan.utils.var_collector import VarCollector
 
 if TYPE_CHECKING:
     from pythonstan.analysis.contracts.identity import SourceModule
+    from pythonstan.analysis.pointer.kcfa.variable import Variable
+
+
+def _name_bases(bases: list[ast.expr]) -> TypeGuard[list[ast.Name]]:
+    return all(isinstance(base, ast.Name) for base in bases)
 
 
 __all__ = [
@@ -48,6 +57,8 @@ __all__ = [
 
 class IRStatement(ABC):
     """Abstract base for every normalized IR node emitted after TAC lowering."""
+
+    exception_handlers: tuple["IRCatchException", ...] = ()
 
     @abstractmethod
     def __str__(self) -> str:
@@ -133,32 +144,34 @@ class IRAstStmt(IRAbstractStmt):
     del_collector: VarCollector
     #: Tracks delete contexts discovered when scanning ``stmt``.
 
-    def __init__(self, stmt: Statement):
+    def __init__(self, stmt: Statement) -> None:
         """Initialises the wrapper with a freshly normalised AST node."""
         self.set_stmt(stmt)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         """Reconstructs the Python source for logging/debugging."""
         return ast.unparse(self.stmt)
 
-    def set_stmt(self, stmt: Statement):
+    def set_stmt(self, stmt: Statement) -> None:
         """Updates the wrapped AST node and rebuilds all collectors. [side effects: mutates ``stmt`` and resets collector caches]"""
         self.stmt = stmt
         ast.fix_missing_locations(self.stmt)
         self.collector_reset()
         self.collect_from_stmt(stmt)
 
+    @override
     def get_ast(self) -> Statement:
         """Returns the current AST node backing this IR leaf."""
         return self.stmt
 
-    def collector_reset(self):
+    def collector_reset(self) -> None:
         """Initialises per-effect collectors before rescanning a statement."""
         self.store_collector = VarCollector("store")
         self.load_collector = VarCollector("load")
         self.del_collector = VarCollector("del")
 
-    def collect_from_stmt(self, stmt: Statement):
+    def collect_from_stmt(self, stmt: Statement) -> None:
         """Populates collectors by visiting ``stmt``."""
         self.store_collector.visit(stmt)
         self.load_collector.visit(stmt)
@@ -194,7 +207,13 @@ class IRContextEnter(IRAstStmt):
     been implemented. Consumers must explicitly account for those obligations.
     """
 
-    def __init__(self, item, origin, is_async=False):
+    item: ast.withitem
+    origin: ast.With | ast.AsyncWith
+    is_async: bool
+
+    def __init__(
+        self, item: ast.withitem, origin: ast.With | ast.AsyncWith, is_async: bool = False
+    ) -> None:
         self.item = item
         self.origin = origin
         self.is_async = is_async
@@ -203,18 +222,24 @@ class IRContextEnter(IRAstStmt):
         ast.copy_location(header, origin)
         super().__init__(header)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         return f"context-enter {ast.unparse(self.item.context_expr)}"
 
 
 class IRContextExit(IRAstStmt):
     """Cleanup marker paired with a context-manager entry."""
 
-    def __init__(self, entry):
+    entry: IRContextEnter
+    completion_kind: Literal["normal", "return", "break", "continue", "raise"]
+    suppressed_label: "Label"
+
+    def __init__(self, entry: IRContextEnter) -> None:
         self.entry = entry
         super().__init__(entry.stmt)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         return f"context-exit {ast.unparse(self.entry.item.context_expr)}"
 
 
@@ -249,7 +274,7 @@ class Label(IRAbstractStmt):
 class IRCatchException(IRAbstractStmt):
     """Metadata emitted for each ``try`` handler in the IR stream."""
 
-    exception: List[str]
+    exception: list[str] | None
     #: Qualified exception names handled by this clause.
     from_label: Label
     #: Label pointing to the try body entry.
@@ -262,12 +287,12 @@ class IRCatchException(IRAbstractStmt):
 
     def __init__(
         self,
-        exception: List[str],
+        exception: list[str] | None,
         from_label: Label,
         to_label: Label,
         goto_label: Label,
         exception_ast: Optional[ast.ExceptHandler] = None,
-    ):
+    ) -> None:
         """Captures the structural relationship between try/except blocks."""
         self.exception = exception
         self.from_label = from_label
@@ -540,6 +565,8 @@ class IRReturn(IRAbstractStmt):
 class IRRaise(IRAbstractStmt):
     """Normalised ``raise`` statements, preserving optional causes."""
 
+    saved_exception_var: str | None
+
     exc: Optional[ast.expr]
     #: Exception instance being raised.
     cause: Optional[ast.expr]
@@ -549,7 +576,7 @@ class IRRaise(IRAbstractStmt):
     load_collector: VarCollector
     #: Records evaluated expressions required to raise.
 
-    def __init__(self, stmt: ast.Raise):
+    def __init__(self, stmt: ast.Raise) -> None:
         """Extracts operands for ``raise`` so SCCP can reason about them."""
         self.stmt = stmt
         ast.fix_missing_locations(self.stmt)
@@ -720,16 +747,24 @@ class IRDel(IRAbstractStmt):
 class IRImport(IRAbstractStmt):
     """Represents ``import``/``from`` statements with alias tracking."""
 
-    stmt: Union[ast.Import, ast.ImportFrom]
+    _import_base_name: str | None
+    stmt: ast.Import | ast.ImportFrom
     #: Backing AST import node in normalised form.
-    module: Optional[str]
+    module: str | None
     #: Module path when handling ``from ... import``.
     name: str
     #: First imported symbol (others handled via ``stmt.names``).
-    asname: Optional[str]
+    asname: str | None
     #: Alias applied to the first imported name (if any).
     level: int
     #: Relative import level for ``from`` statements.
+
+    def peek_import_base_name(self) -> str | None:
+        """Read namespace-installed import metadata without creating it."""
+        try:
+            return self._import_base_name
+        except AttributeError:
+            return None
 
     def __init__(self, stmt: Union[ast.Import, ast.ImportFrom]):
         """Captures import metadata for scope bookkeeping."""
@@ -1309,12 +1344,13 @@ class IRScope(ABC):
     source_module: "IRModule | None"
     qualname: str
     #: Dotted path identifying the scope (e.g. ``pkg.mod.Class.fn``).
-    global_vars: Set[str]
+    global_vars: set[str]
     #: Names declared with ``global`` in this scope.
-    nonlocal_vars: Set[str]
+    nonlocal_vars: set[str]
     #: Names declared ``nonlocal`` to reach outer but non-global scopes.
-    cell_vars: Set[str]
+    cell_vars: set[str]
     #: Names lifted into closure cells for nested functions.
+    _source_extra_exports: set[str]
 
     @abstractmethod
     def __init__(self, qualname: str) -> None:
@@ -1330,6 +1366,24 @@ class IRScope(ABC):
     def get_source_snapshot(self) -> "SourceModule | None":
         """Return original source when a trusted producer supplied it."""
         return self.source_module.source_snapshot if self.source_module is not None else None
+
+    def get_ast(self) -> ast.AST:
+        """Expose source when a concrete scope implements the AST capability."""
+        raise NotImplementedError("This IR scope does not provide an AST")
+
+    def peek_source_extra_exports(self) -> set[str] | None:
+        """Read optional translator exports while retaining absent metadata."""
+        try:
+            return self._source_extra_exports
+        except AttributeError:
+            return None
+
+    def ensure_source_extra_exports(self) -> set[str]:
+        """Create the existing export set only when its producer requests it."""
+        exports = self.peek_source_extra_exports()
+        if exports is None:
+            exports = self._source_extra_exports = set()
+        return exports
 
     def get_qualname(self) -> str:
         """Returns the fully-qualified scope name."""
@@ -1408,6 +1462,7 @@ class IRModule(IRScope, IRStatement):
         """Returns the module's filesystem path when available."""
         return self.filename
 
+    @override
     def get_ast(self) -> Module:
         """Returns the module AST."""
         return self.stmt
@@ -1427,6 +1482,7 @@ class IRModule(IRScope, IRStatement):
     def __str__(self) -> str:
         return self.get_name()
 
+    @override
     def __repr__(self) -> str:
         return self.get_name()
 
@@ -1469,9 +1525,9 @@ class IRFunc(IRScope, IRStatement):
     #: Function identifier.
     args: ast.arguments
     #: Canonical argument signature.
-    arg_names: Set[str]
+    arg_names: set[str]
     #: Convenience set of parameter names.
-    decorator_list: List[ast.expr]
+    decorator_list: list[ast.expr]
     #: Applied decorators (order preserved).
     returns: ast.expr
     #: Return annotation.
@@ -1492,11 +1548,11 @@ class IRFunc(IRScope, IRStatement):
     is_instance_method: bool
     #: True when representing a bound instance method.
 
-    cell_vars: Set[str]
+    cell_vars: set[str]
     #: Variables captured by nested scopes.
-    nonlocal_vars: Set[str]
+    nonlocal_vars: set[str]
     #: ``nonlocal`` declarations inside the function.
-    global_vars: Set[str]
+    global_vars: set[str]
     #: ``global`` declarations inside the function.
 
     def __init__(
@@ -1542,6 +1598,7 @@ class IRFunc(IRScope, IRStatement):
         if cell_vars:
             self.cell_vars = cell_vars
 
+    @override
     def get_ast(self) -> ast.stmt:
         """Returns the ``ast.FunctionDef`` / ``AsyncFunctionDef``."""
         return self.stmt
@@ -1577,14 +1634,12 @@ class IRFunc(IRScope, IRStatement):
         """Returns the set of argument names for var liveness tracking."""
         return self.arg_names
 
+    @override
     def __repr__(self) -> str:
         """Detailed signature string used in debugging output."""
         decrs = ", ".join([ast.unparse(decr) for decr in self.decorator_list])
         args = ast.unparse(self.args)
-        if self.returns is not None:
-            rets = f" -> {ast.unparse(self.returns)}"
-        else:
-            rets = ""
+        rets = f" -> {ast.unparse(self.returns)}" if self.returns is not None else ""
         if len(decrs) > 0:
             fn_repr = f"fn [{decrs}] {self.name}({args}){rets}"
         else:
@@ -1603,25 +1658,33 @@ class IRClass(IRScope, IRStatement):
 
     name: str
     #: Class identifier.
-    bases: List[ast.expr]
+    bases: list[ast.Name]
     #: Base expressions supplied to the class definition.
-    keywords: List[ast.keyword]
+    keywords: list[ast.keyword]
     #: Keyword arguments used in the class definition call.
-    decorator_list: List[ast.expr]
+    decorator_list: list[ast.expr]
     #: Decorators applied to the class.
     stmt: ast.ClassDef
     #: Underlying AST node.
 
-    cell_vars: Set[str]
+    cell_vars: set[str]
     #: Variables shared with nested scopes via closure cells.
 
-    def __init__(self, qualname: str, cls: ClassDef, cell_vars: Optional[Set[str]] = None):
+    _kcfa_dynamic_bases: bool
+    _kcfa_base_variables: tuple["Variable", ...]
+
+    def peek_base_variables(self) -> tuple["Variable", ...]:
+        """Read translator-installed base slots without creating metadata."""
+        try:
+            return self._kcfa_base_variables
+        except AttributeError:
+            return ()
+
+    def __init__(self, qualname: str, cls: ClassDef, cell_vars: set[str] | None = None) -> None:
         """Captures base/keyword/decorator metadata for this class."""
         super().__init__(qualname)
         self.name = cls.name
-        assert all(isinstance(i, ast.Name) for i in cls.bases), (
-            f"Base of the class should be ast.Name, {cls.bases} got!"
-        )
+        assert _name_bases(cls.bases), f"Base of the class should be ast.Name, {cls.bases} got!"
         self.bases = cls.bases
         self.keywords = cls.keywords
         self.decorator_list = cls.decorator_list
@@ -1639,6 +1702,7 @@ class IRClass(IRScope, IRStatement):
         """Adds a class-scoped variable captured by nested functions."""
         self.cell_vars.add(cell_var)
 
+    @override
     def get_ast(self) -> ClassDef:
         """Returns the ``ast.ClassDef`` backing this IR node."""
         return self.stmt
@@ -1659,20 +1723,15 @@ class IRClass(IRScope, IRStatement):
         """Returns the base expressions declared on the class."""
         return self.bases
 
+    @override
     def __repr__(self) -> str:
         """Displays decorators, bases, and keywords for the class."""
         decrs = ", ".join([ast.unparse(decr) for decr in self.decorator_list])
         bases = ", ".join([ast.unparse(base) for base in self.bases])
         kws = ", ".join([ast.unparse(kw) for kw in self.keywords])
-        if len(decrs) > 0:
-            cls_repr = f"class [{decrs}] {self.name}"
-        else:
-            cls_repr = f"class {self.name}"
+        cls_repr = f"class [{decrs}] {self.name}" if len(decrs) > 0 else f"class {self.name}"
         if len(bases) > 0:
-            if len(kws) > 0:
-                cls_repr = f"{cls_repr}({bases}, {kws})"
-            else:
-                cls_repr = f"{cls_repr}({bases})"
+            cls_repr = f"{cls_repr}({bases}, {kws})" if len(kws) > 0 else f"{cls_repr}({bases})"
         elif len(kws) > 0:
             cls_repr = f"{cls_repr}({kws})"
         return cls_repr

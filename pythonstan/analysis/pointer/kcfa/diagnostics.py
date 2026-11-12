@@ -5,12 +5,23 @@ or native-object ownership. Events describe actual instrumented operations;
 only weak references can later associate them with a frozen snapshot.
 """
 
+from __future__ import annotations
+
 import json
 import math
 import weakref
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, NotRequired, TypedDict, TypeGuard
+
+from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar, JsonValue, validate_json
+
+if TYPE_CHECKING:
+    from .constraints import CallConstraint
+    from .context import Ctx, Scope
+    from .points_to_set import PointsToSet
+    from .variable import FieldAccess, Variable
 
 from . import points_to_set
-
 
 _KINDS = ("static", "constraint_replay", "builtin_replay", "points_to")
 _COUNTERS = (
@@ -57,7 +68,7 @@ _MAX = 2**63 - 1
 _METADATA_RESERVATION = 4096
 
 
-def _text(value, limit=512):
+def _text(value: object, limit: int = 512) -> TypeGuard[str]:
     return (
         type(value) is str
         and 0 < len(value) <= limit
@@ -65,13 +76,13 @@ def _text(value, limit=512):
     )
 
 
-def _encoded(value):
+def _encoded(value: JsonValue) -> bytes:
     return json.dumps(
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
     ).encode("utf-8")
 
 
-def _scalar(value):
+def _scalar(value: object) -> TypeGuard[JsonScalar]:
     return (
         value is None
         or type(value) is bool
@@ -85,11 +96,12 @@ def _scalar(value):
     )
 
 
-def _source(scope, call):
+def _source(scope: Scope, call: CallConstraint) -> JsonObject | None:
     site = call.call_site
-    node = vars(site.statement).get("stmt")
-    filename = vars(scope.module.stmt).get("filename")
-    line, column = getattr(node, "lineno", None), getattr(node, "col_offset", None)
+    node: object = vars(site.statement).get("stmt")
+    filename: object = vars(scope.module.stmt).get("filename")
+    line: object = getattr(node, "lineno", None)
+    column: object = getattr(node, "col_offset", None)
     if (
         not _text(filename)
         or type(line) is not int
@@ -102,22 +114,37 @@ def _source(scope, call):
     return {"file": filename, "line": line, "column": column, "call_index": site.index}
 
 
-def validate_selector(selector):
-    if (
-        type(selector) is not dict
-        or set(selector) - {"file", "line", "column", "model"}
-        or not {"file", "line", "model"}.issubset(selector)
-        or not _text(selector["file"])
-        or type(selector["line"]) is not int
-        or selector["line"] < 1
-        or selector["model"] != "keyword_collector"
-        or "column" in selector
-        and (type(selector["column"]) is not int or selector["column"] < 0)
+class NativeSelector(TypedDict):
+    file: str
+    line: int
+    model: str
+    column: NotRequired[int]
+
+
+def validate_selector(selector: object) -> NativeSelector:
+    message = (
+        "targeted selector requires exact file,line,model=keyword_collector and optional column"
+    )
+    if not isinstance(selector, Mapping) or type(selector) is not dict:
+        raise ValueError(message)
+    values: Mapping[object, object] = selector
+    if set(values) - {"file", "line", "column", "model"} or not {"file", "line", "model"}.issubset(
+        values
     ):
-        raise ValueError(
-            "targeted selector requires exact file,line,model=keyword_collector and optional column"
-        )
-    return dict(selector)
+        raise ValueError(message)
+    file, line, model = values["file"], values["line"], values["model"]
+    if not _text(file) or type(line) is not int or line < 1 or model != "keyword_collector":
+        raise ValueError(message)
+    result: NativeSelector = {"file": file, "line": line, "model": "keyword_collector"}
+    if "column" in values:
+        column = values["column"]
+        if type(column) is not int or column < 0:
+            raise ValueError(message)
+        result["column"] = column
+    return result
+
+
+type NativeWatch = tuple[weakref.ReferenceType[object], str, JsonObject, str, int]
 
 
 class NativeDiagnostics:
@@ -125,10 +152,27 @@ class NativeDiagnostics:
 
     _counts: dict[str, int]
     _window_counts: dict[str, int]
+    _fallbacks: dict[str, int]
+    epoch: int | None
+    last_action: str | None
+    _events: list[bytes]
+    _refs: dict[int, weakref.ReferenceType[object]]
+    _object_refs: dict[int, int]
+    _descriptors: dict[int, bytes]
+    _watched_owners: dict[int, NativeWatch]
+    _watched_objects: dict[int, NativeWatch]
+    _window_end: str | None
 
     def __init__(
-        self, mode, run_id, selector=None, *, max_events=256, max_bytes=262144, max_refs=512
-    ):
+        self,
+        mode: str,
+        run_id: str,
+        selector: object = None,
+        *,
+        max_events: int = 256,
+        max_bytes: int = 262144,
+        max_refs: int = 512,
+    ) -> None:
         if mode not in ("counters", "targeted") or not _text(run_id, 128):
             raise ValueError("native diagnostics mode/run_id unsupported")
         if (
@@ -180,7 +224,7 @@ class NativeDiagnostics:
             self._counter_complete = False
             self.failures += 1
 
-    def start_window(self):
+    def start_window(self) -> None:
         try:
             fresh = dict.fromkeys(_COUNTERS, 0)
             self._window_counts = fresh
@@ -191,7 +235,7 @@ class NativeDiagnostics:
             self._window_valid = False
             self.failures += 1
 
-    def seed_decision(self, result):
+    def seed_decision(self, result: str) -> None:
         self.bump("bootstrap_candidates")
         if result == "queued_requested":
             self.bump("bootstrap_queued_requested")
@@ -205,30 +249,35 @@ class NativeDiagnostics:
         else:
             self.failures += 1
 
-    def work_selected(self, kind):
+    def work_selected(self, kind: str) -> None:
         self.phase, self.last_action = "solve", kind
         self.bump("selected_work_items")
         self.bump("selected_" + kind)
 
-    def work_completed(self):
+    def work_completed(self) -> None:
         self.bump("completed_work_items")
 
-    def selected(self, scope, call, model):
+    def selected(self, scope: Scope, call: CallConstraint, model: str) -> bool:
         if self.mode != "targeted" or self._window_end is not None:
             return False
         try:
             selector = self.selector
+            if selector is None:
+                raise ValueError("Targeted diagnostics have no selector")
             # Check the model before even reading source descriptors.
             if model != selector["model"]:
                 self._filtered += 1
                 return False
             site = call.call_site
-            node = vars(site.statement).get("stmt")
+            node: object = vars(site.statement).get("stmt")
+            line: object = getattr(node, "lineno", None)
+            column: object = getattr(node, "col_offset", None)
+            filename: object = vars(scope.module.stmt).get("filename")
             if (
-                getattr(node, "lineno", None) != selector["line"]
+                line != selector["line"]
                 or "column" in selector
-                and getattr(node, "col_offset", None) != selector["column"]
-                or vars(scope.module.stmt).get("filename") != selector["file"]
+                and column != selector["column"]
+                or filename != selector["file"]
             ):
                 self._filtered += 1
                 return False
@@ -237,7 +286,7 @@ class NativeDiagnostics:
             self.failures += 1
             return False
 
-    def _arena(self):
+    def _arena(self) -> bool:
         current = points_to_set._object_table_generation
         if self.epoch is None:
             self.epoch = current
@@ -248,7 +297,7 @@ class NativeDiagnostics:
             return False
         return True
 
-    def _space(self, amount):
+    def _space(self, amount: int) -> bool:
         return (
             _METADATA_RESERVATION
             + self._event_bytes
@@ -259,7 +308,7 @@ class NativeDiagnostics:
             <= self.max_bytes
         )
 
-    def _reference(self, obj):
+    def _reference(self, obj: object) -> JsonObject | None:
         identity = id(obj)
         existing = self._object_refs.get(identity)
         if existing is not None and self._refs[existing]() is obj:
@@ -273,7 +322,7 @@ class NativeDiagnostics:
             self._dropped_descriptors += 1
             return None
         number = len(self._refs) + 1
-        ref = {"run_id": self.run_id, "epoch": self.epoch, "ref": number}
+        ref: JsonObject = {"run_id": self.run_id, "epoch": self.epoch, "ref": number}
         descriptor = _encoded({"ref": ref, "kind": type(obj).__name__[:64]})
         if not self._space(128 + len(descriptor)):
             self._dropped_descriptors += 1
@@ -283,7 +332,7 @@ class NativeDiagnostics:
         self._descriptor_bytes += len(descriptor)
         return ref
 
-    def _watch(self, obj, role, source, model, sequence):
+    def _watch(self, obj: object, role: str, source: JsonObject, model: str, sequence: int) -> None:
         target = self._watched_objects if role == "collector_object" else self._watched_owners
         identity = id(obj)
         if identity in target:
@@ -301,7 +350,16 @@ class NativeDiagnostics:
         target[identity] = (weakref.ref(obj), role, source, model, sequence)
         self._watch_bytes += size
 
-    def record(self, kind, scope, call, model, *, refs=None, fields=None):
+    def record(
+        self,
+        kind: str,
+        scope: Scope,
+        call: CallConstraint,
+        model: str,
+        *,
+        refs: dict[str, object] | None = None,
+        fields: dict[str, JsonScalar] | None = None,
+    ) -> int | None:
         if not self.selected(scope, call, model):
             return None
         try:
@@ -314,7 +372,14 @@ class NativeDiagnostics:
             self.failures += 1
             return None
 
-    def _record(self, kind, source, model, refs, fields):
+    def _record(
+        self,
+        kind: str,
+        source: JsonObject,
+        model: str,
+        refs: dict[str, object],
+        fields: dict[str, JsonScalar],
+    ) -> int | None:
         if self._window_end is not None or not self._arena():
             return None
         if (
@@ -332,7 +397,7 @@ class NativeDiagnostics:
             self._dropped_events += 1
             self._window_end = "event_budget"
             return None
-        projected = {}
+        projected: JsonObject = {}
         for role, obj in refs.items():
             ref = self._reference(obj)
             if ref is None:
@@ -364,15 +429,17 @@ class NativeDiagnostics:
                 self._watch(refs[role], role, source, model, sequence)
         return sequence
 
-    def output_delta(self, owner, delta):
+    def output_delta(self, owner: Ctx[Variable | FieldAccess], delta: PointsToSet) -> None:
         """Called after the actual Ctx store, using its existing fresh delta."""
         if self.mode != "targeted" or self._window_end is not None:
             return
         try:
             watched = self._watched_owners.get(id(owner))
             if watched is None or watched[0]() is not owner:
-                content = vars(owner).get("content")
-                obj = vars(content).get("obj") if content is not None else None
+                from .variable import FieldAccess
+
+                content = owner.content
+                obj = content.obj if isinstance(content, FieldAccess) else None
                 watched = self._watched_objects.get(id(obj))
                 if watched is None or watched[0]() is not obj:
                     return
@@ -380,14 +447,14 @@ class NativeDiagnostics:
             else:
                 role = watched[1]
             _, _, source, model, sequence = watched
-            fields = {
+            fields: dict[str, JsonScalar] = {
                 "owner_role": role,
                 "owner_registered_by_event": sequence,
                 "objects_count": delta.objs_mask.bit_count(),
                 "classmethods_count": delta.classmethods_mask.bit_count(),
                 "instancemethods_count": delta.instancemethods_mask.bit_count(),
             }
-            refs = {"owner": owner}
+            refs: dict[str, object] = {"owner": owner}
             # The event bounds this *delta*, not the owner's entire points-to.
             mask = delta.objs_mask
             table = points_to_set._global_table
@@ -404,28 +471,34 @@ class NativeDiagnostics:
         except Exception:
             self.failures += 1
 
-    def resolve(self, run_ref):
+    def resolve(self, run_ref: object) -> object | None:
+        if not isinstance(run_ref, Mapping) or type(run_ref) is not dict:
+            return None
+        values: Mapping[object, object] = run_ref
+        if set(values) != {"run_id", "epoch", "ref"}:
+            return None
+        number, epoch = values["ref"], values["epoch"]
         if (
-            type(run_ref) is not dict
-            or set(run_ref) != {"run_id", "epoch", "ref"}
-            or run_ref["run_id"] != self.run_id
-            or type(run_ref["ref"]) is not int
-            or type(run_ref["epoch"]) is not int
-            or run_ref["epoch"] != self.epoch
+            values["run_id"] != self.run_id
+            or type(number) is not int
+            or type(epoch) is not int
+            or epoch != self.epoch
             or self.epoch != points_to_set._object_table_generation
         ):
             return None
-        reference = self._refs.get(run_ref["ref"])
+        reference = self._refs.get(number)
         return reference() if reference is not None else None
 
-    def reference_bindings(self):
+    def reference_bindings(
+        self,
+    ) -> list[tuple[JsonObject, weakref.ReferenceType[object], int | None]]:
         """Cold bounded weak identities; never a strong native-object table."""
         return [
             ({"run_id": self.run_id, "epoch": self.epoch, "ref": number}, reference, self.epoch)
             for number, reference in self._refs.items()
         ]
 
-    def health(self):
+    def health(self) -> JsonObject:
         return {
             "mode": self.mode,
             "status": "degraded"
@@ -461,21 +534,30 @@ class NativeDiagnostics:
             "history_claim": "observed_operations_not_replay_or_complete_causality",
         }
 
-    def drain(self):
-        events = [json.loads(value) for value in self._events]
-        descriptors = [
-            json.loads(value)
+    def drain(self) -> JsonObject:
+        events: list[JsonValue] = [validate_json(json.loads(value)) for value in self._events]
+        descriptors: list[JsonValue] = [
+            validate_json(json.loads(value))
             for number, value in self._descriptors.items()
             if number > self._descriptor_cursor
         ]
         self._descriptor_cursor = len(self._descriptors)
         self._events.clear()
         self._event_bytes = 0
+        selector: JsonObject | None = None
+        if self.selector is not None:
+            selector = {
+                "file": self.selector["file"],
+                "line": self.selector["line"],
+                "model": self.selector["model"],
+            }
+            if "column" in self.selector:
+                selector["column"] = self.selector["column"]
         return {
             "schema_version": 1,
             "run_id": self.run_id,
             "epoch": self.epoch,
-            "selector": dict(self.selector) if self.selector is not None else None,
+            "selector": selector,
             "events": events,
             "descriptors": descriptors,
             "health": self.health(),
@@ -498,7 +580,7 @@ _PURE_METHODS = tuple(
 )
 
 
-def pure_counter_signature(port):
+def pure_counter_signature(port: object) -> tuple[int, str, str, int, int] | None:
     if (
         type(port) is not NativeDiagnostics
         or type(port.mode) is not str

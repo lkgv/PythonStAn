@@ -1,0 +1,250 @@
+{
+  "reviewer": "resume_review",
+  "status": "accepted_narrow14_scopes_on_recorded_snapshot;certified_driver_typed_acceptance_pending",
+  "parent_type_qualified": false,
+  "whole_changed_modules_qualified": false,
+  "scope": {
+    "pythonstan/analysis/pointer/kcfa/analysis.py:_source_scope_key": {
+      "span": [
+        44,
+        63
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/analysis.py:PointerAnalysis._create_synthetic_method_contexts": {
+      "span": [
+        368,
+        597
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/analysis.py:PointerAnalysis._get_module_for_scope": {
+      "span": [
+        637,
+        646
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py:IRTranslator.__init__": {
+      "span": [
+        100,
+        115
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py:IRTranslator.translate_module": {
+      "span": [
+        135,
+        155
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py:IRTranslator._translate_assign": {
+      "span": [
+        517,
+        687
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py:IRTranslator._residual": {
+      "span": [
+        1109,
+        1118
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py:IRTranslator._translate_import": {
+      "span": [
+        1323,
+        1442
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/compat/legacy_ai/config.py:Config.to_budget": {
+      "span": [
+        72,
+        101
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/project/analysis.py:_under": {
+      "span": [
+        173,
+        179
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/project/analysis.py:_file_digest": {
+      "span": [
+        182,
+        187
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/project/analysis.py:_implementation_hash": {
+      "span": [
+        274,
+        283
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/project/analysis.py:_scope_context_counts": {
+      "span": [
+        508,
+        524
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    },
+    "pythonstan/analysis/project/analysis.py:ProjectConfig.__post_init__": {
+      "span": [
+        55,
+        138
+      ],
+      "diagnostics": {
+        "ordinary": [],
+        "strong": [],
+        "ruff": []
+      }
+    }
+  },
+  "source_binding": {
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "5660c90fdc41f6115e9f7b7f4e4df5fc2030535aa2dc32e05d12098941e92aa3",
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "ad40fddb35b6ff301d7c737b1ab889c092e47f3418543f70dc6ef82387abaf97",
+    "pythonstan/analysis/project/analysis.py": "9df2ce83cd11a64719a6efc6f04f930262826ef79156575aed273ca40f237fe8",
+    "pythonstan/compat/legacy_ai/config.py": "81013294c6902ea97e4028a84625dc54f6971ee9d15639d6bc56de512c733506"
+  },
+  "independent_verification": {
+    "runtime": "149 passed in2.50s",
+    "commands_and_full_source_hashes": "artifacts/next/evidence/N4-TYPE-01/resumed-independent-analysis/receipt.json",
+    "ordinary_all_errors": 2785,
+    "ordinary5modules_and2tests_errors": 201,
+    "strong_all_errors": 9217,
+    "strong5modules_and2tests_errors": 1043,
+    "ruff5modules_and2tests_errors": 139,
+    "selected14_scope_diagnostics": {
+      "ordinary": 0,
+      "strong": 0,
+      "ruff": 0
+    },
+    "normal_imports": true,
+    "source_stable": true
+  },
+  "source_review": [
+    "Actual nine source/translator/budget functions consume real Source/IRScope/IRStatement/NativeContext services, with no caller-side fake typed solver facade.",
+    "Config.to_budget explicitly forwards all25 real budget fields to the canonical validator factory.",
+    "Four project helper bodies preserve executable AST after annotation erasure; ProjectConfig validation reads actual fields and retains valid declared record projections and validation order.",
+    "Source scope ordering is bounded to stable readonly text/integer coordinates; nominal custom IRScope get_ast implementations remain supported.",
+    "Typed statement getter retains actual nominal IR statements/scopes; opaque generic registry payloads remain admitted by the generic registry but outside the statement-translation profile.",
+    "IRTranslator malformed non-TAC operand errors and finite source literals are checked at the actual consumption boundary, retaining valid Ellipsis/tuple/frozenset inputs."
+  ],
+  "certified_driver": {
+    "typed_status": "pending_two_actual_upstream_ports",
+    "earlier_held_source_hash": "5f94089004b184fa67a070bbfe6df373642b7f72f669d30a2ffc9320d1ca46b7",
+    "earlier_errors": [
+      "check_source candidate raw-object parser signature",
+      "AnalysisDriver.__init__ actual config assignment constructor annotation"
+    ],
+    "compatibility_finding": "Earlier persisted IRModule-only fallback rejected a real nominal IRScope subclass with get_filename. Author retained its red; released fix now uses the actual finite optional filename service.",
+    "independent_postfix_runtime": {
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "tests/regression/audit3/test_certified_driver_contracts.py",
+        "tests/certified/test_driver.py",
+        "tests/certified/test_llm.py"
+      ],
+      "exit": 0,
+      "seconds": 1.298668384552002,
+      "before": {
+        "pythonstan/analysis/pointer/ai/certified/driver.py": "ac34ac64325e7a7bac3617c04fbe4fa45e44941fe2acfb2adf887bd88c485386",
+        "pythonstan/analysis/verification/closed_effects/checker.py": "6123814b2447263221e5577c1609033df4c64813e7e1a08433e059097ede28f4",
+        "pythonstan/analysis/pointer/ai/certified/llm.py": "67b05ac4a06dddb506cb4adbff2cb59078437e8b4172a851f437aea730dd0a80",
+        "pythonstan/analysis/analysis.py": "92ebba7c2f063d91dd86b6e4e794d36866ba931bda35d4eb6ca3779604c3267a",
+        "pythonstan/ir/ir_statements.py": "1d9f00578d07858f15cb45785b3d7cfcdc6f9ddcd5ef21be16ca9b12997a34ec",
+        "tests/regression/audit3/test_certified_driver_contracts.py": "3e933577bfd165c060a955b891529bcb14eb671cd90349bd25f39a60fb090207",
+        "tests/certified/test_driver.py": "a296994f5768758a4c05e9a84e6d88d178eb5eb69241a3bb1ed48248e7cfc746",
+        "tests/certified/test_llm.py": "6a977b29aa1b5d928a15997f986bb4e6b431af7c32bf820f49338dbbb49efa47"
+      },
+      "after": {
+        "pythonstan/analysis/pointer/ai/certified/driver.py": "ac34ac64325e7a7bac3617c04fbe4fa45e44941fe2acfb2adf887bd88c485386",
+        "pythonstan/analysis/verification/closed_effects/checker.py": "6123814b2447263221e5577c1609033df4c64813e7e1a08433e059097ede28f4",
+        "pythonstan/analysis/pointer/ai/certified/llm.py": "67b05ac4a06dddb506cb4adbff2cb59078437e8b4172a851f437aea730dd0a80",
+        "pythonstan/analysis/analysis.py": "92ebba7c2f063d91dd86b6e4e794d36866ba931bda35d4eb6ca3779604c3267a",
+        "pythonstan/ir/ir_statements.py": "1d9f00578d07858f15cb45785b3d7cfcdc6f9ddcd5ef21be16ca9b12997a34ec",
+        "tests/regression/audit3/test_certified_driver_contracts.py": "3e933577bfd165c060a955b891529bcb14eb671cd90349bd25f39a60fb090207",
+        "tests/certified/test_driver.py": "a296994f5768758a4c05e9a84e6d88d178eb5eb69241a3bb1ed48248e7cfc746",
+        "tests/certified/test_llm.py": "6a977b29aa1b5d928a15997f986bb4e6b431af7c32bf820f49338dbbb49efa47"
+      },
+      "source_stable": true,
+      "summary": [
+        "95 passed in 1.00s"
+      ]
+    },
+    "independent_old_current_plugin_probe": "artifacts/next/evidence/N4-TYPE-01/resumed-independent-analysis/custom-scope-negative.json",
+    "probe_status": "Both immutablepublic-old and current accept and certify identical source; this independent probe ran after the fix and is not claimed to be an independent pre-fix red.",
+    "scope_note": "The earlier149-test source binding does not cover the later certified filename edit. Its separate95-test/8-file stable binding does."
+  },
+  "limits": [
+    "The old provider-blocked exit2 receipt never supported acceptance; the fresh complete check replaces it only for the14 named scopes.",
+    "Author-reported39translator/132budget/518project/428certificate differential counts remain author evidence; this reviewer inspected semantic diffs and independently executed the149+95 controls instead of repeating their universal claims.",
+    "Whole Native/project/certified modules, whole import graph, parent TYPE and later semantic/state gates remain unqualified.",
+    "No source/test/gold/baseline/frontier/suppression edits by this reviewer. Later root integration must check the wider evolving producer graph."
+  ]
+}

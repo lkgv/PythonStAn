@@ -1,22 +1,22 @@
-from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Dict, Any
+from abc import abstractmethod
+from typing import override
 
-from pythonstan.graph.cfg import CFGEdge, BaseBlock, ControlFlowGraph
-from pythonstan.ir import *
+from pythonstan.graph.cfg import BaseBlock, CFGEdge, ControlFlowGraph
+from pythonstan.ir import IRScope
+
 from ..analysis import Analysis, AnalysisConfig
+from .execution import DataflowExecution, ScopeFactViews, solve_with_custom_solver
 
-Fact = TypeVar('Fact')
 
-
-class DataflowAnalysis(Generic[Fact], Analysis):
+class DataflowAnalysis[Fact](DataflowExecution):
     is_forward: bool
     scope: IRScope
-    inputs: Dict[str, Any]
+    inputs: dict[str, object]
     cfg: ControlFlowGraph
     inter_procedure: bool
 
     @abstractmethod
-    def __init__(self, scope: IRScope, cfg: ControlFlowGraph, config: AnalysisConfig):
+    def __init__(self, scope: IRScope, cfg: ControlFlowGraph, config: AnalysisConfig) -> None:
         super(Analysis, self.__class__).__init__(config)
         self.cfg = cfg
         self.scope = scope
@@ -51,8 +51,18 @@ class DataflowAnalysis(Generic[Fact], Analysis):
     def get_cfg(self) -> ControlFlowGraph:
         return self.cfg
 
-    def set_input(self, item: str, value: Any):
+    @override
+    def set_input(self, item: str, value: object) -> None:
         self.inputs[item] = value
 
-    def get_input(self, item) -> Any:
+    def get_input(self, item: str) -> object:
         return self.inputs[item]
+
+    @override
+    def execute_scope(self, solver: object) -> ScopeFactViews:
+        from .solver import WorklistSolver
+
+        if solver is WorklistSolver:
+            incoming, outgoing = WorklistSolver[Fact].solve(self)
+            return ScopeFactViews(incoming, outgoing)
+        return solve_with_custom_solver(solver, self)

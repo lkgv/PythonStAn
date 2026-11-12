@@ -103,7 +103,7 @@ class SealedSnapshot:
             raise InspectorError("sealed snapshot requires owned immutable bytes")
 
     @classmethod
-    def seal(cls, data: Mapping[str, Any]):
+    def seal(cls, data: Mapping[str, object]) -> "SealedSnapshot":
         return cls(canonical_bytes(data))
 
     @property

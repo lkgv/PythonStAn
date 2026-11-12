@@ -58,6 +58,18 @@ def source_constant(node: ast.Constant) -> SourceLiteral:
     return _checked_source_literal(value)
 
 
+def make_source_constant(value: SourceLiteral) -> ast.Constant:
+    """Build a Constant with CPython's validated recursive literal payload.
+
+    The host AST API admits tuple and frozenset constants although the stub's
+    constructor annotation lists only scalar payloads. Keep that dynamic AST
+    boundary here; all callers pass the recursively checked SourceLiteral.
+    """
+    constant = ast.Constant(value=None)
+    ast.AST.__setattr__(constant, "value", value)
+    return constant
+
+
 def _location(node: ast.AST) -> tuple[int, int] | None:
     """Validate the CPython AST's dynamic source-position metadata at its boundary."""
     attributes = vars(node)

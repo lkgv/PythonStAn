@@ -1,16 +1,15 @@
-from typing import Dict, List, Any, Tuple, Literal, Generator
 import time
+from collections.abc import Generator
 
-from pythonstan.analysis import AnalysisDriver, AnalysisConfig
-from pythonstan.analysis.analysis import order_analysis_configs
-from pythonstan.ir import IRModule
+from pythonstan.analysis.analysis import AnalysisConfig, AnalysisDriver, order_analysis_configs
+from pythonstan.analysis.closure import ClosureAnalysis
+from pythonstan.analysis.dataflow.driver import DataflowAnalysisDriver
+from pythonstan.analysis.pointer.kcfa.analysis import PointerAnalysis as PointerAnalysisDriver
 
 # Analysis drivers
-from pythonstan.analysis.transform import TransformDriver
-from pythonstan.analysis.dataflow import DataflowAnalysisDriver
-from pythonstan.analysis.pointer import PointerAnalysisDriver
-from pythonstan.analysis.pointer.ai.analysis import AIAnalysisDriver
-from pythonstan.analysis.closure import ClosureAnalysis
+from pythonstan.analysis.transform.driver import TransformDriver
+from pythonstan.compat.legacy_ai.analysis import AIAnalysisDriver
+from pythonstan.ir import IRModule
 
 DEFAULT_ANALYSIS = [
     AnalysisConfig(name="three address", id="ThreeAddress", options={"type": "transform"}),
@@ -30,10 +29,10 @@ DEFAULT_ANALYSIS = [
 
 
 class AnalysisManager:
-    prev_analyzers: Dict[str, List[str]]
-    next_analyzers: Dict[str, List[str]]
-    analysis_configs: List[AnalysisConfig]
-    analyzers: Dict[str, AnalysisDriver]
+    prev_analyzers: dict[str, list[str]]
+    next_analyzers: dict[str, list[str]]
+    analysis_configs: list[AnalysisConfig]
+    analyzers: dict[str, AnalysisDriver]
     results: dict[str, object]
     time_count: bool
 
@@ -48,7 +47,7 @@ class AnalysisManager:
         self.analyzers = {}
         self.results = {}
 
-    def build(self, configs: List[AnalysisConfig]):
+    def build(self, configs: list[AnalysisConfig]) -> None:
         self.reset()
         for config in order_analysis_configs([*DEFAULT_ANALYSIS, *configs]):
             self.add_analyzer(config)
@@ -70,6 +69,7 @@ class AnalysisManager:
             self.next_analyzers.setdefault(prev_name, []).append(name)
 
     def gen_analyzer(self, config: AnalysisConfig) -> AnalysisDriver:
+        analyzer: AnalysisDriver
         if config.type == "transform":
             analyzer = TransformDriver(config)
         elif config.type == "dataflow analysis":
@@ -119,7 +119,7 @@ class AnalysisManager:
             if config not in DEFAULT_ANALYSIS:
                 yield self.analyzers[config.name]
 
-    def get_analyzer(self, name):
+    def get_analyzer(self, name: str) -> AnalysisDriver:
         return self.analyzers[name]
 
     def get_results(self, name: str) -> object:

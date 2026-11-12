@@ -880,9 +880,7 @@ def infer_candidate(source: str, *, max_iterations: int = 1000) -> ProgramCertif
     raise InferenceUnknown("inference iteration budget exhausted")
 
 
-def check_source(
-    source: str, candidate: ProgramCertificate | Mapping[str, object], *, max_iterations: int = 1000
-) -> CheckResult:
+def check_source(source: str, candidate: object, *, max_iterations: int = 1000) -> CheckResult:
     """Check a complete source-bound vector without trusting its producer."""
     try:
         digest = source_digest(source) if type(source) is str else ""

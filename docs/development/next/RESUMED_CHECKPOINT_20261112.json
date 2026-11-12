@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-12",
+  "timezone": "Asia/Shanghai",
+  "phase": "W1 resumed actual execution contracts",
+  "status": "running_not_qualified",
+  "recovered_from_remote_interruption_commit": "e126cf9db8e37c060cad78814cb51e2c2641169d",
+  "workspace_preserved": true,
+  "source_files": 795,
+  "source_manifest_sha256": "18dec3f96c7dcaea672eaee38f713a384c128ae0d94019e2144986520328c676",
+  "original_stage": {
+    "passed": 1001,
+    "exit_code": 0,
+    "seconds": 88.51,
+    "source_stable": true
+  },
+  "audit3_controls": {
+    "passed": 4114,
+    "exit_code": 0,
+    "seconds": 39.197,
+    "source_stable": true,
+    "separate_frozen_red_suites": [
+      "test_domain_mandatory.py",
+      "test_native_mandatory.py"
+    ],
+    "scope_note": "Mandatory red repair obligations remain unchanged and are not counted green."
+  },
+  "canonical_core": {
+    "modules": 98,
+    "source_stable": true,
+    "checks": {
+      "ordinary": {
+        "exit_code": 1,
+        "all_errors": 1412,
+        "core_errors": 0
+      },
+      "any_expr": {
+        "exit_code": 1,
+        "all_errors": 4947,
+        "core_errors": 0
+      },
+      "ruff": {
+        "exit_code": 0,
+        "all_errors": 0,
+        "core_errors": 0
+      }
+    },
+    "scope_note": "Own-module zero with normal imported diagnostics retained; not whole-tree strict."
+  },
+  "quality": {
+    "passed": false,
+    "diagnostic_counts": {
+      "format": 109,
+      "ruff": 3715,
+      "mypy": 3431
+    },
+    "added_diagnostics": 43,
+    "modified_unit_diagnostics": 136,
+    "resolved_diagnostics": 15884,
+    "negative_controls_passed": true,
+    "whole_tree_mypy_clean": false
+  },
+  "debt_ledger_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+  "qualifications": {
+    "type_01_verified": false,
+    "core_qualified": false,
+    "scale_qualified": false,
+    "release_qualified": false,
+    "live_llm_requests": 0
+  },
+  "historical_checks_not_green": [
+    "Inherited Native 4 failures reproduced at clean31d0811",
+    "Native dict arity 8 failures reproduced at clean31d0811",
+    "Inspector12 missing benchmark module failures reproduced at clean0f19ceb",
+    "Context/legacy11 failures match clean0f19ceb",
+    "Expanded Meta.__new__ construction case timed out at90s; not qualified"
+  ],
+  "remaining_obligations": [
+    "Clear43 new and136 modified-unit quality diagnostics without baseline reset or suppressions",
+    "Finish actual Native state/heap/IRTranslator and legacy driver consumers",
+    "Finish Inspector cold-batch consumer and modified helper formatting",
+    "Expand reviewed whole-module frontier and complete TYPE-01 acceptance before dependent repair cards",
+    "Preserve frozen mandatory semantic/domain/Native repair witnesses and execute remaining task dependencies",
+    "Keep live LLM behind offline semantic and independent audit gates; read future credentials only from environment"
+  ],
+  "review_records": [
+    "docs/development/next/reviews/TYPE-01-resume-integration.md",
+    "docs/development/next/reviews/TYPE-01-dataflow-execution.md",
+    "docs/development/next/reviews/TYPE-01-inspector-capture-types.md",
+    "docs/development/next/world_project_independent_resume_review.json",
+    "docs/development/next/host_boundary_independent_review.json",
+    "docs/development/next/context_legacy_resume_review.json"
+  ],
+  "evidence": "docs/development/next/evidence/resume_current_20261112",
+  "remote_target": "dev-cocktail-analysis only; non-force expected-SHA update and exact tree comparison",
+  "source_manifest_algorithm": "SHA256(json.dumps(source_sha256, sort_keys=True).encode('utf-8'))"
+}

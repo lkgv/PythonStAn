@@ -4,7 +4,6 @@ Defines AbsVal (reduced product of pluggable domains) and common
 bridge operations used by the interpreter and heap model.
 """
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Optional, override
 
@@ -14,6 +13,7 @@ from pythonstan.analysis.domains.ints import IntLattice
 from pythonstan.analysis.domains.none import NoneLattice
 from pythonstan.analysis.domains.strings import StrLattice
 from pythonstan.analysis.pointer.kcfa.object import AbstractObject, summarize_object
+from pythonstan.compat.host_iteration import iter_objects
 from pythonstan.compat.legacy_ai.domains.base import create_default_registry
 from pythonstan.compat.legacy_ai.domains.binding import bind_descriptor, to_callable_targets
 
@@ -74,11 +74,16 @@ def _boolean_element(value: object) -> BoolLattice:
 
 def _legacy_string_constants(value: object) -> frozenset[str]:
     """Decode the legacy iterable argument without leaking unchecked elements."""
-    if not isinstance(value, Iterable):
-        raise TypeError("str_const must be an iterable of strings or None")
+    try:
+        items = iter_objects(value)
+    except TypeError as error:
+        raise TypeError("str_const must be an iterable of strings or None") from error
     constants: set[str] = set()
-    items: Iterable[object] = value
-    for item in items:
+    while True:
+        try:
+            item = next(items)
+        except StopIteration:
+            break
         if not isinstance(item, str):
             raise TypeError("str_const elements must be strings")
         constants.add(item)

@@ -1,0 +1,13 @@
+Independent review accepted the Native worker/services and the stated modified upstream functions after three compatibility corrections. There is no authored-source or function overlap with the reviewer’s recent strong cleanups.
+
+The review found and independently reproduced three regressions: Pipeline coerced a list of pairs into an accepted configuration, PathLike-raised TypeError escaped its historical ValueError wrapper, and a non-string equality object passed AnalysisConfig’s string literal match. Their actual owners corrected each path. The final negative probes reject the non-mapping and equality pretender, preserve the path error and cause, and admit normal strings, string subclasses, Path/PathLike and UserDict inputs.
+
+Final validation passed 76 real process/configuration/Pipeline/source controls in 6.29 seconds with all 15 hashes stable. Ordinary strict checking has zero diagnostics in the complete worker/services/new-test files and the exact selected upstream function bodies; the full command exits 1 and retains 3,614 imported diagnostic records. The actual AST function scope and raw results are in `artifacts/next/evidence/N4-TYPE-01/native-worker-independent/final.receipt.json`.
+
+Seven fresh import orders passed without preloading. A ten-case isolated process replay compares the exact old worker with the current worker on common current services. Structured values, identities, statuses, calls/effects, progress/result frames, residual multiplicity and work counters agree. The recorded normalizations cover wall-clock fields, private process addresses, generated materialization paths and unordered residual-list presentation; the original differences remain available. Raw SDK input tuple/alias/cycle/top-marker behavior was independently compared with `deepcopy(dict(bindings))`.
+
+Actual World/Pipeline/Native query objects remain the implementation. Residual getters preserve absence and do not activate storage; source metadata and inputs are fixed before execution. Unknown callbacks, havoc, exceptions and constraint convergence retain open source coverage. Worker/services/new tests pass Ruff; all 15 files pass formatting.
+
+The acceptance scope is the complete worker/services/new tests and the qualified functions in the handoff. Other support methods, including the unselected World Config constructor and Pipeline traversal methods, remain inherited typing debt. This review does not qualify the entire Native/import graph or close a parent TYPE/COMP/STATE card. No production, test or gold edits were made by the reviewer.
+
+Full source hashes, findings, precise scope and commands: `artifacts/next/evidence/N4-TYPE-01/native-worker-independent/review.json`.

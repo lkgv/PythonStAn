@@ -4,49 +4,50 @@ This module defines the state maintained during pointer analysis including
 the environment (variable points-to sets) and heap (object field points-to sets).
 """
 
-from calendar import c
-from dataclasses import dataclass
-from enum import Enum
-from typing import (
-    Dict,
-    FrozenSet,
-    Tuple,
-    Set,
-    Optional,
-    Iterable,
-    Any,
-    List,
-    TYPE_CHECKING,
-    Union,
-    Deque,
-)
 from collections import defaultdict, deque
 from collections.abc import Hashable
-from queue import Queue
+from enum import Enum
+from typing import TYPE_CHECKING, Literal, Optional, overload, override
 
+from pythonstan.analysis.contracts.json_data import JsonObject, JsonValue
+from pythonstan.graph.call_graph.call_edge import CallEdge
+from pythonstan.graph.call_graph.call_graph import AbstractCallGraph
+from pythonstan.ir.ir_statements import IRModule, IRScope
 from pythonstan.utils.common import Box
-from pythonstan.ir.ir_statements import IRModule, IRStatement, IRScope
-from pythonstan.graph.call_graph import AbstractCallGraph, CallEdge
-from .object import *
-from .object import FunctionObject
-from .variable import VariableFactory, VariableKind, FieldAccess, Variable
-from .context import CallSite, Ctx, AbstractContext, Scope
-from .constraints import ConstraintManager, Constraint, InheritanceConstraint
-from .heap_model import HeapModel, Field, FieldKind, unknown
+
+from .constraints import Constraint, ConstraintManager, InheritanceConstraint
+from .context import CallSite, Ctx, NativeContext, Scope
+from .debug_boundary import feature, record_points_to_update
+from .heap_model import Field, FieldKind, HeapModel, unknown
+from .object import (
+    AbstractObject,
+    BuiltinClassObject,
+    AllocSite,
+    AsyncGeneratorObject,
+    ClassObject,
+    CoroutineObject,
+    FunctionObject,
+    GeneratorObject,
+    InstanceObject,
+    ModuleObject,
+    SuperObject,
+    is_summary_object,
+    summarize_object,
+)
 from .pointer_flow_graph import (
-    PointerFlowGraph,
-    NormalNode,
-    GuardNode,
-    SelectorNode,
     InheritanceSelectorNode,
+    NormalNode,
     PointerFlowEdge,
-    PointerFlowNode,
+    PointerFlowGraph,
     PointerFlowKind,
+    PointerFlowNode,
 )
 from .points_to_set import PointsToSet
+from .variable import FieldAccess, Variable, VariableFactory, VariableKind
 
 if TYPE_CHECKING:
     from pythonstan.world.scope_manager import ScopeManager
+    from .allocation import AllocationPolicyRegistry
     from .unknown_effects import UnknownEffects
     from .worklist import ConsumerFairWorklist
 
@@ -60,28 +61,37 @@ class _MissingWorkItem(Enum):
 _WORKLIST_MISSING = _MissingWorkItem.TOKEN
 
 type NativePendingItem = tuple[Scope | None, PointerFlowNode, Box[PointsToSet]]
+type NativePointsKey = Ctx[Variable | FieldAccess] | PointerFlowNode | Variable | FieldAccess
+
+
+def _lexical_capture_owner(obj: AbstractObject) -> AbstractObject:
+    if isinstance(obj, (GeneratorObject, CoroutineObject, AsyncGeneratorObject)):
+        return obj.func_obj
+    return obj
 
 
 # TODO to be done
 class PointerCallGraph(AbstractCallGraph[Ctx[CallSite], Scope]):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.visited_edges = set()
-        self.plain_edges = set()
-        self.non_empty = set()
+        self.visited_edges: set[tuple[Ctx[CallSite], Scope]] = set()
+        self.plain_edges: set[tuple[CallSite, IRScope]] = set()
+        self.non_empty: set[IRScope] = set()
 
-    def add_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
+    @override
+    def add_edge(self, edge: CallEdge[Ctx[CallSite], Scope]) -> None:
         super().add_edge(edge)
         self.visited_edges.add((edge.callsite, edge.callee))
         self.plain_edges.add((edge.callsite.content, edge.callee.stmt))
         self.non_empty.add(edge.callee.stmt)
 
-    def has_edge(self, edge: CallEdge[Ctx[IRStatement], Scope]):
+    @override
+    def has_edge(self, edge: CallEdge[Ctx[CallSite], Scope]) -> bool:
         if (edge.callsite, edge.callee) in self.visited_edges:
             return True
         return False
 
-    def num_plain_edges(self):
+    def num_plain_edges(self) -> int:
         return len(self.plain_edges)
 
 
@@ -155,47 +165,48 @@ class PointerAnalysisState:
     field points-to information), call graph, and constraint manager.
     """
 
+    _builtin_exception_classes: dict[str, BuiltinClassObject]
     _residual_effects: dict[Hashable, dict[str, object]]
     _consumer_worklist: "ConsumerFairWorklist | None"
 
-    def __init__(self, debug_monitor=None):
+    def __init__(self, debug_monitor: object | None = None) -> None:
         """Initialize empty analysis state.
 
         Args:
             debug_monitor: Optional DebugMonitor instance for tracking
         """
-        self.allocation_policy = None
-        self.source_metadata = {}
-        self.input_bindings = {}
-        self._input_seeded = set()
-        self.synthetic_method_roots = []
+        self.allocation_policy: AllocationPolicyRegistry | None = None
+        self.source_metadata: dict[str, dict[str, str]] = {}
+        self.input_bindings: dict[str, object] = {}
+        self._input_seeded: set[Scope] = set()
+        self.synthetic_method_roots: list[JsonObject] = []
         self.unknown_effects: UnknownEffects | None = None
-        self._env: Dict[Ctx[Variable | FieldAccess] | PointerFlowNode, PointsToSet] = {}
+        self._env: dict[NativePointsKey, PointsToSet] = {}
         self._heap = HeapModel()
         self._call_graph: "PointerCallGraph" = PointerCallGraph()
         self._constraints: ConstraintManager = ConstraintManager()
-        self._call_edges = []  # List of CallEdge objects tracked during analysis
+        self._call_edges: list[CallEdge[Ctx[CallSite], Scope]] = []
         self._pointer_flow_graph: PointerFlowGraph = PointerFlowGraph()
-        self._field_accesses: Dict[Tuple["AbstractObject", "Field"], FieldAccess] = {}
+        self._field_accesses: dict[tuple["AbstractObject", "Field"], FieldAccess] = {}
         # Field slots only grow through set_field. Preserve each object's
         # creation order so snapshot models need not rescan every heap slot.
-        self._known_fields_by_object: Dict["AbstractObject", Dict["Field", None]] = {}
+        self._known_fields_by_object: dict["AbstractObject", dict["Field", None]] = {}
         self._variable_factory: VariableFactory = VariableFactory()
-        self._worklist: Worklist = Worklist()
+        self._worklist: Worklist | ConsumerFairWorklist = Worklist()
         self._consumer_worklist = None
         # append/pop retains the historical LIFO policy; fair arbitration uses
         # popleft without copying or shifting all pending constraints.
-        self._static_constraints: Deque[Tuple["Scope", "AbstractContext", "Constraint"]] = deque()
-        self._internal_scope = {}
-        self.obj_scope = {}
-        self._module_unknown_fields = defaultdict(set)
+        self._static_constraints: deque[tuple[Scope, NativeContext, Constraint]] = deque()
+        self._internal_scope: dict[AbstractObject, Scope] = {}
+        self.obj_scope: dict[AbstractObject, Scope] = {}
+        self._module_unknown_fields: defaultdict[IRScope, set[Ctx[FieldAccess]]] = defaultdict(set)
 
         # Debug monitoring
         self._debug_monitor = debug_monitor
 
         # Note: scope_manager is set lazily when needed
-        self._scope_manager = None
-        self.entry_module = None
+        self._scope_manager: ScopeManager | None = None
+        self.entry_module: IRModule | None = None
 
     def peek_residual_effects(self) -> dict[Hashable, dict[str, object]] | None:
         """Observe optional solver-owned diagnostics without activating storage."""
@@ -204,20 +215,47 @@ class PointerAnalysisState:
         except AttributeError:
             return None
 
-    def select_allocation_context(self, context, site, alloc_type=None, *, identity="fresh"):
+    @overload
+    def select_allocation_context(
+        self,
+        context: NativeContext,
+        site: AllocSite,
+        alloc_type: AbstractObject | None = None,
+        *,
+        identity: str = "fresh",
+    ) -> NativeContext: ...
+
+    @overload
+    def select_allocation_context(
+        self,
+        context: None,
+        site: AllocSite,
+        alloc_type: AbstractObject | None = None,
+        *,
+        identity: str = "fresh",
+    ) -> NativeContext | None: ...
+
+    def select_allocation_context(
+        self,
+        context: NativeContext | None,
+        site: AllocSite,
+        alloc_type: AbstractObject | None = None,
+        *,
+        identity: str = "fresh",
+    ) -> NativeContext | None:
         """Run-local allocation boundary, injected by the native solver."""
         if self.allocation_policy is None:
             return context
         return self.allocation_policy.select(context, site, alloc_type, identity=identity)
 
-    def apply_unknown_effects(self, scope, top_object, origin):
+    def apply_unknown_effects(self, scope: Scope, top_object: AbstractObject, origin: str) -> None:
         if self.unknown_effects is None:
             from .unknown_effects import UnknownEffects
 
             self.unknown_effects = UnknownEffects(self)
         self.unknown_effects.install(scope, top_object, origin)
 
-    def set_internal_scope(self, obj, scope):
+    def set_internal_scope(self, obj: AbstractObject, scope: Scope) -> None:
         self._internal_scope[obj] = scope
 
     def is_module_export(self, module, name):
@@ -243,11 +281,11 @@ class PointerAnalysisState:
             for wildcard in self._module_unknown_fields.get(module, ()):
                 self._add_var_points_flow(variable, wildcard)
 
-    def get_internal_scope(self, obj) -> Scope:
+    def get_internal_scope(self, obj: AbstractObject) -> Scope | None:
         return self._internal_scope.get(obj, None)
 
-    def get_scopes_for_ir(self, ir_scope: IRScope) -> List[Scope]:
-        scopes: List[Scope] = []
+    def get_scopes_for_ir(self, ir_scope: IRScope) -> list[Scope]:
+        scopes: list[Scope] = []
         for scope in self._internal_scope.values():
             if scope.stmt == ir_scope:
                 scopes.append(scope)
@@ -259,8 +297,8 @@ class PointerAnalysisState:
     def get_scope_for_ir(
         self,
         ir_scope: IRScope,
-        context: Optional["AbstractContext"] = None,
-    ) -> Optional[Scope]:
+        context: "NativeContext | None" = None,
+    ) -> Scope | None:
         scopes = self.get_scopes_for_ir(ir_scope)
         if context is None:
             return scopes[0] if scopes else None
@@ -269,14 +307,14 @@ class PointerAnalysisState:
                 return scope
         return None
 
-    def get_all_ctx_vars_for(self, scope: Scope, var: "Variable") -> List["Ctx[Variable]"]:
+    def get_all_ctx_vars_for(self, scope: Scope, var: "Variable") -> list["Ctx[Variable]"]:
         scopes = self.get_scopes_for_ir(scope.stmt)
-        ctx_vars: List["Ctx[Variable]"] = []
+        ctx_vars: list["Ctx[Variable]"] = []
         for scoped in scopes:
             ctx_vars.append(self.get_variable(scoped, scoped.context, var))
         return ctx_vars
 
-    def get_points_to(self, var: Union["Ctx[Any]", "PointerFlowNode"]) -> PointsToSet:
+    def get_points_to(self, var: NativePointsKey | None) -> PointsToSet:
         """Get points-to set for variable.
 
         Args:
@@ -285,9 +323,11 @@ class PointerAnalysisState:
         Returns:
             Points-to set for variable (empty if not found)
         """
+        if var is None:
+            return PointsToSet.empty()
         return self._env.get(var, PointsToSet.empty())
 
-    def set_points_to(self, var: Union["Ctx[Any]", "PointerFlowNode"], pts: PointsToSet) -> bool:
+    def set_points_to(self, var: NativePointsKey, pts: PointsToSet) -> bool:
         """Set points-to set for variable.
 
         Performs union with existing points-to set.
@@ -306,10 +346,11 @@ class PointerAnalysisState:
             self._env[var] = new_pts
 
             # Debug monitoring
-            if self._debug_monitor and self._debug_monitor.enabled:
+            if self._debug_monitor and feature(self._debug_monitor, "enabled"):
                 diff = new_pts - old_pts
                 added_objs = [str(obj) for obj in diff]
-                self._debug_monitor.record_points_to_update(
+                record_points_to_update(
+                    self._debug_monitor,
                     variable_str=str(var),
                     old_size=len(old_pts),
                     new_size=len(new_pts),
@@ -319,7 +360,7 @@ class PointerAnalysisState:
             return True
         return False
 
-    def known_fields_for_object(self, obj: "AbstractObject") -> Tuple["Field", ...]:
+    def known_fields_for_object(self, obj: "AbstractObject") -> tuple["Field", ...]:
         """Snapshot existing slots, including empty read-created slots.
 
         This indexes slot creation, not key presence or nonempty values. The
@@ -329,7 +370,11 @@ class PointerAnalysisState:
         return tuple(self._known_fields_by_object.get(obj, ()))
 
     def has_field(
-        self, scope: "Scope", context: "AbstractContext", obj: "AbstractObject", field: "Field"
+        self,
+        scope: "Scope | None",
+        context: "NativeContext | None",
+        obj: "AbstractObject",
+        field: "Field",
     ) -> Optional["FieldAccess"]:
         """Check if the field access exists in the object.
 
@@ -348,7 +393,7 @@ class PointerAnalysisState:
     def get_field(
         self,
         scope: "Scope | None",
-        context: "AbstractContext",
+        context: "NativeContext | None",
         obj: "AbstractObject",
         field: "Field",
     ) -> "Ctx[FieldAccess]":
@@ -455,6 +500,7 @@ class PointerAnalysisState:
                     f"cls_obj must be a ClassObject, but got {type(cls_obj)}"
                 )
                 cls_scope = self.get_internal_scope(cls_obj)
+                assert cls_scope is not None, "Class field lookup requires its registered scope"
                 cls_field = self.get_field(cls_scope, cls_scope.context, cls_obj, field)
                 assert cls_field != cfield, (
                     f"cls_field {cls_field} and cfield {cfield} should not be the same"
@@ -472,7 +518,8 @@ class PointerAnalysisState:
                 if field.kind == FieldKind.ATTRIBUTE:
                     wildcard = self.get_field(scope, context, obj, unknown())
                     self._add_var_points_flow(wildcard, cfield)
-                bases = obj.alloc_site.stmt.get_bases()
+                class_source = obj.alloc_site.require_class_source()
+                bases = class_source.get_bases()
                 scope = obj.container_scope
 
                 if len(bases) > 0:
@@ -484,7 +531,7 @@ class PointerAnalysisState:
                     self._add_points_flow_edge(inherit_edge)
 
                     for idx, base in enumerate(bases):
-                        resolved = getattr(obj.ir, "_kcfa_base_variables", ())
+                        resolved = obj.ir.peek_base_variables()
                         base_var = (
                             resolved[idx]
                             if idx < len(resolved)
@@ -496,18 +543,18 @@ class PointerAnalysisState:
                             base=base_var, field=field, target=selector, index=idx
                         )
                         added = self._constraints.add(scope, base_ctx_var, inherit_constraint)
-                        if added and getattr(self, "_consumer_worklist", None) is not None:
-                            self._consumer_worklist.promote(NormalNode(base_ctx_var))
+                        consumer_worklist = self._consumer_worklist
+                        if added and consumer_worklist is not None:
+                            consumer_worklist.promote(NormalNode(base_ctx_var))
                         # Debug logging
                         import logging
 
                         logger = logging.getLogger(__name__)
-                        from pythonstan.analysis.pointer.kcfa.analysis import PointerAnalysis
 
                         # Check if debug_inheritance is enabled (access through solver if possible)
                         # For now, log at debug level
                         logger.debug(
-                            f"[INHERIT] Created InheritanceConstraint for {obj.alloc_site.stmt.name}.{field} from base {base.id}"
+                            f"[INHERIT] Created InheritanceConstraint for {class_source.name}.{field} from base {base.id}"
                         )
 
                         # CRITICAL FIX: If the base variable already has objects in its points-to set,
@@ -552,7 +599,7 @@ class PointerAnalysisState:
     def get_write_field(
         self,
         scope: "Scope | None",
-        context: "AbstractContext",
+        context: "NativeContext | None",
         obj: "AbstractObject",
         field: "Field",
     ) -> "Ctx[FieldAccess]":
@@ -569,7 +616,7 @@ class PointerAnalysisState:
             self.get_field(scope, context, obj, Field(FieldKind.ATTRIBUTE, field.name))
         return target
 
-    def _get_builtin_methods_for_type(self, builtin_type: str) -> Set[str]:
+    def _get_builtin_methods_for_type(self, builtin_type: str) -> set[str]:
         """Get the set of known methods for a builtin type.
 
         Args:
@@ -698,7 +745,7 @@ class PointerAnalysisState:
     def set_field(
         self,
         scope: "Scope | None",
-        context: "AbstractContext",
+        context: "NativeContext | None",
         obj: "AbstractObject",
         field: "Field",
         field_access: "FieldAccess",
@@ -775,27 +822,40 @@ class PointerAnalysisState:
         return self._call_graph
 
     def get_variable(
-        self, scope: "Scope", context: "AbstractContext", var: "Variable"
+        self, scope: "Scope", context: "NativeContext | None", var: "Variable"
     ) -> "Ctx[Variable]":
         return self._resolve_variable(scope, context, var, create=True)
 
-    def find_variable(self, scope, context, var):
+    def find_variable(
+        self, scope: Scope, context: NativeContext | None, var: Variable
+    ) -> Ctx[Variable] | None:
         """Read an existing binding without creating slots or propagation work."""
         return self._resolve_variable(scope, context, var, create=False)
 
-    def _resolve_variable(self, scope, context, var, *, create):
+    @overload
+    def _resolve_variable(
+        self, scope: Scope, context: NativeContext | None, var: Variable, *, create: Literal[True]
+    ) -> Ctx[Variable]: ...
+
+    @overload
+    def _resolve_variable(
+        self, scope: Scope, context: NativeContext | None, var: Variable, *, create: Literal[False]
+    ) -> Ctx[Variable] | None: ...
+
+    def _resolve_variable(
+        self, scope: Scope, context: NativeContext | None, var: Variable, *, create: bool
+    ) -> Ctx[Variable] | None:
         owner_scope = scope
         owner_context = context
-        var_kind = getattr(var, "kind", VariableKind.LOCAL)
+        var_kind = var.kind
 
         if var_kind == VariableKind.GLOBAL:
             owner_scope = scope.module
             owner_context = scope.module.context
         elif var_kind == VariableKind.NONLOCAL:
-            from .object import FunctionObject, ClassObject
+            from .object import ClassObject, FunctionObject
 
-            capture_owner = getattr(scope, "obj", None)
-            capture_owner = getattr(capture_owner, "func_obj", capture_owner)
+            capture_owner = _lexical_capture_owner(scope.obj)
             if isinstance(capture_owner, (FunctionObject, ClassObject)):
                 captured = self._heap.get_nonlocal_vars(capture_owner).get(var.name)
                 if captured is not None:
@@ -803,12 +863,11 @@ class PointerAnalysisState:
             owner_scope = scope.parent
             owner_context = scope.parent.context
         elif var_kind == VariableKind.CELL:
-            from .object import FunctionObject, ClassObject
+            from .object import ClassObject, FunctionObject
 
             # For closure-captured variables, first try to resolve from the
             # function object's captured cell vars before falling back.
-            func_obj = getattr(scope, "obj", None)
-            func_obj = getattr(func_obj, "func_obj", func_obj)
+            func_obj = _lexical_capture_owner(scope.obj)
             if isinstance(func_obj, (FunctionObject, ClassObject)):
                 captured = self._heap.get_cell_vars(func_obj).get(var.name)
                 if captured is not None:
@@ -835,8 +894,12 @@ class PointerAnalysisState:
         return cvar
 
     def set_variable(
-        self, scope: "Scope", context: "AbstractContext", var: "Variable", ctx_var: "Ctx[Variable]"
-    ):
+        self,
+        scope: "Scope",
+        context: "NativeContext | None",
+        var: "Variable",
+        ctx_var: "Ctx[Variable]",
+    ) -> None:
         self._heap.set_variable(scope, context, var, ctx_var)
         if self.unknown_effects is not None:
             self.unknown_effects.variable_created(ctx_var)
@@ -848,41 +911,51 @@ class PointerAnalysisState:
             for wildcard in self._module_unknown_fields.get(scope.module.stmt, ()):
                 self._add_var_points_flow(ctx_var, wildcard)
 
-    def get_cell_var(self, obj: FunctionObject, name: str) -> Optional[Ctx["Variable"]]:
+    def get_cell_var(self, obj: FunctionObject | ClassObject, name: str) -> Ctx["Variable"] | None:
         return self._heap.get_cell_vars(obj).get(name, None)
 
-    def get_nonlocal_var(self, obj: FunctionObject, name: str) -> Optional[Ctx["Variable"]]:
+    def get_nonlocal_var(
+        self, obj: FunctionObject | ClassObject, name: str
+    ) -> Ctx["Variable"] | None:
         return self._heap.get_nonlocal_vars(obj).get(name, None)
 
-    def get_global_var(self, obj: FunctionObject, name: str) -> Optional[Ctx["Variable"]]:
+    def get_global_var(
+        self, obj: FunctionObject | ClassObject, name: str
+    ) -> Ctx["Variable"] | None:
         return self._heap.get_global_vars(obj).get(name, None)
 
-    def get_cell_vars(self, obj: FunctionObject) -> Dict[str, Ctx["Variable"]]:
+    def get_cell_vars(self, obj: FunctionObject | ClassObject) -> dict[str, Ctx["Variable"]]:
         return self._heap.get_cell_vars(obj)
 
-    def get_nonlocal_vars(self, obj: FunctionObject) -> Dict[str, Ctx["Variable"]]:
+    def get_nonlocal_vars(self, obj: FunctionObject | ClassObject) -> dict[str, Ctx["Variable"]]:
         return self._heap.get_nonlocal_vars(obj)
 
-    def get_global_vars(self, obj: FunctionObject) -> Dict[str, Ctx["Variable"]]:
+    def get_global_vars(self, obj: FunctionObject | ClassObject) -> dict[str, Ctx["Variable"]]:
         return self._heap.get_global_vars(obj)
 
-    def set_cell_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
+    def set_cell_vars(
+        self, obj: FunctionObject | ClassObject, vars: dict[str, Ctx[Variable]]
+    ) -> None:
         self._heap.cell_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
 
-    def set_nonlocal_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
+    def set_nonlocal_vars(
+        self, obj: FunctionObject | ClassObject, vars: dict[str, Ctx[Variable]]
+    ) -> None:
         self._heap.nonlocal_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
 
-    def set_global_vars(self, obj: FunctionObject, vars: dict[str, Ctx[Variable]]) -> None:
+    def set_global_vars(
+        self, obj: FunctionObject | ClassObject, vars: dict[str, Ctx[Variable]]
+    ) -> None:
         self._heap.global_vars[obj] = vars
         if self.unknown_effects is not None:
             self.unknown_effects.captures_created(vars)
 
     def _get_variable_direct(
-        self, scope: "Scope", context: "AbstractContext", var_name: str, var_kind: VariableKind
+        self, scope: "Scope", context: "NativeContext | None", var_name: str, var_kind: VariableKind
     ) -> Optional["Ctx[Variable]"]:
         assert isinstance(var_name, str), f"var_name must be a string, but got {type(var_name)}"
 
@@ -915,7 +988,7 @@ class PointerAnalysisState:
                     scope = tgt.var.scope
                 self._worklist.add((scope, tgt, pts))
 
-    def get_statistics(self) -> Dict[str, int]:
+    def get_statistics(self) -> dict[str, int]:
         """Get state statistics.
 
         Returns:
@@ -948,7 +1021,7 @@ class PointerAnalysisState:
             "num_call_edges": self._call_graph.num_plain_edges(),
         }
 
-    def get_detailed_statistics(self) -> Dict[str, Any]:
+    def get_detailed_statistics(self) -> JsonObject:
         """Get detailed state statistics for debugging.
 
         Returns:
@@ -962,9 +1035,9 @@ class PointerAnalysisState:
 
         # Collect points-to set sizes
         pts_sizes = []
-        empty_vars = []
-        singleton_vars = []
-        large_vars = []  # > 10 objects
+        empty_vars: list[JsonValue] = []
+        singleton_vars: list[JsonValue] = []
+        large_vars: list[JsonValue] = []  # > 10 objects
 
         for var, pts in self._env.items():
             size = len(pts)
@@ -978,7 +1051,7 @@ class PointerAnalysisState:
                 large_vars.append(str(var))
 
         # Size distribution
-        size_dist = defaultdict(int)
+        size_dist: defaultdict[str, int] = defaultdict(int)
         for size in pts_sizes:
             if size == 0:
                 bucket = "0"
@@ -995,8 +1068,8 @@ class PointerAnalysisState:
             size_dist[bucket] += 1
 
         # Object type breakdown
-        obj_by_kind = defaultdict(int)
-        all_objects = set()
+        obj_by_kind: defaultdict[str, int] = defaultdict(int)
+        all_objects: set[AbstractObject] = set()
         for pts in self._env.values():
             for obj in pts:
                 all_objects.add(obj)
