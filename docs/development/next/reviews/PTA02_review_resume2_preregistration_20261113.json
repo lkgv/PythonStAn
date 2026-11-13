@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "role": "independent reviewer; no production edits",
+  "base": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "test": "tests/regression/audit3/test_pta02_review_resume2.py",
+  "oracle": "Independent finite concretization reads scalar fields, Must/missing/default and independent cardinality metadata; never candidate Store.leq/join or transfer-generated expected state. CPython only for concrete fixture values.",
+  "budget": {"max_work": 10000, "max_seconds": 2, "max_memory_mb": 512},
+  "cases": [
+    {"id": "strong_insert", "statement": "d[0]=9", "before": [{"1": 1}], "after": [{"1": 1, "0": 9}], "must_length": 2},
+    {"id": "weak_insert", "statement": "d[0]=9", "before": [{"1": 1}], "after": [{"1": 1}, {"1": 1, "0": 9}], "must_cover_lengths": [1,2]},
+    {"id": "must_overwrite", "statement": "d[1]=9", "before": [{"1": 1}], "after": [{"1": 9}], "must_length": 1},
+    {"id": "weak_must_overwrite", "statement": "d[1]=9", "before": [{"1": 1}], "after": [{"1": 1}, {"1": 9}], "must_length": 1},
+    {"id": "maybe_present", "statement": "d[0]=9", "before": [{"1": 1}, {"1": 1, "0": 8}], "after": [{"1": 1}, {"1": 1,"0": 9}], "must_cover_lengths": [1,2]},
+    {"id": "default_unknown_presence", "statement": "d[0]=9", "before": [{"1": 1}, {"1": 1,"0": 8}], "after": [{"1": 1}, {"1": 1,"0": 9}], "must_cover_lengths": [1,2]},
+    {"id": "boolean_integer_duplicate", "statement": "d[True]=9", "before": [{"1": 1}], "after": [{"1": 9}], "must_length": 1},
+    {"id": "two_literal_singletons", "statements": ["d={key:1}", "d={key:1}"], "key_alternatives": [0,1], "must_length": 1, "not_length": 2},
+    {"id": "literal_exception_prefix", "source": "d={'keep':1}; try d={0:2,1:missing} except NameError: result=d['keep']", "expected": 1},
+    {"id": "independent_oracle_negative_controls", "purpose": "A false exact length and false Must key each exclude a reachable map, proving oracle is not vacuous."}
+  ],
+  "qualification": "Finite regression evidence only; no full Native or soundness proof; original caps/gold/tests unchanged. Written before any new analyzer executions."
+}

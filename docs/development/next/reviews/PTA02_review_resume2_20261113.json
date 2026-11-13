@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "sem_pta_review_resume2",
+  "status": "bounded_independent_pta_controls_green",
+  "test": "tests/regression/audit3/test_pta02_review_resume2.py",
+  "preregistration": "docs/development/next/reviews/PTA02_review_resume2_preregistration_20261113.json",
+  "current_result": {
+    "passed": 11,
+    "failed": 0,
+    "seconds": 0.23,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/analysis/composition/region_engine.py": "7c39adf5b187c5704e88383fc8dec1f7a35e4c6207f9454d68a70abf7f080c1a",
+      "pythonstan/analysis/composition/state_adapter.py": "db11939d4026e4860ee68296fb04743396f69db7598f69b766b1bd1a9ec0fbe1",
+      "pythonstan/analysis/state/store.py": "b82b2aba76d9c8d306a3bb5018ef10443f98ad7d287f75ac114b72271afb0437",
+      "pythonstan/analysis/state/transform.py": "9110202100871f5f441327e4f4c4843c2e86a93e3e5e62f66b6e8d6bb3fe16d1",
+      "tests/regression/audit3/test_pta02_review_resume2.py": "14073a4ebf3873b3726bfe6c221c3d0cbce3717b21acea30035912dab7dfe9a6"
+    },
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "tests/regression/audit3/test_pta02_review_resume2.py"
+    ],
+    "stdout_sha256": "73568766c79d2428c7ba8911cc82a9588294497573ed2f582ac5bb56fe219d06"
+  },
+  "meaningful_diagnostics": [
+    {
+      "phase": "initial9",
+      "result": "3 genuine failed,6 passed after correcting two test-only unsupported Value| constructions",
+      "findings": [
+        "Strong new-key insertion retained false exact length1 instead of2.",
+        "Weak insertion and unknown-default insertion falsely made newkey Must, excluding untouched old-alias maps."
+      ],
+      "binding": "Diagnostic baseline only; not reused as final qualified source."
+    },
+    {
+      "phase": "firstheld11",
+      "result": "10 passed,1 genuine failed",
+      "source_stable": true,
+      "source_sha256": {
+        "pythonstan/analysis/composition/region_engine.py": "d5669b2e381c1aae95a40775e3204933923710e0f8681485fe92c44393a16462",
+        "pythonstan/analysis/composition/state_adapter.py": "db11939d4026e4860ee68296fb04743396f69db7598f69b766b1bd1a9ec0fbe1",
+        "pythonstan/analysis/state/store.py": "1fbfdb76889cc1a71eb854207eb978c406fb93034984710158dde9d7c39aff94",
+        "pythonstan/analysis/state/transform.py": "d9eb01c29053f512d824ebc3532c80fe9f6499bb2e7030bdf2e0a865926ed2d7",
+        "tests/regression/audit3/test_pta02_review_resume2.py": "14073a4ebf3873b3726bfe6c221c3d0cbce3717b21acea30035912dab7dfe9a6"
+      },
+      "finding": "Abstract literal key{0,1} used stale local item instead of literal_value after author rename, causing UnboundLocalError.",
+      "stdout_sha256": "147aa494f7f0b18a83554c09e61dcc9f182c56661f7ad7d5c33a12740a621293"
+    },
+    {
+      "phase": "fixedheld11",
+      "result": "11 passed",
+      "change": "One-word production fix by author; independent assertions/gold/budget unchanged."
+    }
+  ],
+  "oracle_scope": "Finite direct Native receiver states +public exception-prefix; independent integer component concretization, key Must/missing/default and cardinality conjunction. Explicit wrong length and wrong Must negative controls prove nonvacuity. No candidate order/join used to compute expected maps. Input IntLattice finite constructors only.",
+  "finite_concrete_worlds": [
+    "stronginsert{1:1,0:9}",
+    "weakold{1:1} and inserted{1:1,0:9}",
+    "Mustoverwrite exact1 length;weakvalue alternatives1/9",
+    "maybe-present/defaultunknown1or2 cardinality",
+    "bool/int samekey overwrite",
+    "repeated literal eachlen1 distinctkeys",
+    "abstractkey literal eachlen1, rejectsbothkeyslen2",
+    "partial dictionary literal NameError preserves prior completed name binding"
+  ],
+  "original_tests_caps_assertions_changed": false,
+  "production_edits_by_reviewer": false,
+  "limitations": [
+    "Only named source files bound, not a whole-tree freeze or full Native soundness proof.",
+    "No complete graph/arena quotient/performance or allNative/card qualification inferred.",
+    "Original frozen mandatory/quality/fullstage remain Root-owned."
+  ],
+  "raw_evidence": "gitignored artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2/pta-*.txt and*.receipt.json",
+  "ruff": 0,
+  "format_check_passed": true
+}

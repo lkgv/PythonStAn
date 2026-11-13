@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "scope": "Reconstructed SEM04 after snapshot rollback; no lost-source hash equality or historical green reused",
+  "test": "tests/regression/audit3/test_sem04_resume2.py",
+  "test_sha256": "12d2b8481a308db34f6e3835aed333173f363e1386ab0d604668002a5ae7f24a",
+  "sequence": "CPython gold before any new analyzer execution; then unchanged initial failures before source edit",
+  "cases": 13,
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512
+  },
+  "sources": [
+    "transfer.comprehension",
+    "semantics/comprehensions.py",
+    "semantics/containers.py typed builder port",
+    "semantics/names.py comprehension target binding scanner"
+  ],
+  "frozen_manifest": "Original AS03 eight and SEM03 controls unchanged",
+  "caps_and_gold_unchanged": true
+}

@@ -53,6 +53,14 @@ class FullStateAdapter:
             state_revision=state.state_revision,
         )
 
+    def merge_literal(
+        self, current: BoundaryObject, contribution: BoundaryObject, operations: ValueOperations
+    ) -> BoundaryObject:
+        """Join into the already detached owner without splitting graph anchors."""
+        current._merge_from(contribution, operations)
+        current.singleton = False
+        return current
+
     def decode(self, boundary: BoundaryState) -> Flow:
         copied = detached_payload(boundary)
         state = copied._store_root if copied._store_root is not None else Store()

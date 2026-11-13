@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "bounded_source_HOLD_for_root_isolated_checkpoint",
+  "task": "N4-PTA-02 Native repeated allocation and dict-write cardinality reconstruction",
+  "base_remote": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "sources_sha256": {
+    "pythonstan/analysis/composition/region_engine.py": "7c39adf5b187c5704e88383fc8dec1f7a35e4c6207f9454d68a70abf7f080c1a",
+    "pythonstan/analysis/composition/state_adapter.py": "db11939d4026e4860ee68296fb04743396f69db7598f69b766b1bd1a9ec0fbe1"
+  },
+  "test": "tests/regression/audit3/test_pta_resume2.py",
+  "test_sha256": "4e27772060762bd6bf079a833a39492b733a657905bbe60d9dc5dbb42c10b452",
+  "preregistration": "docs/development/next/PTA_resume2_preregistration.json",
+  "implementation": [
+    "Resolve the literal identity in the shared arena. Evaluate every key/value/child completely before making the allocation visible, then look up the current canonical owner (children may allocate the same summary identity).",
+    "Merge the complete literal contribution in place with the canonical HeapObject._merge_from on the already detached BoundaryObject. Preserve existing runtime/metadata graph anchors; repeated allocations are nonsingletons.",
+    "Literal dictionary May/Must keys are independent from cardinality. For finite alternative keys each entry adds at most one; lower/upper cardinality treats collisions conservatively. Duplicate bool/int keys normalize through Python builtin-key equality.",
+    "Normalize both allocation contributions to the joined independent cardinality component before canonical metadata join; unrelated incompatible metadata still yields explicit object havoc and the existing Native guard.",
+    "Recreate every merged field version and solve/charge its fact before external oracle publication. No new literal facts leak through an alias while later child expressions can still fail.",
+    "Dictionary assignment groups alternative keys per receiver. Must-present keys preserve cardinality; a singleton definitely absent insertion increments; weak/maybe-presence joins no-insert and one-insert; unknown/default/summary absence never proves insertion. Weak newly-created keys remain maybe-missing.",
+    "Invalidate affected membership guards and keep all default/missing/class/havoc components through the canonical join."
+  ],
+  "fresh_tests": {
+    "corrected_initial_baseline": {
+      "passed": 17,
+      "failed": 7,
+      "new_author_cases": 7,
+      "original_native_cases": 17,
+      "raw": "artifacts/next/evidence/PTA_resume2/baseline-corrected.log"
+    },
+    "baseline_fixture_note": "An initial author-only setup used nonexistent Value.join; corrected to ValueOperations.join before the genuine baseline rerun. No baseline credit derives from the setup exception.",
+    "first_current": {
+      "passed": 24,
+      "failed": 0,
+      "raw": "artifacts/next/evidence/PTA_resume2/first-current.log"
+    },
+    "final_held": {
+      "passed": 89,
+      "failed": 0,
+      "seconds": 3.75,
+      "command": "../quality-env/bin/python -m pytest -q tests/regression/audit3/test_pta_resume2.py tests/regression/audit3/test_native_mandatory.py tests/regression/audit3/test_native_ordered_rebuild.py tests/regression/audit3/test_graph_transform_contracts.py tests/regression/audit3/test_pta02_review_resume2.py",
+      "raw": "artifacts/next/evidence/PTA_resume2/held-controls-final.log"
+    },
+    "independent": "Reviewer independently rebound all eleven unchanged finite/CPython controls on final7c39/db119 and reported11pass, source-stable.",
+    "rename_followup": "The first strict cleanup renamed a string/Value local but missed one multiline use, introducing UnboundLocalError for abstract multi-key literals. Independent11 caught it. One identifier was corrected; final89 and independent11 include this correction with unchanged assertions/caps."
+  },
+  "quality": {
+    "owned_strong_diagnostics": 0,
+    "import_graph_diagnostics": 2279,
+    "whole_tree_clean": false,
+    "strong_command": "../quality-env/bin/python -m mypy --no-incremental --output=json --disallow-any-expr pythonstan/analysis/composition/region_engine.py pythonstan/analysis/composition/state_adapter.py",
+    "raw": "artifacts/next/evidence/PTA_resume2/strong-final.jsonl",
+    "ruff_owned": 0,
+    "format_clean": true
+  },
+  "limits": [
+    "Finite tests are regression evidence, not a proof of whole Native soundness or all19 context strategies.",
+    "Canonical incompatible metadata is conservatively havoc and may cause Native profile rejection; this is not a falsely exact retained metadata representative.",
+    "Full BUDGET closure, source-wide deepcopy admission, final immutable root gates, PTA03 selective-context/late-replay obligations remain separate.",
+    "No original frozen gold/cap/debt/suppression/SDK configuration was changed; no real model or credential calls.",
+    "All source/test/doc files are local until root verifies GitHub checkpoint; this receipt does not claim publication."
+  ],
+  "real_model_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "coherent_source_test_HOLD_for_root_isolated_capture",
+  "base": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "scope": [
+    "pythonstan/analysis/engines/abstract/transfer.py",
+    "pythonstan/analysis/semantics/comprehensions.py",
+    "pythonstan/analysis/semantics/containers.py",
+    "pythonstan/analysis/semantics/names.py"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743",
+    "pythonstan/analysis/semantics/comprehensions.py": "85ea7183ac1bc200414bae9143eca4d2e7532f24578f8b609646b7e3ed81a191",
+    "pythonstan/analysis/semantics/containers.py": "10b7d71e5256959466ca8de52314b25fc07f2fb72a4bc7cbc7aeff318fd257b1",
+    "pythonstan/analysis/semantics/names.py": "ced2f5410e347ecb75c8378b2968e35b076d2d5b6b0483d4dc5b74ea774f5276"
+  },
+  "test": "tests/regression/audit3/test_sem04_resume2.py",
+  "test_sha256": "905b460e92d9e4a3aef37d6c363321af2a36326de98a7ed9e9f4eb2dd2895f37",
+  "fresh_validation": {
+    "cp_python_gold": {
+      "passed": 13,
+      "failed": 0
+    },
+    "initial_analyzer": {
+      "passed": 3,
+      "failed": 10
+    },
+    "current_cp_and_analyzer": {
+      "passed": 26,
+      "failed": 0,
+      "seconds": 1.42
+    },
+    "original_controls": {
+      "passed": 130,
+      "failed": 0,
+      "seconds": 13.53,
+      "command": [
+        "../quality-env/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/refactor/semantics/test_recovered_continuations.py",
+        "tests/refactor/semantics/test_continuations_independent_recovery.py",
+        "tests/refactor/semantics/test_recovered_protocol_namespaces.py",
+        "tests/regression/audit3/test_iteration_rebuild_20261113.py"
+      ]
+    },
+    "strong_owned": {
+      "modules": [
+        "pythonstan/analysis/semantics/comprehensions.py",
+        "pythonstan/analysis/semantics/containers.py",
+        "pythonstan/analysis/semantics/names.py"
+      ],
+      "diagnostics": 0,
+      "total_import_graph_diagnostics": 2278,
+      "command": [
+        "../quality-env/bin/python",
+        "-m",
+        "mypy",
+        "--no-incremental",
+        "--output=json",
+        "--disallow-any-expr",
+        "pythonstan/analysis/semantics/comprehensions.py",
+        "pythonstan/analysis/semantics/containers.py",
+        "pythonstan/analysis/semantics/names.py"
+      ]
+    },
+    "ruff_owned": 0,
+    "format_owned": 0,
+    "frozen_AS03": {
+      "passed": 7,
+      "total": 8,
+      "failures": [
+        "comprehension_nested"
+      ]
+    }
+  },
+  "implementation": [
+    "Sequential effectful iterator cursors thread latest Store across assignments, false filters, inner iterables and element emission.",
+    "Path-local typed builders distinguish list append, set representative/duplicate handling and dictionary key-before-value insertion/overwrite.",
+    "Leftmost iterable is evaluated in caller lexical scope; class locals are excluded from comprehension closure; attribute/subscript target bases are Loads.",
+    "Parent binding classifier excludes comprehension target Store names but visits expressions to retain outer NamedExpr bindings.",
+    "Repeated real source expression sites use bounded index PCs coalescing after31, preserving coordinates and avoiding synthetic user builder calls.",
+    "Unknown/iteration-limit alternatives go through actual Transfer.unknown and conservative builder residual; no field-count guess for unknown cardinality."
+  ],
+  "limits": [
+    "Publication nested tuple view remains separate owner; frozen AS03 nested source can be semantically correct but public scalar-only exporter still misses shape.",
+    "Original callback max_stmt_visits1 and35callback2s cases from historical work remain unqualified; no new claim for them.",
+    "This is newly reconstructed source after rollback, no equality to lost-source hashes or historical greens claimed.",
+    "Whole SEM04 acceptance, independent final hashes and full candidate gates remain root-owned."
+  ],
+  "raw_evidence": "gitignored artifacts/next/sem04-resume2",
+  "real_model_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

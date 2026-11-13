@@ -17,6 +17,7 @@ from pythonstan.analysis.composition.oracle import InclusionNode, IncrementalInc
 from pythonstan.analysis.composition.state_adapter import BoundaryObject, FullStateAdapter
 from pythonstan.analysis.contracts.identity import CellId, ObjectId
 from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.analysis.domains.ints import IntLattice
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.engines.abstract.state import Frame
 from pythonstan.analysis.policies.region import RegionExecutionContext
@@ -140,7 +141,6 @@ class NativeRegionEngine:
         checkpoints = 0
         cell_versions: dict[CellId, InclusionNode] = {}
         field_versions: dict[tuple[ObjectId, FieldKey], FieldKey] = {}
-        allocations: dict[ObjectId, BoundaryObject] = {}
         loads: set[tuple[ObjectId, FieldKey]] = set()
         written_cells: set[CellId] = set()
         written_fields: set[tuple[ObjectId, FieldKey]] = set()
@@ -205,8 +205,59 @@ class NativeRegionEngine:
             if not normal:
                 raise _NoNormalPath
 
+        def length_value(obj: BoundaryObject) -> Value:
+            retained = obj.metadata.lookup("length_value")
+            if retained is not None:
+                return retained
+            exact = obj.metadata.lookup("length")
+            if exact is not None:
+                return Value.constant(exact)
+            if (
+                obj.kind == "dict"
+                and not obj.havoc
+                and obj.default.is_bottom()
+                and not obj.maybe_missing
+                and not obj.metadata.lookup("summarized_keys")
+            ):
+                return Value.constant(len(obj.fields))
+            return Value(ints=IntLattice.from_interval(0, None))
+
+        def set_length(obj: BoundaryObject, cardinality: Value) -> None:
+            obj.metadata["length_value"] = cardinality
+            constants = cardinality.exact_constants()
+            if constants is not None and len(constants) == 1 and type(constants[0]) is int:
+                obj.metadata["length"] = constants[0]
+            else:
+                obj.metadata.pop("length", None)
+
+        def dict_write_lengths(valid: list[tuple[ObjectId, FieldKey]]) -> None:
+            receivers: dict[ObjectId, set[FieldKey]] = {}
+            for receiver, key in valid:
+                receivers.setdefault(receiver, set()).add(key)
+            for receiver, keys in receivers.items():
+                obj = direct(receiver, next(iter(keys)), True)
+                if obj.kind != "dict":
+                    continue
+                previous_length = length_value(obj)
+                must = obj.fields.keys() - obj.maybe_missing
+                if keys <= must:
+                    continue
+                increased, _ = ops.scalar_binary(ast.Add(), previous_length, Value.constant(1))
+                definite_absent = (
+                    keys.isdisjoint(obj.fields)
+                    and obj.default.is_bottom()
+                    and not obj.metadata.lookup("summarized_keys")
+                )
+                set_length(
+                    obj,
+                    increased
+                    if obj.singleton and len(receivers) == 1 and definite_absent
+                    else ops.join(previous_length, increased),
+                )
+
         def direct(ref: ObjectId, key: FieldKey, write: bool = False) -> BoundaryObject:
-            obj = allocations.get(ref) or boundary.heap.get(ref)
+            ref = ops.arena.resolve(ref)
+            obj = boundary.heap.get(ref)
             if obj is None:
                 raise ConfigurationError("Native region boundary has no object declaration")
             if obj.havoc:
@@ -394,48 +445,68 @@ class NativeRegionEngine:
                     kernel.add_edge(source, target)
             elif isinstance(expr, (ast.List, ast.Tuple, ast.Dict)):
                 kind = type(expr).__name__.lower()
-                objid = ObjectId(f"{kind}:{driver.point(expr)}@{'|'.join(frame.context)}")
-                old = boundary.heap.get(objid)
-                obj = BoundaryObject(
-                    kind, {}, Value.bottom(), set(), old is None, frozenset(), {}, False
+                original = ObjectId(f"{kind}:{driver.point(expr)}@{'|'.join(frame.context)}")
+                objid = ops.arena.resolve(original)
+                contribution = BoundaryObject(
+                    kind, {}, Value.bottom(), set(), objid == original, frozenset(), {}, False
                 )
                 if isinstance(expr, ast.Dict):
+                    must: set[FieldKey] = set()
+                    lower = upper = 0
                     for keyexpr, valueexpr in zip(expr.keys, expr.values, strict=True):
                         if keyexpr is None:
                             raise ConfigurationError("Native region rejects **mapping literals")
-                        keys = known(compile_expression(keyexpr)).exact_constants()
-                        value_node = compile_expression(valueexpr)
-                        if keys is None:
+                        alternatives = known(compile_expression(keyexpr)).exact_constants()
+                        if alternatives is None:
                             raise ConfigurationError("Native literal requires finite builtin keys")
-                        for key in keys:
-                            selected = fresh_field(objid, key)
-                            specific = temp()
-                            kernel.add_fact(specific, Value.ref(objid), "allocation_receiver")
-                            kernel.add_store(specific, selected, value_node)
-                            if old is not None and key in old.fields:
-                                kernel.add_fact(
-                                    ("field", objid, selected),
-                                    old.fields[key],
-                                    "allocation_slot_join",
+                        keys: set[FieldKey] = set(alternatives)
+                        literal_value = known(compile_expression(valueexpr))
+                        if not keys:
+                            raise _NoNormalPath
+                        if not keys <= must:
+                            upper += 1
+                            if keys.isdisjoint(contribution.fields):
+                                lower += 1
+                        for literal_key in keys:
+                            contribution.fields[literal_key] = (
+                                literal_value
+                                if len(keys) == 1
+                                else ops.join(
+                                    contribution.fields.get(literal_key, Value.bottom()),
+                                    literal_value,
                                 )
-                            obj.fields[key] = known(("field", objid, selected))
+                            )
+                        if len(keys) == 1:
+                            must.update(keys)
+                    contribution.maybe_missing.update(contribution.fields.keys() - must)
+                    set_length(contribution, Value(ints=IntLattice.from_interval(lower, upper)))
                 else:
                     for index, element in enumerate(expr.elts):
-                        source = compile_expression(element)
-                        selected = fresh_field(objid, index)
-                        specific = temp()
-                        kernel.add_fact(specific, Value.ref(objid), "allocation_receiver")
-                        kernel.add_store(specific, selected, source)
-                        if old is not None and index in old.fields:
-                            kernel.add_fact(
-                                ("field", objid, selected),
-                                old.fields[index],
-                                "allocation_slot_join",
-                            )
-                        obj.fields[index] = known(("field", objid, selected))
-                obj.metadata["length"] = len(obj.fields)
-                allocations[objid] = obj
+                        contribution.fields[index] = known(compile_expression(element))
+                    set_length(contribution, Value.constant(len(expr.elts)))
+                # Child expressions finish before the new literal becomes visible.
+                # They can themselves allocate a canonical identity shared with
+                # this literal, so look up the previous owner only now.
+                previous_owner = boundary.heap.get(objid)
+                if previous_owner is None:
+                    obj = contribution
+                else:
+                    cardinality = ops.join(length_value(previous_owner), length_value(contribution))
+                    set_length(previous_owner, cardinality)
+                    set_length(contribution, cardinality)
+                    obj = self.adapter.merge_literal(previous_owner, contribution, ops)
                 boundary.heap[objid] = obj
+                boundary.guards = {
+                    name: guard for name, guard in boundary.guards.items() if guard.owner != objid
+                }
+                for literal_key, merged_value in obj.fields.items():
+                    selected = fresh_field(objid, literal_key)
+                    kernel.add_fact(
+                        ("field", objid, selected), merged_value, "allocation_slot_join"
+                    )
+                    # No outward publication precedes its admitted kernel step.
+                    observed = known(("field", objid, selected))
+                    driver.publish_oracle_field(objid, literal_key, observed, "native_allocation")
                 kernel.add_fact(("default", objid), obj.default, "allocation_default")
                 kernel.add_fact(target, Value.ref(objid), "allocation")
             elif isinstance(expr, (ast.Attribute, ast.Subscript)):
@@ -591,8 +662,10 @@ class NativeRegionEngine:
                                 errors.add("IndexError")
                         valid.append((ref, actual))
                 failures(errors, normal=bool(valid))
+                dict_write_lengths(valid)
                 for ref, written_key in valid:
                     obj = direct(ref, written_key, True)
+                    existed = written_key in obj.fields and written_key not in obj.maybe_missing
                     previous = field_key(ref, written_key)
                     selected = fresh_field(ref, written_key)
                     receiver = temp()
@@ -605,6 +678,11 @@ class NativeRegionEngine:
                     obj.fields[written_key] = known(("field", ref, selected))
                     if obj.singleton and len(valid) == 1:
                         obj.maybe_missing.discard(written_key)
+                    elif not existed:
+                        obj.maybe_missing.add(written_key)
+                    boundary.guards = {
+                        name: guard for name, guard in boundary.guards.items() if guard.owner != ref
+                    }
                     boundary.record_write(HeapWrite(ref, written_key))
                     written_fields.add((ref, written_key))
                     driver.publish_oracle_field(

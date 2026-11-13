@@ -31,10 +31,80 @@ class _Pending:
     iterator: Value
 
 
+@dataclass(frozen=True)
+class ContainerBuilder:
+    """A path-local internal builder, never a synthetic target-language call."""
+
+    kind: str
+    state: _Builder
+
+    @property
+    def store(self) -> Store:
+        return self.state.store
+
+
 class ContainerConstruction:
     def __init__(self, transfer: Transfer) -> None:
         self.t = transfer
         self.ops = transfer.ops
+
+    def start_builder(self, kind: str, store: Store) -> ContainerBuilder:
+        if kind not in {"list", "set", "dict"}:
+            raise ValueError("Unsupported internal container builder")
+        return ContainerBuilder(kind, _Builder(store))
+
+    def rebind_builder(self, builder: ContainerBuilder, store: Store) -> ContainerBuilder:
+        return replace(builder, state=replace(builder.state, store=store))
+
+    def append_builder(
+        self,
+        builder: ContainerBuilder,
+        value: Value,
+        frame: Frame,
+        node: ast.AST,
+        *,
+        key: Value | None = None,
+    ) -> tuple[list[ContainerBuilder], list[Flow]]:
+        if builder.kind == "list":
+            fields = dict(builder.state.fields)
+            fields[len(fields)] = value
+            return [replace(builder, state=replace(builder.state, fields=fields))], []
+        inserted, errors = self._insert(
+            builder.state,
+            value if key is None else key,
+            value,
+            frame,
+            node,
+            overwrite=builder.kind == "dict",
+        )
+        return [replace(builder, state=state) for state in inserted], errors
+
+    def residual_builder(
+        self, builder: ContainerBuilder, node: ast.AST, reason: str
+    ) -> tuple[list[ContainerBuilder], list[Flow]]:
+        states, errors = self._residual(builder.state, node, reason)
+        return [replace(builder, state=state) for state in states], errors
+
+    def finish_builder(self, builder: ContainerBuilder, frame: Frame, node: ast.AST) -> Flow:
+        self.t.sync(builder.store)
+        fields = {key: self.ops.normalize(value) for key, value in builder.state.fields.items()}
+        if builder.kind == "set":
+            fields = dict(enumerate(fields.values()))
+        allocated = self.t.alloc(
+            node,
+            builder.store,
+            frame,
+            builder.kind,
+            fields,
+            {"length": len(fields)} if builder.state.exact else {},
+        )
+        for reference in allocated.refs:
+            obj = builder.store.heap[reference]
+            obj.default = self.ops.join(obj.default, builder.state.default)
+            obj.maybe_missing |= builder.state.missing
+        if not builder.state.exact:
+            allocated = self.ops.join(allocated, Value.unknown())
+        return self.t.normal(builder.store, allocated)
 
     def _insert(
         self,

@@ -1,0 +1,8 @@
+{
+ "scope":"PTA02 restoration after snapshot rollback; original source tests/caps/debt unchanged",
+ "new_tests":"tests/regression/audit3/test_pta_resume2.py",
+ "before_analyzer_run":true,
+ "gold":"Two singleton dicts each length1 retain cardinality1 after merge; one abstract key creates one entry; definite singleton insertion1to2; weak insertion covers1and2; Must overwrite/bool-int normalization unchanged",
+ "oracle":"Direct independent scalar metadata concretization, not SUT leq or join",
+ "source_base":"20a0d567d27fd1d0711f48f8050301b3764aad93"
+}

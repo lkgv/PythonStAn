@@ -60,6 +60,37 @@ def classify_bindings(node: BindingScopeNode) -> BindingClassification:
         def visit_Lambda(self, current: ast.Lambda) -> None:
             pass
 
+        def _comprehension(
+            self, current: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp
+        ) -> None:
+            # Targets belong to the implicit scope. NamedExpr targets in the
+            # remaining expressions still bind in this enclosing scope.
+            for generator in current.generators:
+                self.visit(generator.iter)
+                for condition in generator.ifs:
+                    self.visit(condition)
+            if isinstance(current, ast.DictComp):
+                self.visit(current.key)
+                self.visit(current.value)
+            else:
+                self.visit(current.elt)
+
+        @override
+        def visit_ListComp(self, current: ast.ListComp) -> None:
+            self._comprehension(current)
+
+        @override
+        def visit_SetComp(self, current: ast.SetComp) -> None:
+            self._comprehension(current)
+
+        @override
+        def visit_DictComp(self, current: ast.DictComp) -> None:
+            self._comprehension(current)
+
+        @override
+        def visit_GeneratorExp(self, current: ast.GeneratorExp) -> None:
+            self._comprehension(current)
+
         @override
         def visit_Import(self, current: ast.Import) -> None:
             for alias in current.names:
