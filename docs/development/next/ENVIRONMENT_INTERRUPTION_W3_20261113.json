@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "blocked_external_execution_environment_unavailable",
+  "qualification": "Recovery record only. W3 code is uncommitted and has NOT been pushed. No W3 task closure, release, whole-tree soundness, or live qualification.",
+  "authorization": "Existing user authorization covers important checkpoints to lkgv/PythonStAn dev-cocktail-analysis; current thread also explicitly accepts authorization. This commit contains a reviewed recovery record only.",
+  "repository": "lkgv/PythonStAn",
+  "branch": "dev-cocktail-analysis",
+  "last_published_head_before_this_record": "0b359fb097e1d2410ed1e8eda3b5a8ec6616f69e",
+  "last_published_code_commit": "e645c586d70f0df2bed7095b4677f3189122f8f0",
+  "workspace": {
+    "canonical_dirty_w3": "/workspace/scratch/8d3426210943/PythonStAn-resume",
+    "preserved_older_dirty_workspace_do_not_overwrite_from_it": "/workspace/scratch/8d3426210943/PythonStAn",
+    "frozen_w2_baseline": "/workspace/scratch/8d3426210943/PythonStAn-w2-baseline",
+    "python": "/workspace/scratch/8d3426210943/quality-env/bin/python",
+    "handoff": "/workspace/scratch/8d3426210943/handoff-input",
+    "warning": "Preserve all modified and untracked files. Do not reset, clean, or replace the canonical workspace with the older restored W1 directory. No source read or write is currently possible."
+  },
+  "observed_external_failure": {
+    "platform_status": "unavailable",
+    "executor_error": "exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 45s",
+    "failed_last_root_call": "A recovery-text correction and git diff --check could not start. Do not infer they ran.",
+    "failed_last_semantics_call": "Final SEM author-receipt appendix did not run; prior code edits and stable validation logs did finish.",
+    "all_production_and_test_writers": "HELD"
+  },
+  "completed_implementation_candidates": [
+    "STATE02 typed graph canonicalization, cyclic/alias-aware pure joins, atomic host/oracle/continuation publication, explicit ObjectId/CellId/ReferenceKey namespaces and late-cell-map validation.",
+    "SEM03 total iterator/container/star/kwargs protocols with actual callback/error prefixes and owned publication boundaries.",
+    "PTA01 ordered Native target/checkpoint execution and exception prefixes.",
+    "RESULT01 versioned value codec, explicit projection loss, issuer-registered immutable ownership receipts and paid result reads.",
+    "BUDGET01 shared logical work/deadline/sampled memory and synthetic API billing, registered finite CPU/API grants, failed parse costs, scope pinning, unknown reservation latches and SDK-local credential-echo redaction.",
+    "Root Native supervisor chunk prepayment, exact/unknown child settlement and bidirectional cost-model identity checks.",
+    "Source I/O/parser/inventory admission before work, including unmatched directory entries."
+  ],
+  "verification": {
+    "full_quality_stable": {
+      "passed": true,
+      "new_diagnostics": 0,
+      "modified_unit_diagnostics": 0,
+      "negative_controls_passed": true,
+      "retained_debt": {
+        "format": 94,
+        "ruff": 2956,
+        "mypy": 2757
+      },
+      "debt_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+      "limitation": "Later reporting-only and narrow bytes-residual edits still require final root quality rerun."
+    },
+    "initial_full_stage": {
+      "passed": 1047,
+      "failed": 1,
+      "source_stable": true,
+      "remaining_at_that_run": "Primary stats.work subtotal omitted L2 setup cost.",
+      "later_repair": "Restore canonical global stats.work, expose exact work_by_kind. Focused snapshot/guarded tests49 and migration-focused59 pass; full stage rerun pending."
+    },
+    "initial_full_controls": {
+      "passed": 4858,
+      "failed": 9,
+      "source_stable": true,
+      "later_fixed_six": "Four work-reporting/complete-accounting failures and two internal publish-keyword observer interfaces repaired; exact limits and semantic assertions retained.",
+      "still_open_three": [
+        "three_yields_then_finally cap1",
+        "deep_delegation_return_then_exhaustion cap1",
+        "deep_delegation_return_then_exhaustion cap2"
+      ],
+      "frozen_profile": {
+        "max_work": 10000,
+        "max_seconds": 8,
+        "max_memory_mb": 1536
+      },
+      "final_full_rerun": "pending"
+    },
+    "domain_native_mandatory": {
+      "passed": 34,
+      "failed": 2,
+      "source_stable": true,
+      "failures": [
+        "Native repeated dictionary allocation varying key, context2",
+        "Native repeated dictionary allocation varying key, context3"
+      ],
+      "obligation": "N4-PTA-02 remains unimplemented; no budget or gold changes."
+    },
+    "initial_full_semantic": {
+      "total": 58,
+      "passed": 40,
+      "failed": 18,
+      "source_stable": true,
+      "manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+      "last_true_nonregression_repaired": "bytes_iteration_open passed W2 but failed the initial W3 run. Incomplete iterator collection now preserves Top alongside its allocated reference/default, without changing complete finite constructors or suppressing effects/raises.",
+      "after_repair_validation": "Original336 protocol/gold controls PASS and frozen26 plus bytes case27 PASS, both source stable. Full58 rerun pending; do not report an unmeasured final count.",
+      "later_card_failures": [
+        "AS-03 comprehensions",
+        "AS-06 ClassInfo/isinstance",
+        "AS-07 recursion",
+        "LV-01/02/03 query-quality effects"
+      ]
+    },
+    "independent_budget_result": {
+      "passed": 115,
+      "composition": "74 Budget +41 RESULT",
+      "limitation": "Bounded logical-fuel/synthetic-fee review; final integrated hash rebind pending."
+    },
+    "independent_state02": {
+      "identity_probes_passed": 34,
+      "marker_probes_passed": 12,
+      "current_author_graph_controls_passed": 64,
+      "verdict": "Original finite admitted-graph criteria support acceptance after root final gates.",
+      "scope_limit": "Low-level IdentityArena.publish(cell_aliases=...) is not a separate atomic whole-host cell-only transaction API.",
+      "state01": "remains running, including the three resource failures and conservative correlation-key review caveat"
+    }
+  },
+  "cost_model": {
+    "version": "logical-work-v1",
+    "descriptor_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
+    "semantic_ticks": 1,
+    "structural_operations_per_tick": 8,
+    "contract": "Fresh operation meters precharge each started8-visit batch, retain admitted raw counts and discard surplus; quota/thread credits cannot transfer. JSON text values and keys include started UTF8-surrogatepass KiB. Native wire pays1+startedKiB before I/O. API tokens/currency are not structurally discounted.",
+    "comparison_limit": "Supersedes an unaccepted one-node-per-tick draft. Do not compare draft fuel totals or attribute a units change to algorithmic speedup. Same-model raw counts and time remain necessary.",
+    "terminal_lifecycle": "Unused terminal reservation is released only after successful checked normal publication; spent work is never refunded. Exhausted terminal getters return bounded unavailable/truncated responses, not free facts or internal terminal_capacity exceptions.",
+    "reporting": "stats.work is canonical shared-ledger spend as of driver publication; work_by_kind is disjoint. Session total_work explicitly marks before_checked_publication_freeze. Before any driver exists terminal core work remains0."
+  },
+  "explicit_test_migrations": [
+    "Native cap2 original two-publication [1,2] witness retained through actual standalone compatibility worker; paired public end-to-end cap2 now verifies no Native dispatch, unavailable/truncated result, attempted setup and cap conservation. No numeric increase.",
+    "Two internal Transfer.statement observers accept and forward new keyword-only publish; original no-replay/global-port assertions unchanged.",
+    "Two obsolete exhaustive AST/oracle/Native-only sums now reconcile all work_by_kind costs; original limits/core semantics retained, and the10-tick witness explicitly charges its2 coarsen_graph_scan ticks."
+  ],
+  "known_final_source_hashes": {
+    "pythonstan/analysis/engines/abstract/continuations.py": "134a8f7f979d3fbb84c393c64bdf198c07429d2b1c7f1d04003194cf3b4e730b",
+    "pythonstan/analysis/state/transform.py": "af1524f73f52058edafa68efe8ae7d636252af2c4eb097b17692d4857aa34dce",
+    "pythonstan/results/result.py": "9c892516aaad63386a1e5725fefa952c710043225631794581b46c2aa38d17ec",
+    "pythonstan/analysis/contracts/resources.py": "3618030dfe689d4344404d0ec3374b90b87e21be4bf7229961db45a3cca5658f"
+  },
+  "recovery_files": [
+    "docs/development/next/CONTINUITY_W3_20261113.json",
+    "docs/development/next/STATE_completion_candidate_20261113.json",
+    "docs/development/next/BUDGET01_author_20261113.json",
+    "docs/development/next/BUDGET_terminal_author_20261113.json",
+    "docs/development/next/SEM03_author_20261113.json",
+    "docs/development/next/RESULT01_author_20261113.json",
+    "docs/development/next/reviews/W3-independent-20261113.json",
+    "docs/development/next/reviews/BUDGET01-independent-20261113.json",
+    "docs/development/next/reviews/RESULT01-independent-20261113.json",
+    "docs/development/next/plans/STATE01_next_20261113.md",
+    "docs/development/next/plans/PTA03_next_20261113.md",
+    "artifacts/next/evidence/w3-checkpoint-20261113",
+    "artifacts/next/evidence/N4-SEM-03/bytes-residual-repair/frozen26-plus-bytes.receipt.json",
+    "artifacts/next/evidence/N4-SEM-03/bytes-residual-repair/336controls.receipt.json"
+  ],
+  "next_actions": [
+    "Restore the execution environment; inspect canonical dirty W3 status and all untracked files before any operations. Compare known hashes and preserve both workspaces.",
+    "Apply the missing SEM author-receipt bytes-repair appendix; replace stale legacy subtotal wording in recovery/author notes with the final canonical reporting decision.",
+    "Rerun final frozen-source quality, original stage, ALL controls with the three STATE01 failures retained, mandatory36 and semantic58. Keep raw old failing runs; do not overwrite evidence or weaken gold.",
+    "Accept only fully supported cards after root gates. STATE01 remains open; Native PTA02 remains open. Do not infer overall soundness/release/live success.",
+    "Create the immutable local candidate including this new recovery document, verify connector tree equality and push through an expected-SHA lease against the new branch head. Do not pull/reset over dirty work; source code remains unpushed until verified.",
+    "After checkpoint continue actual duplicate-copy elimination for STATE01 and DAG-ready PTA02/PTA03/SEM04/QUERY tasks. Read-only next plans are not implemented."
+  ],
+  "privacy_and_live": {
+    "real_api_calls": 0,
+    "real_credential_reads": 0,
+    "candidate_secret_pattern_scan": "0 hits in88 reviewed candidate files before final small fixes/docs; rerun before code publication.",
+    "this_commit": "Recovery metadata only; no raw logs, private inputs, credentials or unverified W3 source included."
+  }
+}
