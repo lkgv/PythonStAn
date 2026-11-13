@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "rebuilt_foundation_component_checkpoint_not_full_W3_acceptance",
+  "base_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "recovery": "The environment restored only the older dirty31d workspace. The unpushed W3 code and its new ignored evidence were absent. That older directory is preserved; rebuilding starts in a separate worktree from published8ccff58. Historical W3 test passes are not current evidence.",
+  "scope": "Pure logical-work-v1 descriptor, operation-scoped precharged structural meter and allocation-free text-byte admission helper. No runtime consumers in this component commit.",
+  "model_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
+  "validation": {
+    "fresh_tests_passed": 20,
+    "ruff": 0,
+    "format": 0,
+    "strong_owned_type_diagnostics": 0,
+    "import_graph_diagnostics_not_claimed_clean": 2305
+  },
+  "source_sha256": {
+    "pythonstan/analysis/contracts/cost_model.py": "da403e33b1caad64f64cb9b5facdfc53c967ce6256d3bf8398ba859bca42214a",
+    "tests/regression/audit3/test_rebuilt_cost_model.py": "8cf70f8ed1532cb6c9e050b9d27c6c2a9c2805bbbb0317a101a6033acc20bb9f"
+  },
+  "publication_policy": "Important coherent nodes are pushed immediately; while execution remains available, pushes must be no more than one hour apart. Runtime integration and all full gates remain pending. No historical fixture loss is hidden.",
+  "remaining": [
+    "Rebuild STATE/SEM/PTA/RESULT/BUDGET runtime consumers with fresh tests and independent review.",
+    "Retain all restored semantic52+6, domain/Native36 and quality debt manifests unchanged.",
+    "Previous lost exact three generator fixtures remain unreproduced/open; new variants do not establish their closure.",
+    "No core/release/live qualification; no real key reads or model requests."
+  ],
+  "real_key_reads": 0,
+  "real_model_requests": 0
+}
