@@ -1,0 +1,66 @@
+{
+  "task": "N4-DOM-01",
+  "date": "2026-11-13",
+  "status": "implemented_pending_integration",
+  "base_commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "scope": [
+    "pythonstan/analysis/domains/values.py",
+    "tests/regression/audit3/test_scalar_facets_20261113.py",
+    "docs/development/next/DOM01_scalar_contract_20261113.md"
+  ],
+  "sha256": {
+    "pythonstan/analysis/domains/values.py": "c9dfe8efaaa269086cdbd39aa7e3e1b3e2a893561b5c9488d0658211f709bad4",
+    "tests/regression/audit3/test_scalar_facets_20261113.py": "fd6ec71fd2627e730e83732e41adf74b644e8901f02b770fcb2c8f15d1840e5c",
+    "docs/development/next/DOM01_scalar_contract_20261113.md": "588629d1c44e30dbd15998bb1996c5b4d505b68fb32a2ff1a9a5245a01f155d0"
+  },
+  "checks": [
+    {
+      "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/regression/audit3/test_domain_mandatory.py -k \"not generator and not cyclic and not collision\"",
+      "baseline": {
+        "passed": 3,
+        "failed": 8
+      },
+      "current": {
+        "passed": 11,
+        "failed": 0,
+        "deselected": 8
+      },
+      "exit_code": 0,
+      "raw": "artifacts/next/evidence/N4-DOM-01/mandatory-final.log"
+    },
+    {
+      "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/regression/audit3/test_scalar_facets_20261113.py tests/refactor/domains",
+      "current": {
+        "passed": 70,
+        "failed": 0
+      },
+      "exit_code": 0,
+      "raw": "artifacts/next/evidence/N4-DOM-01/final-controls.log"
+    },
+    {
+      "command": "python -m mypy --strict --disallow-any-expr --no-incremental pythonstan/analysis/domains/values.py",
+      "exit_code": 1,
+      "own_file_diagnostics": 0,
+      "imported_legacy_diagnostics": 2299,
+      "imported_legacy_files": 51,
+      "raw": "artifacts/next/evidence/N4-DOM-01/mypy-final.log",
+      "qualification": "Own file is clean under normal imports; command and whole tree are not clean."
+    },
+    {
+      "command": "python -m ruff check pythonstan/analysis/domains/values.py tests/regression/audit3/test_scalar_facets_20261113.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python -m ruff format --check pythonstan/analysis/domains/values.py tests/regression/audit3/test_scalar_facets_20261113.py",
+      "exit_code": 0
+    }
+  ],
+  "remaining_obligations": [
+    "SEM non-Not UnaryOp actual scalar_unary consumer",
+    "STATE shared graph-wide widening cells/heap fields/default/metadata Value",
+    "Independent final source-bound review and full root quality/integration gates"
+  ],
+  "no_suppression_or_debt_reset": true,
+  "formal_soundness_claim": false,
+  "accepted": false
+}

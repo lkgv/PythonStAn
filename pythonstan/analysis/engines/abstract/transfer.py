@@ -10,7 +10,7 @@ import ast
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from itertools import product
-from typing import TYPE_CHECKING, Literal, assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from pythonstan.analysis.contracts.identity import CellId, ContinuationId, FrameId, ObjectId
 from pythonstan.analysis.contracts.json_data import JsonScalar
@@ -20,6 +20,11 @@ from pythonstan.analysis.contracts.private_slots import (
     positional_default_slot,
 )
 from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.semantics.callplan import (
+    KeywordGroup,
+    KeywordMapping,
+    call_plan,
+)
 from pythonstan.analysis.semantics.names import classify_bindings
 from pythonstan.analysis.semantics.scalar_strings import (
     UnsupportedStringMethod,
@@ -63,7 +68,7 @@ from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.analysis.state.keys import FieldKey
 from pythonstan.analysis.state.metadata import Metadata
 from pythonstan.frontend.private_names import source_annotation_text, source_declared_name
-from pythonstan.frontend.source import source_constant, source_position
+from pythonstan.frontend.source import source_constant
 from pythonstan.models.builtins import ABSTRACT_BUILTINS as _BUILTINS
 from pythonstan.models.builtins import PYTHON312_BUILTIN_NAMES
 from pythonstan.models.exceptions import (
@@ -75,6 +80,8 @@ from pythonstan.models.exceptions import (
 from .state import Frame, FunctionInfo, HeapObject, Store
 
 if TYPE_CHECKING:
+    from pythonstan.analysis.policies.region import RegionExecutionContext
+
     from .driver import InterproceduralDriver
 
 _BUILTINS = _BUILTINS | PYTHON312_BUILTIN_NAMES
@@ -128,24 +135,18 @@ class _ItemLocation:
 
 
 type _AugmentedLocation = _NameLocation | _AttributeLocation | _ItemLocation
-type _CallItem = (
-    tuple[Literal["arg"], ast.expr, bool] | tuple[Literal["keyword"], ast.expr, str | None]
-)
-type _CallPath = tuple[Store, list[Value], list[tuple[str, Value]], bool]
 
 
-def _call_position(item: _CallItem) -> tuple[int, int]:
-    return source_position(item[1])
+@dataclass(frozen=True, slots=True)
+class _CallPath:
+    store: Store
+    arguments: tuple[Value, ...] = ()
+    keywords: tuple[tuple[FieldKey, Value], ...] = ()
+    uncertain: bool = False
+    deferred_star: tuple[Value, ast.expr] | None = None
 
 
-def _unary_scalar(operation: ast.unaryop, value: JsonScalar) -> JsonScalar:
-    if isinstance(operation, ast.USub) and isinstance(value, (int, float)):
-        return -value
-    if isinstance(operation, ast.UAdd) and isinstance(value, (int, float)):
-        return +value
-    if isinstance(operation, ast.Invert) and isinstance(value, int):
-        return ~value
-    raise TypeError("Unsupported scalar unary operand")
+type _BooleanPath = tuple[Flow, frozenset[bool] | None]
 
 
 def _scalar_length(value: JsonScalar) -> int:
@@ -155,9 +156,12 @@ def _scalar_length(value: JsonScalar) -> int:
 
 
 class Transfer:
-    def __init__(self, driver: InterproceduralDriver) -> None:
+    def __init__(
+        self, driver: InterproceduralDriver, execution: RegionExecutionContext | None = None
+    ) -> None:
         self.d: InterproceduralDriver = driver
-        self.ops: ValueOperations = driver.ops
+        self.execution = execution or driver.default_execution
+        self.ops: ValueOperations = self.execution.ops
         from .attributes import AttributeOperations
         from .continuations import ContinuationEngine
         from .dictionaries import DictionaryOperations
@@ -288,7 +292,14 @@ class Transfer:
             cell = CellId("local:" + frame.identity + ":" + name)
         self.d.reads.add((frame.qualname, name, self.d.point(node)))
         value = store.effective_cell(cell)
-        if self.d.oracle is not None and (value.top or value.unbound or value.is_bottom()):
+        if frame.is_class and binding.scope == "local" and value.unbound:
+            # LOAD_NAME falls through the class namespace to module globals.
+            # DELETE_NAME itself never consults this fallback.
+            fallback = store.effective_cell(CellId(f"global:{frame.module}:{name}"))
+            value = self.ops.join(value.without_unbound(), fallback)
+        if self.d.oracle is not None and (
+            value.top or value.is_bottom() or cell not in store.cells and value.unbound
+        ):
             candidate = self.d.oracle.candidates(cell, self.d.current)
             if not candidate.values.is_bottom():
                 value = self.ops.join(value, candidate.values)
@@ -300,6 +311,7 @@ class Transfer:
             and name in ("__name__", "__package__", "__file__", "__doc__")
             and (
                 frame.is_module
+                or frame.is_class
                 or name not in frame.locals
                 and name not in dict(frame.closure)
                 and name not in frame.nonlocals
@@ -320,6 +332,7 @@ class Transfer:
             and name in _BUILTINS
             and (
                 frame.is_module
+                or frame.is_class
                 or name not in frame.locals
                 and name not in dict(frame.closure)
                 and name not in frame.nonlocals
@@ -352,7 +365,10 @@ class Transfer:
         if value.unbound:
             out.append(
                 self.error(
-                    store.copy(), "UnboundLocalError" if name in frame.locals else "NameError"
+                    store.copy(),
+                    "UnboundLocalError"
+                    if binding.scope == "local" and not frame.is_class
+                    else "NameError",
                 )
             )
         return out
@@ -383,9 +399,13 @@ class Transfer:
         fields: dict[FieldKey, Value] | None = None,
         metadata: Metadata | Mapping[str, object] | None = None,
         class_ids: Iterable[ObjectId] = (),
+        *,
+        role: str | None = None,
     ) -> Value:
         self.sync(store)
-        original = ObjectId(f"{kind}:{self.d.point(node)}@{'|'.join(frame.context)}")
+        point = self.d.point(node)
+        allocation_point = point if role is None else point + "#" + role
+        original = ObjectId(f"{kind}:{allocation_point}@{'|'.join(frame.context)}")
         objid = self.d.allocate_identity(original)
         old = store.heap.get(objid)
         obj = HeapObject(
@@ -425,7 +445,7 @@ class Transfer:
     def expr(self, node: ast.expr | None, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
         self.sync(store)
-        self.d.tick(node)
+        self.d.tick(node, execution=self.execution)
         if (
             node is not None
             and not isinstance(node, (ast.Yield, ast.YieldFrom, ast.Lambda))
@@ -545,68 +565,43 @@ class Transfer:
             return result
         if isinstance(node, ast.UnaryOp):
             result = []
-            for flow in self.expr(node.operand, store, frame):
-                if flow.kind != "normal":
-                    result.append(flow)
-                    continue
-                if isinstance(node.op, ast.Not):
+            if isinstance(node.op, ast.Not):
+                for flow in self.expr(node.operand, store, frame):
+                    if flow.kind != "normal":
+                        result.append(flow)
+                        continue
                     for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
                         result.append(
-                            NormalExprFlow(
-                                StateHandle.capture(tested.store),
-                                Value(
+                            replace_flow(
+                                tested,
+                                value=Value(
                                     bools=frozenset(not x for x in require_payload(tested).bools)
                                 ),
                             )
                             if tested.kind == "normal"
                             else tested
                         )
+                return result
+            for flow in self.expr(node.operand, store, frame):
+                if flow.kind != "normal":
+                    result.append(flow)
                     continue
-                if require_payload(flow).refs or require_payload(flow).top:
-                    result.extend(self.unknown(flow.store, node, "unknown_unary_operator"))
-                    continue
-                constants = require_payload(flow).exact_constants()
-                if constants is None or not isinstance(node.op, (ast.USub, ast.UAdd, ast.Invert)):
-                    value = Value.unknown()
-                else:
-                    unary_values: list[Value] = []
-                    for constant in constants:
-                        try:
-                            unary_values.append(Value.constant(_unary_scalar(node.op, constant)))
-                        except (TypeError, ValueError):
-                            result.append(self.error(flow.store.copy(), "TypeError"))
-                    value = self.ops.join_all(unary_values)
+                value, unary_errors = self.ops.scalar_unary(node.op, require_payload(flow))
                 if not value.is_bottom():
-                    result.append(NormalExprFlow(StateHandle.capture(flow.store), value))
+                    result.append(NormalExprFlow(StateHandle.capture(flow.store.copy()), value))
+                for name in unary_errors:
+                    if name.startswith(("unknown_", "resource_")):
+                        result.extend(self.unknown(flow.store, node, name))
+                    else:
+                        result.append(self.error(flow.store.copy(), name))
             return result
         if isinstance(node, ast.Compare):
             return self.compare_expr(node, store, frame)
         if isinstance(node, ast.BoolOp):
-            flows = self.expr(node.values[0], store, frame)
-            for operand in node.values[1:]:
-                next_flows: list[Flow] = []
-                for flow in flows:
-                    if flow.kind != "normal":
-                        next_flows.append(flow)
-                        continue
-                    for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
-                        if tested.kind != "normal":
-                            next_flows.append(tested)
-                            continue
-                        proceed = isinstance(node.op, ast.And)
-                        if (not proceed) in require_payload(tested).bools:
-                            next_flows.append(
-                                NormalExprFlow(
-                                    StateHandle.capture(tested.store.copy()), require_payload(flow)
-                                )
-                            )
-                        if proceed in require_payload(tested).bools:
-                            next_flows.extend(self.expr(operand, tested.store.copy(), frame))
-                flows = next_flows
-            return flows
+            return [flow for flow, _ in self.boolean_paths(node, store, frame)]
         if isinstance(node, ast.IfExp):
             result = []
-            for flow in self.expr(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
@@ -909,7 +904,77 @@ class Transfer:
                 result.append(left)
             else:
                 step(0, require_payload(left), left.store)
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.execution)
+
+    def boolean_paths(
+        self, node: ast.expr, store: Store, frame: Frame, *, conditional: bool = False
+    ) -> list[_BooleanPath]:
+        if not isinstance(node, ast.BoolOp):
+            return [(flow, None) for flow in self.expr(node, store, frame)]
+        finished: list[_BooleanPath] = []
+        continuing = (
+            self.boolean_paths(node.values[0], store, frame, conditional=True)
+            if conditional
+            else [(flow, None) for flow in self.expr(node.values[0], store, frame)]
+        )
+        proceed = isinstance(node.op, ast.And)
+        for operand in node.values[1:]:
+            following: list[_BooleanPath] = []
+            for flow, known in continuing:
+                if flow.kind != "normal":
+                    finished.append((flow, None))
+                    continue
+                tests = (
+                    [NormalExprFlow(StateHandle.capture(flow.store), Value(bools=known))]
+                    if known is not None
+                    else self.truth_flows(require_payload(flow), flow.store, frame, node)
+                )
+                for tested in tests:
+                    if tested.kind != "normal":
+                        finished.append((tested, None))
+                        continue
+                    if (not proceed) in require_payload(tested).bools:
+                        finished.append(
+                            (
+                                NormalExprFlow(
+                                    StateHandle.capture(tested.store.copy()), require_payload(flow)
+                                ),
+                                frozenset({not proceed}),
+                            )
+                        )
+                    if proceed in require_payload(tested).bools:
+                        following.extend(
+                            self.boolean_paths(
+                                operand, tested.store.copy(), frame, conditional=True
+                            )
+                            if conditional
+                            else [
+                                (out, None)
+                                for out in self.expr(operand, tested.store.copy(), frame)
+                            ]
+                        )
+            continuing = following
+        return finished + continuing
+
+    def condition_flows(self, node: ast.expr, store: Store, frame: Frame) -> list[Flow]:
+        result: list[Flow] = []
+        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return [
+                replace_flow(
+                    flow, value=Value(bools=frozenset(not x for x in require_payload(flow).bools))
+                )
+                if flow.kind == "normal"
+                else flow
+                for flow in self.condition_flows(node.operand, store, frame)
+            ]
+        for flow, known in self.boolean_paths(node, store, frame, conditional=True):
+            if flow.kind != "normal":
+                result.append(flow)
+            elif known is not None:
+                result.append(replace_flow(flow, value=Value(bools=known)))
+            else:
+                result.extend(self.truth_flows(require_payload(flow), flow.store, frame, node))
+        return result
 
     def truth(self, value: Value, store: Store) -> frozenset[bool]:
         truths = set(self.ops.truth(replace(value, refs=frozenset())))
@@ -1065,10 +1130,10 @@ class Transfer:
                 result.append(
                     NormalExprFlow(StateHandle.capture(store.copy()), Value.constant(True))
                 )
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.execution)
 
     def refine_test(self, node: ast.expr, store: Store, frame: Frame, truth: bool) -> Store | None:
-        if not self.d.abstract.get("refine_booleans", True):
+        if not self.execution.abstract.get("refine_booleans", True):
             return store
         guard = store.guards.get(
             frame.cell(node.id) if isinstance(node, ast.Name) else "point:" + self.d.point(node)
@@ -1215,7 +1280,7 @@ class Transfer:
 
     def _statement_impl(self, node: ast.stmt, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
-        self.d.tick(node)
+        self.d.tick(node, execution=self.execution)
         if isinstance(node, ast.Expr):
             return [
                 self.continuations.wrap(f, ExprResume(f.continuation))
@@ -1360,7 +1425,7 @@ class Transfer:
             return result
         if isinstance(node, ast.If):
             result = []
-            for flow in self.expr(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
@@ -1388,7 +1453,7 @@ class Transfer:
             return self.with_statement(node, store, frame)
         if isinstance(node, ast.Assert):
             result = []
-            for flow in self.expr(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
@@ -1418,31 +1483,65 @@ class Transfer:
         if isinstance(node, ast.Delete):
             result = [self.normal(store.copy())]
             for target in node.targets:
-                next_result: list[Flow] = []
-                for flow in result:
-                    if flow.kind != "normal":
-                        next_result.append(flow)
-                        continue
-                    if isinstance(target, ast.Name):
-                        self.write_name(target.id, Value(unbound=True), flow.store, frame, node)
-                        next_result.append(flow)
-                    elif isinstance(target, ast.Attribute):
-                        for base in self.expr(target.value, flow.store, frame):
-                            if base.kind != "normal":
-                                next_result.append(base)
-                            else:
-                                next_result.extend(
-                                    self.delattr(
-                                        require_payload(base), target.attr, base.store, frame, node
-                                    )
-                                )
-                    else:
-                        next_result.extend(self.unknown(flow.store, node, "unsupported_delete"))
-                result = next_result
+                result = [
+                    successor
+                    for flow in result
+                    for successor in (
+                        self.delete_target(target, flow.store, frame, node)
+                        if flow.kind == "normal"
+                        else [flow]
+                    )
+                ]
             return result
         if isinstance(node, (ast.Pass, ast.Global, ast.Nonlocal)):
             return [self.normal(store.copy())]
         return self.unknown(store, node, "unsupported_statement:" + type(node).__name__)
+
+    def delete_target(
+        self, target: ast.expr, store: Store, frame: Frame, node: ast.AST
+    ) -> list[Flow]:
+        """Delete the selected binding without invoking read-name fallbacks."""
+        self.sync(store)
+        if isinstance(target, ast.Name):
+            binding = frame.binding(target.id)
+            value = store.effective_cell(binding.cell)
+            result: list[Flow] = []
+            if not value.without_unbound().is_bottom():
+                deleted = store.copy()
+                self.write_name(target.id, Value(unbound=True), deleted, frame, node)
+                result.append(self.normal(deleted))
+            if value.unbound:
+                exception = (
+                    "UnboundLocalError"
+                    if binding.scope == "local" and not frame.is_class
+                    else "NameError"
+                )
+                result.append(self.error(store.copy(), exception))
+            return result
+        if isinstance(target, (ast.Tuple, ast.List)):
+            result = [self.normal(store.copy())]
+            for element in target.elts:
+                result = [
+                    successor
+                    for flow in result
+                    for successor in (
+                        self.delete_target(element, flow.store, frame, node)
+                        if flow.kind == "normal"
+                        else [flow]
+                    )
+                ]
+            return result
+        if isinstance(target, ast.Attribute):
+            return [
+                successor
+                for base in self.expr(target.value, store, frame)
+                for successor in (
+                    self.delattr(require_payload(base), target.attr, base.store, frame, node)
+                    if base.kind == "normal"
+                    else [base]
+                )
+            ]
+        return self.unknown(store, node, "unsupported_delete")
 
     def augmented_assignment(self, node: ast.AugAssign, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
@@ -1952,14 +2051,14 @@ class Transfer:
     def while_loop(self, node: ast.While, store: Store, frame: Frame) -> list[Flow]:
         initial = store.copy()
         invariant = initial.copy()
-        delay = self.d.abstract_integer("widen_delay", 2)
-        limit = self.d.abstract_integer("max_stmt_visits", 100)
+        delay = self.execution.integer("widen_delay", 2)
+        limit = self.execution.integer("max_stmt_visits", 100)
 
         def step(head: Store) -> tuple[list[Store], list[Flow], list[Flow]]:
             back: list[Store] = []
             exits: list[Flow] = []
             escapes: list[Flow] = []
-            for tested in self.expr(node.test, head.copy(), frame):
+            for tested in self.condition_flows(node.test, head.copy(), frame):
                 if tested.kind != "normal":
                     escapes.append(tested)
                     continue
@@ -2007,10 +2106,11 @@ class Transfer:
         if not stable:
             self.d.open("loop_budget", invariant, node)
             return self.d.compact(
-                exits + escapes + [self.normal(self.havoc_loop_names(node, invariant, frame))]
+                exits + escapes + [self.normal(self.havoc_loop_names(node, invariant, frame))],
+                execution=self.execution,
             )
-        if self.d.abstract.get("enable_narrowing", True):
-            for _ in range(self.d.abstract_integer("narrowing_iterations", 2)):
+        if self.execution.abstract.get("enable_narrowing", True):
+            for _ in range(self.execution.integer("narrowing_iterations", 2)):
                 back, _, _ = step(invariant)
                 candidate = self.loop_narrowing_candidate(initial, back)
                 if not candidate.leq(invariant, self.ops):
@@ -2026,7 +2126,7 @@ class Transfer:
                     self.d.increment_stat("narrowing_checks_failed", 1)
                     break
         _, exits, escapes = step(invariant)
-        return self.d.compact(exits + escapes)
+        return self.d.compact(exits + escapes, execution=self.execution)
 
     def loop_narrowing_candidate(self, initial: Store, back_states: Sequence[Store]) -> Store:
         candidate = initial.copy()
@@ -2071,90 +2171,240 @@ class Transfer:
     def for_loop(self, node: ast.For | ast.AsyncFor, store: Store, frame: Frame) -> list[Flow]:
         return self.continuations.for_loop(node, store, frame)
 
+    def expand_star(
+        self, path: _CallPath, value: Value, frame: Frame, node: ast.AST
+    ) -> tuple[list[_CallPath], list[Flow]]:
+        paths: list[_CallPath] = []
+        errors: list[Flow] = []
+        # collect executes iterator protocols, preserving every exceptional prefix.
+        for collected in self.continuations.collect(value, path.store, frame, node, "tuple"):
+            if collected.kind != "normal":
+                errors.append(collected)
+                continue
+            sequences, broad = self.iterable_values(require_payload(collected), collected.store)
+            for sequence in sequences:
+                paths.append(
+                    replace(
+                        path,
+                        store=collected.store.copy(),
+                        arguments=path.arguments + tuple(sequence),
+                        deferred_star=None,
+                    )
+                )
+            if broad:
+                self.d.open("unknown_star_arguments", collected.store, node)
+                paths.append(
+                    replace(path, store=collected.store, uncertain=True, deferred_star=None)
+                )
+        return paths, errors
+
+    def merge_keyword_pairs(
+        self, path: _CallPath, pairs: Sequence[tuple[FieldKey, Value]]
+    ) -> tuple[list[_CallPath], list[Flow]]:
+        keywords = list(path.keywords)
+        present = {name for name, _ in keywords}
+        for name, value in pairs:
+            if name in present:
+                return [], [self.error(path.store.copy(), "TypeError")]
+            present.add(name)
+            keywords.append((name, value))
+        return [replace(path, keywords=tuple(keywords))], []
+
+    def expand_keyword_mapping(
+        self, path: _CallPath, value: Value, frame: Frame, node: ast.AST
+    ) -> tuple[list[_CallPath], list[Flow]]:
+        paths: list[_CallPath] = []
+        errors: list[Flow] = []
+        value = self.ops.normalize(value)
+        if value.top or value.top_sorts:
+            for opaque in self.unknown(path.store.copy(), node, "unknown_keyword_mapping"):
+                if opaque.kind == "normal":
+                    paths.append(replace(path, store=opaque.store, uncertain=True))
+                    errors.append(self.error(opaque.store.copy(), "TypeError"))
+                else:
+                    errors.append(opaque)
+        scalar = replace(value, refs=frozenset(), top=False, top_sorts=frozenset())
+        if not scalar.is_bottom():
+            errors.append(self.error(path.store.copy(), "TypeError"))
+        for reference in value.refs:
+            obj = path.store.heap.get(reference)
+            if obj is not None and obj.kind == "dict" and not obj.havoc:
+                merged = [replace(path, store=path.store.copy())]
+                for field_key, item_value in obj.fields.items():
+                    dict_following: list[_CallPath] = []
+                    for item in merged:
+                        present, failed = self.merge_keyword_pairs(item, ((field_key, item_value),))
+                        dict_following.extend(present)
+                        errors.extend(failed)
+                        if field_key in obj.maybe_missing:
+                            dict_following.append(replace(item, store=item.store.copy()))
+                    merged = dict_following
+                if not obj.default.is_bottom() or obj.metadata.lookup("summarized_keys"):
+                    self.d.open("unknown_keyword_arguments", path.store, node)
+                    merged = [replace(item, uncertain=True) for item in merged]
+                    errors.append(self.error(path.store.copy(), "TypeError"))
+                paths.extend(merged)
+                continue
+            # The general mapping protocol obtains keys, exhausts that iterable,
+            # then checks each duplicate before fetching its corresponding value.
+            mapping = Value.ref(reference)
+            for keys in self.getattr(mapping, "keys", path.store.copy(), frame, node):
+                if keys.kind != "normal":
+                    errors.append(
+                        self.error(keys.store, "TypeError")
+                        if keys.kind == "raise" and keys.exception == "AttributeError"
+                        else keys
+                    )
+                    continue
+                for called in self.invoke(require_payload(keys), (), (), keys.store, frame, node):
+                    if called.kind != "normal":
+                        errors.append(called)
+                        continue
+                    for collected in self.continuations.collect(
+                        require_payload(called), called.store, frame, node, "tuple"
+                    ):
+                        if collected.kind != "normal":
+                            errors.append(collected)
+                            continue
+                        sequences, broad = self.iterable_values(
+                            require_payload(collected), collected.store
+                        )
+                        if broad:
+                            self.d.open("unknown_keyword_keys", collected.store, node)
+                            paths.append(
+                                replace(path, store=collected.store.copy(), uncertain=True)
+                            )
+                            errors.append(self.error(collected.store.copy(), "TypeError"))
+                        for sequence in sequences:
+                            pending = [replace(path, store=collected.store.copy())]
+                            for key in sequence:
+                                following: list[_CallPath] = []
+                                for item in pending:
+                                    constants = key.exact_constants()
+                                    if constants is None:
+                                        for opaque in self.unknown(
+                                            item.store, node, "unknown_keyword_key"
+                                        ):
+                                            if opaque.kind == "normal":
+                                                following.append(
+                                                    replace(
+                                                        item, store=opaque.store, uncertain=True
+                                                    )
+                                                )
+                                            else:
+                                                errors.append(opaque)
+                                        continue
+                                    for constant in constants:
+                                        if constant in {name for name, _ in item.keywords}:
+                                            errors.append(
+                                                self.error(item.store.copy(), "TypeError")
+                                            )
+                                            continue
+                                        for fetched in self.getitem(
+                                            mapping,
+                                            Value.constant(constant),
+                                            item.store.copy(),
+                                            frame,
+                                            node,
+                                        ):
+                                            if fetched.kind != "normal":
+                                                errors.append(fetched)
+                                                continue
+                                            merged, failed = self.merge_keyword_pairs(
+                                                replace(item, store=fetched.store),
+                                                ((constant, require_payload(fetched)),),
+                                            )
+                                            following.extend(merged)
+                                            errors.extend(failed)
+                                pending = following
+                            paths.extend(pending)
+        return paths, errors
+
     def call(self, node: ast.Call, store: Store, frame: Frame) -> list[Flow]:
-        result: list[Flow]
-        result = []
+        result: list[Flow] = []
         for called in self.expr(node.func, store, frame):
             if called.kind != "normal":
                 result.append(called)
                 continue
-            items: list[_CallItem] = [
-                (
-                    "arg",
-                    arg.value if isinstance(arg, ast.Starred) else arg,
-                    isinstance(arg, ast.Starred),
-                )
-                for arg in node.args
-            ]
-            items += [("keyword", kw.value, kw.arg) for kw in node.keywords]
-            items.sort(key=_call_position)
-            paths: list[_CallPath] = [(called.store, [], [], False)]
-            for kind, expr, flag in items:
-                next_paths: list[_CallPath] = []
-                for s, args, keywords, uncertain in paths:
-                    for flow in self.expr(expr, s, frame):
-                        if flow.kind != "normal":
-                            result.append(flow)
+            paths = [_CallPath(called.store)]
+            for step in call_plan(node):
+                following: list[_CallPath] = []
+                for path in paths:
+                    if isinstance(step, KeywordGroup):
+                        states, errors = self.eval_nodes(
+                            tuple(keyword.value for keyword in step.keywords), path.store, frame
+                        )
+                        result.extend(errors)
+                        for group_store, values in states:
+                            pairs: list[tuple[FieldKey, Value]] = []
+                            for keyword, value in zip(step.keywords, values, strict=True):
+                                assert keyword.arg is not None
+                                pairs.append((keyword.arg, value))
+                            merged, errors = self.merge_keyword_pairs(
+                                replace(path, store=group_store), pairs
+                            )
+                            following.extend(merged)
+                            result.extend(errors)
+                        continue
+                    for evaluated in self.expr(step.expression, path.store, frame):
+                        if evaluated.kind != "normal":
+                            result.append(evaluated)
                             continue
-                        a = list(args)
-                        k = list(keywords)
-                        unknown = uncertain
-                        if kind == "arg":
-                            if flag:
-                                sequences, broad = self.iterable_values(
-                                    require_payload(flow), flow.store
-                                )
-                                for sequence in sequences:
-                                    next_paths.append(
-                                        (flow.store.copy(), a + sequence, list(k), unknown)
-                                    )
-                                if broad:
-                                    self.d.open("unknown_star_arguments", flow.store, node)
-                                    next_paths.append((flow.store, a, k, True))
-                                continue
-                            a.append(require_payload(flow))
-                        elif flag is None:
-                            expanded = False
-                            for ref in require_payload(flow).refs:
-                                obj = flow.store.heap.get(ref)
-                                if obj and obj.kind == "dict":
-                                    if any(type(key) is not str for key in obj.fields):
-                                        result.append(self.error(flow.store.copy(), "TypeError"))
-                                    else:
-                                        k.extend(
-                                            (key, value)
-                                            for key, value in obj.fields.items()
-                                            if isinstance(key, str)
-                                        )
-                                        expanded = True
-                                    if not obj.default.is_bottom() or obj.havoc:
-                                        unknown = True
-                            if not expanded:
-                                unknown = True
-                            if unknown:
-                                self.d.open("unknown_keyword_arguments", flow.store, node)
+                        current = replace(path, store=evaluated.store)
+                        value = require_payload(evaluated)
+                        if isinstance(step, KeywordMapping):
+                            expanded, errors = self.expand_keyword_mapping(
+                                current, value, frame, step.expression
+                            )
+                            following.extend(expanded)
+                            result.extend(errors)
+                        elif step.deferred:
+                            following.append(
+                                replace(current, deferred_star=(value, step.expression))
+                            )
+                        elif step.starred:
+                            expanded, errors = self.expand_star(
+                                current, value, frame, step.expression
+                            )
+                            following.extend(expanded)
+                            result.extend(errors)
                         else:
-                            assert isinstance(flag, str)
-                            k.append((flag, require_payload(flow)))
-                        next_paths.append((flow.store, a, k, unknown))
-                paths = next_paths
-            for s, args, keywords, uncertain in paths:
-                if hasattr(self.ops, "normalize"):
-                    called = replace_flow(called, value=self.ops.normalize(require_payload(called)))
-                if uncertain:
-                    for opaque in self.unknown(s, node, "unknown_argument_shape"):
+                            following.append(replace(current, arguments=path.arguments + (value,)))
+                paths = following
+            expanded_paths: list[_CallPath] = []
+            for path in paths:
+                if path.deferred_star is None:
+                    expanded_paths.append(path)
+                else:
+                    expanded, errors = self.expand_star(
+                        path, path.deferred_star[0], frame, path.deferred_star[1]
+                    )
+                    expanded_paths.extend(expanded)
+                    result.extend(errors)
+            for path in expanded_paths:
+                if any(not isinstance(name, str) for name, _ in path.keywords):
+                    result.append(self.error(path.store, "TypeError"))
+                    continue
+                keywords = tuple(
+                    (name, value) for name, value in path.keywords if isinstance(name, str)
+                )
+                callee = self.ops.normalize(require_payload(called))
+                if path.uncertain:
+                    for opaque in self.unknown(path.store, node, "unknown_argument_shape"):
                         if opaque.kind != "normal":
                             result.append(opaque)
                             continue
                         result.append(self.error(opaque.store.copy(), "TypeError"))
-                        for identifier in require_payload(called).refs:
+                        for identifier in callee.refs:
                             info = self.d.functions.get(identifier)
                             if info:
                                 expected = [
                                     x.arg
                                     for x in (*info.node.args.posonlyargs, *info.node.args.args)
                                 ]
-                                filled = args + [Value.unknown() for _ in expected[len(args) :]]
+                                filled = list(path.arguments) + [
+                                    Value.unknown() for _ in expected[len(path.arguments) :]
+                                ]
                                 kw = list(keywords) + [
                                     (x.arg, Value.unknown())
                                     for x in info.node.args.kwonlyargs
@@ -2162,7 +2412,13 @@ class Transfer:
                                 ]
                                 result.extend(
                                     self.d.request_function(
-                                        identifier, filled, kw, opaque.store.copy(), frame, node
+                                        identifier,
+                                        filled,
+                                        kw,
+                                        opaque.store.copy(),
+                                        frame,
+                                        node,
+                                        execution=self.execution,
                                     )
                                 )
                             else:
@@ -2171,9 +2427,9 @@ class Transfer:
                                 )
                 else:
                     result.extend(
-                        self.invoke(require_payload(called), args, keywords, s, frame, node)
+                        self.invoke(callee, path.arguments, keywords, path.store, frame, node)
                     )
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.execution)
 
     def invoke(
         self,
@@ -2196,7 +2452,7 @@ class Transfer:
         for identifier in sorted(callee.refs):
             if identifier in self.d.functions:
                 returned = self.d.request_function(
-                    identifier, args, keywords, store.copy(), frame, node
+                    identifier, args, keywords, store.copy(), frame, node, execution=self.execution
                 )
                 tokens = frozenset(
                     token
@@ -2350,13 +2606,15 @@ class Transfer:
                         next_result.append(flow)
                         continue
                     for imported in self.d.request_module(
-                        alias.name, flow.store, self.d.current, node
+                        alias.name, flow.store, self.d.current, node, execution=self.execution
                     ):
                         if imported.kind == "normal":
                             target = alias.asname or alias.name.split(".")[0]
                             if alias.asname is None and "." in alias.name:
                                 parent = alias.name.split(".")[0]
-                                value = self.d.register_module(parent, imported.store)
+                                value = self.d.register_module(
+                                    parent, imported.store, execution=self.execution
+                                )
                             else:
                                 value = require_payload(imported)
                             self.write_name(target, value, imported.store, frame, node)
@@ -2378,7 +2636,9 @@ class Transfer:
             module = ".".join(x for x in (prefix, node.module or "") if x)
         else:
             module = node.module or ""
-        imported_flows = self.d.request_module(module, store, self.d.current, node)
+        imported_flows = self.d.request_module(
+            module, store, self.d.current, node, execution=self.execution
+        )
         result = []
         for flow in imported_flows:
             if flow.kind != "normal":
@@ -2403,7 +2663,9 @@ class Transfer:
                     )
                     submodule = module + "." + alias.name
                     if value.is_bottom() and submodule in self.d.modules:
-                        candidates = self.d.request_module(submodule, p.store, self.d.current, node)
+                        candidates = self.d.request_module(
+                            submodule, p.store, self.d.current, node, execution=self.execution
+                        )
                         for sub in candidates:
                             if sub.kind == "normal":
                                 self.write_name(
@@ -2573,7 +2835,7 @@ class Transfer:
                         )
                     elif not remainder.is_bottom() or answer.top:
                         result.append(self.error(returned.store.copy(), "TypeError"))
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.execution)
 
     def conversion_protocol(
         self,
@@ -2712,7 +2974,7 @@ class Transfer:
                         )
                     if not bad.is_bottom() or answer.top:
                         result.append(self.error(returned.store.copy(), "TypeError"))
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.execution)
 
     def builtin(
         self,
@@ -2755,6 +3017,7 @@ class Transfer:
                 "tuple",
                 dict(enumerate(args)),
                 {"length": len(args)},
+                role="exception-arguments",
             )
             fields["args"] = argtuple
             if name == "StopIteration":
@@ -2911,7 +3174,7 @@ class Transfer:
                 for range_arguments in product(*range_options):
                     try:
                         seq = scalar_range(range_arguments)
-                        if len(seq) > self.d.abstract_integer("max_range_size", 1000):
+                        if len(seq) > self.execution.integer("max_range_size", 1000):
                             return self.unknown(
                                 store, node, "range_enumeration_budget", havoc=False
                             )
@@ -3639,6 +3902,7 @@ class Transfer:
             identity,
             local,
             tuple(closure.items()),
+            execution=self.execution,
         )
         for generator in node.generators:
             expanded: list[Flow] = []
@@ -3666,7 +3930,9 @@ class Transfer:
                             for condition in generator.ifs:
                                 next_possible: list[Flow] = []
                                 for candidate in possible:
-                                    for tested in self.expr(condition, candidate.store, compframe):
+                                    for tested in self.condition_flows(
+                                        condition, candidate.store, compframe
+                                    ):
                                         if tested.kind != "normal":
                                             next_possible.append(tested)
                                         else:

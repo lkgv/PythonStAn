@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import ast
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import assert_never
+from typing import TYPE_CHECKING, assert_never
 
 from pythonstan.analysis.contracts.identity import (
     CellId,
@@ -31,7 +31,10 @@ from pythonstan.analysis.state.flow import Flow as Flow
 from pythonstan.analysis.state.flow import is_flow as is_flow
 from pythonstan.analysis.state.guards import MembershipGuard
 from pythonstan.analysis.state.keys import FieldKey
-from pythonstan.analysis.state.metadata import Metadata
+from pythonstan.analysis.state.metadata import GeneratorMeta, Metadata
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.policies.region import RegionExecutionContext
 
 
 def _merge_events(
@@ -100,13 +103,28 @@ class HeapObject:
         return detached_payload(self)
 
     def join(self, other: HeapObject, ops: ValueOperations) -> HeapObject:
-        result = self.copy()
-        result._merge_from(other, ops)
+        from .transform import PayloadMemo, PayloadTransformer
+
+        # Both source owners must be anchored before either graph is visited:
+        # a left metadata edge can already reach the right source owner.
+        result = object.__new__(type(self))
+        memo: PayloadMemo = {id(self): result, id(other): result}
+        transform = PayloadTransformer(memo=memo)
+        transform.heap_contribution(self, into=result)
+        contribution = transform.heap_contribution(other)
+        result._merge_from(contribution, ops)
         return result
 
-    def _merge_from(self, other: HeapObject, ops: ValueOperations) -> None:
+    def _merge_from(
+        self,
+        other: HeapObject,
+        ops: ValueOperations,
+        *,
+        value_merge: Callable[[Value, Value], Value] | None = None,
+    ) -> None:
         """Merge into an already detached graph shell without copying its root."""
         result = self
+        merge = ops.join if value_merge is None else value_merge
         left_default = self.default
         left_fields = dict(self.fields)
         left_missing = set(self.maybe_missing)
@@ -123,7 +141,33 @@ class HeapObject:
             if summarized_keys
             else {"summarized_keys"}
         )
-        metadata_changed = not semantic_payload_equal(
+        correlated = (
+            self.kind == other.kind
+            and isinstance(self.metadata.record, GeneratorMeta)
+            and isinstance(other.metadata.record, GeneratorMeta)
+        )
+        if correlated:
+            from .suspensions import merge_suspensions
+
+            assert isinstance(self.metadata.record, GeneratorMeta)
+            assert isinstance(other.metadata.record, GeneratorMeta)
+            merged = merge_suspensions(self.metadata.record, other.metadata.record)
+            if merged.overflow:
+                result.havoc = True
+            # Replace only the normal record; explicit component attachments
+            # keep their graph identity and remain subject to incompatibility.
+            entries = self.metadata.transformation_entries()
+            normal = Metadata.from_record(self.kind, merged).transformation_entries()
+            abstract_keys |= set(normal)
+            abstract_keys |= set(Metadata.from_record(other.kind, other.metadata.record))
+            entries.update(normal)
+            self.metadata.replace_entries(entries)
+        from .transform import merge_metadata_values
+
+        value_metadata = value_merge is not None and merge_metadata_values(
+            self.metadata, other.metadata, merge
+        )
+        metadata_changed = not value_metadata and not semantic_payload_equal(
             {k: v for k, v in self.metadata.items() if k not in abstract_keys},
             {k: v for k, v in other.metadata.items() if k not in abstract_keys},
         )
@@ -135,16 +179,18 @@ class HeapObject:
             self.kind != other.kind or self.kind == "class" and self.class_ids != other.class_ids
         )
         result.havoc = self.havoc or other.havoc or metadata_changed or incompatible
+        if isinstance(result.metadata.record, GeneratorMeta) and result.metadata.record.overflow:
+            result.havoc = True
         if incompatible:
             result.kind = "summary"
             result.metadata.reclassify("summary")
             result.singleton = False
-        result.default = ops.join(left_default, other.default)
+        result.default = merge(left_default, other.default)
         if incompatible:
             result.default = ops.join(result.default, Value.unknown())
         result.class_ids = self.class_ids | other.class_ids
         for key in left_fields.keys() | other.fields.keys():
-            result.fields[key] = ops.join(
+            result.fields[key] = merge(
                 left_fields.get(key, left_default), other.fields.get(key, other.default)
             )
             if (
@@ -189,21 +235,62 @@ class Store:
 
         return detached_payload(self)
 
+    def current_view(self, ops: ValueOperations) -> Store:
+        """Observe the current quotient without changing an owned input root.
+
+        Mutating runtime ports use ``ensure_current`` explicitly. Queries,
+        order checks and graph joins obtain a detached view only when their
+        source predates the arena publication epoch.
+        """
+        arena = ops.arena
+        if self.identity_epoch == arena.epoch:
+            return self
+        from .transform import remap_store
+
+        return remap_store(self, arena.aliases, ops, epoch=arena.epoch)
+
     def ensure_current(self, ops: ValueOperations) -> Store:
         arena = ops.arena
         if self.identity_epoch != arena.epoch:
             from .transform import remap_store
 
             mapped = remap_store(self, arena.aliases, ops, epoch=arena.epoch)
-            self.cells = mapped.cells
-            self.heap = mapped.heap
-            self.initialized = mapped.initialized
-            self.writes = mapped.writes
-            self.events = mapped.events
-            self.obligations = mapped.obligations
-            self.havoc_namespaces = mapped.havoc_namespaces
+            from .transform import PayloadTransformer
+
+            # Prepare all fields with references to the eventual mutation
+            # owner. Assigning detached fields directly would leave cyclic
+            # metadata pointing at the abandoned preparation root.
+            transform = PayloadTransformer(epoch=arena.epoch, memo={id(mapped): self})
+            (
+                cells,
+                heap,
+                initialized,
+                writes,
+                events,
+                obligations,
+                havoc_namespaces,
+                guards,
+            ) = transform.visit(
+                (
+                    mapped.cells,
+                    mapped.heap,
+                    mapped.initialized,
+                    mapped.writes,
+                    mapped.events,
+                    mapped.obligations,
+                    mapped.havoc_namespaces,
+                    mapped.guards,
+                )
+            )
+            self.cells = cells
+            self.heap = heap
+            self.initialized = initialized
+            self.writes = writes
+            self.events = events
+            self.obligations = obligations
+            self.havoc_namespaces = havoc_namespaces
             self.havoc_imports = mapped.havoc_imports
-            self.guards = mapped.guards
+            self.guards = guards
             self.identity_epoch = mapped.identity_epoch
             self.state_revision = StateRevision(self.state_revision + 1)
         return self
@@ -241,13 +328,13 @@ class Store:
         self.record_write(CellWrite(cell))
 
     def read_slot(self, objid: ObjectId, key: FieldKey, ops: ValueOperations) -> tuple[Value, bool]:
-        self.ensure_current(ops)
+        current = self.current_view(ops)
         objid = ops.arena.resolve(objid)
         if ops.arena.aliases:
             from .transform import PayloadTransformer
 
             key = PayloadTransformer(ops.arena.aliases, ops).key(key)
-        obj = self.heap.get(objid)
+        obj = current.heap.get(objid)
         if obj is None:
             return Value.unknown(), True
         value = obj.fields.get(key, obj.default)
@@ -285,8 +372,8 @@ class Store:
         self.record_write(HeapWrite(objid, key))
 
     def join(self, other: Store, ops: ValueOperations, *, widen: bool = False) -> Store:
-        self.ensure_current(ops)
-        other.ensure_current(ops)
+        self = self.current_view(ops)
+        other = other.current_view(ops)
         from .transform import PayloadMemo, detached_payload
 
         memo: PayloadMemo = {}
@@ -301,7 +388,10 @@ class Store:
             result.cells[cell] = join(a, b)
         for key, obj in other.heap.items():
             if key in result.heap:
-                result.heap[key]._merge_from(obj, ops)
+                from .transform import PayloadTransformer
+
+                contribution = PayloadTransformer(memo=memo).heap_contribution(obj)
+                result.heap[key]._merge_from(contribution, ops, value_merge=join)
             else:
                 result.heap[key] = detached_payload(obj, memo)
         result.havoc_imports = self.havoc_imports or other.havoc_imports
@@ -322,14 +412,19 @@ class Store:
         # Events are may-prefix observations, not an order proof.
         result.events = _merge_events(self.events, other.events)
         result.state_revision = StateRevision(max(self.state_revision, other.state_revision) + 1)
+        if any(
+            isinstance(obj.metadata.record, GeneratorMeta) and obj.metadata.record.overflow
+            for obj in result.heap.values()
+        ):
+            result.obligations |= frozenset({"suspension_state_capacity_exceeded"})
         return result
 
     def leq(self, other: Store, ops: ValueOperations) -> bool:
-        self.ensure_current(ops)
-        other.ensure_current(ops)
+        self = self.current_view(ops)
+        other = other.current_view(ops)
         if not self.writes <= other.writes:
             return False
-        from .transform import payload_signature
+        from .transform import payload_signature, payload_values_leq
 
         if not {payload_signature(x) for x in self.events} <= {
             payload_signature(x) for x in other.events
@@ -368,9 +463,19 @@ class Store:
                     if right_keys
                     else {"summarized_keys"}
                 )
-                if not semantic_payload_equal(
+                if isinstance(obj.metadata.record, GeneratorMeta) and isinstance(
+                    rhs.metadata.record, GeneratorMeta
+                ):
+                    from .suspensions import suspensions_cover
+
+                    if not suspensions_cover(obj.metadata.record, rhs.metadata.record):
+                        return False
+                    ignored |= set(Metadata.from_record(obj.kind, obj.metadata.record))
+                    ignored |= set(Metadata.from_record(rhs.kind, rhs.metadata.record))
+                if not payload_values_leq(
                     {k: v for k, v in obj.metadata.items() if k not in ignored},
                     {k: v for k, v in rhs.metadata.items() if k not in ignored},
+                    ops,
                 ):
                     return False
             if not ops.leq(obj.default, rhs.default):
@@ -444,10 +549,9 @@ class Store:
 
     def apply(self, outcome: Flow, ops: ValueOperations) -> Store:
         """Apply only callee writes; preserve caller frame and untouched slots."""
-        self.ensure_current(ops)
-        outcome.store.ensure_current(ops)
+        self = self.current_view(ops)
+        callee = outcome.store.current_view(ops)
         result = self.copy()
-        callee = outcome.store
         if callee.writes or callee.havoc_namespaces or callee.havoc_imports:
             result.invalidate_guards()
         for objid, obj in callee.heap.items():
@@ -501,6 +605,9 @@ class Frame:
     nonlocals: frozenset[str] = frozenset()
     is_module: bool = False
     is_class: bool = False
+    # Immutable execution settings and a shared host arena are a runtime
+    # attachment, not target-program state. Graph copies retain this owner.
+    execution: RegionExecutionContext | None = field(default=None, repr=False, compare=False)
 
     def binding(self, name: str) -> BindingRef:
         if self.is_module or name in self.globals:

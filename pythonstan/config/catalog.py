@@ -54,6 +54,12 @@ class CatalogRecord(TypedDict):
     choices: tuple[JsonScalar, ...]
     configurable: bool
     note: str
+    scopes: tuple[str, ...]
+    capabilities: tuple[str, ...]
+    version: str
+    effect: str
+    evidence: tuple[str, ...]
+    nested_options: tuple[JsonObject, ...]
 
 
 @dataclass(frozen=True)
@@ -67,6 +73,11 @@ class OptionDescriptor:
     choices: tuple[JsonScalar, ...] = ()
     configurable: bool = True
     note: str = ""
+    scopes: tuple[str, ...] = ("global",)
+    capabilities: tuple[str, ...] = ()
+    version: str = "python-core-v1"
+    effect: str = "global_configuration"
+    evidence: tuple[str, ...] = ("tests/refactor/api/test_control_applicability.py",)
 
     def to_dict(self) -> CatalogRecord:
         """Emit a detached record while preserving the public tuple fields."""
@@ -80,7 +91,61 @@ class OptionDescriptor:
             "choices": self.choices,
             "configurable": self.configurable,
             "note": self.note,
+            "scopes": self.scopes,
+            "capabilities": self.capabilities,
+            "version": self.version,
+            "effect": self.effect,
+            "evidence": self.evidence,
+            "nested_options": tuple(regional_solver_catalog())
+            if self.path == "abstract.solver_options"
+            else (),
         }
+
+
+# Only settings with explicit execution-context consumers can vary regionally.
+# Solver child capabilities are checked individually, not inherited from their
+# object-valued parent option.
+REGIONAL_ABSTRACT_OPTIONS = frozenset(
+    {
+        "max_const_strings",
+        "int_domain_max_consts",
+        "max_addr_set_size",
+        "max_scalar_pairs",
+        "context_depth",
+        "relations",
+        "enable_value_partition",
+        "max_value_partitions",
+        "refine_booleans",
+        "attribute_name_limit",
+        "max_range_size",
+        "max_stmt_visits",
+        "enable_narrowing",
+        "narrowing_iterations",
+        "solver_options",
+    }
+)
+_REGIONAL_SOLVER_CONSUMERS: dict[str, str] = {
+    "widen_delay": "analysis.engines.abstract.transfer.Transfer.while_loop",
+    "loop_unroll": "config.resolve.normalize_region_abstract -> widen_delay",
+    "max_traces_per_block": "analysis.engines.abstract.driver.InterproceduralDriver.compact",
+}
+REGIONAL_SOLVER_OPTIONS = frozenset(_REGIONAL_SOLVER_CONSUMERS)
+
+
+def regional_solver_catalog() -> list[JsonObject]:
+    """Child capabilities belong to the same registry as their parent schema."""
+    return [
+        {
+            "path": "abstract.solver_options." + name,
+            "scopes": ["region"],
+            "capabilities": ["ai_primary", "native_then_ai", "hybrid"],
+            "consumer": consumer,
+            "version": "python-core-v1",
+            "effect": "regional_precision_budget",
+            "evidence": ["tests/regression/audit3/test_region_policy_execution.py"],
+        }
+        for name, consumer in _REGIONAL_SOLVER_CONSUMERS.items()
+    ]
 
 
 def _descriptor(
@@ -164,6 +229,14 @@ def _common_options() -> list[OptionDescriptor]:
         "llm.proposals": ([], "llm.strategy.RefinementController"),
         "llm.max_proposals": (2, "llm.strategy.RefinementController"),
         "llm.checker_budget": (10000, "analysis.verification.guarded_dispatch.checker"),
+        "llm.model": ("gpt-6-luna", "llm.openai_transport.OpenAIResponsesTransport"),
+        "llm.timeout_seconds": (30.0, "llm.openai_transport.OpenAIResponsesTransport"),
+        "llm.max_output_tokens": (2048, "llm.openai_transport.OpenAIResponsesTransport"),
+        "llm.max_input_bytes": (1000000, "llm.responses.ResponsesCandidateProposer"),
+        "llm.max_response_bytes": (131072, "llm.responses.parse_response_candidate"),
+        "llm.max_json_depth": (24, "llm.responses.parse_response_candidate"),
+        "llm.max_calls": (1, "llm.responses.ResponsesCandidateProposer"),
+        "llm.max_total_tokens": (8192, "llm.responses.ResponsesCandidateProposer"),
         "queries": (["summary"], "session.AnalysisSession.execute"),
         "output.views": (["summary"], "results.schema.AnalysisResult.to_dict"),
         "output.modules": ([], "results.schema.AnalysisResult.to_dict"),
@@ -182,7 +255,8 @@ def _common_options() -> list[OptionDescriptor]:
         "preset": ("balanced", "precise", "fast"),
         "semantic_profile": ("python-core-v1", "python-protocol-v1"),
         "output.format": ("json", "text"),
-        "llm.provider": ("offline", "recorded", "adversarial"),
+        "llm.provider": ("disabled", "offline", "recorded", "replay", "adversarial", "openai_live"),
+        "llm.model": ("gpt-6-luna",),
     }
     bounded = {
         "output.max_items",
@@ -373,6 +447,16 @@ def _build() -> tuple[OptionDescriptor, ...]:
                 consumer="analysis.engines.abstract.driver.InterproceduralDriver.charge / compat.native_worker.main",
                 note="Native child address-space hard cap; new driver sampled resident-memory bound. Zero disables the bound.",
             )
+        regional = option.path.removeprefix("abstract.") in REGIONAL_ABSTRACT_OPTIONS
+        option = replace(
+            option,
+            scopes=("global", "region") if regional else ("global",),
+            capabilities=option.engines,
+            effect="regional_semantics" if regional else "global_configuration",
+            evidence=("tests/regression/audit3/test_region_policy_execution.py",)
+            if regional
+            else option.evidence,
+        )
         enriched.append(option)
     return tuple(enriched)
 
@@ -407,7 +491,16 @@ def _schema_value(option: OptionDescriptor) -> JsonObject:
         "description": option.note or option.consumer,
         "x-supported-engines": list(option.engines),
         "x-configurable": option.configurable,
+        "x-scopes": list(option.scopes),
+        "x-capabilities": list(option.capabilities),
+        "x-consumer": option.consumer,
+        "x-version": option.version,
+        "x-effect": option.effect,
+        "x-evidence": list(option.evidence),
     }
+    if option.path == "abstract.solver_options":
+        value["x-region-children"] = list[JsonValue](sorted(REGIONAL_SOLVER_OPTIONS))
+        value["x-region-child-options"] = list[JsonValue](regional_solver_catalog())
     if option.kind != "nullable":
         value["type"] = option.kind
     elif option.path in {

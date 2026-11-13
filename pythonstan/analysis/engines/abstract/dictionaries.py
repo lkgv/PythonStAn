@@ -338,8 +338,8 @@ class DictionaryOperations:
                         for concrete in keys
                         if not target.fields.get(concrete, Value.bottom()).is_bottom()
                     ]
-                    cap = max(0, self.d.abstract_integer("max_value_partitions", 4))
-                    requested = bool(self.d.abstract.get("enable_value_partition", False))
+                    cap = max(0, self.t.execution.integer("max_value_partitions", 4))
+                    requested = bool(self.t.execution.abstract.get("enable_value_partition", False))
                     partitioned = requested and len(eligible) <= cap
                     handlers = {
                         handler

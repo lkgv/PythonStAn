@@ -1,0 +1,950 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "reviewer": "recovery_audit",
+  "status": "independent_finite_review_passed_no_open_findings_in_reviewed_slice",
+  "scope": "N4-DOM-01, N4-STATE-01/02 and N4-SEM-01/02 independent finite witnesses; no parent card acceptance inferred",
+  "frozen_source": {
+    "commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+    "tree": "bce9a9fb397efef877ee6a93587a600a1bbebcac",
+    "production_checkpoint": "dc1a814364f4f82c15bd8173d3a2e5ba69cacafb",
+    "worktree": "PythonStAn-w1-baseline",
+    "production_unmodified": true
+  },
+  "test_path": "tests/regression/audit3/test_w2_independent_20261113.py",
+  "test_sha256": "2f8010722c619ce5dcb21fc7edcf609aa2cbcf077633e0f9b0a73c8d8853689d",
+  "frozen_independent": {
+    "passed": 12,
+    "failed": 49,
+    "skipped": 0,
+    "case_results": [
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left0-right0-add]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left0-right0-subtract]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left0-right0-multiply]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left0-right0-divide]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left1-right1-add]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left1-right1-subtract]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left1-right1-multiply]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left1-right1-divide]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left2-right2-add]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left2-right2-subtract]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left2-right2-multiply]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left2-right2-divide]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left3-right3-add]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left3-right3-subtract]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left3-right3-multiply]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_finite_scalar_pair_coverage_survives_cap[left3-right3-divide]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_float_zero_truth_with_non_enumerable_other_facet[integer_interval-0.0]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_float_zero_truth_with_non_enumerable_other_facet[integer_interval--0.0]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_float_zero_truth_with_non_enumerable_other_facet[string_prefix-0.0]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_float_zero_truth_with_non_enumerable_other_facet[string_prefix--0.0]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_export_union_keeps_pattern_residual[xy-!]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_export_union_keeps_pattern_residual[nonempty-outside]",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_opaque_sort_ordering_keeps_a_normal_protocol_obligation[bytes]",
+        "status": "failed",
+        "seconds": "0.000"
+      },
+      {
+        "name": "test_opaque_sort_ordering_keeps_a_normal_protocol_obligation[opaque_scalar]",
+        "status": "failed",
+        "seconds": "0.000"
+      },
+      {
+        "name": "test_unbound_alternative_is_an_error_not_a_normal_unknown_value",
+        "status": "failed",
+        "seconds": "0.000"
+      },
+      {
+        "name": "test_widening_stabilizes_all_owned_value_locations_uniformly",
+        "status": "failed",
+        "seconds": "0.001"
+      },
+      {
+        "name": "test_two_stale_epochs_observation_preserves_both_owned_graphs[leq]",
+        "status": "failed",
+        "seconds": "0.002"
+      },
+      {
+        "name": "test_two_stale_epochs_observation_preserves_both_owned_graphs[read_slot]",
+        "status": "failed",
+        "seconds": "0.002"
+      },
+      {
+        "name": "test_two_stale_epochs_observation_preserves_both_owned_graphs[join]",
+        "status": "failed",
+        "seconds": "0.002"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[star_before_textual_keyword-ai_primary]",
+        "status": "failed",
+        "seconds": "0.133"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[star_before_textual_keyword-hybrid]",
+        "status": "failed",
+        "seconds": "0.080"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[sole_star_defers_iteration-ai_primary]",
+        "status": "failed",
+        "seconds": "0.076"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[sole_star_defers_iteration-hybrid]",
+        "status": "failed",
+        "seconds": "0.076"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[mixed_star_iterates_before_keyword-ai_primary]",
+        "status": "failed",
+        "seconds": "0.072"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[mixed_star_iterates_before_keyword-hybrid]",
+        "status": "failed",
+        "seconds": "0.075"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[duplicate_merge_stops_later_keyword-ai_primary]",
+        "status": "failed",
+        "seconds": "0.121"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[duplicate_merge_stops_later_keyword-hybrid]",
+        "status": "failed",
+        "seconds": "0.115"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[named_group_evaluates_before_merge-ai_primary]",
+        "status": "failed",
+        "seconds": "0.110"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[named_group_evaluates_before_merge-hybrid]",
+        "status": "failed",
+        "seconds": "0.114"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nonstr_key_checks_after_values-ai_primary]",
+        "status": "failed",
+        "seconds": "0.126"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nonstr_key_checks_after_values-hybrid]",
+        "status": "failed",
+        "seconds": "0.143"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_assignment-ai_primary]",
+        "status": "passed",
+        "seconds": "0.200"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_assignment-hybrid]",
+        "status": "passed",
+        "seconds": "0.204"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[three_operand_or-ai_primary]",
+        "status": "passed",
+        "seconds": "0.585"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[three_operand_or-hybrid]",
+        "status": "passed",
+        "seconds": "0.680"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_condition-ai_primary]",
+        "status": "failed",
+        "seconds": "0.303"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_condition-hybrid]",
+        "status": "failed",
+        "seconds": "0.255"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[three_operand_and_condition-ai_primary]",
+        "status": "passed",
+        "seconds": "0.905"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[three_operand_and_condition-hybrid]",
+        "status": "passed",
+        "seconds": "0.925"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_not-ai_primary]",
+        "status": "passed",
+        "seconds": "0.206"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[nested_bool_not-hybrid]",
+        "status": "passed",
+        "seconds": "0.218"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_builtin_has_no_read_fallback-ai_primary]",
+        "status": "failed",
+        "seconds": "0.025"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_builtin_has_no_read_fallback-hybrid]",
+        "status": "failed",
+        "seconds": "0.023"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_shadowed_builtin_is_local_error-ai_primary]",
+        "status": "failed",
+        "seconds": "0.026"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_shadowed_builtin_is_local_error-hybrid]",
+        "status": "failed",
+        "seconds": "0.029"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_module_then_read-ai_primary]",
+        "status": "passed",
+        "seconds": "0.020"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_module_then_read-hybrid]",
+        "status": "passed",
+        "seconds": "0.023"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_nonlocal_then_read-ai_primary]",
+        "status": "passed",
+        "seconds": "0.040"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_nonlocal_then_read-hybrid]",
+        "status": "passed",
+        "seconds": "0.042"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_tuple_keeps_completed_prefix-ai_primary]",
+        "status": "failed",
+        "seconds": "0.041"
+      },
+      {
+        "name": "test_public_semantic_prefix_matches_cpython[delete_tuple_keeps_completed_prefix-hybrid]",
+        "status": "failed",
+        "seconds": "0.024"
+      }
+    ],
+    "raw_output": "artifacts/next/evidence/w2-independent-20261113/frozen-independent-v2.stdout.txt",
+    "junit": "artifacts/next/evidence/w2-independent-20261113/frozen-independent-v2.xml"
+  },
+  "frozen_mandatory": {
+    "passed": 18,
+    "failed": 18,
+    "skipped": 0,
+    "failed_selectors": [
+      "tests/regression/audit3/test_domain_mandatory.py::test_scalar_sort_fallback_preserves_normal_and_raise[1-a-b]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_scalar_sort_fallback_preserves_normal_and_raise[4-x-y]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_public_binary_cap_keeps_both_normal_sorts[1]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_float_zero_truth_survives_nonfinite_other_sort[a]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_float_zero_truth_survives_nonfinite_other_sort[other]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_public_float_truth_branch_coverage[1]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_wire_preserves_pattern_and_residual_constant[a-z]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_wire_preserves_pattern_and_residual_constant[prefix-outside]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[1-1]",
+      "tests/regression/audit3/test_domain_mandatory.py::test_generator_resume_reresolves_epoch_handle[7-1]",
+      "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[heap-True]",
+      "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[cell-True]",
+      "tests/regression/audit3/test_native_mandatory.py::test_assignment_failure_keeps_completed_prefix[nested-True]",
+      "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[2-True]",
+      "tests/regression/audit3/test_native_mandatory.py::test_repeated_dictionary_allocation_retains_old_alias[3-True]",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_context_policy_has_real_callsite_consumer",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_relation_alias_matches_canonical_policy",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_nested_trace_budget_changes_actual_paths"
+    ],
+    "raw_output": "artifacts/next/evidence/w2-independent-20261113/frozen-mandatory.stdout.txt"
+  },
+  "commands": {
+    "frozen_independent": [
+      "../quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_w2_independent_20261113.py",
+      "--tb=short",
+      "--junitxml=<ignored raw evidence>"
+    ],
+    "frozen_mandatory": [
+      "../quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_domain_mandatory.py",
+      "tests/regression/audit3/test_native_mandatory.py",
+      "--tb=short"
+    ]
+  },
+  "review_findings": [
+    {
+      "id": "W2-IND-01",
+      "finding": "Value-context nested BoolOp and not can legitimately repeat __bool__; removing all repeats changes CPython behavior. Condition-context lowering has different observable order.",
+      "status": "fixed_and_independently_regression_verified_both_value_and_condition_contexts",
+      "baseline_controls": "nested_bool_assignment and nested_bool_not both modes pass frozen baseline; current intermediate source regressed all4, whereas nested_bool_condition improved."
+    },
+    {
+      "id": "W2-IND-02",
+      "finding": "Widening must reach heap fields/default and typed metadata values as well as cells; increasing0\u21921 must stabilize bounds uniformly.",
+      "status": "fixed_and_independently_verified_for_cells_fields_default_and_typed_length_metadata"
+    },
+    {
+      "id": "W2-IND-03",
+      "finding": "Scoped request_module used default operations for input descriptors and stale quotient collisions.",
+      "status": "fixed_after_static_review_two_non_author_variants_pass",
+      "provenance": "No pre-fix execution captured; root patched before independent test execution."
+    },
+    {
+      "id": "W2-IND-04",
+      "finding": "Identical duplicated nested child rules compared inherited merged settings against raw patch and were falsely rejected.",
+      "status": "fixed_real2red_to_green",
+      "red_evidence": "artifacts/next/evidence/w2-independent-20261113/policy-before-review.stdout.txt"
+    },
+    {
+      "id": "W2-IND-05",
+      "finding": "Nested selector breadth double-counted source nodes, ordering a strict child before its parent.",
+      "status": "fixed_real1red_to_green_with1kind_restricted_green_control",
+      "red_evidence": "artifacts/next/evidence/w2-independent-20261113/policy-breadth-before.stdout.txt"
+    },
+    {
+      "id": "W2-IND-06",
+      "finding": "A single accepted priority below -10**9 is silently ignored by a finite initial-priority sentinel.",
+      "status": "fixed_explicit_membership_replaces_finite_priority_sentinel",
+      "reproduction": {
+        "priority": -1000000001,
+        "requested_context_depth": 0,
+        "actual_context_depth": 2,
+        "controls_priorities_applied": [
+          -1000000000,
+          -1,
+          0
+        ]
+      },
+      "test_source_unchanged_per_root_freeze": true,
+      "independent_read_only_after_fix": {
+        "priorities": [
+          -10000000000000000000000000000000000000000,
+          -1000000001,
+          -1000000000,
+          -1,
+          0
+        ],
+        "requested_context_depth": 0,
+        "actual_context_depth_each": 0
+      },
+      "authored_regressions_executed_by_independent_reviewer": "16 priority single/duplicate/conflict/ordered controls included in final109"
+    }
+  ],
+  "harness_correction": {
+    "reason": "Public API automatically includes summary answer alongside requested ValueQuery; corrected test selects query.kind=value rather than assuming sole answer.",
+    "before_correction_raw_outputs": [
+      "frozen-independent.stdout.txt",
+      "current-first.stdout.txt"
+    ],
+    "acceptance_uses_corrected_harness_only": true
+  },
+  "limits": [
+    "Finite positive tests and structural retention do not prove arbitrary Python soundness.",
+    "Current mutable implementation is not yet frozen or accepted.",
+    "Original mandatory domain/Native tests remain unchanged, no skip or budget changes.",
+    "Independent tests use CPython3.12 concrete observations and published wire membership, not analyzer order to derive concrete gold.",
+    "Final109 includes31 author-written policy regression cases executed by this independent reviewer;75 newly authored witnesses and3 frozen mandatory policy controls remain separately counted."
+  ],
+  "qualifications": {
+    "dom_01": false,
+    "state_01": false,
+    "state_02": false,
+    "sem_01": false,
+    "sem_02": false,
+    "core": false,
+    "release": false
+  },
+  "current_independent": {
+    "command": [
+      "../quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_w2_independent_20261113.py",
+      "tests/regression/audit3/test_driver_policy_review_20261113.py",
+      "tests/regression/audit3/test_policy_independent_20261113.py",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_context_policy_has_real_callsite_consumer",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_relation_alias_matches_canonical_policy",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_nested_trace_budget_changes_actual_paths",
+      "--tb=short",
+      "--junitxml=artifacts/next/evidence/w2-independent-20261113/final-independent.xml"
+    ],
+    "exit_code": 0,
+    "seconds": 5.591609974999756,
+    "source_stable": true,
+    "changed_paths": [],
+    "source_manifest_sha256": "92dd3e50050ca22a207e3c3588d9f2a0fd9031262f27cdeee4820609d5a1f1cd",
+    "passed": 78,
+    "failed": 0,
+    "skipped": 0,
+    "scope_counts": {
+      "domain": 25,
+      "state": 4,
+      "semantic_variants": 32,
+      "scoped_driver": 2,
+      "policy_variants": 12,
+      "original_policy_mandatory": 3
+    },
+    "receipt": "artifacts/next/evidence/w2-independent-20261113/final-independent.receipt.json",
+    "stdout": "artifacts/next/evidence/w2-independent-20261113/final-independent.stdout.txt"
+  },
+  "final_source_hashes": {
+    "docs/development/next/quality_debt.json": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "docs/development/next/quality_frontier.json": "ee213c437baf8a6484a4a3d8a25f3b692fb6c50e0f1b4cb9dfeae663606027f0",
+    "poetry.lock": "26cbcabde503ce027b04444689fc627d09d7dddca4a9e5fd0c89ac2737813af3",
+    "pyproject.toml": "b57036afb70fb886296c7923b4f0933df8eedac864ec9bc09680ef1e0bd8c09d",
+    "pythonstan/__init__.py": "64dbe55dbc0381383d30b883ed95c278333cd5b182d0e7d324e07d2d59f02f20",
+    "pythonstan/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "pythonstan/analysis/__init__.py": "72b090daeae995e3d737203e46aeec8bb13d0de2155caf9622d4036277acc790",
+    "pythonstan/analysis/analysis.py": "0218f21d1c954765b4ec01123f2463eb1672937e301ef0198a6daa2e7db77e43",
+    "pythonstan/analysis/class_hierarchy.py": "f3b304324a082a0ac2544fd694760b2e6e1fb3cd4ed5f7d81110b073ac911317",
+    "pythonstan/analysis/closure.py": "396f13120874c7ef5e3d070520cc0c6a2f53272336565aed703ada1fef0c8077",
+    "pythonstan/analysis/compact_liveness.py": "bd7c482ff0a6502f0170d270882eb56fb69ad06a6e95fd6c22abdf930addf0a0",
+    "pythonstan/analysis/composition/__init__.py": "c67568f169dba4dbe3d2fc98870177d5691fa141188faba35965d0e76b72e014",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "c776fbe093964b1b05a7b5d9ac886a02587b65cee259d5b8add00d299a63266a",
+    "pythonstan/analysis/composition/hybrid.py": "7b6d98af5d70e66e810db0376f537267319e996b3f63b07eb937bf3f30ba9828",
+    "pythonstan/analysis/composition/native_intrinsics.py": "8bba6b1df794fe7589a131a2b12214e9c013db8b330db4d47e42554efdd049f9",
+    "pythonstan/analysis/composition/native_snapshot.py": "3978cac6ebc043750d766c37311a02edd701d8f570a1ee976e9d4a47c05f25b1",
+    "pythonstan/analysis/composition/oracle.py": "e3ee30cccbf31b54d47f77705ed2599f1f6c1975114eabdfee8f517a30737ae6",
+    "pythonstan/analysis/composition/plan.py": "1ba87ec45e2e43ec8700032748c8982160b743812891f3100efec2d81aabb80d",
+    "pythonstan/analysis/composition/reabstract.py": "adc3fc675de0dc82c4f683eb0d00db2a335fbe52eff69f30d89871bc1cac229e",
+    "pythonstan/analysis/composition/region_engine.py": "1a36f9125ae020463956b62d496b6b6579e0332015f6e3684f05921324e2d2e1",
+    "pythonstan/analysis/composition/region_scheduler.py": "23059e19289ef0eb30e47ccd914dd152865b16e2245fa63d28812b5f3fdbc512",
+    "pythonstan/analysis/composition/state_adapter.py": "4cb9a91c7ba8b49988dfed98ea9239dee1b20fce8cecbd9c6c8d78cc31b20156",
+    "pythonstan/analysis/composition/summary_context.py": "c1169f7ad18225e7753d95536736eb4f430da3ee0e92badbdab4900d25f7193f",
+    "pythonstan/analysis/contracts/__init__.py": "53a1c54bafa776c4ac61941540a793137fcdb82a54e185cb9404a6f3c869ae62",
+    "pythonstan/analysis/contracts/arguments.py": "a9cb0c3608e8c13b38a541c35122afb761b9758c0b37cb271087745746b17e3a",
+    "pythonstan/analysis/contracts/budgets.py": "e578cddd10069e1a779e20efe75860a4d9ec06b89a41e14e3ccd54a7ec39cbae",
+    "pythonstan/analysis/contracts/engine.py": "cadbb56a6b7557b79053450ed112d4305ac7a8ff911d7fe8249de79af5c60316",
+    "pythonstan/analysis/contracts/identity.py": "7be7c4a72536a5a4e528d3af9fee44d9526ba646ae360fe6d4199fd629fa8577",
+    "pythonstan/analysis/contracts/json_data.py": "2d5db8e1cbd0dff907553cc564369dbac207698523329c81f77065f088d7168a",
+    "pythonstan/analysis/contracts/observation.py": "80899980ee0727cb96224bbddc0f39a7a8b8da251ac3ada3735ea758c1e53113",
+    "pythonstan/analysis/contracts/oracle.py": "22258ab654bb7da049258d302312a5fd2860827dda4e757b343ef713ab42412c",
+    "pythonstan/analysis/contracts/outcomes.py": "5dc85467abf533bbee38673bd851f6982d980179862ff95992590e1b53ad9456",
+    "pythonstan/analysis/contracts/private_slots.py": "65d8f92a94db3850055aa3380e168fe9f6623af649a615cf586ce993cc50b97b",
+    "pythonstan/analysis/contracts/wire.py": "bda5b3a4b5eaa839ba9d37e7b308342f4d38b84010f3895d295263627df48d91",
+    "pythonstan/analysis/contracts/work.py": "6ebb203cea0aa27a56218e33a590678c2237a5f62ad3edb38abe67f6a32e32be",
+    "pythonstan/analysis/dataflow/__init__.py": "be01a8380d82238db23acdc62c4aa42efce5f54c2b30abfc0e2f1a77d76ad34c",
+    "pythonstan/analysis/dataflow/analysis.py": "89c27ff34a55d0b43b23bfa7fd2f57ef0e5013955bd6733825dd4a05c4daa8cd",
+    "pythonstan/analysis/dataflow/driver.py": "9e1137e1f1f7532649df73b9b8b22240e7097d8135744ed5e014cf8083be2d57",
+    "pythonstan/analysis/dataflow/equations.py": "c4180f1bbf0e5e5f0ec01adb4a344047896adffc4a64bceb6e1e05e6d35a39d9",
+    "pythonstan/analysis/dataflow/execution.py": "3dedc5107a3709e8281d0c9f6f9148ee93c5a263641cbe66c6783e0b323d9896",
+    "pythonstan/analysis/dataflow/liveness.py": "86d9d58deaca42d530a32ccf6536f066d900cc0d79806b2646ca18e38cc9053c",
+    "pythonstan/analysis/dataflow/reaching_definition.py": "5a29288ecf37ab29e0d9d69169d1753cb0e1eca0ca6662903b234c7f69fac754",
+    "pythonstan/analysis/dataflow/solver.py": "433bacc0e0b2e729150faebe389fc8bcbc00e74af49944b8007ef203d1034306",
+    "pythonstan/analysis/defuse.py": "8e15af930419edbfcd3a1ab1065ec977fdbe398127dcc705b115a9fe90a8a41c",
+    "pythonstan/analysis/domains/__init__.py": "28d7f8e7c1520dc2d27502b9123df27cf315e744ca681b16be4a0311b06f6506",
+    "pythonstan/analysis/domains/base.py": "4bf934805faa28e11b00c1826512865701db0e582731172c68b3f0fd29c7aae4",
+    "pythonstan/analysis/domains/bool.py": "be6bd89485c0bb94ab131f459cfdb3ff7e1a24ad56474fdb6360d9c9b7cb372c",
+    "pythonstan/analysis/domains/bundle.py": "4796d2729ebe41685596ed3fe9f26f7975e1e5c866272937ed3fb04d244fc91d",
+    "pythonstan/analysis/domains/ints.py": "1aa44e60c5095771a778271e113ad266c9de4e269b067c02087dc4c549d258b0",
+    "pythonstan/analysis/domains/none.py": "d0454f17fa4ca75b219df347baf2f5307afd132cb697a8486e56b06b92b75bae",
+    "pythonstan/analysis/domains/reabstract.py": "b85fcfad74905966e8d16f5cb9946bc14e74e9b5efa9592e81ea22373cc9f27d",
+    "pythonstan/analysis/domains/relations.py": "35644d0f77988d53d43a2f43fa89e2383f23930d05b7e8c02f44531772121f66",
+    "pythonstan/analysis/domains/strings.py": "577be458dd027322c5d0060d9aab8dc1228af3bc17ff21d86d0baa03424765ad",
+    "pythonstan/analysis/domains/values.py": "c9dfe8efaaa269086cdbd39aa7e3e1b3e2a893561b5c9488d0658211f709bad4",
+    "pythonstan/analysis/engines/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pythonstan/analysis/engines/abstract/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pythonstan/analysis/engines/abstract/attributes.py": "cf32cd537ebc536cbbeb3cce12a3e923aa1a83b391f855555843f8897c43fef1",
+    "pythonstan/analysis/engines/abstract/continuations.py": "2a95e165f53a55eec3aad96da956ac53d2ab193c51a6e2ccec64f6c9bda6d9e6",
+    "pythonstan/analysis/engines/abstract/dictionaries.py": "b7a2894375e8023e3592554de8ce55305c7de51c6c127f8eabcdbc68876bb972",
+    "pythonstan/analysis/engines/abstract/dictionary_views.py": "6938f9540e240b15f7966e492c80a1c8b0d5591fd38244417266cacc79aaf5f7",
+    "pythonstan/analysis/engines/abstract/driver.py": "b16bf91ea4266965ec025d21ceb934589cbc5f626e06c3288c53c90c4ec0cdab",
+    "pythonstan/analysis/engines/abstract/namespaces.py": "e541bbef487faf4928f3f72ae2e956b480b2f6fd16e28cbaffda34c470047bd2",
+    "pythonstan/analysis/engines/abstract/publication.py": "9d55e30a8f9b0418e52bbd75fbd51e0bc8efe8aee10632d5e9fd50e65a363b61",
+    "pythonstan/analysis/engines/abstract/runtime_options.py": "cd34e3fe8fa5bf6603dacb19621e18d8528ab1130a048fed6aa8bea0ded92539",
+    "pythonstan/analysis/engines/abstract/state.py": "45f1c0c806bc36ea5b83d233db838642358af265780b406cfaed1fcd8489080c",
+    "pythonstan/analysis/engines/abstract/state_transform.py": "859346b0b2da1efebe04c29c7cc6a38152e69877fa0afcb2cadff5ab9c256008",
+    "pythonstan/analysis/engines/abstract/transfer.py": "0820382920c701198c1475ae7e8b7a9d624580286d8c2d4313013347cd709aff",
+    "pythonstan/analysis/pointer/__init__.py": "26e9770b4179e21fa09b19d1c1d6f919c4f763dfedf78bc14c3c11ed889ab662",
+    "pythonstan/analysis/pointer/ai/__init__.py": "7a1a43daed68df26eef75c1717b193eb7e51fe5a4794aeefded7575dd27a4377",
+    "pythonstan/analysis/pointer/ai/_cfg_adapter.py": "bf3bac0cedab387d0786fad45a9777d23bd1c68cb244ef953ca443bc04c86523",
+    "pythonstan/analysis/pointer/ai/_narrowing.py": "3cb8bd53df9c2fed5dc66f72021b061521f84c6aa88208e8ba1efeda34f67368",
+    "pythonstan/analysis/pointer/ai/_trace_partition.py": "668236e105c37254db23adf0df7f46093d3fb94326e278c891891bd9f93eda8f",
+    "pythonstan/analysis/pointer/ai/analysis.py": "7ee4de65ee32903e5d511685cab3c6aea537b4d17809ddf88cdc8a2d3dc77545",
+    "pythonstan/analysis/pointer/ai/api.py": "cb53921b161f705c9c3fa28e4d2a670a65ae0a1e4909e7d2543f46ed3b3e21af",
+    "pythonstan/analysis/pointer/ai/certified/__init__.py": "22ba410d894dc9f96615d4fe41d4001c2fb71cbdea3d612c97a10aa08ae17ce0",
+    "pythonstan/analysis/pointer/ai/certified/checker.py": "e86c32219082eac9e383b97286c03c47cae535134d10406c6f0ff07d6a23316e",
+    "pythonstan/analysis/pointer/ai/certified/closed_heap_effects.py": "06d3a2960307e90fccc6628da38afee363a530176d15faf174f18afbc80c88a5",
+    "pythonstan/analysis/pointer/ai/certified/driver.py": "c8b11b8b2205dc80c0f8770ebff533bdf8dd35832be0c97d70b604a19cc4853c",
+    "pythonstan/analysis/pointer/ai/certified/finite_entry.py": "b5556bd108652051fede219b01ad7c9fef1b2d309e43e7f25f5d3fa467cb81d8",
+    "pythonstan/analysis/pointer/ai/certified/heap_continuations.py": "527812b9ebbf55f265a4810b8b5b1565b999813cc0c2203345b304af4226b59a",
+    "pythonstan/analysis/pointer/ai/certified/heap_coroutines.py": "96a3bf1659efa4879e5b458490898088b44fdfdd950fa095bb764cf53daed368",
+    "pythonstan/analysis/pointer/ai/certified/llm.py": "67b05ac4a06dddb506cb4adbff2cb59078437e8b4172a851f437aea730dd0a80",
+    "pythonstan/analysis/pointer/ai/certified/read_specialization.py": "2f19a3112f5dec8d680f19d34c375797659222850e3b781ac3a4755504db1cd0",
+    "pythonstan/analysis/pointer/ai/config.py": "0610dd3d3d5bb3c433bff1f0782d8e160f0296306bc07e3b032e2e4b35784ee7",
+    "pythonstan/analysis/pointer/ai/domains/__init__.py": "d83f12fcb2e7255828db0b92dc362553b2e2002b363c1cb652d0d079b9f65ed5",
+    "pythonstan/analysis/pointer/ai/domains/attributes.py": "a651d8130cd27b59cf5847b37a1b9c0fcdfe93a53cc70c78e6820122aa19b4b4",
+    "pythonstan/analysis/pointer/ai/domains/base.py": "a251a4eeab85dd866222f1b913d8f0904d0a9bfcba873a416bde5966c3401e9d",
+    "pythonstan/analysis/pointer/ai/domains/binding.py": "133f5080e6b617efa76be40606383fe1087a77f113a30ad300889ff2e5d28c87",
+    "pythonstan/analysis/pointer/ai/domains/bool.py": "5e41c0b3faa5d005586edc1e1f73dd66fc4346376723fe29b2919211486362d4",
+    "pythonstan/analysis/pointer/ai/domains/builtins.py": "2ec7b44d1bc0fd259f073d541f2eb594b689606c09073c05a1dbdb6f6cc3cb5b",
+    "pythonstan/analysis/pointer/ai/domains/callable.py": "26cf72e16d7def2995b3e9556573fbae79272060ddc24512c521049458fde783",
+    "pythonstan/analysis/pointer/ai/domains/calls.py": "ff4ec9c9007f28ebcd74d43cbfee8c736faa8f076652b5b05e6881e0f0cf652e",
+    "pythonstan/analysis/pointer/ai/domains/classinfo.py": "1582922c825e919b09154b2231776df9f42dacfbc62d2a91e1618f595d6d6230",
+    "pythonstan/analysis/pointer/ai/domains/conditions.py": "7b9cfc9e036c4b4d081c9c78743501b27c10d0a0f45f99b1a422803bf4b9dbe7",
+    "pythonstan/analysis/pointer/ai/domains/descriptor.py": "3e5345c05085de3f2fb80e7c4bcc315d5041b6a9e4373d8bcb2046d8eb21aeac",
+    "pythonstan/analysis/pointer/ai/domains/ints.py": "d255a9219596f7c27884e824e167c53dddc73f1bbaad647dd933776127065d5e",
+    "pythonstan/analysis/pointer/ai/domains/iterators.py": "f49581dc1c6ce38adbeb533db5d333c6c05f768bac07cff896f56813992bc1e3",
+    "pythonstan/analysis/pointer/ai/domains/kwargs.py": "286e98637af39da1745e106f9c7b5df2104758098dc8c4489f6f8203781ce386",
+    "pythonstan/analysis/pointer/ai/domains/mapslots.py": "5eb39c0af51a4651f3d99caaef41c9d40827137cdedb247e5f0a9a0f02d39260",
+    "pythonstan/analysis/pointer/ai/domains/none.py": "e21ab5561c7f1e27c599bded0d00900473088076092fc3cc21a6c9893da3d4b4",
+    "pythonstan/analysis/pointer/ai/domains/scopes.py": "095a14eddfe64fce734d2d6c2919ed67e95292c185097f08f525f20d267bf139",
+    "pythonstan/analysis/pointer/ai/domains/strings.py": "a4c45874c204cce36f19a19487d8db2b27473737dc4975c2d8e449e406010f5b",
+    "pythonstan/analysis/pointer/ai/domains/subscripts.py": "98b8cfefeed40e39d4f511a0469b7ec17471f10b4fc27d40dd73e89378e56c3b",
+    "pythonstan/analysis/pointer/ai/domains/tuples.py": "42d85bd6efa04e41ae1fe7ccda27e3f45eb53788ee7ded395577efed3c604eda",
+    "pythonstan/analysis/pointer/ai/domains/type_domain.py": "d5b30f3690e8961557bcb4b4a2f0f4936854d0e4bf11f32077f3a08f63002dd8",
+    "pythonstan/analysis/pointer/ai/generator_protocol.py": "3403fa52a094650fc3eeeeb03bed3431b71133fe5e264d65d96943d7c3b8c928",
+    "pythonstan/analysis/pointer/ai/heap.py": "148e48767d9c308cb6f00ee3919a8f90fbd65e8b3c8633ffbbe4a26c1134537c",
+    "pythonstan/analysis/pointer/ai/interpreter.py": "e3ed194787f32623de8219658b06dc235203d60f7e728cefdd41efe1a3d171a4",
+    "pythonstan/analysis/pointer/ai/lexical_bindings.py": "f7b16341b2ee0cd7df9872ea68821a5cbb63710dfd458e29bf9541041fed7c68",
+    "pythonstan/analysis/pointer/ai/plan.py": "fc738915d5cd20f51e9b214a6ff4e8b9ecf60d4aed65eb46f985619da2420a13",
+    "pythonstan/analysis/pointer/ai/scalar_transfer.py": "f9602f066af55e0ab5bbde1ad3e3c779905104b9595fa9ad1afc7fa0110c6e7b",
+    "pythonstan/analysis/pointer/ai/solver.py": "6677debff24cbda546d4052e4d43b0f4257db73e30d048992d45f36d9a24506e",
+    "pythonstan/analysis/pointer/ai/state.py": "371e7eff5e0808a55da22172015050093273e6baa9cf05dbd75e36062c4d8f38",
+    "pythonstan/analysis/pointer/ai/summary.py": "bc1d344abc9b7857db4f9f7fd18b091b52e6a4c2bc77257501f58391c2d14537",
+    "pythonstan/analysis/pointer/ai/value_domain.py": "0237ac000457dc80d6a6e0e6e532763479cd4ef0de9826b7cfaf7350530ec4ce",
+    "pythonstan/analysis/pointer/kcfa/__init__.py": "4bfc13d45ee2d906fc2ff1287d1037b98c0b5cd4c9cb652736ab6b488aecc40f",
+    "pythonstan/analysis/pointer/kcfa/allocation.py": "64efe96186d89a5f1793519940639c489a64a2cb44207af843e8d310122cf2fd",
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "915ce8f8be4b64a9722fdf65eb2fead4c0a825c7bdf7a76da3694dcd43347603",
+    "pythonstan/analysis/pointer/kcfa/bootstrap.py": "e8a6f8376a39bd1e2f5f1a79756bb03b782f57a23a66328b405a38fb493f9795",
+    "pythonstan/analysis/pointer/kcfa/builtin_api_handler.py": "766da00fffae47cd3e19240b4dd44f33a530113623abf7d50b7962bcdaef84fd",
+    "pythonstan/analysis/pointer/kcfa/call_graph_analyzer.py": "eba834782eab6f96ce8832b401eef65b52dddbd50c04467913cae9b637ccf872",
+    "pythonstan/analysis/pointer/kcfa/class_hierarchy.py": "0b1eae49c08daa5289d36cc68718382372d22b423e020a2bebb540ba2f35aac4",
+    "pythonstan/analysis/pointer/kcfa/config.py": "8529445e6975f08555d3ace6962093d4a1c8467eb907d87ed99b2747fbce60e4",
+    "pythonstan/analysis/pointer/kcfa/constraints.py": "1a572b2cd8b234b0ebda6346a116c58b87bcf92b084dd2efd54c4c2a726e55d0",
+    "pythonstan/analysis/pointer/kcfa/context.py": "0cfc2d14e0d8c49fb0b5fb0283d8ff524b086815c9ca9a0a67cc74b3e7999e5e",
+    "pythonstan/analysis/pointer/kcfa/context_selector.py": "cdf9a7ae372697f76b3c2189b5a8232dd91f05e54029a3eca07bbdabd582315e",
+    "pythonstan/analysis/pointer/kcfa/debug_boundary.py": "151a7582083e963e5863d1d89f78ac8f6c5829f4a823d5eb33fab76f58a0f40c",
+    "pythonstan/analysis/pointer/kcfa/dependency_graph.py": "84e28b2c371e12aa12faa89dd9d42fdefbbe499d6be07baa8c0bf8bbb67530d1",
+    "pythonstan/analysis/pointer/kcfa/diagnostics.py": "62537da9dc1c5b63d3a378132ebf25828f0b53101ad1a6e5adb3de76a17b0a0b",
+    "pythonstan/analysis/pointer/kcfa/exception_models.py": "195afea667306906f0403e150028c8c39986b2bad040808b7e034b9e224b661b",
+    "pythonstan/analysis/pointer/kcfa/heap_model.py": "6bf734961ccd21a6c6cb4616fc7a085231cd8c0e6e26b1e691b45fbb4b633587",
+    "pythonstan/analysis/pointer/kcfa/input_bindings.py": "7056478ffed95244202cdcac44ac10abd3a3323d0ae194da7d715fad91558938",
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "fee7a409c21a2ba23723235532f7acaf473b77eb58d0dc0f79b7fc10e2639229",
+    "pythonstan/analysis/pointer/kcfa/libs/math.py": "74796f4595bb3daeefde5c0ed45b8ed8286e2e86f3f16a761f365bf30eb10d95",
+    "pythonstan/analysis/pointer/kcfa/module_analysis.py": "cf8a3d32767899c31fc1339905db28bc52cdc5d4a75199df8f33dcb2fdc84b86",
+    "pythonstan/analysis/pointer/kcfa/module_summary.py": "f4d889b7f9cdc0d20cdb287bc3235436909e7c1565ec358dd26d19a6fd83f5d4",
+    "pythonstan/analysis/pointer/kcfa/mro_projection.py": "52d250747c654322b6792db9546d97e684f4d60c7a9cc9e57be46e2e1b8634ef",
+    "pythonstan/analysis/pointer/kcfa/native_mapping.py": "955f078a492caee948db56b9f76aef79455fd283d1d3a114384cb57847fd45cf",
+    "pythonstan/analysis/pointer/kcfa/object.py": "faf5c93c3a328c9320400ef3d32fa579b582e9ab8535e384a69e2fa59c80dcc8",
+    "pythonstan/analysis/pointer/kcfa/pointer_flow_graph.py": "fc624fd4444e673191d7eee6be10b5ac4fa15c92d3485a31ccde61176b02f15f",
+    "pythonstan/analysis/pointer/kcfa/points_to_set.py": "a78766eb233993e4c65e8f8a1d2ba7c006d74cb704f37635ffb944a2a6ad6b3b",
+    "pythonstan/analysis/pointer/kcfa/processor/__init__.py": "1e69db1abeeaca9475f07dae8faf26f14f8c359ff14674e07ec367ae7aa50f95",
+    "pythonstan/analysis/pointer/kcfa/processor/attribute_semantics.py": "c984f7fa49cd90934f7632e618a79746065caa54f193c1c1eaf373136711f365",
+    "pythonstan/analysis/pointer/kcfa/processor/class_protocol.py": "117b6e451fadcc3508438310a7d25bf97dacde633aa5a5ba34de72e839d3fcf4",
+    "pythonstan/analysis/pointer/kcfa/processor/compose_processor.py": "5cd4e7ac1a57f8aa2642254406132762eceb791c2f24e6e1339916d0b7bdaf2b",
+    "pythonstan/analysis/pointer/kcfa/processor/construction_hooks.py": "533b75b1d3d534bd0414cba01f248fd7e43baa5a4e4235fcbfb18c8afc07fa62",
+    "pythonstan/analysis/pointer/kcfa/processor/container.py": "51504894f74e28a4b0bf76a1f1d810fe3bbfa5fab7d8ec3c09008430d961b352",
+    "pythonstan/analysis/pointer/kcfa/processor/generator.py": "c287f1b43ec98d3accc0d43777d3fe5ba5e63f6c3265003062a1215fd295aa0b",
+    "pythonstan/analysis/pointer/kcfa/processor/heap_mapping.py": "1e36cfbec8b15a7782c42d161442870dd5b246ebc0e5441c3a97fe7c21938d5d",
+    "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py": "945052dd4e5f66caab67f18f588b6a7cff43f9f5f97c617ae1fdc2bad020a634",
+    "pythonstan/analysis/pointer/kcfa/processor/normal_call.py": "c1d355de96e2df08bcc0cc527ef23906882e089835631ca2dd99e03f3c097309",
+    "pythonstan/analysis/pointer/kcfa/processor/processor.py": "6db4b576e7429c4bee886d8a8a086df92bdb5560c136d11194eb0e1ab516ecdb",
+    "pythonstan/analysis/pointer/kcfa/processor/super_resolve.py": "97f6796f744422614262ede923a3019a6c3d874b1aa7e83ae24bbed4ab634712",
+    "pythonstan/analysis/pointer/kcfa/processor/truth_protocol.py": "583664a39ddcf2dce86587a30b1bf70e76c18143144c555e72334c00450fee6d",
+    "pythonstan/analysis/pointer/kcfa/processor/type_protocol.py": "2d0029845c9bc30976694ed664b962b1ca7b6ee331ed96f47f0bf529c0d87535",
+    "pythonstan/analysis/pointer/kcfa/protocol_context.py": "8faabb6b0fb2c72d4519f22f2dab3d094240454b11abe0da725792633a51f15d",
+    "pythonstan/analysis/pointer/kcfa/pta_query_adapter.py": "4b2d8932de845a8af4fb3f087948f7ee8c3a38290e100a625be72383e59be49f",
+    "pythonstan/analysis/pointer/kcfa/query.py": "8a043bc3757e8b2ef604b625d55fe04676d00307c085f11659d7e2df9c8b0789",
+    "pythonstan/analysis/pointer/kcfa/scheduler.py": "a74107189ec206f32aedf9ab5649797a8cef85dd8e82dcdf9c1e441bd81945fa",
+    "pythonstan/analysis/pointer/kcfa/solver.py": "8cef4466cbc0cf9733db8b6886918f0556725a411045a8cdfd8f364fca28f2e6",
+    "pythonstan/analysis/pointer/kcfa/solver_interface.py": "612360bb9e46f04e7e9d89993b8cafec84310a4833136d54b481fd093a65b740",
+    "pythonstan/analysis/pointer/kcfa/solver_statistics.py": "354d2543cbee66a70fa29aa8ddc82f09251f0c258db2137e0c7b9650a25abfed",
+    "pythonstan/analysis/pointer/kcfa/state.py": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+    "pythonstan/analysis/pointer/kcfa/super_lookup.py": "22c0eb6eaac618f85658a29d28aea67c6ddbe46542ba4897f5aa3600bcb644ef",
+    "pythonstan/analysis/pointer/kcfa/unknown_effects.py": "e9a48078adaba52e2b704e33ea8857dbb51e49b08983f01ac02cf2dad8ffda2d",
+    "pythonstan/analysis/pointer/kcfa/unknown_tracker.py": "cd393c2fb4eb3c289d2d0e45f5d48eb54885122a970600e173c410417aed7b27",
+    "pythonstan/analysis/pointer/kcfa/variable.py": "39c295a80e85320799bc24d2c3bd84b0bf07d1ec446e58234b3e19c81821a662",
+    "pythonstan/analysis/pointer/kcfa/worklist.py": "eab3f940e3f88ade4af1e1dfd27016a7395e8f131f6e5e736ec75a9a6c39ee89",
+    "pythonstan/analysis/policies/__init__.py": "00833ab27baa99e366887bb0b1972a1452bb98adae49988dfd20dfcc30cd0757",
+    "pythonstan/analysis/policies/partitions.py": "77a02fdaf7372879ddaa3d4b80cd938b5b2fa79c987420c822f35fa17a46bbbe",
+    "pythonstan/analysis/policies/region.py": "489361fc97af1ecfd33e75ecc771b72506144100abe3b13b6c0dcb5cd034c186",
+    "pythonstan/analysis/project/__init__.py": "a8fb3a2ba28cb83fa58f4f9cd00b7b89d3cb498bfe728712d5330e7bfa282672",
+    "pythonstan/analysis/project/analysis.py": "40b2dfd2eef2bd27a687ee964e2556188d4ce86f8eb8f32067806b4629c76dc7",
+    "pythonstan/analysis/project/entry_contracts.py": "e48632829647aea8a14e2309645e41b1c24bd9b0810daa235e02690c5326067e",
+    "pythonstan/analysis/project/frontend_lifetime.py": "d864054aa953a56a7b7c135c4c805ad7d797c4ab84fca90f0d455950c8b1f157",
+    "pythonstan/analysis/project/report_contracts.py": "e4cb746a4b2531c6c3b5f8ab7be68d88d0c807107b361141c24fad1920dbf8e9",
+    "pythonstan/analysis/project_frameworks/__init__.py": "7f492cfb63b123ffe1c9272369440579e83b88b685ef6384dab80f9f8115bbfb",
+    "pythonstan/analysis/project_frameworks/entries.py": "549567b2735fd5a0311debbb3bf0bbf7575d946ce3eb536dd4bbf949e4a8a9cf",
+    "pythonstan/analysis/scope/__init__.py": "8e447ca90908dd752ff8c38c9404babe09c0081a59839bfb0735d5e7a18778bc",
+    "pythonstan/analysis/scope/analysis.py": "dc34de4c10694e3eb015b7e6db0c272d6bdc3cd02272094c5ae7763bf61140c5",
+    "pythonstan/analysis/scope/closure.py": "3a608bc9b53e229ac315440a971bad4d8c44e694a73ed5afc3fe2c3f31ae1bc7",
+    "pythonstan/analysis/security/__init__.py": "c054ed6624aa1790a3ef9e09ad7864f7420843e5b85da405c077be5b706bf3ec",
+    "pythonstan/analysis/security/audit.py": "1d90cb4f114386ce755e16ad925042547a3046e1b05ac3bb840185dc6d2bd53e",
+    "pythonstan/analysis/security/boundary_policy.py": "ac2b208d2c059d1980952fc03b520057e66b5cd24185c44c2f7aa5ac3db4242d",
+    "pythonstan/analysis/security/tasks.py": "39303fcad181d10d2ccd7efe5d34cb7654628eeb4120463923871ca3217ae783",
+    "pythonstan/analysis/semantics/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pythonstan/analysis/semantics/binding.py": "3c2ad1760d2a062b5c87cd3222043f65cfa52f7468604f78e676237ab4194841",
+    "pythonstan/analysis/semantics/callplan.py": "4310a459ca63f4b33f4cb334f1a8d9e7c38d550e89798abe7b2f8e4e1ee9668d",
+    "pythonstan/analysis/semantics/control.py": "f48d682c2127c13403605c872f2f7fff8a8792f27ae7aab23e254f64f2760cc4",
+    "pythonstan/analysis/semantics/names.py": "f8f0e3ce40f4d322d9607cf74a5b9028763e011be9218bdb471317100f22a733",
+    "pythonstan/analysis/semantics/scalar_strings.py": "d6727e6d23bc800a1d9894a6c9b5d0e9c7b7b849238e2ee55c84679f6c6eaaa2",
+    "pythonstan/analysis/semantics/scalars.py": "fd636dcc02f2b80c12367ee7deace331b98b0b7e7a577e32d37c861b13339e7b",
+    "pythonstan/analysis/state/__init__.py": "b2d5339e7160ba6a5b1e7e7854d5f538476d518ea68b9bf48b4410cede0fad4b",
+    "pythonstan/analysis/state/bindings.py": "1f703f957cdc4a61122aca783dfac187e30fdc6126562fc6ce330efbbabb7af6",
+    "pythonstan/analysis/state/boundary.py": "5383ab72a114afda2f3fdf577ec78541851829e59791aebc57f0d6cc671bf9dd",
+    "pythonstan/analysis/state/continuation.py": "dae4f80eefaa147fcb601a3ba0599aea59d830c679a6cdad40fd548aeb065f43",
+    "pythonstan/analysis/state/dependencies.py": "787456fa7be63f143c960f4fd5ab2c7777c6d6f3ddd32467cb99442474c1ac68",
+    "pythonstan/analysis/state/effects.py": "c8e039111a9c3d915ab8caf75d1b09c786b9d86a6874354913a8c108f830e976",
+    "pythonstan/analysis/state/flow.py": "d9e880daf25d98f9ef48e0d001bd81655132c08436be33835778ea6db7ec1aea",
+    "pythonstan/analysis/state/guards.py": "d33169192ac6dcf09c433c9c2135b71f4bd8909cfd8ad60e35d4d1eaad29778a",
+    "pythonstan/analysis/state/handles.py": "808c90e9eb689c9daf2678bb9635a61686225d052f88d9918d988d91e5dfba7e",
+    "pythonstan/analysis/state/keys.py": "9dccb6bc75ee3a41aead593a73a56b70513baa9312b4d4aae03b432c006cacea",
+    "pythonstan/analysis/state/metadata.py": "22ff38cb897f3d7e41ad25530c716a5d53256f7cc0b7e176565c9360b21505ab",
+    "pythonstan/analysis/state/store.py": "b7672c1ca1b1778ec5c83b69dee7470085864b94751c42a702264284d4eeae8f",
+    "pythonstan/analysis/state/suspensions.py": "3b507f3f0929b7aa1d123509170f86fce5405b1930baf31ac5d716e62d4375fb",
+    "pythonstan/analysis/state/transform.py": "c476a7adb4dd782207e51757a691c9d87fc338ce41cffccaca10d1bbd14e01ad",
+    "pythonstan/analysis/transform/__init__.py": "ec0f8d7e498476bacb267a1a32acf81fa8642d9ee611bcc4cb34c9ef11280484",
+    "pythonstan/analysis/transform/block_cfg.py": "f3c287d760367ff6210528603bfa631a41a511a741e9777358a6f7e62c742c2b",
+    "pythonstan/analysis/transform/cfg.py": "32184fd517c4fb05ab36f10583c692cde006fb850f4497f3ea95e35f4951e9d0",
+    "pythonstan/analysis/transform/driver.py": "7f042b6a58b954d2a36024326e0e06494bd1710ef10f43f5cb66f88b53e332c0",
+    "pythonstan/analysis/transform/ir.py": "78cf066060cc3c8ee66ad2ca5ddc55a7d2b50e47d361c78037ebcd4438b268b6",
+    "pythonstan/analysis/transform/three_address.py": "5858c9402015be86c2321856dca9be30753503061706f3a0ee42cdaad8dc0370",
+    "pythonstan/analysis/transform/transform.py": "d9962ebc8d36e56f142968bc5e1476412ce0ed6db17fe09c38eaaddab1a0d421",
+    "pythonstan/analysis/verification/__init__.py": "c750309af56598c551829f863b52b7dc6306df71788756947b12ea8153428275",
+    "pythonstan/analysis/verification/closed_effects/__init__.py": "c1802bb58c7f7eedd2f10486feeb487b89143a09698290fb080b8987af1ca67a",
+    "pythonstan/analysis/verification/closed_effects/checker.py": "f2130ea5168596f16f63392bcf52929a534178a037e1561d777882d70e6ad221",
+    "pythonstan/analysis/verification/guarded_dispatch/__init__.py": "b657b90f3d1a221a93a2eeb5e66757ac44acfe8341c1316ea4d102a37f83ebed",
+    "pythonstan/analysis/verification/guarded_dispatch/apply.py": "443fe73bf220a2a9853391b30de105e69e4b04bc3066e6d435e3caf81e71355b",
+    "pythonstan/analysis/verification/guarded_dispatch/checker.py": "580f5c9ccd65269e31d76d5a2467fc12eb6a6e31c3cd361cdd947032ec7c70fb",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "8a049ba7f88655a2c9ebebbeb0f83e593bebdfe6d07f0486fc0181a5d43fcf16",
+    "pythonstan/analysis/verification/guarded_dispatch/obligations.py": "15ac6f9af14a898efbece80392000a5284587f4746e7b53a4e30b03258b68a9a",
+    "pythonstan/analysis/verification/guarded_dispatch/semantics.py": "843abf4e0953fa7db803efce2e16c769f8700a611e5fa491bd898fe6076b07df",
+    "pythonstan/api.py": "e8a5ad903dbbd45d855f93d64e3d95cd1b1ab4e3dc5fa75217d92baf52a397a8",
+    "pythonstan/cli.py": "6e2505162aae7ad71d6aa3e4e6d18af56fb879262a2844a3a543f38eb4ce1d37",
+    "pythonstan/compat/__init__.py": "886ee7f2ea8b8fd02357ba878add7755f3c7d1ec2381c1c6119787b7c9d791df",
+    "pythonstan/compat/host_iteration.py": "90715ed8413860acf4fe2565bfbddd07e382262527cb058adea26baf8a035230",
+    "pythonstan/compat/host_paths.py": "560e703dfd2a9fcff4b804cf918eaa2122d8d3d625a6c93ce7d6a07da92878f8",
+    "pythonstan/compat/intrinsic_boundary.py": "40d3fc3dcf87752def6ad38871c75f2974a5e4f90a71bffcdc1688bdd98f6705",
+    "pythonstan/compat/legacy_ai/__init__.py": "756771450a2f9fe15c43a935f7320e90742a84f9f6730f736f5b95c06358e7fa",
+    "pythonstan/compat/legacy_ai/_cfg_adapter.py": "06a2350fa8c453c250568e58ea64b0bcbe3b48b210764d8bd7fcabf9403e5a98",
+    "pythonstan/compat/legacy_ai/_trace_partition.py": "363592a3ef21b0b800f50307ac9cb234baedfd36699b18970605690e19e04409",
+    "pythonstan/compat/legacy_ai/analysis.py": "0ebe8cfa9c47d914957444162dec4a51f62d0fc25a931eceb4d847b1b1225c9d",
+    "pythonstan/compat/legacy_ai/api.py": "c56e8bb64c32cbfba8cc511cd0d665918a1099c96dfa64fbbd7151544efcefb3",
+    "pythonstan/compat/legacy_ai/config.py": "b98fadeff1368953273279f39c80348b4f5dd452b8d5f10ac35ba19507c11002",
+    "pythonstan/compat/legacy_ai/domains/__init__.py": "be56341ae42a512bcb94358405992fdc114e524912b5d5d1eaa8edb62a7f05e9",
+    "pythonstan/compat/legacy_ai/domains/base.py": "06eb17ea856754c95c7385ab4de683082fe05fd6e2790f9be9effe2f8254b5a1",
+    "pythonstan/compat/legacy_ai/domains/binding.py": "0e576d063cd14910b69ab0d9bba8bf8a5e756b3b22499a21754836a3bd59368d",
+    "pythonstan/compat/legacy_ai/domains/callable.py": "2b3117628b679fb9bbb01870c211ef834189319b2d6f3ed84dc645e6b814f014",
+    "pythonstan/compat/legacy_ai/domains/descriptor.py": "a4a27e3167e17aaaf15fc1a6379edf7fdf7dd14d6fb3591c2ee465480bd5dfa9",
+    "pythonstan/compat/legacy_ai/domains/kwargs.py": "aab9d66f747bc61688d2c968b12940cc9e48b85e22ac12fae35793e7eccf48a1",
+    "pythonstan/compat/legacy_ai/domains/mapslots.py": "20611e28c4f9822ed668d3092fa94f8cd3d377f936342232d759c3989fdfa90b",
+    "pythonstan/compat/legacy_ai/domains/tuples.py": "b2ef44a76c1a03bde71227f6c21e2880b06ee113f893a68cd4d0744dd6c5b86d",
+    "pythonstan/compat/legacy_ai/domains/type_domain.py": "9f0a32ebb9346a24eb853f8d662699fbd134aa0071432e0b2230d76948325b3f",
+    "pythonstan/compat/legacy_ai/heap.py": "cd30a871a397c65369d33bbfad2e09d095e02ee8b194b8291cba2a4160b78985",
+    "pythonstan/compat/legacy_ai/plan.py": "cd6c3eec828de8171e9fdd6c4984d755f02c6107f0a8c0eba793f83dc16ec367",
+    "pythonstan/compat/legacy_ai/state.py": "34cd98b8c38a040fdcaf63f74f2300214cc450f12915d30c8c86675d10796b0e",
+    "pythonstan/compat/legacy_ai/summary.py": "ba4ba878310a81fb90010320516f85a4d72d0929042de6079ad59cdc179b215b",
+    "pythonstan/compat/legacy_ai/upstream.py": "7fa75cf2930dfc36273b4846b94708d853db9867726eedb68a29375f762903b1",
+    "pythonstan/compat/legacy_ai/value_domain.py": "e527f209dc664ee63cf686ffa739cf08b82a85044a7dd92d04674bbd790e9b42",
+    "pythonstan/compat/legacy_integer_adapter.py": "ff5a1dd5fe40dcebf0d9cd5e271f8162db9a9fb606fe76e659563690d017b91f",
+    "pythonstan/compat/legacy_runner.py": "ce40341fd03f3654eec6da592fe0120fcba51293f08d37c2e48ed5d451d6da9b",
+    "pythonstan/compat/native_services.py": "61d8bd6f21a79e6f14be53a2006e5f06e1809df3032ae5d4423079d1ea176d19",
+    "pythonstan/compat/native_worker.py": "7a13072941fb2a234aa410930787e2872b79906ec67f13161d400f26a776de16",
+    "pythonstan/compat/shared_ai.py": "706dd012b15e44c2cf96cd03d16d651b5880b391f7eb3ba0485fc6ced4f07a22",
+    "pythonstan/config/__init__.py": "94341e50a2e3a6e2df93b76bf6dc62b4c277efe7651ba6083a7740084820e6f4",
+    "pythonstan/config/catalog.py": "eb0167e37a987e4ba27c4071d17dbaf384aae7149b0c39c0f4d83f11e1d829bb",
+    "pythonstan/config/errors.py": "caf17c070ad07d9d62333231e99e37785070ff010033715b495fb26903a18e5b",
+    "pythonstan/config/llm_provider.py": "4dc35285b6dd0f4b99f2b5c20da3cbd856d054dab0d2719cba6f0cdef0948d6b",
+    "pythonstan/config/model.py": "4af921bc5ad9888a9b8d550ebac5f89412112bd17142593a3d1380bf0364e55d",
+    "pythonstan/config/resolve.py": "7af4241548bd8c8b7c33d8ab26b5ea246f17b12afe7223b9973bcf13c1105b32",
+    "pythonstan/frontend/__init__.py": "f000bc766a749ff4e1a84c2902787b1ec5b0eda58374be889fb14fea2f77ef03",
+    "pythonstan/frontend/private_names.py": "4324b1c8e587cca0f7486f5591fc64c7d3832b3c7856049a7d20348547115cbd",
+    "pythonstan/frontend/source.py": "9e54e628984355fdf6277ba11f57a1b5e138b63909df9db50b889f35575a7396",
+    "pythonstan/graph/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "pythonstan/graph/call_graph/__init__.py": "c24f5ea5f3371c7d9fa0b32dc6ed1b3756426e20075cd2dee6deb0336a589e82",
+    "pythonstan/graph/call_graph/call_edge.py": "01cd1d766afd755ed47509a721e33ff0ca6e1432013c830666ac18c501bb679c",
+    "pythonstan/graph/call_graph/call_graph.py": "175280714d14caa54f1f3e91208b89a045ea3907a83ad60747d1da18f509d97f",
+    "pythonstan/graph/cfg/__init__.py": "d1ee700a173d41c1cedb6b79c086f974c765a149bcb3b4e82be34e7e0771109c",
+    "pythonstan/graph/cfg/base_block.py": "3551abd7e1b12ed9f03b4bef4e00d70846b4d4c0b6e81885e81d246a00c8005c",
+    "pythonstan/graph/cfg/cfg.py": "03cc103cb5410f12720185e25ea2c68a9b183e778410fe631b1fe419812c3e5c",
+    "pythonstan/graph/cfg/dump.py": "81cebee660bd47595dc52636fce9e329a6464845128a01f117ddc2bc2016a959",
+    "pythonstan/graph/cfg/edges.py": "dccfeea9a031cfb2d77c9aee07d90095c2ba54df2ebbaa59807a129709193700",
+    "pythonstan/graph/cfg/visualize.py": "02f90b2473545edd44a995f26c3e53a1a5be5dcb464b781e23057f89843bf7e0",
+    "pythonstan/graph/dominator_tree.py": "68d6fd9a9da8dc5a7c166a3b5688ce84b2eb4531d0f8005aa8f5942c1df7dd47",
+    "pythonstan/graph/graph.py": "efac2fa0b06425058d4117de186fbfb37c6314ecb0366ed978d5e81bd87b3e42",
+    "pythonstan/inputs/__init__.py": "6b366d093b63177bba3f132973f8a5437185d4c7a7bfb71bb888db8b1d9e300f",
+    "pythonstan/inputs/reuse.py": "764b8e8068948d3850f4f20462583ba79c92f17ca9a9a16f3cf2cce35e56f495",
+    "pythonstan/inputs/snapshot.py": "699175a8c8f00e1b7e73b4932516721da27a519c4d718d39164d70a5ffa80d26",
+    "pythonstan/inputs/targets.py": "5ac9223cfe99b3b1e7f153bb67c0c1054e40bbb4df0f50d65cf4e4bdcf431b4c",
+    "pythonstan/ir/__init__.py": "247e131097f76e3f0e12d81523976d9f4551e56cf306400cc713bf280cecb7b9",
+    "pythonstan/ir/ir_statements.py": "8f5ea8117a954dff1c8a5ee07441e920f773d9f175d521ad8a1022f1ccfcab75",
+    "pythonstan/ir/ir_visitor.py": "5e34a7b91568c221660c0d71e16f1f75b1978aa887d239658bdf5a10dc1d2546",
+    "pythonstan/ir/semantic_residuals.py": "61334c728f6cc2a8bedcb73ca028f60fd50a351b35231af25def5af9be4595c9",
+    "pythonstan/llm/__init__.py": "7fc73d1582dcfdfeb616122a1ead2e36b983536a8ebeb240b8a0c47733e42733",
+    "pythonstan/llm/candidates.py": "92a792ec16b044e1e09ad8a02af41c2c28e41c647363957a4f873ae6ba7cc3a8",
+    "pythonstan/llm/openai_transport.py": "618e1a454af127511294daabfe002067f0e62e9327eac057020ca72252c8d94e",
+    "pythonstan/llm/providers.py": "a702b0242dc70e5a0d238165ccf360f9fbcd7c45a5e7b0ddcda30bec2a0c4bdb",
+    "pythonstan/llm/response_schema.py": "02cc2a8133afe37f76100a965699f173c3f6d388ce4375aa22e72b5713d6e111",
+    "pythonstan/llm/responses.py": "e26fd1bf77939a317c12c5daa81a2b59d68c3774b7f7aa189f60f8b7838b31c9",
+    "pythonstan/llm/strategy.py": "ea6443eeffac72a588423ce2119bb8686521a6d5334f5d86633f74ddbc3a2fe2",
+    "pythonstan/models/__init__.py": "af6ec87da7ee9f6db0f644de6b8637a011f04fefea99f7f05cab3fc459422dcd",
+    "pythonstan/models/builtin_attributes.py": "52a42b6722a278dc606db29a7ccf679954085386e9b185f3efa1ced0d0d96e17",
+    "pythonstan/models/builtins.py": "fa8f101e11307348dc2b351f9838b6b87a2c374e90106e234a7e0cfdd1b748b4",
+    "pythonstan/models/exceptions.py": "908391442a1dc10426c3e8086b988928d207e8a65ab83046738943d888d2cbdb",
+    "pythonstan/request.py": "a15dea331fb4c3e9089c5ddf4cc85d1fe94e59866bee70557c9cb268275a0540",
+    "pythonstan/results/__init__.py": "3655a0c7afb255296f9f9d768c25b65f473e22aa9396ca8bfc80557aac2562a3",
+    "pythonstan/results/output.py": "255bf809d344cc8d06e18d9ff325fdf6c98b10cdfe2dcb5620cfbf07502ea5ad",
+    "pythonstan/results/projection.py": "04046f17a3229fb7bd15d14b2ba2d6325874aa02bf3512d74a57d07c23a8c362",
+    "pythonstan/results/queries.py": "796dcac4334444ac3f4e68275f921f078ad7f3ffa1a60bf85b52bb74d2f54a98",
+    "pythonstan/results/result.py": "bff5db93ce39130cedeb13ab727e8b2a205e7d1af448db5b01814330272650e0",
+    "pythonstan/results/schema.py": "91514c4d3ec659dc7f6da9e11b82107adc85f8ad3be7ccc2d428fe2ef671ead9",
+    "pythonstan/session.py": "ff953131c4729d771456e5c7bed9ba4670c9fbc27d2e6486e0cbde1566337f51",
+    "pythonstan/session_preparation.py": "cf9ab7c2ead75ad47f00352ba485f7681697a7722bb98030ba6017151c2890fe",
+    "pythonstan/session_results.py": "fdb74b33bd7d6d59a7a834d12a76937aef76f439d3b22cb2a74e9e3dd4420d0c",
+    "pythonstan/utils/__init__.py": "6de752e18812d9eca12277daff9067f369b6591a9a70b83490d87e7606d8df0c",
+    "pythonstan/utils/ast_rename.py": "051d45e8af47f3364ca46c57abd9d58fa6d71f999155d8f8df8d947e6515fa77",
+    "pythonstan/utils/common.py": "e3d8a097df33a8cdd5cbc8eb537d351650e3779ac1159fc7d01c788226e3ec96",
+    "pythonstan/utils/persistent_rb_tree.py": "f8e5218e48ae28684cc99ab23e0855a0e04ea6eda3e2077d15995d89533768c9",
+    "pythonstan/utils/temp_var_generator.py": "7ef3f1259679d2cd4e1965f652ceca1725a7ec1c4f4919da9339d75d1c47e508",
+    "pythonstan/utils/toposort.py": "1c190b44870dbaf926462221f35b5dcde2c9b906caf783851b223d44d01fcbcd",
+    "pythonstan/utils/var_collector.py": "7d21bd100dfdf84cb13636d761f82c3401353e1636f4160dae56ff23a2548b12",
+    "pythonstan/world/__init__.py": "001b47af28ff195131f452edfdb409cc022f566e42f7eef2ede95925a4c8098d",
+    "pythonstan/world/analysis_manager.py": "75a1e18fd33d4999efc7d6f1afa71c98c4b7e04980170baa27c908c5ff163d95",
+    "pythonstan/world/class_hierarchy.py": "e963edfedff2791c51d184c206f2037ba389e83ff36747b5ab83b91837adf3ba",
+    "pythonstan/world/config.py": "82977ad07dcb352399bf520123d1ce82ecc7c52313164af365eaa90e6bf4d7cd",
+    "pythonstan/world/import_manager.py": "0bce5034b06a381033aca6e5c265f02bdc8b5ab64f9848311ea01322551c954e",
+    "pythonstan/world/module_exports.py": "83aaf660af35330abdb90ceaa6975ae6aca5ac8b0033c1f91bb37374833495cc",
+    "pythonstan/world/namespace.py": "2772e54b08f5be031320aaf7b5452d5861f5caf7262edeb0d4076ace1c8715f9",
+    "pythonstan/world/pipeline.py": "b2faf53db4eb68eee7229a4a0a9ef3f34da7bd7f163230a3bc5862a5a843fdc3",
+    "pythonstan/world/scope_manager.py": "06bb7255e8e2dd71a04cf8c0c850c6e086c3bc4e83c5ffcfc2f30a6d17dc3512",
+    "pythonstan/world/world.py": "acbb1f9be431ee0a18a608a065a5328bacc6323f4788c54ab85666233d036e51",
+    "tests/regression/audit3/test_w2_independent_20261113.py": "2f8010722c619ce5dcb21fc7edcf609aa2cbcf077633e0f9b0a73c8d8853689d",
+    "tests/regression/audit3/test_driver_policy_review_20261113.py": "7c4fe3ed02c41b18aa28867e52e934b9f89f3ca7c04105505d0010ad90578517",
+    "tests/regression/audit3/test_policy_independent_20261113.py": "836dc7441a93686ff32d202ff4540aa4b78090b9516a8546e601cbacafeea3c4"
+  },
+  "frozen_semantic_subset": {
+    "finding_ids": [
+      "AS-01",
+      "AS-02",
+      "AS-08"
+    ],
+    "selected_cases": 19,
+    "total_manifest_cases": 52,
+    "manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+    "baseline_passed": 4,
+    "baseline_failed": 15,
+    "current_passed": 19,
+    "current_failed": 0,
+    "current_source_stable": true,
+    "current_changed_paths": [],
+    "current_source_manifest_sha256": "92dd3e50050ca22a207e3c3588d9f2a0fd9031262f27cdeee4820609d5a1f1cd",
+    "raw_evidence": "artifacts/next/evidence/w2-independent-20261113/final-sem-subset.json",
+    "not_complete_52_case_acceptance": true
+  },
+  "quality_of_independent_tests": {
+    "ruff_lint": {
+      "exit_code": 0
+    },
+    "ruff_format": {
+      "exit_code": 0
+    },
+    "mypy": {
+      "own_diagnostics": 0,
+      "imported_and_own_diagnostics": 749,
+      "scope_note": "Normal imports retained; own-module zero does not assert whole-tree mypy success.",
+      "raw_output": "artifacts/next/evidence/w2-independent-20261113/final-test-mypy.jsonl"
+    }
+  },
+  "driver_review": {
+    "explicit_execution_ports_reviewed": [
+      "default_execution",
+      "execution_for",
+      "transfer_for",
+      "tick",
+      "compact",
+      "request_function",
+      "request_module",
+      "_solve",
+      "reabstract_addresses",
+      "_summary_context"
+    ],
+    "observations": [
+      "Transfer cache validates shared arena and resolved value policy before use.",
+      "Policy-specific call/module keys avoid reusing equations from another policy.",
+      "Scoped operations are passed to coarsening, heap/cell consumers and continuation operations.",
+      "Driver retains global work/time/memory authority; context attachments contain no renewed quota.",
+      "activation=many retains explicit suspension-havoc fallback; finite joined suspension alternatives are distinct.",
+      "Metadata/frame transform preserves immutable execution attachment without traversing host operations."
+    ],
+    "corrected_dependency_policy_stamp": "_solve now compares execution_policy_digest(execution), matching _request observation."
+  },
+  "policy_review": {
+    "files": [
+      "pythonstan/analysis/policies/region.py",
+      "pythonstan/config/catalog.py",
+      "pythonstan/config/resolve.py",
+      "pythonstan/analysis/composition/plan.py",
+      "pythonstan/analysis/composition/hybrid.py",
+      "pythonstan/analysis/composition/region_scheduler.py",
+      "pythonstan/analysis/composition/region_engine.py"
+    ],
+    "actual_consumers_reviewed": [
+      "Transfer scoped boolean refinement/range/widen/compaction",
+      "AttributeOperations attribute_name_limit",
+      "DictionaryOperations partition cap and enable flag",
+      "ContinuationEngine scoped loop/trace controls",
+      "NativeRegionEngine scoped ValueOperations and global driver charging"
+    ],
+    "verified_controls": [
+      "Nested inherited solver children and scalar limits",
+      "Same-priority duplicate rule idempotence and unique selector breadth",
+      "Different-priority order independence",
+      "Unsupported solver children reject despite parent object capability",
+      "Native-only engine rejects AI solver controls",
+      "Mutual recursive SCC rejects heterogeneous effective policies",
+      "Explicit source digest/config identity rejection",
+      "Alias normalization and effective policy digest retain common identity"
+    ],
+    "open_findings": []
+  },
+  "final_review_run": {
+    "command": [
+      "../quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_w2_independent_20261113.py",
+      "tests/regression/audit3/test_driver_policy_review_20261113.py",
+      "tests/regression/audit3/test_policy_independent_20261113.py",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_context_policy_has_real_callsite_consumer",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_relation_alias_matches_canonical_policy",
+      "tests/regression/audit3/test_native_mandatory.py::test_regional_nested_trace_budget_changes_actual_paths",
+      "--tb=short",
+      "tests/regression/audit3/test_region_policy_execution.py",
+      "--junitxml=artifacts/next/evidence/w2-independent-20261113/final-independent-after-priority.xml"
+    ],
+    "exit_code": 0,
+    "seconds": 8.399335185999917,
+    "source_stable": true,
+    "changed_paths": [],
+    "source_manifest_sha256": "1a64b7c611264f9ca0047d7782c4af0cf82341fadb59a789096755fed6c3b85c",
+    "passed": 109,
+    "failed": 0,
+    "skipped": 0,
+    "scope_counts": {
+      "non_author_new_witnesses": 75,
+      "original_policy_mandatory": 3,
+      "author_policy_regressions_executed_by_non_author": 31
+    },
+    "receipt": "artifacts/next/evidence/w2-independent-20261113/final-independent-after-priority.receipt.json",
+    "stdout": "artifacts/next/evidence/w2-independent-20261113/final-independent-after-priority.stdout.txt"
+  },
+  "narrow_conclusion": "Reviewed scalar facet/wire outputs, pure stale observations, uniform widening locations, exact call/bool/deletion prefix witnesses, driver scoped operation ports and canonical regional policies pass finite independent controls. Parent task completion still requires root integration gates and every additional task-specific obligation."
+}

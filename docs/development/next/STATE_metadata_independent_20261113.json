@@ -1,0 +1,41 @@
+{
+  "reviewer": "domain (independent of STATE author)",
+  "date": "2026-11-13",
+  "scope": "Metadata Value-leaf merge/widen, alias preservation, raw and Continuation-wrapped cycles",
+  "baseline_commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "baseline": {
+    "total": 6,
+    "failed": 6,
+    "passed": 0,
+    "raw": "artifacts/next/evidence/N4-DOM-01/state-independent-baseline.log",
+    "package_path_checked": true
+  },
+  "current": {
+    "total": 6,
+    "failed": 0,
+    "passed": 6,
+    "raw": "artifacts/next/evidence/N4-DOM-01/state-independent-first.log",
+    "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/regression/audit3/test_state_widening_independent_20261113.py"
+  },
+  "sha256_at_review": {
+    "pythonstan/analysis/state/store.py": "f2f51aefd05a7fe4f499ea2007a9372f357ee03ac9f069a94a41a0eb040d8405",
+    "pythonstan/analysis/state/transform.py": "922f180c7a8fa946f06b6f17afc649e4366fae666c0776d3102419fa555b2018",
+    "pythonstan/analysis/state/metadata.py": "a860ce85621ea3e86a723e0f59e007d37fd14b50bd8dc57222869a2c3953a08f",
+    "tests/regression/audit3/test_state_widening_independent_20261113.py": "f903fe36988c1905e88bcc3f27e5244720f31e5a5b69ba7767dcf5a8c09cb9af"
+  },
+  "discovered_and_repaired": [
+    {
+      "defect": "Initial merge_metadata_values preseeded tuple pair with old tuple, so a tuple/list cycle backedge retained old tuple and old Value leaf while outer Value was merged. havoc remained false.",
+      "witness": "graph=(child_list,Value(n)); child_list.append(graph), n=0/1, both join and widen.",
+      "author_fix": "Tuple publication follows recursive copy strategy: produce children and reuse recursively published canonical tuple.",
+      "regressions": "Four raw/Continuation-wrapped cycle cases and two nestedStore alias/location cases."
+    }
+  ],
+  "remaining_obligations": [
+    "Suspension same-control increasing Value payloads can accumulate exact alternatives; no convergence proof or full STATE acceptance.",
+    "Shape-incompatible metadata still follows explicit havoc policy; these equal-shape witnesses do not validate every schema alternative.",
+    "Full root strict quality, mandatory/public integration, atomic-publication failure injection and source freeze remain required."
+  ],
+  "task_acceptance": false,
+  "formal_soundness_claim": false
+}

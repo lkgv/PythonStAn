@@ -13,8 +13,13 @@ pythonstan-inspector = "pythonstan_inspector.cli:main"
 [tool.poetry.dependencies]
 python = "^3.12"
 pyyaml = "^6.0"
+openai = {version = "==3.50.0", optional = true, source = "PyPI"}
+
+[tool.poetry.extras]
+openai = ["openai"]
 
 [tool.poetry.group.dev.dependencies]
+openai = {version = "==3.50.0", source = "PyPI"}
 pytest = "^7.3.1"
 flake8 = "^6.0.0"
 ruff = {version = "==0.17.4", source = "PyPI"}

@@ -55,6 +55,8 @@ from pythonstan.analysis.state.flow import (
 )
 from pythonstan.analysis.state.handles import ObjectHandle, StateHandle
 from pythonstan.analysis.state.keys import FieldKey
+from pythonstan.analysis.state.metadata import GeneratorMeta
+from pythonstan.analysis.state.suspensions import suspension_states
 
 from .state import Frame, FunctionInfo, Store
 
@@ -67,7 +69,7 @@ class ContinuationEngine:
         self.t: Transfer = transfer
         self.d = transfer.d
         self.ops = transfer.ops
-        self.active: list[ObjectHandle] = []
+        self.active: list[tuple[ObjectHandle, FrameId]] = []
         self.exception_contexts: list[CallResumeContext] = []
 
     def normal(self, store: Store, value: Value | None = None) -> NormalExprFlow:
@@ -131,7 +133,12 @@ class ContinuationEngine:
                             ),
                         )
                     result.append(out)
-            flows = self.d.compact(result)
+            execution = (
+                self.d.region_scheduler.execution_for(node, frame, self.d)
+                if isinstance(node, ast.stmt) and self.d.region_scheduler is not None
+                else self.t.execution
+            )
+            flows = self.d.compact(result, execution=execution)
             if not flows:
                 break
         return flows
@@ -623,7 +630,7 @@ class ContinuationEngine:
                 states.append((iterator_flow.store, require_payload(iterator_flow), ()))
             else:
                 result.append(iterator_flow)
-        raw_limit = self.d.abstract.get("max_stmt_visits", 100)
+        raw_limit = self.t.execution.integer("max_stmt_visits", 100)
         if not isinstance(raw_limit, (str, int, float)):
             raise TypeError("max_stmt_visits must be numeric")
         limit = max(1, int(raw_limit))
@@ -671,12 +678,12 @@ class ContinuationEngine:
                         result.append(advanced)
             states = following
             if not states:
-                return self.d.compact(result)
-            if len(states) > self.d.max_paths:
+                return self.d.compact(result, execution=self.t.execution)
+            if len(states) > self.t.execution.max_paths:
                 break
         for current, _, _ in states:
             result.extend(self.t.unknown(current, node, "iterator_collection_budget"))
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.t.execution)
 
     def for_loop(self, node: ast.For | ast.AsyncFor, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
@@ -700,7 +707,7 @@ class ContinuationEngine:
                         node, require_payload(iterator), [self.normal(iterator.store)], frame
                     )
                 )
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.t.execution)
 
     def finish_for_body(
         self, node: ast.For | ast.AsyncFor, iterator: Value, flows: list[Flow], frame: Frame
@@ -727,7 +734,7 @@ class ContinuationEngine:
         result: list[Flow]
         states = starting
         result = []
-        raw_limit = self.d.abstract.get("max_stmt_visits", 100)
+        raw_limit = self.t.execution.integer("max_stmt_visits", 100)
         if not isinstance(raw_limit, (str, int, float)):
             raise TypeError("max_stmt_visits must be numeric")
         limit = max(1, int(raw_limit))
@@ -760,16 +767,16 @@ class ContinuationEngine:
                                 result.append(self.normal(body.store))
                             else:
                                 result.append(body)
-            states = self.d.compact(next_states)
+            states = self.d.compact(next_states, execution=self.t.execution)
             if not states:
-                return self.d.compact(result)
+                return self.d.compact(result, execution=self.t.execution)
         for state in states:
             self.d.open("for_loop_budget", state.store, node)
             for opaque in self.t.unknown(
                 self.t.havoc_loop_names(node, state.store, frame), node, "for_loop_budget"
             ):
                 result.append(opaque)
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.t.execution)
 
     def with_statement(
         self, node: ast.With | ast.AsyncWith, store: Store, frame: Frame
@@ -850,7 +857,7 @@ class ContinuationEngine:
                     node, exits, self.block(node.body, [self.normal(current)], frame), frame
                 )
             )
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.t.execution)
 
     def cleanup_with(
         self,
@@ -1044,6 +1051,56 @@ class ContinuationEngine:
         operation: str,
         value: Value | None = None,
     ) -> list[Flow]:
+        """Resume one correlated state at a time, retaining the residual graph.
+
+        A summarized owner may denote several lazy frames. Selecting a frame
+        does not establish singleton ownership: each result weakly retains
+        unselected and pre-resume states in tracked heap metadata, so an epoch
+        publication transforms every alternative together with its roots.
+        """
+        store.ensure_current(self.ops)
+        receiver = self.ops.normalize(receiver)
+        result: list[Flow] = []
+        for ref in receiver.refs:
+            obj = store.heap.get(ref)
+            record = None if obj is None else obj.metadata.record
+            if obj is not None and isinstance(record, GeneratorMeta) and not obj.havoc:
+                count = len(suspension_states(record))
+                for index in range(count):
+                    current = store.copy()
+                    item = current.heap[ref]
+                    states_record = item.metadata.record
+                    assert isinstance(states_record, GeneratorMeta)
+                    states = suspension_states(states_record)
+                    selected = states[index]
+                    residual = states[:index] + states[index + 1 :]
+                    if not item.singleton:
+                        residual += (selected,)
+                    item.metadata.replace_record(replace(selected, alternatives=residual))
+                    result.extend(
+                        self._resume_primary(Value.ref(ref), current, frame, node, operation, value)
+                    )
+            else:
+                result.extend(
+                    self._resume_primary(Value.ref(ref), store, frame, node, operation, value)
+                )
+        if receiver.top or receiver.top_sorts:
+            result.extend(
+                self._resume_primary(
+                    replace(receiver, refs=frozenset()), store, frame, node, operation, value
+                )
+            )
+        return self.d.compact(result, execution=self.t.execution)
+
+    def _resume_primary(
+        self,
+        receiver: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        operation: str,
+        value: Value | None = None,
+    ) -> list[Flow]:
         result: list[Flow]
         value = Value.constant(None) if value is None else value
         result = []
@@ -1058,12 +1115,14 @@ class ContinuationEngine:
                 continue
             current = store.copy()
             item = current.heap[ref]
-            if (
-                obj.havoc
-                or obj.kind in {"iterator", "generator", "coroutine"}
-                and not obj.singleton
-            ):
-                result.extend(self.t.unknown(current, node, "havoc_suspended_or_iterator_state"))
+            if obj.havoc or obj.kind == "iterator" and not obj.singleton:
+                reason = (
+                    "suspension_state_capacity_exceeded"
+                    if isinstance(obj.metadata.record, GeneratorMeta)
+                    and obj.metadata.record.overflow
+                    else "havoc_suspended_or_iterator_state"
+                )
+                result.extend(self.t.unknown(current, node, reason))
                 continue
             if obj.kind == "instance":
                 for method in self.special(Value.ref(ref), "__next__", current, frame, node):
@@ -1155,7 +1214,11 @@ class ContinuationEngine:
                 result.append(self.t.error(current, "TypeError"))
                 continue
             if (
-                any(handle.refresh(self.ops.arena).identity == ref for handle in self.active)
+                any(
+                    handle.refresh(self.ops.arena).identity == ref
+                    and activation == item.metadata["frame"].identity
+                    for handle, activation in self.active
+                )
                 or len(self.active) >= 12
             ):
                 reason = "recursive_generator_delegation"
@@ -1201,7 +1264,7 @@ class ContinuationEngine:
                 )
                 continue
             generator_frame = item.metadata["frame"]
-            depth = max(0, self.d.context_depth)
+            depth = max(0, self.t.execution.context_depth)
             resume_point = (
                 self.d.point(node)
                 + "#resume:"
@@ -1238,7 +1301,7 @@ class ContinuationEngine:
                 starting = [NormalExprFlow(StateHandle.capture(current), value)]
             body = item.metadata.lookup("remaining", item.metadata["body"])
             active_object = ObjectHandle(ref, self.ops.arena.epoch)
-            self.active.append(active_object)
+            self.active.append((active_object, generator_frame.identity))
             self.exception_contexts.append(
                 CallResumeContext(caller_exception, generator_frame.identity)
             )
@@ -1248,8 +1311,33 @@ class ContinuationEngine:
                 self.active.pop()
                 self.exception_contexts.pop()
             for flow in flows:
+                flow.store.ensure_current(self.ops)
                 resumed_ref = active_object.refresh(self.ops.arena).identity
                 target = flow.store.heap[resumed_ref]
+                target_record = target.metadata.record
+                if isinstance(target_record, GeneratorMeta):
+                    states = suspension_states(target_record)
+                    selected = next(
+                        (
+                            state
+                            for state in states
+                            if state.frame is not None
+                            and state.frame.identity == generator_frame.identity
+                            and state.stage == stage
+                        ),
+                        None,
+                    )
+                    if selected is None:
+                        result.extend(
+                            self.t.unknown(flow.store, node, "missing_correlated_resume_state")
+                        )
+                        continue
+                    residual = (
+                        states
+                        if not target.singleton
+                        else tuple(state for state in states if state is not selected)
+                    )
+                    target.metadata.replace_record(replace(selected, alternatives=residual))
                 target.metadata["resume_count"] = min(
                     32, int(target.metadata.lookup("resume_count", 0)) + 1
                 )
@@ -1266,12 +1354,7 @@ class ContinuationEngine:
                     else:
                         target.metadata.pop("owned_exception", None)
                     self.t.install_exception_context(flow.store, caller_exception)
-                    target.metadata.update(
-                        stage="suspended",
-                        remaining=flow.continuation,
-                        cleanups=Continuation(),
-                        resume_target=None,
-                    )
+                    target.metadata.update(stage="suspended", remaining=flow.continuation)
                     result.append(
                         self.t.error(flow.store, "RuntimeError")
                         if operation == "close"
@@ -1319,7 +1402,7 @@ class ContinuationEngine:
                     for out in opaque
                     if out.kind == "normal"
                 )
-        return self.d.compact(result)
+        return self.d.compact(result, execution=self.t.execution)
 
     def generator_expression(
         self, node: ast.GeneratorExp, store: Store, frame: Frame

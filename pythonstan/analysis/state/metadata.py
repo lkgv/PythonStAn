@@ -79,6 +79,7 @@ type ComponentPayload = (
     | ExceptionRestoreRecord
     | WriteEffect
     | Metadata
+    | GeneratorMeta
     | ObjectSequence
     | ClosureBindings
     | ValueSequence
@@ -180,6 +181,11 @@ class TextSequenceField:
 
 
 @dataclass(frozen=True, slots=True)
+class SuspensionStatesField:
+    value: tuple[GeneratorMeta, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class LiteralGraphField:
     value: ComponentPayload
 
@@ -203,6 +209,7 @@ type ComponentField = (
     | ValueSequenceField
     | TextSequenceField
     | LiteralGraphField
+    | SuspensionStatesField
 )
 
 
@@ -245,6 +252,8 @@ class GeneratorMeta:
     remaining: Continuation | None = None
     resume_count: int | None = None
     owned_exception: ExceptionContext | None = None
+    alternatives: tuple[GeneratorMeta, ...] = ()
+    overflow: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -387,6 +396,7 @@ def _component(value: object, seen: set[int]) -> TypeGuard[ComponentPayload]:
             ExceptionContext,
             ExceptionRestoreRecord,
             Metadata,
+            GeneratorMeta,
             StateHandle,
             ObjectHandle,
             BindingRef,
@@ -510,7 +520,7 @@ def _field(kind: str, key: str, value: object) -> ComponentField:
         if type(value) is not int:
             raise TypeError("Heap metadata cursor/length must be an integer")
         return IntegerField(value)
-    if key in {"readonly", "sequence_protocol", "dictionary_exhausted"}:
+    if key in {"readonly", "sequence_protocol", "dictionary_exhausted", "suspension_overflow"}:
         return BooleanField(_typed(value, bool))
     if key in {"module", "prefix", "name", "qualname", "exception_name", "fresh_source_call"}:
         return TextField(_typed(value, str))
@@ -541,6 +551,13 @@ def _field(kind: str, key: str, value: object) -> ComponentField:
             else StateHandle.capture(_typed(value, Store))
         )
         return StateHandleField(entry)
+    if key == "suspension_states":
+        if not isinstance(value, tuple) or not all(
+            isinstance(item, GeneratorMeta) for item in value
+        ):
+            raise TypeError("Suspension states require correlated generator records")
+        states: tuple[GeneratorMeta, ...] = value
+        return SuspensionStatesField(states)
     if key == "remaining":
         return ContinuationField(parse_legacy_continuation(value))
     if key == "body" and _statements(value):
@@ -613,6 +630,8 @@ def _decode_record(kind: str, entries: Mapping[str, ComponentField]) -> HeapMeta
         remaining_field = _optional(entries, "remaining", ContinuationField)
         resume_count_field = _optional(entries, "resume_count", IntegerField)
         owned_exception_field = _optional(entries, "owned_exception", ExceptionField)
+        states_field = _optional(entries, "suspension_states", SuspensionStatesField)
+        overflow_field = _optional(entries, "suspension_overflow", BooleanField)
         return GeneratorMeta(
             function=None if function_field is None else function_field.value,
             frame=None if frame_field is None else frame_field.value,
@@ -623,6 +642,8 @@ def _decode_record(kind: str, entries: Mapping[str, ComponentField]) -> HeapMeta
             remaining=None if remaining_field is None else remaining_field.value,
             resume_count=None if resume_count_field is None else resume_count_field.value,
             owned_exception=None if owned_exception_field is None else owned_exception_field.value,
+            alternatives=() if states_field is None else states_field.value,
+            overflow=False if overflow_field is None else overflow_field.value,
         )
     if kind in {"class"}:
         name_field = _optional(entries, "name", TextField)
@@ -790,6 +811,10 @@ def _record_fields(record: HeapMetadata) -> dict[str, ComponentField]:
         if record.resume_count is not None:
             result["resume_count"] = IntegerField(record.resume_count)
         result["owned_exception"] = ExceptionField(record.owned_exception)
+        if record.alternatives:
+            result["suspension_states"] = SuspensionStatesField(record.alternatives)
+        if record.overflow:
+            result["suspension_overflow"] = BooleanField(True)
         return result
     if isinstance(record, ClassMeta):
         result = {}
@@ -916,6 +941,8 @@ _KNOWN_KEYS = frozenset(
         "receiver",
         "remaining",
         "resume_count",
+        "suspension_states",
+        "suspension_overflow",
         "sequence",
         "sequence_protocol",
         "stage",
@@ -991,6 +1018,18 @@ class Metadata(MutableMapping[str, ComponentPayload]):
         result.record = record
         result._order = list(entries)
         return result
+
+    def replace_record(self, record: HeapMetadata) -> None:
+        """Replace typed normal fields while retaining component graph edges."""
+        old_normal = _record_fields(self.record)
+        normal = Metadata.from_record(self.kind, record).transformation_entries()
+        entries = {
+            key: entry
+            for key, entry in self.transformation_entries().items()
+            if key not in old_normal
+        }
+        entries.update(normal)
+        self.replace_entries(entries)
 
     def new_shell(self) -> Metadata:
         return Metadata(self.kind, allow_components=self._allow_components)

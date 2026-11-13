@@ -40,7 +40,7 @@
       "docs/development/next/client_query*"
     ]
   },
-  "phase": "W1 resumed; all production writers held for final snapshot",
+  "phase": "W2 resumed 2026-11-13; independent review and exact-source integration pending",
   "owners": {
     "root": [
       "checkpoint/publication/integration",
@@ -93,5 +93,41 @@
     "workspace_preserved": true,
     "source_reset": false,
     "debt_ledger_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7"
+  },
+  "current_base_commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "current_owners": {
+    "root": [
+      "integration/publication/taskboard/quality evidence"
+    ],
+    "domain": [
+      "analysis/domains/*",
+      "semantics/scalars.py",
+      "semantics/scalar_strings.py"
+    ],
+    "state": [
+      "analysis/state/*",
+      "engines/abstract/driver.py",
+      "engines/abstract/continuations.py"
+    ],
+    "semantics": [
+      "engines/abstract/transfer.py",
+      "semantics binding/names/control/callplan"
+    ],
+    "policy": [
+      "analysis/policies/*",
+      "config/* except config/llm_provider.py",
+      "composition/plan.py",
+      "composition/region_scheduler.py",
+      "region_engine narrow context ports",
+      "abstract attributes/dictionaries/dictionary_views/namespaces context ports"
+    ],
+    "llm_offline": [
+      "llm/*",
+      "config/llm_provider.py",
+      "optional dependency/lock"
+    ],
+    "recovery_audit": [
+      "independent W2 tests/review and recovery evidence"
+    ]
   }
 }

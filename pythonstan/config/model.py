@@ -30,6 +30,7 @@ from pythonstan.analysis.contracts.json_data import (
 )
 
 from .errors import ConfigurationError
+from .llm_provider import ProviderOptions
 
 if TYPE_CHECKING:
     from pythonstan.results.output import OutputSpec
@@ -133,6 +134,7 @@ class LlmConfig:
     proposals: tuple[FrozenJsonValue, ...]
     max_proposals: int
     checker_budget: int
+    provider_options: ProviderOptions
 
     @classmethod
     def from_wire(cls, data: JsonObject) -> LlmConfig:
@@ -144,6 +146,7 @@ class LlmConfig:
             tuple(freeze_json(item) for item in require_array(data["proposals"])),
             require_int(data["max_proposals"]),
             require_int(data["checker_budget"]),
+            ProviderOptions.from_wire(data),
         )
 
 

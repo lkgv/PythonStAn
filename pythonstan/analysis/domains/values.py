@@ -10,6 +10,7 @@ import ast
 import math
 import operator
 import struct
+import sys
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from functools import reduce
@@ -231,10 +232,10 @@ class Value:
         tagged: list[JsonValue] = []
         constants: list[JsonValue] = []
         integers = self.ints.get_consts()
-        strings = self.strings.get_consts()
+        strings = self.strings.consts
         groups: list[tuple[str, list[JsonScalar] | None]] = [
             ("int", None if integers is None else list[JsonScalar](sorted(integers))),
-            ("str", None if strings is None else list[JsonScalar](sorted(strings))),
+            ("str", list[JsonScalar](sorted(strings))),
             ("bool", list[JsonScalar](sorted(self.bools))),
             ("float", list[JsonScalar](sorted(self.floats))),
         ]
@@ -286,6 +287,14 @@ class Value:
                 "conjunctions": [[prefix, suffix] for prefix, suffix in self.strings.conjunctions],
             }
         return out
+
+
+@dataclass(frozen=True)
+class ValueFacet:
+    """One disjunct of Value's concretization, independent of enumeration caps."""
+
+    kind: str
+    value: Value
 
 
 @dataclass(frozen=True)
@@ -377,29 +386,69 @@ class ValueOperations:
             strings=self.string.widen(a.strings, b.strings),
         )
 
-    def truth(self, value: Value) -> frozenset[bool]:
-        if value.top or value.top_sorts or value.refs:
-            return frozenset((False, True))
-        constants = value.exact_constants(self.policy.max_scalar_pairs)
-        if constants is not None:
-            return frozenset(bool(x) for x in constants)
-        result = set(value.bools)
-        if value.none:
-            result.add(False)
+    def facets(self, value: Value) -> tuple[ValueFacet, ...]:
+        """Split a union without enumerating or dropping any component.
+
+        Bottom has no facets. Unknown and unbound are distinct from scalar
+        sort tops; references remain protocol operands for the engine.
+        Relations annotate values and do not add concrete scalar members.
+        """
+        result: list[ValueFacet] = []
         if not value.ints.is_bottom:
-            if value.ints.may_contain(0):
-                result.add(False)
-            if not self.integer.leq(value.ints, IntLattice.const(0)):
-                result.add(True)
+            result.append(ValueFacet("int", Value(ints=value.ints)))
         if not value.strings.is_bottom():
-            result.add(True)
-            if (
-                value.strings.has_unknown
-                or "" in value.strings.consts
-                or "" in value.strings.prefixes
-                or "" in value.strings.suffixes
-            ):
+            result.append(ValueFacet("str", Value(strings=value.strings)))
+        if value.bools:
+            result.append(ValueFacet("bool", Value(bools=value.bools)))
+        if value.floats:
+            result.append(ValueFacet("float", Value(floats=value.floats)))
+        if value.none:
+            result.append(ValueFacet("none", Value(none=True)))
+        for sort in sorted(value.top_sorts):
+            if sort == "int":
+                facet = Value(ints=IntLattice.top())
+            elif sort == "str":
+                facet = Value(strings=StrLattice.top())
+            elif sort == "bool":
+                facet = Value(bools=frozenset((False, True)))
+            elif sort in {"none", "NoneType"}:
+                facet = Value(none=True)
+                sort = "none"
+            else:
+                facet = Value(top_sorts=frozenset((sort,)))
+            result.append(ValueFacet(sort, facet))
+        if value.refs:
+            result.append(ValueFacet("reference", Value(refs=value.refs)))
+        if value.top:
+            result.append(ValueFacet("unknown", Value.unknown()))
+        if value.unbound:
+            result.append(ValueFacet("unbound", Value(unbound=True)))
+        return tuple(result)
+
+    def truth(self, value: Value) -> frozenset[bool]:
+        result: set[bool] = set()
+        for facet in self.facets(value):
+            member = facet.value
+            if facet.kind == "unbound":
+                continue
+            if facet.kind == "int":
+                if member.ints.may_contain(0):
+                    result.add(False)
+                if not self.integer.leq(member.ints, IntLattice.const(0)):
+                    result.add(True)
+            elif facet.kind == "str":
+                if member.strings.may_equal(""):
+                    result.add(False)
+                if not self.string.leq(member.strings, StrLattice.const("")):
+                    result.add(True)
+            elif facet.kind == "bool":
+                result.update(member.bools)
+            elif facet.kind == "none":
                 result.add(False)
+            elif facet.kind == "float" and not member.top_sorts:
+                result.update(bool(item) for item in member.floats)
+            else:
+                result.update((False, True))
         return frozenset(result)
 
     def remap(self, value: Value, mapping: Mapping[ObjectId, ObjectId]) -> Value:
@@ -464,9 +513,78 @@ class ValueOperations:
                 pass
         return value
 
+    def scalar_unary(self, op: ast.unaryop, value: Value) -> tuple[Value, set[str]]:
+        """Scalar unary transfer; object protocols remain engine obligations."""
+        if isinstance(op, ast.Not):
+            truth_errors = {
+                "unknown_truth_protocol"
+                for facet in self.facets(value)
+                if facet.kind not in {"int", "bool", "float", "str", "none", "complex", "unbound"}
+            }
+            if value.unbound:
+                truth_errors.add("unbound_operand")
+            return Value(bools=frozenset(not item for item in self.truth(value))), truth_errors
+        values: list[Value] = []
+        errors: set[str] = set()
+        for facet in self.facets(value):
+            if facet.kind == "unbound":
+                errors.add("unbound_operand")
+                continue
+            if facet.kind not in {"int", "bool", "float", "str", "none", "complex"}:
+                values.append(Value.unknown())
+                errors.add("unknown_unary_operator")
+                continue
+            if facet.kind == "complex" and isinstance(op, (ast.UAdd, ast.USub)):
+                values.append(Value(top_sorts=frozenset(("complex",))))
+                continue
+            if facet.kind not in {"int", "bool", "float"} or (
+                isinstance(op, ast.Invert) and facet.kind == "float"
+            ):
+                errors.add("TypeError")
+                continue
+            if not isinstance(op, (ast.UAdd, ast.USub, ast.Invert)):
+                values.append(Value.unknown())
+                errors.add("unknown_unary_operator")
+                continue
+            constants = facet.value.exact_constants(self.policy.max_scalar_pairs)
+            if constants is not None:
+                for item in constants:
+                    if not isinstance(item, (int, float)):
+                        raise AssertionError("A numeric facet contains a nonnumeric scalar")
+                    if isinstance(op, ast.UAdd):
+                        answer = +item
+                    elif isinstance(op, ast.USub):
+                        answer = -item
+                    elif isinstance(item, int):
+                        answer = ~item
+                    else:
+                        raise AssertionError("A float reached integer inversion")
+                    values.append(Value.constant(answer))
+            elif facet.kind == "float":
+                values.append(Value(top_sorts=frozenset(("float",))))
+            else:
+                values.append(Value(ints=IntLattice.top()))
+        return self.join_all(values), errors
+
     def scalar_binary(
         self, op: ast.operator | ast.cmpop, left: Value, right: Value
     ) -> tuple[Value, set[str]]:
+        """Join every facet pair; an enumeration cap only changes precision."""
+        values: list[Value] = []
+        errors: set[str] = set()
+        for first in self.facets(left):
+            for second in self.facets(right):
+                value, pair_errors = self._scalar_pair(op, first, second)
+                values.append(value)
+                errors.update(pair_errors)
+        return self.join_all(values), errors
+
+    def _scalar_pair(
+        self, op: ast.operator | ast.cmpop, first: ValueFacet, second: ValueFacet
+    ) -> tuple[Value, set[str]]:
+        left, right = first.value, second.value
+        if "unbound" in {first.kind, second.kind}:
+            return Value.bottom(), {"unbound_operand"}
         add_operation: ScalarOperator = operator.add
         subtract_operation: ScalarOperator = operator.sub
         multiply_operation: ScalarOperator = operator.mul
@@ -522,7 +640,10 @@ class ValueOperations:
                             and type(y) is int
                             and abs(y) > self.policy.max_int_bits
                         ):
-                            return Value(top_sorts=frozenset(("int",))), {"resource_integer"}
+                            covered, pair_errors = self._scalar_fallback(op, first, second)
+                            values.append(covered)
+                            errors.update(pair_errors)
+                            continue
                         # Bound allocation before calling a host builtin operator.
                         repetition: tuple[str, int] | None = None
                         if type(x) is str and (type(y) is int or type(y) is bool):
@@ -531,6 +652,13 @@ class ValueOperations:
                             repetition = (y, x)
                         if isinstance(op, ast.Mult) and repetition is not None:
                             text, count = repetition
+                            if (
+                                count < -sys.maxsize - 1
+                                or count > sys.maxsize
+                                or len(text) * count > sys.maxsize
+                            ):
+                                errors.add("OverflowError")
+                                continue
                             if count <= 0:
                                 values.append(Value.constant(""))
                                 continue
@@ -590,32 +718,67 @@ class ValueOperations:
                     except (ArithmeticError, TypeError, ValueError, OverflowError) as exc:
                         errors.add(type(exc).__name__)
             return self.join_all(values), errors
-        if isinstance(
-            op,
-            (
-                ast.Eq,
-                ast.NotEq,
-                ast.Lt,
-                ast.LtE,
-                ast.Gt,
-                ast.GtE,
-                ast.Is,
-                ast.IsNot,
-                ast.In,
-                ast.NotIn,
-            ),
-        ):
+        return self._scalar_fallback(op, first, second)
+
+    def _scalar_fallback(
+        self, op: ast.operator | ast.cmpop, left: ValueFacet, right: ValueFacet
+    ) -> tuple[Value, set[str]]:
+        """Sort-specific covers when finite host evaluation exceeds its budget."""
+        kinds = {left.kind, right.kind}
+        if isinstance(op, (ast.Is, ast.IsNot)):
             return Value(bools=frozenset((False, True))), set()
-        if (
-            isinstance(op, ast.Add)
-            and not left.strings.is_bottom()
-            and not right.strings.is_bottom()
-        ):
+        if not kinds <= {"int", "bool", "float", "str", "none"}:
+            return Value.unknown(), {"unknown_operator"}
+        if isinstance(op, (ast.Eq, ast.NotEq)):
+            return Value(bools=frozenset((False, True))), set()
+        numeric = kinds <= {"int", "bool", "float"}
+        integral = kinds <= {"int", "bool"}
+        text = kinds == {"str"}
+        if isinstance(op, (ast.Lt, ast.LtE, ast.Gt, ast.GtE)):
+            if numeric or text:
+                return Value(bools=frozenset((False, True))), set()
+            return Value.bottom(), {"TypeError"}
+        if isinstance(op, (ast.In, ast.NotIn)):
+            if text:
+                return Value(bools=frozenset((False, True))), set()
+            return Value.bottom(), {"TypeError"}
+        if isinstance(op, ast.Add) and text:
             return Value(strings=StrLattice.top()), set()
-        if (
-            not left.ints.is_bottom
-            and not right.ints.is_bottom
-            and isinstance(op, (ast.Add, ast.Sub, ast.Mult))
+        if isinstance(op, ast.Mult) and (
+            left.kind == "str"
+            and right.kind in {"int", "bool"}
+            or right.kind == "str"
+            and left.kind in {"int", "bool"}
         ):
-            return Value(ints=IntLattice.top()), set()
+            return Value(strings=StrLattice.top()), {"OverflowError"}
+        if isinstance(op, ast.Mod) and left.kind == "str":
+            return Value(strings=StrLattice.top()), {"TypeError", "ValueError", "OverflowError"}
+        if isinstance(op, (ast.BitOr, ast.BitAnd, ast.BitXor)) and integral:
+            value = (
+                Value(bools=frozenset((False, True)))
+                if kinds == {"bool"}
+                else Value(ints=IntLattice.top())
+            )
+            return value, set()
+        if isinstance(op, (ast.LShift, ast.RShift)) and integral:
+            return Value(ints=IntLattice.top()), {"ValueError", "OverflowError"}
+        if numeric and isinstance(
+            op, (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)
+        ):
+            errors: set[str] = set()
+            if "float" in kinds:
+                errors.add("OverflowError")
+            if isinstance(op, (ast.Div, ast.FloorDiv, ast.Mod, ast.Pow)):
+                errors.add("ZeroDivisionError")
+            if isinstance(op, ast.Pow):
+                errors.update(("OverflowError", "ValueError"))
+                sorts = {"float", "complex"}
+                if integral:
+                    sorts.add("int")
+                return Value(top_sorts=frozenset(sorts)), errors
+            if isinstance(op, ast.Div) or "float" in kinds:
+                return Value(top_sorts=frozenset(("float",))), errors
+            return Value(ints=IntLattice.top()), errors
+        if kinds <= {"int", "bool", "float", "str", "none"}:
+            return Value.bottom(), {"TypeError"}
         return Value.unknown(), {"unknown_operator"}

@@ -25,7 +25,7 @@ from pythonstan.analysis.contracts.json_data import (
 from pythonstan.results.output import parse_output
 from pythonstan.results.queries import parse_queries
 
-from .catalog import CATALOG, default_config
+from .catalog import CATALOG, REGIONAL_SOLVER_OPTIONS, default_config
 from .errors import ConfigurationError
 from .model import AnalysisConfig as AnalysisConfig
 from .model import ConfigInput, ConfigTarget
@@ -361,7 +361,10 @@ def _validate_controls(data: JsonObject, provenance: Mapping[str, str]) -> None:
     policy = _get(data, "andersen.heap_context_policy")
     if policy is not None and policy not in CATALOG["andersen.context_policy"].choices:
         raise ConfigurationError("Unsupported heap_context_policy")
+    from .llm_provider import ProviderOptions
+
     llm = require_object(data["llm"])
+    ProviderOptions.from_wire(llm)
     if llm["enabled"] and not (llm["level1"] or llm["level2"]):
         raise ConfigurationError("Enabled LLM requires level1 or level2")
     raw_metadata: object = json.loads(
@@ -510,6 +513,78 @@ def resolve_config(
         raise ConfigurationError(str(error)) from error
 
 
+def normalize_region_abstract(abstract: JsonObject, *, engine: str) -> JsonObject:
+    """Validate only declared regional capabilities and retain resolved aliases.
+
+    Resolving a region as an independent global document used to discard the
+    normalized result. It also admitted settings without regional consumers.
+    The returned patch is detached and can be inherited by nested regions.
+    """
+    scalar_options = {
+        "max_const_strings",
+        "int_domain_max_consts",
+        "max_addr_set_size",
+        "max_scalar_pairs",
+    }
+    for name in abstract:
+        path = "abstract." + name
+        option = CATALOG.get(path)
+        if option is None or "region" not in option.scopes:
+            raise ConfigurationError(f"{path} has no regional execution consumer")
+        if engine == "native" and name not in scalar_options:
+            raise ConfigurationError(f"{path} has no native-straightline regional consumer")
+    solver = require_object(abstract.get("solver_options", {}))
+    unsupported = set(solver) - REGIONAL_SOLVER_OPTIONS
+    if unsupported:
+        raise ConfigurationError(
+            f"abstract.solver_options has no regional consumer for {sorted(unsupported)}"
+        )
+    _validate_solver(solver)
+    validation_input = dict(abstract)
+    if "solver_options" in validation_input:
+        canonical_solver = dict(solver)
+        if "loop_unroll" in canonical_solver:
+            canonical_solver["widen_delay"] = canonical_solver.pop("loop_unroll")
+        validation_input["solver_options"] = canonical_solver
+    resolved = resolve_config(config={"engine": "ai_primary", "abstract": validation_input})
+    settings = require_object(resolved.to_dict()["abstract"])
+    normalized = {name: settings[name] for name in abstract}
+    if "relations" in abstract or "enable_value_partition" in abstract:
+        normalized["relations"] = settings["relations"]
+        normalized["enable_value_partition"] = settings["enable_value_partition"]
+    if "solver_options" in normalized:
+        child = dict(require_object(normalized["solver_options"]))
+        if "loop_unroll" in child:
+            child["widen_delay"] = child.pop("loop_unroll")
+        normalized["solver_options"] = child
+    return normalized
+
+
+def inherit_region_abstract(parent: JsonObject, patch: JsonObject) -> JsonObject:
+    """Inherit unmentioned settings, including individual solver children."""
+    merged = {**parent, **patch}
+    if "solver_options" in parent or "solver_options" in patch:
+        merged["solver_options"] = {
+            **require_object(parent.get("solver_options", {})),
+            **require_object(patch.get("solver_options", {})),
+        }
+    return merged
+
+
+def _normalize_regions(data: JsonObject) -> None:
+    regions: list[JsonValue] = []
+    for value in require_array(data["regions"]):
+        rule = dict(require_object(value))
+        engine = require_string(rule.get("engine", "ai_primary"))
+        if engine not in {"native", "ai_primary"}:
+            raise ConfigurationError("Region engines are native or ai_primary")
+        rule["abstract"] = normalize_region_abstract(
+            require_object(rule.get("abstract", {})), engine=engine
+        )
+        regions.append(rule)
+    data["regions"] = regions
+
+
 def _resolve_config(
     target: ConfigTarget | None,
     config: ConfigInput,
@@ -561,6 +636,8 @@ def _resolve_config(
     if path is not None:
         _relative_paths(data, provenance, path)
     _validate_controls(data, provenance)
+    if data["regions"]:
+        _normalize_regions(data)
     return EffectiveConfig(
         data,
         provenance,

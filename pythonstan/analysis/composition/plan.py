@@ -25,7 +25,9 @@ from pythonstan.analysis.contracts.json_data import (
     thaw_json,
     thaw_json_object,
 )
+from pythonstan.analysis.policies.region import EffectiveRegionPolicy
 from pythonstan.config import ConfigurationError, EffectiveConfig, resolve_config
+from pythonstan.config.resolve import inherit_region_abstract, normalize_region_abstract
 from pythonstan.frontend.source import source_node_identity as node_identity
 from pythonstan.inputs import SourceSnapshot
 
@@ -63,6 +65,7 @@ class RegionDecision(Mapping[str, JsonValue]):
     origin: FrozenJsonValue
     region_id: str
     boundary_profile: str
+    policy: EffectiveRegionPolicy
     priority: int | None = None
 
     def to_dict(self) -> JsonObject:
@@ -73,6 +76,7 @@ class RegionDecision(Mapping[str, JsonValue]):
             origin=thaw_json(self.origin),
             region_id=self.region_id,
             boundary_profile=self.boundary_profile,
+            effective_policy=self.policy.to_dict(),
         )
         if self.priority is not None:
             result["priority"] = self.priority
@@ -316,8 +320,9 @@ def _prepare_rules(
             raise ConfigurationError("Region engines are native or ai_primary")
         actual_engine: RegionEngineName = "native" if engine == "native" else "ai_primary"
         priority = require_int(rule.get("priority", 0))
-        abstract = require_object(rule.get("abstract", {}))
-        resolve_config(config={"engine": "ai_primary", "abstract": abstract})
+        abstract = normalize_region_abstract(
+            require_object(rule.get("abstract", {})), engine=actual_engine
+        )
         for module in snapshot.modules:
             if fnmatch.fnmatch(module.module, selector.module) and selector.source_digest not in (
                 None,
@@ -352,8 +357,12 @@ def _descendants(selected: _SourceRow, rows: Sequence[_SourceRow]) -> list[_Sour
 
 
 def _decisions(
-    rows: Sequence[_SourceRow], rules: Sequence[_PreparedRule], default_engine: RegionEngineName
+    rows: Sequence[_SourceRow],
+    rules: Sequence[_PreparedRule],
+    default_engine: RegionEngineName,
+    global_abstract: JsonObject,
 ) -> dict[ProgramPointId, RegionDecision]:
+    default_policy = EffectiveRegionPolicy.from_abstract(global_abstract)
     decisions = {
         row.source.node_id: RegionDecision(
             row.source,
@@ -368,26 +377,60 @@ def _decisions(
                 }
             ),
             "python-core-v1",
+            default_policy,
         )
         for row in rows
     }
     selected_priority: dict[ProgramPointId, int] = {}
-    for rule in rules:
+
+    # Wider scopes establish inherited settings before more specific scopes.
+    # Priority remains authoritative; equally specific equal-priority conflicts
+    # still fail rather than depending on input order.
+    def rule_order(rule: _PreparedRule) -> tuple[int, int, int]:
+        return (
+            rule.priority,
+            -len(
+                {
+                    item.source.node_id
+                    for selected in rule.matched
+                    for item in _descendants(selected, rows)
+                }
+            ),
+            rule.ordinal,
+        )
+
+    ordered = sorted(rules, key=rule_order)
+    selected_rule: dict[ProgramPointId, _PreparedRule] = {}
+    for rule in ordered:
         targets = {
             item.source.node_id: item for row in rule.matched for item in _descendants(row, rows)
         }
         for node_id in targets:
             current = decisions[node_id]
-            if selected_priority.get(node_id) == rule.priority and (
-                current.engine != rule.engine or current.abstract != rule.abstract
+            previous = selected_rule.get(node_id)
+            nested_scope = previous is not None and set(targets) < {
+                item.source.node_id
+                for selected in previous.matched
+                for item in _descendants(selected, rows)
+            }
+            if (
+                selected_priority.get(node_id) == rule.priority
+                and not nested_scope
+                and previous is not None
+                and (previous.engine != rule.engine or previous.abstract != rule.abstract)
             ):
                 raise ConfigurationError(f"Equal-priority region conflict at {node_id}")
-            if rule.priority < selected_priority.get(node_id, -(10**9)):
+            if node_id in selected_priority and rule.priority < selected_priority[node_id]:
                 continue
+            inherited = inherit_region_abstract(
+                thaw_json_object(current.abstract), thaw_json_object(rule.abstract)
+            )
+            effective = inherit_region_abstract(global_abstract, inherited)
             decisions[node_id] = replace(
                 current,
                 engine=rule.engine,
-                abstract=rule.abstract,
+                abstract=freeze_json_object(inherited),
+                policy=EffectiveRegionPolicy.from_abstract(effective),
                 origin=rule.origin,
                 priority=rule.priority,
                 boundary_profile="native-straightline-v1"
@@ -395,28 +438,33 @@ def _decisions(
                 else "python-core-v1",
             )
             selected_priority[node_id] = rule.priority
+            selected_rule[node_id] = rule
     return decisions
 
 
 def _component_strategy(decision: RegionDecision) -> str:
     document: JsonObject = {
         "engine": decision.engine,
-        "abstract": thaw_json_object(decision.abstract),
+        "abstract": decision.policy.abstract,
     }
     return json.dumps(document, sort_keys=True)
 
 
 def _validate_components(
-    components: Sequence[Sequence[str]], decisions: Mapping[ProgramPointId, RegionDecision]
+    components: Sequence[Sequence[str]],
+    decisions: Mapping[ProgramPointId, RegionDecision],
+    graph: Mapping[str, set[str]],
 ) -> None:
     for group in components:
+        if len(group) == 1 and group[0] not in graph[group[0]]:
+            continue
         strategies = {
             _component_strategy(decision)
             for name in group
             for decision in decisions.values()
             if decision.source.scope_qualname == name
         }
-        if len(group) > 1 and len(strategies) > 1:
+        if len(strategies) > 1:
             raise ConfigurationError(
                 f"Heterogeneous recursive SCC requires an unavailable joint adapter: {list(group)}"
             )
@@ -464,7 +512,11 @@ def build_plan(
     snapshot: SourceSnapshot, config: JsonObject | EffectiveConfig
 ) -> EffectiveRegionPlan:
     """Compile validated source selectors into actual immutable execution decisions."""
-    options = config.to_dict() if isinstance(config, EffectiveConfig) else config
+    options = (
+        config.to_dict()
+        if isinstance(config, EffectiveConfig)
+        else resolve_config(config=config).to_dict()
+    )
     try:
         rows, functions = _inventory(snapshot)
         components, graph = _scc(functions)
@@ -472,12 +524,13 @@ def build_plan(
         default_engine: RegionEngineName = (
             "native" if options["engine"] in ("native", "native_then_ai") else "ai_primary"
         )
-        decisions = _decisions(rows, rules, default_engine)
-        _validate_components(components, decisions)
+        decisions = _decisions(rows, rules, default_engine, require_object(options["abstract"]))
+        _validate_components(components, decisions, graph)
+        policy_digest = stable_digest(options)
         data: JsonObject = {
             "schema_version": 1,
             "source_digest": snapshot.source_digest,
-            "policy_digest": stable_digest(options),
+            "policy_digest": policy_digest,
             "decisions": {key: value.to_dict() for key, value in decisions.items()},
             "sccs": [list(group) for group in components],
             "call_dependencies": {
@@ -486,7 +539,7 @@ def build_plan(
             "entry_contract": snapshot.entry_contract,
             "default_engine": default_engine,
         }
-        return EffectiveRegionPlan(snapshot.source_digest, stable_digest(options), data, decisions)
+        return EffectiveRegionPlan(snapshot.source_digest, policy_digest, data, decisions)
     except (TypeError, ValueError) as error:
         if isinstance(error, ConfigurationError):
             raise

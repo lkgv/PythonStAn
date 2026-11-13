@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "semantics",
+  "task": "N4-LLM-04",
+  "decision": "accept_bounded_offline_provider_slice_pending_integrated_quality",
+  "scope": "Optional provider construction, explicit mode labels, typed transport decoding, candidate parser/trust boundary, failure redaction and inert disabled execution. No live test or final LLM soundness claim.",
+  "findings": [
+    {
+      "severity": "evidence",
+      "result": "Pass",
+      "detail": "Proposer owns text/options/call usage ledger only; no driver/Store or checker-seal authority. Result stays CandidateProposal with untrusted JSON; actual checker remains separate."
+    },
+    {
+      "severity": "evidence",
+      "result": "Pass",
+      "detail": "SDK request fixed official Responses endpoint and model, store=False, stream=False, tools=[], retries0. SDK imported and key read only in explicit-live send."
+    },
+    {
+      "severity": "evidence",
+      "result": "Pass",
+      "detail": "Local parser bounds bytes/depth, duplicate JSON keys, field sets/string/vector types and identity; semantic correctness is not inferred from a valid candidate."
+    },
+    {
+      "severity": "evidence",
+      "result": "Pass",
+      "detail": "Independent actual SDK in-memory HTTP faults validate refusal/incomplete/missing usage/wrong model/timeout and uncertain-charge latch with exactly one HTTP attempt. Fresh isolated disabled process forbids SDK imports and key reads."
+    },
+    {
+      "severity": "minor",
+      "result": "Resolved",
+      "detail": "Reviewed guarded SDK discovery and import: broken spec/import now return typed redacted SDK_UNAVAILABLE with charge_uncertain=False before client construction. Independent6tests remain passed; author reports40author+6independent within263combined controls."
+    },
+    {
+      "severity": "scope_limit",
+      "result": "Deferred",
+      "detail": "Per-proposer token/call totals do not establish prepaid or whole-session cost bounds. N4-BUDGET-01 remains distinct, and live gates remain unmet."
+    }
+  ],
+  "evidence": {
+    "command": "python -m pytest --import-mode=importlib -p no:cacheprovider -q tests/refactor/llm/test_responses_independent_review.py --tb=short",
+    "exit_code": 0,
+    "passed": 6,
+    "failed": 0,
+    "raw": "artifacts/next/evidence/N4-LLM-04/independent-review.stdout.txt",
+    "ruff_exit_code": 0,
+    "sdk_version": "3.50.0",
+    "real_requests": 0,
+    "real_key_reads": 0
+  },
+  "source_sha256": {
+    "pythonstan/llm/openai_transport.py": "618e1a454af127511294daabfe002067f0e62e9327eac057020ca72252c8d94e",
+    "pythonstan/llm/responses.py": "e26fd1bf77939a317c12c5daa81a2b59d68c3774b7f7aa189f60f8b7838b31c9",
+    "pythonstan/llm/response_schema.py": "02cc2a8133afe37f76100a965699f173c3f6d388ce4375aa22e72b5713d6e111",
+    "pythonstan/llm/providers.py": "a702b0242dc70e5a0d238165ccf360f9fbcd7c45a5e7b0ddcda30bec2a0c4bdb",
+    "pythonstan/config/llm_provider.py": "4dc35285b6dd0f4b99f2b5c20da3cbd856d054dab0d2719cba6f0cdef0948d6b",
+    "tests/refactor/llm/test_responses_independent_review.py": "85a289d94f155cb45f201fa56cf75fea9f1de7c63d4d79d13ff9f505c2ab7836"
+  },
+  "sdk_import_followup": {
+    "reviewed_transport_sha256": "618e1a454af127511294daabfe002067f0e62e9327eac057020ca72252c8d94e",
+    "author_combined_passed": 263,
+    "real_requests": 0
+  }
+}

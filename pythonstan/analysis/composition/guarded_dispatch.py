@@ -300,6 +300,20 @@ class GuardedDispatchProvider:
             remaining -= proposal.work
             if proposal.candidate is None:
                 self._record_unknown(source.module, "proposal_unavailable")
+                if proposal.provider == "openai_live":
+                    from pythonstan.llm.openai_transport import FailureCode
+
+                    safe_codes = {item.value for item in FailureCode}
+                    record = self._records[source.module + ":candidate"]
+                    record["provider"] = "openai_live"
+                    record["provider_status"] = (
+                        proposal.status
+                        if proposal.status in {"blocked", "budget_exhausted", "unavailable"}
+                        else "unavailable"
+                    )
+                    record["provider_diagnostics"] = [
+                        code for code in proposal.diagnostics if code in safe_codes
+                    ]
                 self._stats["unknown"] += 1
                 continue
             from pythonstan.analysis.verification.guarded_dispatch.language import (

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "owner": "semantics",
+  "tasks": [
+    "N4-SEM-01",
+    "N4-SEM-02"
+  ],
+  "base": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "status": "implemented_pending_independent_review",
+  "changes": [
+    "Explicit positional, deferred-star, keyword group and mapping merge plan; actual iterator and mapping protocols preserve exception prefixes.",
+    "Boolean value and conditional contexts differ: nested value survivors may be retested; conditional paths preserve branch truth.",
+    "Deletion uses BindingRef and actual bound/unbound state; success writes tombstone and failed deletion retains prefix; reads do not resurrect deleted bindings from oracle.",
+    "Class DELETE_NAME avoids fallback while LOAD_NAME after deletion falls through globals/builtins.",
+    "RegionExecutionContext consumed by actual Transfer helpers and driver ports.",
+    "Exception argument tuple has distinct private allocation role to avoid collision with iterator materialization."
+  ],
+  "evidence": {
+    "frozen_semantic_manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+    "frozen_AS01_AS02_AS08": {
+      "passed": 19,
+      "failed": 0,
+      "path": "artifacts/next/evidence/N4-SEM-01/frozen-sem-results-final.json"
+    },
+    "independent_public_semantics": {
+      "baseline_passed": 12,
+      "baseline_failed": 20,
+      "current_passed": 32,
+      "current_failed": 0,
+      "path": "artifacts/next/evidence/N4-SEM-01/independent-v4.stdout.txt"
+    },
+    "author_delete_cases": {
+      "passed": 10,
+      "failed": 0,
+      "path": "artifacts/next/evidence/N4-SEM-02/delete-extra.stdout.txt"
+    },
+    "combined_controls": {
+      "passed": 360,
+      "failed": 0,
+      "deselected_other_owner_cases": 26,
+      "path": "artifacts/next/evidence/N4-SEM-01/final-controls.stdout.txt"
+    },
+    "ruff": {
+      "exit_code": 0,
+      "path": "artifacts/next/evidence/N4-SEM-01/ruff.stdout.txt"
+    },
+    "strict_any_expression": {
+      "own_diagnostics": 0,
+      "command_exit": 1,
+      "total_imported_diagnostics": 2288,
+      "path": "artifacts/next/evidence/N4-SEM-01/mypy-strong-final.stdout.txt"
+    }
+  },
+  "limits": [
+    "Finite tests do not prove soundness.",
+    "Subscript deletion remains an explicit unsupported_delete obligation; no new closed coverage claim.",
+    "Existing imported mypy debt is retained; full repository quality acceptance belongs to final frozen integration.",
+    "Card closure requires independent source review and root acceptance."
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/transfer.py": "0820382920c701198c1475ae7e8b7a9d624580286d8c2d4313013347cd709aff",
+    "pythonstan/analysis/semantics/callplan.py": "4310a459ca63f4b33f4cb334f1a8d9e7c38d550e89798abe7b2f8e4e1ee9668d",
+    "tests/regression/audit3/test_semantic_delete_completion.py": "6bfbae960047b6ae9cf33f211cef4de6422c0d5a3c6996c10326453822c76998"
+  }
+}

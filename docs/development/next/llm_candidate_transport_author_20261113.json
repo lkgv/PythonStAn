@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "task": "N4-LLM-04",
+  "author": "llm_offline",
+  "date": "2026-11-13",
+  "status": "implemented_offline_pending_independent_review",
+  "source_base": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "uncommitted": true,
+  "files": {
+    "pythonstan/config/llm_provider.py": "4dc35285b6dd0f4b99f2b5c20da3cbd856d054dab0d2719cba6f0cdef0948d6b",
+    "pythonstan/llm/openai_transport.py": "618e1a454af127511294daabfe002067f0e62e9327eac057020ca72252c8d94e",
+    "pythonstan/llm/response_schema.py": "02cc2a8133afe37f76100a965699f173c3f6d388ce4375aa22e72b5713d6e111",
+    "pythonstan/llm/responses.py": "e26fd1bf77939a317c12c5daa81a2b59d68c3774b7f7aa189f60f8b7838b31c9",
+    "pythonstan/llm/providers.py": "a702b0242dc70e5a0d238165ccf360f9fbcd7c45a5e7b0ddcda30bec2a0c4bdb",
+    "pythonstan/llm/strategy.py": "ea6443eeffac72a588423ce2119bb8686521a6d5334f5d86633f74ddbc3a2fe2",
+    "tests/refactor/llm/test_responses_transport.py": "2100ca0350cb7724d39edbcb8eda9e8319df3bc979eceaad451e25e9128e676c"
+  },
+  "behavior": [
+    "Explicit disabled/offline/recorded/replay/adversarial/openai_live modes; no unknown-provider fallback.",
+    "Non-live transport returns before SDK lookup, key lookup, or network.",
+    "Live boundary uses official fixed endpoint, gpt-6-luna, Responses, store=False, SDK retries=0 and no tools.",
+    "Strict server schema plus bounded local bytes/depth, duplicate-key, exact candidate shape and identity validation.",
+    "Only CandidateProposal, never VerifiedSummary/CheckedSummary; existing trusted checker remains independent.",
+    "Redacted typed errors; uncertain charge or missing/invalid usage stops further requests.",
+    "Public blocked statuses expose bounded safe codes without exception or response text."
+  ],
+  "validation": {
+    "new_offline_controls": 40,
+    "combined_llm_verification_certified_controls": 263,
+    "ruff_own_diagnostics": 0,
+    "ordinary_mypy_own_diagnostics": 0,
+    "strong_mypy_own_diagnostics": 0,
+    "mypy_command_exit": 1,
+    "mypy_exit_reason": "Imported legacy debt; no ignore/skip added.",
+    "poetry_check_lock_exit": 0,
+    "wheel_build_exit": 0,
+    "wheel_metadata": "openai==3.50.0 requires extra=openai; base dependencies remain pyyaml",
+    "existing_dependency_version_changes": []
+  },
+  "cost_scope": "Calls, prompt bytes, output token limit, total reported tokens and analysis work are bounded/recorded. Input token charges are known after service usage, not prepaid; uncertain charge latches stop.",
+  "real_llm_requests": 0,
+  "real_credentials_read": false,
+  "credential_tests": "Synthetic noncredential canary only",
+  "not_claimed": [
+    "Independent review",
+    "Full-tree strict clean",
+    "Semantic soundness",
+    "Paid/live readiness"
+  ],
+  "official_documentation": [
+    "https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses",
+    "https://developers.openai.com/api/reference/python/resources/responses/methods/create",
+    "https://developers.openai.com/api/docs/models"
+  ],
+  "raw_evidence": "artifacts/next/evidence/N4-LLM-04",
+  "disabled_configuration": {
+    "accepted": {
+      "llm": {
+        "enabled": false
+      }
+    },
+    "shorthand_llm_false": "Not part of current API01 contract; raw llm boolean remains a precise configuration rejection."
+  },
+  "followup": {
+    "sdk_discovery_import": "All SDK discovery/import exceptions become redacted sdk_unavailable with charge_uncertain=false before client construction.",
+    "disabled_sentinels": "Tests count SDK imports, API key lookups, transport calls; swallowed exceptions cannot masquerade as zero activity.",
+    "budget_scope": "N4-BUDGET-01 not claimed; total token ledger remains local/post-usage with uncertain-charge latch."
+  }
+}

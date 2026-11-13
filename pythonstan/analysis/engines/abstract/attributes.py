@@ -1602,7 +1602,7 @@ class AttributeOperations:
                         owner = store.heap.get(ownerid)
                         if owner:
                             candidates.update(key for key in owner.fields if type(key) is str)
-            cap = max(0, self.d.abstract_integer("attribute_name_limit", 256))
+            cap = max(0, self.t.execution.integer("attribute_name_limit", 256))
             names = [
                 candidate
                 for candidate in sorted(candidates)

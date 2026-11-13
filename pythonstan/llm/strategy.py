@@ -153,7 +153,7 @@ class OfflineStrategyProposer:
     ) -> list[JsonValue]:
         llm = require_object(config["llm"])
         explicit = require_array(llm["proposals"])
-        if explicit:
+        if explicit or llm["provider"] in {"recorded", "replay"}:
             return list(explicit)
         if llm["provider"] == "adversarial":
             return [{"strategy": "delete_entry", "verified": True}]

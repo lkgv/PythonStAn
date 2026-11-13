@@ -24,6 +24,8 @@ from pythonstan.analysis.contracts.json_data import (
     validate_json_object,
 )
 from pythonstan.config import EffectiveConfig
+from pythonstan.config.errors import ConfigurationError
+from pythonstan.config.llm_provider import ProviderMode, ProviderOptions
 
 from .candidates import CandidateProposal, CandidateProvider, SourceBundle
 
@@ -88,6 +90,7 @@ class OfflineDispatchProposer:
         self.coarse: bool = coarse
         self.adversarial: str | None = adversarial
         self.max_work: int = max_work
+        self.provider_name = "adversarial" if adversarial else "offline"
 
     def propose(
         self, source: str, *, identity: SemanticIdentity | None = None, max_work: int | None = None
@@ -109,7 +112,7 @@ class OfflineDispatchProposer:
                 return CandidateProposal(
                     "budget_exhausted",
                     None,
-                    "offline",
+                    self.provider_name,
                     0,
                     time.monotonic() - started,
                     ("source budget",),
@@ -121,7 +124,7 @@ class OfflineDispatchProposer:
                 return CandidateProposal(
                     "budget_exhausted",
                     None,
-                    "offline",
+                    self.provider_name,
                     limit,
                     time.monotonic() - started,
                     ("proposal work budget",),
@@ -189,7 +192,7 @@ class OfflineDispatchProposer:
             return CandidateProposal(
                 "candidate",
                 wire,
-                "adversarial" if self.adversarial else "offline",
+                self.provider_name,
                 work,
                 time.monotonic() - started,
             )
@@ -203,13 +206,21 @@ class OfflineDispatchProposer:
             RecursionError,
         ) as error:
             return CandidateProposal(
-                "unavailable", None, "offline", work, time.monotonic() - started, (str(error),)
+                "unavailable",
+                None,
+                self.provider_name,
+                work,
+                time.monotonic() - started,
+                (str(error),),
             )
 
 
 class RecordedDispatchProposer:
-    def __init__(self, recordings: Mapping[str, object]) -> None:
+    def __init__(
+        self, recordings: Mapping[str, object], *, provider_name: str = "recorded"
+    ) -> None:
         self.recordings: dict[str, object] = deepcopy(dict(recordings))
+        self.provider_name = provider_name
 
     def propose(
         self, source: str, *, identity: SemanticIdentity | None = None, max_work: int | None = None
@@ -219,7 +230,7 @@ class RecordedDispatchProposer:
             return CandidateProposal(
                 "budget_exhausted",
                 None,
-                "recorded",
+                self.provider_name,
                 0,
                 time.monotonic() - started,
                 ("proposal work budget",),
@@ -229,7 +240,7 @@ class RecordedDispatchProposer:
         return CandidateProposal(
             "candidate" if candidate is not None else "unavailable",
             deepcopy(candidate),
-            "recorded",
+            self.provider_name,
             1,
             time.monotonic() - started,
         )
@@ -248,16 +259,27 @@ def make_summary_provider(
     if not require_bool(llm.get("enabled", False)) or not require_bool(llm.get("level2", False)):
         return None
     provider_name = require_string(llm.get("provider", "offline"))
+    provider_options = ProviderOptions.from_wire(llm)
     proposer: CandidateProvider
-    if provider_name == "recorded":
+    if provider_options.mode is ProviderMode.DISABLED:
+        return None
+    if provider_options.mode is ProviderMode.OPENAI_LIVE:
+        from pythonstan.analysis.contracts import stable_digest
+
+        from .responses import ResponsesCandidateProposer
+
+        proposer = ResponsesCandidateProposer(
+            provider_options, policy_digest=stable_digest(options)
+        )
+    elif provider_options.mode is ProviderMode.REPLAY:
         recordings: dict[str, object] = {}
         for record in require_array(llm.get("proposals", [])):
             if isinstance(record, dict) and record.get("level") == 2:
                 digest = record.get("source_digest")
                 if isinstance(digest, str):
                     recordings[digest] = record.get("candidate")
-        proposer = RecordedDispatchProposer(recordings)
-    else:
+        proposer = RecordedDispatchProposer(recordings, provider_name=provider_name)
+    elif provider_options.mode in (ProviderMode.OFFLINE, ProviderMode.ADVERSARIAL):
         limit = require_int(require_object(options.get("resources", {})).get("max_work", 100000))
         if remaining_work is not None:
             limit = min(limit, max(0, remaining_work))
@@ -265,6 +287,8 @@ def make_summary_provider(
             adversarial="wrong_handler" if provider_name == "adversarial" else None,
             max_work=limit,
         )
+    else:
+        raise ConfigurationError("Unsupported candidate provider")
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
 
     provider = GuardedDispatchProvider(snapshot, options, proposer, remaining_work=remaining_work)

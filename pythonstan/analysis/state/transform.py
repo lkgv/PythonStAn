@@ -82,6 +82,7 @@ from .metadata import (
     ContinuationField,
     ExceptionField,
     FrameField,
+    GeneratorMeta,
     IntegerField,
     KeySequenceField,
     KeysField,
@@ -92,16 +93,19 @@ from .metadata import (
     StateHandleField,
     StatementsField,
     StoreField,
+    SuspensionStatesField,
     TextField,
     TextSequenceField,
     ValueField,
     ValueSequenceField,
+    validate_component,
 )
 from .store import Frame, FunctionInfo, HeapObject, Store, Unit
 
 type GraphRecord = (
     BoundaryObject
     | Store
+    | GeneratorMeta
     | HeapObject
     | Frame
     | FunctionInfo
@@ -179,6 +183,7 @@ def _record(value: object) -> TypeGuard[GraphRecord]:
     return type(value) in (
         BoundaryObject,
         Store,
+        GeneratorMeta,
         HeapObject,
         Frame,
         FunctionInfo,
@@ -284,6 +289,20 @@ def _fields(value: GraphRecord) -> tuple[tuple[str, GraphPayload], ...]:
             ("extras", value.extras),
             ("events", value.events),
         )
+    if isinstance(value, GeneratorMeta):
+        return (
+            ("function", value.function),
+            ("frame", value.frame),
+            ("entry", value.entry),
+            ("body", value.body),
+            ("stage", value.stage),
+            ("index", value.index),
+            ("remaining", value.remaining),
+            ("resume_count", value.resume_count),
+            ("owned_exception", value.owned_exception),
+            ("alternatives", value.alternatives),
+            ("overflow", value.overflow),
+        )
     if isinstance(value, Store):
         return (
             ("cells", value.cells),
@@ -321,6 +340,9 @@ def _fields(value: GraphRecord) -> tuple[tuple[str, GraphPayload], ...]:
             ("nonlocals", value.nonlocals),
             ("is_module", value.is_module),
             ("is_class", value.is_class),
+            # Runtime operation authority is retained by identity on copy;
+            # its immutable policy digest is the semantic graph projection.
+            ("execution", None if value.execution is None else value.execution.policy.digest),
         )
     if isinstance(value, FunctionInfo):
         return (
@@ -703,6 +725,113 @@ def payload_signature(value: object, seen: dict[int, int] | None = None) -> Sign
     raise TypeError("Unrepresentable semantic payload: " + type(value).__name__)
 
 
+def payload_values_leq(left: object, right: object, ops: ValueOperations) -> bool:
+    """Order Value leaves while requiring the same explicit non-value shape."""
+    seen: set[tuple[int, int]] = set()
+
+    def compare(a: object, b: object) -> bool:
+        if isinstance(a, Value) and isinstance(b, Value):
+            return ops.leq(a, b)
+        if type(a) is not type(b):
+            return False
+        if a is b or (id(a), id(b)) in seen:
+            return True
+        seen.add((id(a), id(b)))
+        if isinstance(a, Metadata) and isinstance(b, Metadata):
+            af, bf = a.transformation_entries(), b.transformation_entries()
+            return af.keys() == bf.keys() and all(
+                type(af[key]) is type(bf[key]) and compare(af[key].value, bf[key].value)
+                for key in af
+            )
+        if _record(a) and _record(b):
+            return all(
+                compare(x, y)
+                for (_, x), (_, y) in zip(_semantic_fields(a), _semantic_fields(b), strict=True)
+            )
+        if _dictionary(a) and _dictionary(b):
+            return a.keys() == b.keys() and all(compare(a[key], b[key]) for key in a)
+        if (_tuple(a) or _list(a)) and (_tuple(b) or _list(b)):
+            return len(a) == len(b) and all(compare(x, y) for x, y in zip(a, b, strict=True))
+        return semantic_payload_equal(a, b)
+
+    return compare(left, right)
+
+
+def merge_metadata_values(
+    left: Metadata, right: Metadata, merge: Callable[[Value, Value], Value]
+) -> bool:
+    """Join Value leaves of equal-shaped, already detached metadata graphs.
+
+    Non-value shape differences stay explicit incompatibilities. Record fields
+    are enumerated by the same finite schema as copy/quotient. A shared pair
+    memo handles cycles; no new clone or root owner is introduced.
+    """
+    updated: dict[tuple[int, int], object] = {}
+
+    def compatible(a: object, b: object, pairs: set[tuple[int, int]]) -> bool:
+        if isinstance(a, Value) and isinstance(b, Value):
+            return True
+        if type(a) is not type(b):
+            return False
+        if a is b or (id(a), id(b)) in pairs:
+            return True
+        pairs.add((id(a), id(b)))
+        if isinstance(a, Metadata) and isinstance(b, Metadata):
+            af, bf = a.transformation_entries(), b.transformation_entries()
+            return af.keys() == bf.keys() and all(
+                type(af[key]) is type(bf[key]) and compatible(af[key].value, bf[key].value, pairs)
+                for key in af
+            )
+        if _record(a) and _record(b):
+            return all(
+                compatible(x, y, pairs)
+                for (_, x), (_, y) in zip(_fields(a), _fields(b), strict=True)
+            )
+        if _dictionary(a) and _dictionary(b):
+            return a.keys() == b.keys() and all(compatible(a[key], b[key], pairs) for key in a)
+        if (_tuple(a) or _list(a)) and (_tuple(b) or _list(b)):
+            return len(a) == len(b) and all(
+                compatible(x, y, pairs) for x, y in zip(a, b, strict=True)
+            )
+        return semantic_payload_equal(a, b)
+
+    if not compatible(left, right, set()):
+        return False
+
+    def update(a: object, b: object) -> object:
+        if isinstance(a, Value) and isinstance(b, Value):
+            return merge(a, b)
+        if a is b:
+            return a
+        pair = id(a), id(b)
+        if pair in updated:
+            return updated[pair]
+        if _tuple(a) and _tuple(b):
+            items = tuple(update(x, y) for x, y in zip(a, b, strict=True))
+            if pair in updated:
+                return updated[pair]
+            updated[pair] = items
+            return items
+        updated[pair] = a
+        if isinstance(a, Metadata) and isinstance(b, Metadata):
+            af, bf = a.transformation_entries(), b.transformation_entries()
+            for key in af:
+                a[key] = validate_component(update(af[key].value, bf[key].value))
+        elif _record(a) and _record(b):
+            for (name, x), (_, y) in zip(_fields(a), _fields(b), strict=True):
+                object.__setattr__(a, name, update(x, y))
+        elif _dictionary(a) and _dictionary(b):
+            for dictionary_key in a:
+                a[dictionary_key] = update(a[dictionary_key], b[dictionary_key])
+        elif _list(a) and _list(b):
+            for index, item in enumerate(a):
+                a[index] = update(item, b[index])
+        return a
+
+    update(left, right)
+    return True
+
+
 def _summarized_keys(metadata: Metadata) -> frozenset[FieldKey]:
     keys = metadata.lookup("summarized_keys")
     return frozenset() if keys is None else frozenset(keys)
@@ -908,6 +1037,8 @@ class PayloadTransformer:
                 return StoreField(self.visit(value))
             case StateHandleField(value):
                 return StateHandleField(self.visit(value))
+            case SuspensionStatesField(value):
+                return SuspensionStatesField(self.visit(value))
             case ContinuationField(value):
                 return ContinuationField(self.visit(value))
             case StatementsField(value):
@@ -1017,6 +1148,12 @@ class PayloadTransformer:
             return self._mapped_dict(data, self._dict_roles[identity], collisions)
         return result
 
+    def heap_contribution(self, value: HeapObject, *, into: HeapObject | None = None) -> HeapObject:
+        """Copy one contribution while memoized owner edges keep their anchor."""
+        result = object.__new__(type(value)) if into is None else into
+        self._fill_record(value, result)
+        return result
+
     def _visit_record(self, value: GraphRecord) -> GraphRecord:
         result = object.__new__(type(value))
         self.memo[id(value)] = result
@@ -1060,6 +1197,8 @@ class PayloadTransformer:
                 mapped = self._visit(value.closure)
             elif isinstance(value, FunctionInfo) and name == "identifier":
                 mapped = self.address(value.identifier)
+            elif isinstance(value, GeneratorMeta) and name == "function":
+                mapped = None if value.function is None else self.address(value.function)
             elif isinstance(value, HeapObject) and name == "class_ids":
                 mapped = frozenset(self.address(identifier) for identifier in value.class_ids)
             elif isinstance(value, HeapObject) and name == "fields":
@@ -1067,6 +1206,8 @@ class PayloadTransformer:
             else:
                 mapped = self._visit(item)
             object.__setattr__(result, name, mapped)
+        if isinstance(value, Frame) and isinstance(result, Frame):
+            object.__setattr__(result, "execution", value.execution)
         if isinstance(result, HeapObject) and collisions:
             result.metadata["summarized_keys"] = _summarized_keys(result.metadata) | frozenset(
                 collisions

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "tasks": [
+    "N4-STATE-01",
+    "N4-STATE-02"
+  ],
+  "status": "running",
+  "acceptance": "partial coherent checkpoint; not full task acceptance",
+  "baseline": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "source_sha256": {
+    "pythonstan/analysis/state/store.py": "f559ecfeb478e40c710001b15db00fdabbc0ed1a10c8d42dd05592acd5503c15",
+    "pythonstan/analysis/state/metadata.py": "22ff38cb897f3d7e41ad25530c716a5d53256f7cc0b7e176565c9360b21505ab",
+    "pythonstan/analysis/state/transform.py": "8e11374e32193d06b178147f828fee6ab4b0695969e0dfdee7164a7c53873d3e",
+    "pythonstan/analysis/state/suspensions.py": "3b507f3f0929b7aa1d123509170f86fce5405b1930baf31ac5d716e62d4375fb",
+    "pythonstan/analysis/engines/abstract/continuations.py": "2a95e165f53a55eec3aad96da956ac53d2ab193c51a6e2ccec64f6c9bda6d9e6"
+  },
+  "implemented": [
+    "Pure Store.current_view for stale observation; read_slot/leq/join/apply no longer mutate borrowed inputs.",
+    "Explicit ensure_current prepares a detached graph, then reanchors all published fields to its actual mutation root, preserving cyclic metadata ownership.",
+    "Store.join copies right heap contributions with the shared root/owner memo.",
+    "Standalone HeapObject.join now detaches its right contribution through the same owner memo; a red/green cyclic-right-root mutation witness guards the correlated suspension extension.",
+    "Widen dispatch applies to cells, fields, defaults and equal-shaped metadata Value leaves through the finite graph schema, with read-only Value-leaf coverage and tuple/list cycle publication. Standalone legacy HeapObject.join incompatibility behavior is retained.",
+    "GeneratorMeta represents whole correlated suspension alternatives; graph schema remaps frame/function/entry/continuation/owned exception together. Runtime resumes selected alternatives while retaining residual states inside tracked metadata; active recursion discriminates frame identity.",
+    "Finite alternatives have an explicit capacity32 fallback (the existing activation discriminator bound): overflow marks havoc, Store.join and subsequent resume expose an open capacity obligation. No convergence precision claim.",
+    "Continuation blocks and helpers consume explicit scoped execution settings and preserve the global driver ledger.",
+    "Frame.execution has an explicit finite semantic projection by immutable policy digest; graph copies/quotients preserve the runtime attachment identity without traversing operation authority or arena. The unchanged full-field projection guard passes.",
+    "Standalone owner joins preallocate and anchor both source shells before either graph traversal, preserving cross-reachable shared-entry heap aliases without shadow owner clones."
+  ],
+  "tests": {
+    "author_current": {
+      "passed": 17,
+      "failed": 0
+    },
+    "author_frozen_baseline": {
+      "passed": 1,
+      "failed": 15,
+      "qualification": "13 behavioral failures plus2 missing-new-interface failures; those2 are not claimed behavioral red-to-green."
+    },
+    "selected_existing_and_independent": {
+      "passed": 94,
+      "failed": 0,
+      "note": "Prior to the final overflow flag, then final29 suspension/state recovery passed; root full snapshot verification is authoritative."
+    },
+    "independent_reviewers": [
+      "recovery_audit observational purity and uniform four-location widening",
+      "domain six cyclic/aliased nested metadata cases"
+    ],
+    "strict": {
+      "own_diagnostics": 0,
+      "checked_modules": 5,
+      "disallow_any_expr": true,
+      "imports": "normal",
+      "whole_command_exit": 1,
+      "inherited_import_diagnostics": 2288,
+      "log": "/tmp/state-mypy-projection.txt"
+    },
+    "ruff": {
+      "own_diagnostics": 0
+    },
+    "final_selected_after_standalone_fix": {
+      "passed": 101,
+      "failed": 0,
+      "scope": "17 author +6 independent widening +78 existing continuation/state tests"
+    },
+    "final_projection_and_cross_reachable_owner": {
+      "passed": 71,
+      "failed": 0,
+      "scope": "27 unchanged graph schema guards +2 runtime attachment/shared-owner controls +42 state/observation/widening controls"
+    }
+  },
+  "evidence": {
+    "artifacts/next/evidence/N4-STATE-01/author-green.txt": "2d0dcc8946a72924dbd4b76d564d34f3405d699bbe6022bb95bd13a368faca66",
+    "artifacts/next/evidence/N4-STATE-01/author-baseline-red.txt": "99805ca112c98e4b27dd14fe7328bd0cc27c163c1bbcd0c81259b0bd996afe13",
+    "artifacts/next/evidence/N4-STATE-01/standalone-alias-red.txt": "d4a6eefc45f15acf781f9fae304eebf08c50260a71d4df5e72cd9ef97fb72b58",
+    "artifacts/next/evidence/N4-STATE-01/state-final-green.txt": "cd34fa85bd8a61ac0ea1a222654d0f4d7aebbde90476958bf8aa321c61c43487"
+  },
+  "remaining_obligations": [
+    "Same-control suspension payload widening/grouping and stronger convergence precision analysis; current bounded fallback is conservative and explicit.",
+    "Protocol-triggered epoch publication while resuming nested frames, yield-from, caller/owned exceptions and close/finally requires additional independent adversarial coverage.",
+    "Atomic prepare failures at each host/oracle/provider validation stage remain independent review obligations; existing state recovery budget failure controls are retained.",
+    "A quotient-generated overflow object becomes explicitly open when consumed; propagating its capacity obligation to all host owning roots at publication requires further integration review.",
+    "Neither STATE card nor G2/core/release gate is closed by this checkpoint."
+  ],
+  "invariants": {
+    "production_frozen_for_root": true,
+    "debt_reset": false,
+    "gold_or_budget_weakening": false,
+    "source_suppression": false,
+    "whole_tree_strict_claimed": false,
+    "soundness_proof_claimed": false
+  }
+}

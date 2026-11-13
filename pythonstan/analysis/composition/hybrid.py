@@ -13,7 +13,7 @@ from pythonstan.analysis.contracts.json_data import (
     require_string,
 )
 from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
-from pythonstan.config import EffectiveConfig
+from pythonstan.config import ConfigurationError, EffectiveConfig
 from pythonstan.inputs import SourceSnapshot
 
 from .oracle import IncrementalCandidateOracle
@@ -37,6 +37,14 @@ def configure_driver(
         config.to_dict() if isinstance(config, EffectiveConfig) else dict(config or driver.options)
     )
     if plan is not None:
+        if plan.source_digest != driver.source_digest or (
+            source_digest is not None and source_digest != driver.source_digest
+        ):
+            raise ConfigurationError("Region plan source identity mismatch")
+        if plan.policy_digest != stable_digest(options) or stable_digest(
+            driver.options
+        ) != stable_digest(options):
+            raise ConfigurationError("Region plan configuration identity mismatch")
         driver.region_plan = plan
         driver.region_scheduler = RegionScheduler(plan)
     if options.get("engine") == "hybrid":

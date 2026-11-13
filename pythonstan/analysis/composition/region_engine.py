@@ -22,6 +22,7 @@ from pythonstan.analysis.contracts.identity import CellId, ObjectId
 from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.engines.abstract.state import Frame
+from pythonstan.analysis.policies.region import RegionExecutionContext
 from pythonstan.analysis.state.continuation import CompletionKind
 from pythonstan.analysis.state.effects import CellWrite, HeapWrite
 from pythonstan.analysis.state.flow import Flow
@@ -98,15 +99,22 @@ class NativeRegionEngine:
         self.trace: list[JsonObject] = []
 
     def execute(
-        self, node: ast.stmt, flow: Flow, frame: Frame, driver: InterproceduralDriver
+        self,
+        node: ast.stmt,
+        flow: Flow,
+        frame: Frame,
+        driver: InterproceduralDriver,
+        *,
+        execution: RegionExecutionContext | None = None,
     ) -> list[Flow]:
         validate_native_statement(node)
+        ops = (execution or driver.execution_for(frame)).ops
         if flow.kind != "normal":
             return [flow]
-        if not self.adapter.check_roundtrip(flow, driver.ops):
+        if not self.adapter.check_roundtrip(flow, ops):
             raise RuntimeError("full-store boundary roundtrip lost state")
         boundary = self.adapter.encode(flow)
-        kernel = IncrementalInclusionStore(driver.ops)
+        kernel = IncrementalInclusionStore(ops)
         temporaries = 0
         allocations: dict[ObjectId, BoundaryObject] = {}
         cell_outputs: dict[CellId, InclusionNode] = {}
@@ -227,9 +235,9 @@ class NativeRegionEngine:
                             if module.is_package
                             else frame.module.rpartition(".")[0]
                         )
-                        value = driver.ops.join(value.without_unbound(), Value.constant(item))
+                        value = ops.join(value.without_unbound(), Value.constant(item))
                     elif expr.id in PYTHON312_BUILTIN_NAMES:
-                        value = driver.ops.join(
+                        value = ops.join(
                             value.without_unbound(), Value.ref(ObjectId("builtin:" + expr.id))
                         )
                     if not value.unbound:
@@ -313,9 +321,7 @@ class NativeRegionEngine:
                                     values.append(Value.constant(concrete[key]))
                                 except (TypeError, IndexError, KeyError) as error:
                                     exceptions.add(type(error).__name__)
-                        kernel.add_fact(
-                            target, driver.ops.join_all(values), "builtin_scalar_subscript"
-                        )
+                        kernel.add_fact(target, ops.join_all(values), "builtin_scalar_subscript")
                 if not base.refs:
                     return target
                 for key in keys:
@@ -382,7 +388,7 @@ class NativeRegionEngine:
                         raise ConfigurationError(
                             "Native scalar region cannot bypass user operators"
                         )
-                    return driver.ops.scalar_binary(expr.op, a, b)
+                    return ops.scalar_binary(expr.op, a, b)
 
                 kernel.add_operation((left, right), target, operation)
                 return target
@@ -398,7 +404,7 @@ class NativeRegionEngine:
                             raise ConfigurationError(
                                 "Native region cannot bypass object truth protocols"
                             )
-                        return Value(bools=frozenset(not x for x in driver.ops.truth(value))), set()
+                        return Value(bools=frozenset(not x for x in ops.truth(value))), set()
 
                     kernel.add_operation((operand,), target, negation)
                 else:
@@ -419,7 +425,7 @@ class NativeRegionEngine:
                     def unary_rule(*values: Value) -> tuple[Value, Iterable[str]]:
                         if len(values) != 2:
                             raise TypeError("Unary arithmetic rule requires two values")
-                        return driver.ops.scalar_binary(operator, values[0], values[1])
+                        return ops.scalar_binary(operator, values[0], values[1])
 
                     kernel.add_operation(
                         (operand, zero) if isinstance(expr.op, ast.Invert) else (zero, operand),
@@ -518,7 +524,7 @@ class NativeRegionEngine:
             def augmented_rule(*values: Value) -> tuple[Value, Iterable[str]]:
                 if len(values) != 2:
                     raise TypeError("Augmented arithmetic rule requires two values")
-                return driver.ops.scalar_binary(node.op, values[0], values[1])
+                return ops.scalar_binary(node.op, values[0], values[1])
 
             kernel.add_operation((a, b), compiled_value, augmented_rule)
             assign(node.target, compiled_value)
@@ -548,7 +554,7 @@ class NativeRegionEngine:
             if obj.singleton and one_target:
                 obj.fields[key] = value
             else:
-                obj.fields[key] = driver.ops.join(obj.fields.get(key, obj.default), value)
+                obj.fields[key] = ops.join(obj.fields.get(key, obj.default), value)
             obj.maybe_missing.discard(key)
             boundary.record_write(HeapWrite(ref, key))
             driver.publish_oracle_field(ref, key, obj.fields[key], "native_region_output")

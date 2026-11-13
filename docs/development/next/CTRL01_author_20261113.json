@@ -1,0 +1,116 @@
+{
+  "task": "N4-CTRL-01",
+  "date": "2026-11-13",
+  "status": "authored_awaiting_independent_review",
+  "base_commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "scope": "Explicit compiled regional policy, actual run-local execution context consumers; no global configuration swaps or resource counters in contexts.",
+  "changes": [
+    "Public resolver retains normalized relation/solver aliases; regional settings reject unsupported scopes and individual solver children even when set to defaults.",
+    "Immutable effective policies own detached settings and canonical digests, inherit nested parent settings and solver children, and reject heterogeneous recursive singleton/SCC policies.",
+    "Scheduler selects context for real Transfer/helper/native execution and statement-level path compaction; operations share one arena and global driver resource ledger.",
+    "Config registry/schema expose scopes, capabilities, consumer, version, effect, evidence and nested solver child capabilities.",
+    "Plan installation rejects mismatched source/configuration before mutation; config/plan/driver identity remains one canonical digest."
+  ],
+  "author_checks": [
+    {
+      "scope": "post-priorityfix7 own productionfiles; normalimports --disallow-any-expr",
+      "own_diagnostics": 0,
+      "whole_import_graph_clean": false,
+      "whole_import_graph_summary": "Found 2288 errors in 48 files (checked 7 source files)",
+      "log": "artifacts/next/evidence/N4-CTRL-01/strong-priority-final.log"
+    },
+    {
+      "scope": "16 arbitrary-priority boundary controls +12 independent reviewer controls +author +composition +frozenregional3",
+      "passed": 112,
+      "deselected": 17,
+      "log": "artifacts/next/evidence/N4-CTRL-01/priority-final-controls.log"
+    },
+    {
+      "scope": "post-review7 own productionfiles with normalimports and --disallow-any-expr",
+      "own_diagnostics": 0,
+      "whole_import_graph_clean": false,
+      "whole_import_graph_summary": "Found 2288 errors in 48 files (checked 7 source files)",
+      "log": "artifacts/next/evidence/N4-CTRL-01/strong-review-final.log"
+    },
+    {
+      "scope": "12 independent reviewer controls + own controls + existing composition + frozen regional probes, after review fixes",
+      "passed": 96,
+      "deselected": 17,
+      "log": "artifacts/next/evidence/N4-CTRL-01/review-final-controls.log"
+    },
+    {
+      "scope": "new region controls + existing composition + frozen regional probes; assignment/allocation cases deselected as unrelated obligations",
+      "passed": 84,
+      "deselected": 17,
+      "log": "artifacts/next/evidence/N4-CTRL-01/final-controls.log"
+    },
+    {
+      "scope": "broader API+composition+regional controls earlier development snapshot",
+      "passed": 198,
+      "log": "artifacts/next/evidence/N4-CTRL-01/api-controls.log"
+    },
+    {
+      "scope": "three unchanged frozen NCOMP-03 regional probes",
+      "passed": 3,
+      "deselected": 14,
+      "log": "artifacts/next/evidence/N4-CTRL-01/regional.log",
+      "note": "Initial author log is2green/1red; root final integration and final-controls contain all3green; baseline3red captured independently by recovery owner."
+    },
+    {
+      "scope": "7 own production files with normal imports and --disallow-any-expr",
+      "own_diagnostics": 0,
+      "whole_import_graph_clean": false,
+      "log": "artifacts/next/evidence/N4-CTRL-01/strong-final.log",
+      "whole_import_graph_summary": "Found 2288 errors in 48 files (checked 7 source files)"
+    },
+    {
+      "scope": "modified/new author files Ruff",
+      "diagnostics": 0
+    }
+  ],
+  "limitations": [
+    "Author checks are development snapshots during parallel work; root must freeze and re-run before acceptance/publication.",
+    "Requires independent review and final full quality/debt/negative guard checks; not a completion claim.",
+    "Existing global legacy controls remain governed by old applicability registry; global inert loop_unroll default does not activate regional alias behavior.",
+    "No semantic/whole-program soundness, scale qualification or live LLM usage claimed."
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/policies/region.py": "489361fc97af1ecfd33e75ecc771b72506144100abe3b13b6c0dcb5cd034c186",
+    "pythonstan/analysis/policies/__init__.py": "00833ab27baa99e366887bb0b1972a1452bb98adae49988dfd20dfcc30cd0757",
+    "pythonstan/analysis/composition/plan.py": "1ba87ec45e2e43ec8700032748c8982160b743812891f3100efec2d81aabb80d",
+    "pythonstan/analysis/composition/region_scheduler.py": "23059e19289ef0eb30e47ccd914dd152865b16e2245fa63d28812b5f3fdbc512",
+    "pythonstan/analysis/composition/region_engine.py": "1a36f9125ae020463956b62d496b6b6579e0332015f6e3684f05921324e2d2e1",
+    "pythonstan/analysis/composition/hybrid.py": "7b6d98af5d70e66e810db0376f537267319e996b3f63b07eb937bf3f30ba9828",
+    "pythonstan/analysis/engines/abstract/attributes.py": "cf32cd537ebc536cbbeb3cce12a3e923aa1a83b391f855555843f8897c43fef1",
+    "pythonstan/analysis/engines/abstract/dictionaries.py": "b7a2894375e8023e3592554de8ce55305c7de51c6c127f8eabcdbc68876bb972",
+    "pythonstan/config/catalog.py": "eb0167e37a987e4ba27c4071d17dbaf384aae7149b0c39c0f4d83f11e1d829bb",
+    "pythonstan/config/resolve.py": "7af4241548bd8c8b7c33d8ab26b5ea246f17b12afe7223b9973bcf13c1105b32",
+    "tests/regression/audit3/test_region_policy_execution.py": "cea3c091440c2ba83b1e9f9e112016aba0e3b71002948add616e8c86324a9ec5"
+  },
+  "review_fixes": [
+    {
+      "finding": "Identical repeated nested child rules falsely conflicted because inherited accumulated settings were compared to raw patches.",
+      "fix": "Compare equal-priority previous normalized rule patch and engine.",
+      "independent_red": "artifacts/next/evidence/w2-independent-20261113/policy-before-review.stdout.txt"
+    },
+    {
+      "finding": "Nested-function selectors double-counted descendants in rule breadth and could precede their strict parent.",
+      "fix": "Use unique source node identity cardinality for breadth ordering.",
+      "independent_red": "artifacts/next/evidence/w2-independent-20261113/policy-breadth-before.stdout.txt"
+    },
+    {
+      "finding": "A valid priority below -10**9 was silently ignored due to a finite default sentinel.",
+      "fix": "Check previous-priority membership explicitly; retain the full arbitrary-integer priority domain.",
+      "before": {
+        "failed": 7,
+        "passed": 9,
+        "log": "artifacts/next/evidence/N4-CTRL-01/priority-before.log"
+      },
+      "after": {
+        "passed": 16,
+        "log": "artifacts/next/evidence/N4-CTRL-01/priority-final-controls.log"
+      }
+    }
+  ],
+  "production_held": true
+}

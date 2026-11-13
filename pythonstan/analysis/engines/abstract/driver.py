@@ -49,6 +49,7 @@ from pythonstan.analysis.contracts.private_slots import (
     positional_default_slot,
 )
 from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.policies.region import EffectiveRegionPolicy, RegionExecutionContext
 from pythonstan.frontend.source import (
     SourceInput,
     SourceProgram,
@@ -56,13 +57,15 @@ from pythonstan.frontend.source import (
     parse_sources,
 )
 
-from .runtime_options import decode_runtime_options, integer_option
+from .runtime_options import decode_runtime_options
 
 if TYPE_CHECKING:
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
     from pythonstan.analysis.composition.plan import EffectiveRegionPlan
     from pythonstan.analysis.composition.region_scheduler import RegionScheduler
     from pythonstan.analysis.composition.summary_context import SummaryApplicationContext
+
+    from .transfer import Transfer
 
 from pythonstan.analysis.state.boundary import HostStateBoundary
 from pythonstan.analysis.state.dependencies import SummaryDependency
@@ -157,6 +160,9 @@ class InterproceduralDriver:
             )
         )
         self.ops = ValueOperations(runtime.value_policy)
+        self.default_execution = RegionExecutionContext(
+            EffectiveRegionPolicy.from_abstract(runtime.abstract), self.ops
+        )
         self._oracle: CandidateOraclePort[Value] | None = None
         self._incremental_oracle: (
             IncrementalOraclePort[Value, ValueOperations, OraclePreparedUpdate] | None
@@ -203,7 +209,8 @@ class InterproceduralDriver:
         self._summary_host_marker = object()
         from .transfer import Transfer
 
-        self.transfer = Transfer(self)
+        self.transfer = Transfer(self, self.default_execution)
+        self._transfers: dict[str, Transfer] = {self.default_execution.policy.digest: self.transfer}
 
     @property
     def oracle(self) -> CandidateOraclePort[Value] | None:
@@ -256,7 +263,33 @@ class InterproceduralDriver:
             else self._incremental_oracle.publish_field(objid, key, value, origin)
         )
 
-    def _summary_context(self) -> SummaryApplicationContext:
+    def execution_for(self, frame: Frame | None = None) -> RegionExecutionContext:
+        return (
+            self.default_execution if frame is None or frame.execution is None else frame.execution
+        )
+
+    def transfer_for(self, execution: RegionExecutionContext) -> Transfer:
+        from .transfer import Transfer
+
+        if execution.ops.arena is not self.ops.arena:
+            raise ValueError("Execution context belongs to a different identity arena")
+        if execution.ops.policy != execution.policy.value_policy:
+            raise ValueError("Execution operations do not implement the resolved value policy")
+        key = execution.policy.digest
+        if key not in self._transfers:
+            self._transfers[key] = Transfer(self, execution)
+        return self._transfers[key]
+
+    def execution_policy_digest(self, execution: RegionExecutionContext) -> str:
+        if execution.policy.digest == self.default_execution.policy.digest:
+            return self.policy_digest
+        return stable_digest(
+            {"configuration": self.policy_digest, "region_policy": execution.policy.digest}
+        )
+
+    def _summary_context(
+        self, execution: RegionExecutionContext | None = None
+    ) -> SummaryApplicationContext:
         """Expose only the real checked-summary capabilities for this host."""
         from pythonstan.analysis.composition.summary_context import (
             SummaryApplicationContext,
@@ -268,7 +301,7 @@ class InterproceduralDriver:
             functions=self.functions,
             modules=self.modules,
             trees=self.trees,
-            policy_digest=self.policy_digest,
+            policy_digest=self.execution_policy_digest(execution or self.default_execution),
             model_digest=self.model_digest,
             scenario=self.scenario,
             current_epoch=lambda: self.ops.arena.epoch,
@@ -302,8 +335,10 @@ class InterproceduralDriver:
     def increment_stat(self, name: str, amount: int = 1) -> None:
         self.stats[name] = require_int(self.stats[name]) + amount
 
-    def abstract_integer(self, name: str, default: int) -> int:
-        return integer_option(self.abstract, name, default)
+    def abstract_integer(
+        self, name: str, default: int, *, execution: RegionExecutionContext | None = None
+    ) -> int:
+        return (execution or self.default_execution).integer(name, default)
 
     def _check_limits(self, force: bool = False) -> None:
         if self.started and self.max_seconds and time.monotonic() - self.started > self.max_seconds:
@@ -331,13 +366,17 @@ class InterproceduralDriver:
         self.work += amount
         self.increment_stat(category, amount)
 
-    def tick(self, node: ast.AST | None = None) -> None:
+    def tick(
+        self, node: ast.AST | None = None, *, execution: RegionExecutionContext | None = None
+    ) -> None:
         key = (
             self.current,
             self.point(node) if node is not None else ProgramPointId("<statement>"),
         )
         self._statement_visits[key] += 1
-        if self._statement_visits[key] > self.abstract_integer("max_stmt_visits", 50):
+        if self._statement_visits[key] > self.abstract_integer(
+            "max_stmt_visits", 50, execution=execution
+        ):
             raise BudgetStop("max_stmt_visits")
         self.charge(1, "ast_work")
         if node is not None:
@@ -349,7 +388,11 @@ class InterproceduralDriver:
         return self.ops.arena.resolve(identifier)
 
     def reabstract_addresses(
-        self, mapping: Mapping[ObjectId, ObjectId], extra_payloads: Sequence[GraphPayload] = ()
+        self,
+        mapping: Mapping[ObjectId, ObjectId],
+        extra_payloads: Sequence[GraphPayload] = (),
+        *,
+        operations: ValueOperations | None = None,
     ) -> tuple[GraphPayload, ...]:
         """Prepare the entire host quotient, then publish one alias epoch.
 
@@ -357,20 +400,23 @@ class InterproceduralDriver:
         time/work/memory preparation publishes neither aliases nor new roots.
         Current local stores outside the host are normalized lazily by epoch.
         """
+        operations = operations or self.ops
+        if operations.arena is not self.ops.arena:
+            raise ValueError("Address quotient operations must share the driver identity arena")
         if self._in_reabstract:
             raise RuntimeError("Nested address quotient")
-        self.charge(len(self.ops.arena.aliases) + len(mapping), "reabstract_alias_prepare_work")
-        prepared_aliases = self.ops.arena.prepare(mapping)
-        if prepared_aliases == self.ops.arena.aliases:
+        self.charge(len(operations.arena.aliases) + len(mapping), "reabstract_alias_prepare_work")
+        prepared_aliases = operations.arena.prepare(mapping)
+        if prepared_aliases == operations.arena.aliases:
             return remap_payload(
-                tuple(extra_payloads), prepared_aliases, self.ops, epoch=self.ops.arena.epoch
+                tuple(extra_payloads), prepared_aliases, operations, epoch=operations.arena.epoch
             )
-        epoch = IdentityEpoch(self.ops.arena.epoch + 1)
+        epoch = IdentityEpoch(operations.arena.epoch + 1)
         self._in_reabstract = True
         try:
             transform = PayloadTransformer(
                 prepared_aliases,
-                self.ops,
+                operations,
                 epoch=epoch,
                 charge=lambda amount: self.charge(amount, "reabstract_prepare_work"),
             )
@@ -391,7 +437,7 @@ class InterproceduralDriver:
                     for identifier in ambiguous:
                         if identifier in store.heap:
                             store.heap[identifier].havoc = True
-                            store.heap[identifier].default = self.ops.join(
+                            store.heap[identifier].default = operations.join(
                                 store.heap[identifier].default, Value.unknown()
                             )
 
@@ -401,7 +447,7 @@ class InterproceduralDriver:
             if self.incremental_oracle is not None:
                 oracle_prepared = self.incremental_oracle.prepare_reabstract(
                     prepared_aliases,
-                    self.ops,
+                    operations,
                     charge=lambda amount: self.charge(amount, "reabstract_oracle_work"),
                 )
                 if not oracle_prepared.work_precharged:
@@ -413,7 +459,7 @@ class InterproceduralDriver:
                 if not provider_prepared.work_precharged:
                     self.charge(provider_prepared.work, "reabstract_summary_work")
             self.charge(len(prepared_aliases), "reabstract_prepare_work")
-            prepared_summaries = self.ops.arena.summaries | set(prepared_aliases.values())
+            prepared_summaries = operations.arena.summaries | set(prepared_aliases.values())
             reads: set[tuple[str, str, ProgramPointId]] = set()
             writes: set[tuple[str, str, ProgramPointId]] = set()
             for old, target in ((self.reads, reads), (self.writes, writes)):
@@ -434,7 +480,7 @@ class InterproceduralDriver:
             # objects. External service commit hooks have the same contract.
             if oracle_prepared is not None:
                 oracle_prepared.validate()
-            self.ops.arena.publish(prepared_aliases, summaries=prepared_summaries)
+            operations.arena.publish(prepared_aliases, summaries=prepared_summaries)
             self.units = payload.units
             self.functions = functions
             self.events = payload.events
@@ -488,7 +534,7 @@ class InterproceduralDriver:
             )
             mapping = {ref: target for ref in overflow if ref != target}
             if mapping:
-                transformed = self.reabstract_addresses(mapping, flows)
+                transformed = self.reabstract_addresses(mapping, flows, operations=operations)
                 flows = []
                 for flow in transformed:
                     if not is_flow(flow):
@@ -521,13 +567,16 @@ class InterproceduralDriver:
             store.obligations |= frozenset((reason,))
         self.emit("open_obligation", reason=reason, point=self.point(node) if node else None)
 
-    def register_module(self, module: str, store: Store) -> Value:
-        store.ensure_current(self.ops)
+    def register_module(
+        self, module: str, store: Store, *, execution: RegionExecutionContext | None = None
+    ) -> Value:
+        operations = (execution or self.default_execution).ops
+        store.ensure_current(operations)
         identifier = self.allocate_identity(ObjectId(f"module:{module}"))
         if identifier not in store.heap:
             store.heap[identifier] = HeapObject(
                 "module",
-                singleton=not self.ops.arena.is_summary(identifier),
+                singleton=not operations.arena.is_summary(identifier),
                 metadata={"module": module},
             )
         return Value.ref(identifier)
@@ -536,16 +585,27 @@ class InterproceduralDriver:
         return UnitId(f"{self.scenario}:module:{module}")
 
     def request_module(
-        self, module: str, store: Store, caller: UnitId | None = None, site: ast.AST | None = None
+        self,
+        module: str,
+        store: Store,
+        caller: UnitId | None = None,
+        site: ast.AST | None = None,
+        *,
+        execution: RegionExecutionContext | None = None,
     ) -> list[Flow]:
+        execution = execution or self.default_execution
+        operations = execution.ops
+        transfer = self.transfer_for(execution)
         if module not in self.modules:
-            return self.transfer.unknown(store, site, "external_module:" + module)
+            return transfer.unknown(store, site, "external_module:" + module)
         result = store.copy()
-        ref = self.register_module(module, result)
+        ref = self.register_module(module, result, execution=execution)
         status = result.initialized.get(module, "maybe" if result.havoc_imports else "unseen")
         if status in ("initialized", "initializing"):
             return [NormalExprFlow(StateHandle.capture(result), ref)]
         key = self.module_key(module)
+        if execution.policy.digest != self.default_execution.policy.digest:
+            key = UnitId(f"{key}:policy={execution.policy.digest}")
         entry = result.clear_effects()
         entry.initialized[module] = "initializing"
         for name, descriptor in require_object(
@@ -554,22 +614,24 @@ class InterproceduralDriver:
             prefix = module + "."
             if name.startswith(prefix):
                 entry.cells[CellId(f"global:{module}:{name[len(prefix) :]}")] = self.input_value(
-                    descriptor
+                    descriptor, execution=execution
                 )
-        frame = Frame(module, module, ContextId(()), FrameId(key), is_module=True)
+        frame = Frame(
+            module, module, ContextId(()), FrameId(key), is_module=True, execution=execution
+        )
         self._request(key, frame, tuple(self.trees[module].body), entry, True, caller)
         flows: list[Flow] = (
             [
                 NormalExprFlow(
                     StateHandle.capture(result.copy()),
-                    self.ops.join(ref, Value.unknown()) if result.havoc_imports else ref,
+                    operations.join(ref, Value.unknown()) if result.havoc_imports else ref,
                 )
             ]
             if status in {"maybe", "partial"}
             else []
         )
         for outcome in self.units[key].outcomes:
-            applied = result.apply(outcome, self.ops)
+            applied = result.apply(outcome, operations)
             if outcome.kind in ("normal", "return"):
                 applied.initialized[module] = "initialized"
                 flows.append(NormalExprFlow(StateHandle.capture(applied), ref))
@@ -594,15 +656,17 @@ class InterproceduralDriver:
         is_module: bool,
         caller: UnitId | None,
     ) -> None:
+        execution = self.execution_for(frame)
+        operations = execution.ops
         if key not in self.units:
             self.units[key] = Unit(key, frame, body, entry, is_module=is_module)
             self.unit_scenarios[key] = self.scenario
             self.enqueue(key, "new_entry")
         else:
             unit = self.units[key]
-            if not entry.leq(unit.entry, self.ops):
+            if not entry.leq(unit.entry, operations):
                 expanded = unit.entry.join(
-                    entry, self.ops, widen=unit.visits > self.abstract_integer("widen_delay", 2)
+                    entry, operations, widen=unit.visits > execution.integer("widen_delay", 2)
                 )
                 unit.entry = expanded
                 self.enqueue(key, "entry_growth")
@@ -613,8 +677,8 @@ class InterproceduralDriver:
                 key,
                 StateRevision(self.units[key].revision),
                 self.source_digest,
-                PolicyId(self.policy_digest),
-                self.ops.arena.epoch,
+                PolicyId(self.execution_policy_digest(execution)),
+                operations.arena.epoch,
             )
             self.emit(
                 "call_dependency", caller=caller, callee=key, revision=self.units[key].revision
@@ -628,11 +692,16 @@ class InterproceduralDriver:
         store: Store,
         caller_frame: Frame,
         site: ast.AST | None,
+        *,
+        execution: RegionExecutionContext | None = None,
     ) -> list[Flow]:
-        store.ensure_current(self.ops)
-        identifier = self.ops.arena.resolve(identifier)
-        args = tuple(self.ops.normalize(value) for value in args)
-        keywords = tuple((name, self.ops.normalize(value)) for name, value in keywords)
+        execution = execution or self.execution_for(caller_frame)
+        operations = execution.ops
+        transfer = self.transfer_for(execution)
+        store.ensure_current(operations)
+        identifier = operations.arena.resolve(identifier)
+        args = tuple(operations.normalize(value) for value in args)
+        keywords = tuple((name, operations.normalize(value)) for name, value in keywords)
         info = self.functions[identifier]
         from pythonstan.analysis.contracts.arguments import CallArguments
         from pythonstan.analysis.semantics.binding import bind_arguments
@@ -641,7 +710,7 @@ class InterproceduralDriver:
         defaults = info.defaults
         kw_defaults = info.kw_defaults
         if function_object is not None and function_object.havoc:
-            return self.transfer.unknown(store, site, "havoc_function_metadata")
+            return transfer.unknown(store, site, "havoc_function_metadata")
         if function_object is not None:
             defaults = tuple(
                 function_object.fields.get(positional_default_slot(i), value)
@@ -652,9 +721,9 @@ class InterproceduralDriver:
                 for key, value in info.kw_defaults
             )
             if function_object.havoc:
-                defaults = tuple(self.ops.join(value, Value.unknown()) for value in defaults)
+                defaults = tuple(operations.join(value, Value.unknown()) for value in defaults)
                 kw_defaults = tuple(
-                    (key, self.ops.join(value, Value.unknown())) for key, value in kw_defaults
+                    (key, operations.join(value, Value.unknown())) for key, value in kw_defaults
                 )
         bound = bind_arguments(
             info.node.args, CallArguments(tuple(args), tuple(keywords)), defaults, kw_defaults
@@ -670,7 +739,7 @@ class InterproceduralDriver:
         if self.summary_provider is not None:
             try:
                 application = self.summary_provider.try_apply(
-                    self._summary_context(),
+                    self._summary_context(execution),
                     identifier,
                     args,
                     keywords,
@@ -690,13 +759,15 @@ class InterproceduralDriver:
                     "checked_summary_application", callee=info.qualname, point=self.point(site)
                 )
                 return application
-        if self.context_depth:
+        if execution.context_depth:
             context_points: tuple[ProgramPointId, ...] = (*caller_frame.context, self.point(site))
-            context = ContextId(context_points[-self.context_depth :])
+            context = ContextId(context_points[-execution.context_depth :])
         else:
             context = ContextId(())
         heap_partition = self.semantic_input_partition(info, args, keywords, defaults, store)
         key = UnitId(f"{self.scenario}:call:{identifier}@{'|'.join(context)}:heap={heap_partition}")
+        if execution.policy.digest != self.default_execution.policy.digest:
+            key = UnitId(f"{key}:policy={execution.policy.digest}")
         closure = (
             tuple(function_object.metadata.lookup("closure", info.closure))
             if function_object is not None
@@ -719,6 +790,7 @@ class InterproceduralDriver:
             closure,
             info.globals,
             info.nonlocals,
+            execution=execution,
         )
         if info.is_generator or info.is_async:
             # A lazy frame owns local bindings, not a creation-time copy of all
@@ -726,7 +798,7 @@ class InterproceduralDriver:
             # returned caller heap and are read live when execution resumes.
             entry = Store(
                 cells={cell: store.effective_cell(cell) for _, cell in closure},
-                identity_epoch=self.ops.arena.epoch,
+                identity_epoch=operations.arena.epoch,
             )
         else:
             entry = store.clear_effects()
@@ -739,11 +811,11 @@ class InterproceduralDriver:
             collector = HeapObject(
                 "tuple",
                 dict(enumerate(bound.varargs)),
-                singleton=activation != "many" and not self.ops.arena.is_summary(objid),
+                singleton=activation != "many" and not operations.arena.is_summary(objid),
                 metadata={"length": len(bound.varargs)},
             )
             if objid in entry.heap:
-                collector = entry.heap[objid].join(collector, self.ops)
+                collector = entry.heap[objid].join(collector, operations)
                 collector.singleton = False
             entry.heap[objid] = collector
             entry.cells[frame.cell(info.node.args.vararg.arg)] = Value.ref(objid)
@@ -752,11 +824,11 @@ class InterproceduralDriver:
             collector = HeapObject(
                 "dict",
                 dict(bound.kwargs),
-                singleton=activation != "many" and not self.ops.arena.is_summary(objid),
+                singleton=activation != "many" and not operations.arena.is_summary(objid),
                 metadata={"length": len(bound.kwargs)},
             )
             if objid in entry.heap:
-                collector = entry.heap[objid].join(collector, self.ops)
+                collector = entry.heap[objid].join(collector, operations)
                 collector.singleton = False
             entry.heap[objid] = collector
             entry.cells[frame.cell(info.node.args.kwarg.arg)] = Value.ref(objid)
@@ -777,7 +849,7 @@ class InterproceduralDriver:
             entry.heap = {}
             created = HeapObject(
                 kind,
-                singleton=activation != "many" and not self.ops.arena.is_summary(objid),
+                singleton=activation != "many" and not operations.arena.is_summary(objid),
                 metadata={
                     "function": identifier,
                     "frame": frame,
@@ -791,10 +863,10 @@ class InterproceduralDriver:
             )
             old = result.heap.get(objid)
             if old is not None:
-                created = old.join(created, self.ops)
+                created = old.join(created, operations)
                 created.singleton = False
-                created.havoc = True
             if activation == "many":
+                created.singleton = False
                 created.havoc = True
                 self.open("suspended_activation_summary", result, site)
             result.heap[objid] = created
@@ -823,7 +895,7 @@ class InterproceduralDriver:
                 self.open("oracle_observation_failure", store, site)
         returned_flows: list[Flow] = []
         for outcome in self.units[key].outcomes:
-            applied = store.apply(outcome, self.ops)
+            applied = store.apply(outcome, operations)
             kind = "normal" if outcome.kind == "return" else outcome.kind
             returned_flows.append(
                 make_completion(
@@ -914,13 +986,21 @@ class InterproceduralDriver:
             tokens.append(("reachable", "overflow", "many"))
         return stable_digest(sorted(tokens, key=str))[:16]
 
-    def _payload_leq(self, left: Flow, right: Flow) -> bool:
+    def _payload_leq(
+        self, left: Flow, right: Flow, operations: ValueOperations | None = None
+    ) -> bool:
+        operations = operations or self.ops
         a, b = flow_payload(left), flow_payload(right)
-        return a is b if a is None or b is None else self.ops.leq(a, b)
+        return a is b if a is None or b is None else operations.leq(a, b)
 
-    def compact(self, flows: Sequence[Flow]) -> list[Flow]:
+    def compact(
+        self, flows: Sequence[Flow], *, execution: RegionExecutionContext | None = None
+    ) -> list[Flow]:
+        execution = execution or self.default_execution
+        operations = execution.ops
         current = [
-            with_state(flow, StateHandle.capture(flow.store)) for flow in self.coarsen_flows(flows)
+            with_state(flow, StateHandle.capture(flow.store))
+            for flow in self.coarsen_flows(flows, operations)
         ]
         maximal: list[Flow] = []
         for flow in current:
@@ -936,7 +1016,9 @@ class InterproceduralDriver:
                 )
 
             if any(
-                same(old) and self._payload_leq(flow, old) and flow.store.leq(old.store, self.ops)
+                same(old)
+                and self._payload_leq(flow, old, operations)
+                and flow.store.leq(old.store, operations)
                 for old in maximal
             ):
                 continue
@@ -945,12 +1027,12 @@ class InterproceduralDriver:
                 for old in maximal
                 if not (
                     same(old)
-                    and self._payload_leq(old, flow)
-                    and old.store.leq(flow.store, self.ops)
+                    and self._payload_leq(old, flow, operations)
+                    and old.store.leq(flow.store, operations)
                 )
             ]
             maximal.append(flow)
-        if len(maximal) <= self.max_paths:
+        if len(maximal) <= execution.max_paths:
             return maximal
         buckets: dict[tuple[type[object], str | None, object], Flow] = {}
         for flow in maximal:
@@ -971,14 +1053,21 @@ class InterproceduralDriver:
                         )
                     payload = None
                 else:
-                    payload = self.ops.join(a, b)
+                    payload = operations.join(a, b)
                 buckets[key] = replace_flow(
-                    flow, store=old.store.join(flow.store, self.ops), value=payload
+                    flow, store=old.store.join(flow.store, operations), value=payload
                 )
         self.increment_stat("trace_merges", len(maximal) - len(buckets))
         return list(buckets.values())
 
-    def _outcomes_equal(self, left: Sequence[Flow], right: Sequence[Flow]) -> bool:
+    def _outcomes_equal(
+        self,
+        left: Sequence[Flow],
+        right: Sequence[Flow],
+        *,
+        execution: RegionExecutionContext | None = None,
+    ) -> bool:
+        operations = (execution or self.default_execution).ops
         if len(left) != len(right):
             return False
         for a, b in zip(
@@ -994,10 +1083,10 @@ class InterproceduralDriver:
             if (
                 type(a) is not type(b)
                 or a.exception != b.exception
-                or not self._payload_leq(a, b)
-                or not self._payload_leq(b, a)
-                or not a.store.leq(b.store, self.ops)
-                or not b.store.leq(a.store, self.ops)
+                or not self._payload_leq(a, b, operations)
+                or not self._payload_leq(b, a, operations)
+                or not a.store.leq(b.store, operations)
+                or not b.store.leq(a.store, operations)
             ):
                 return False
         return True
@@ -1117,11 +1206,12 @@ class InterproceduralDriver:
             unit.visits += 1
             self.increment_stat("unit_evaluations", 1)
             self._activation_occurrences.clear()
-            if unit.visits > self.abstract_integer("max_iterations", 100):
+            execution = self.execution_for(unit.frame)
+            if unit.visits > execution.integer("max_iterations", 100):
                 raise BudgetStop("unit_iterations")
             self.emit("work_dequeue", unit=key, revision=unit.revision)
             entry = unit.entry.clear_effects()
-            flows = self.transfer.block(
+            flows = self.transfer_for(execution).block(
                 unit.body, [NormalStmtFlow(StateHandle.capture(entry))], unit.frame
             )
             # Address quotient publication may replace the host unit graph
@@ -1134,8 +1224,8 @@ class InterproceduralDriver:
                 if unit.is_module and flow.kind == "normal":
                     flow.store.initialized[unit.frame.module] = "initialized"
                 normalized.append(flow)
-            normalized = self.compact(normalized)
-            if not self._outcomes_equal(unit.outcomes, normalized):
+            normalized = self.compact(normalized, execution=execution)
+            if not self._outcomes_equal(unit.outcomes, normalized, execution=execution):
                 unit.outcomes = normalized
                 unit.revision = StateRevision(unit.revision + 1)
                 if self.observer is not None:
@@ -1169,29 +1259,32 @@ class InterproceduralDriver:
                     if dependency is None or dependency.needs_refresh(
                         revision=StateRevision(unit.revision),
                         input_scope=self.source_digest,
-                        policy=PolicyId(self.policy_digest),
-                        epoch=self.ops.arena.epoch,
+                        policy=PolicyId(self.execution_policy_digest(execution)),
+                        epoch=execution.ops.arena.epoch,
                     ):
                         self.enqueue(consumer, "callee_exit_growth")
             self.current = None
 
-    def input_value(self, descriptor: object) -> Value:
+    def input_value(
+        self, descriptor: object, *, execution: RegionExecutionContext | None = None
+    ) -> Value:
         """Validate the abstract-input wire before constructing runtime values."""
+        operations = (execution or self.default_execution).ops
         if isinstance(descriptor, Value):
             return descriptor
         checked = validate_json(descriptor)
         if isinstance(checked, dict):
             sort = checked.get("type")
             if "constants" in checked:
-                return self.ops.join_all(
+                return operations.join_all(
                     Value.constant(item) for item in require_array(checked["constants"])
                 )
             if "value" in checked:
                 return Value.constant(checked["value"])
             if sort == "str":
-                return Value(strings=self.ops.string.top())
+                return Value(strings=operations.string.top())
             if sort == "int":
-                return Value(ints=self.ops.integer.top())
+                return Value(ints=operations.integer.top())
             if sort == "bool":
                 return Value(bools=frozenset((False, True)))
             if sort == "none":

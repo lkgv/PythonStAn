@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "base_commit": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "status": "verified_incremental_checkpoint_not_release",
+  "source_snapshot_sha256": "1ee6e173f285301f4e13722557b9a8f73df9145d56ebe5f4e51339d734bd4035",
+  "source_file_count": 816,
+  "source_stable": true,
+  "tests": {
+    "stage": {
+      "exit_code": 0,
+      "seconds": 77.291,
+      "source_stable": true,
+      "changed_paths": [],
+      "summary": "1047 passed in 76.51s (0:01:16)",
+      "stdout_sha256": "7056a49916b64a7e5b9dfdc6611ef1feae2684c439732ada8daa8fe6d1e6fb6d"
+    },
+    "controls": {
+      "exit_code": 0,
+      "seconds": 55.272,
+      "source_stable": true,
+      "changed_paths": [],
+      "summary": "4374 passed, 6 warnings in 54.50s",
+      "stdout_sha256": "4ddb00a3e9c78732976c8fd55b216e5afb4138ffd85563a33be7265c72b51dcd"
+    },
+    "mandatory": {
+      "exit_code": 1,
+      "seconds": 2.172,
+      "source_stable": true,
+      "changed_paths": [],
+      "summary": "5 failed, 31 passed in 1.75s",
+      "stdout_sha256": "636652e3d8e1513e0c665f97c76e64139204b9a508d92b5a583c6afb97126c95"
+    },
+    "semantic_full": {
+      "exit_code": 1,
+      "seconds": 20.43,
+      "source_stable": true,
+      "changed_paths": [],
+      "summary": "lv_gain_control PASS",
+      "stdout_sha256": "0bef70e6d432f0eab7a4831fafe12b3266297ff8b7b43ec7c0546b0c49989b88"
+    }
+  },
+  "semantic_denominators": {
+    "mandatory_cases": {
+      "passed": 34,
+      "failed": 18,
+      "total": 52
+    },
+    "offline_llm_cases": {
+      "passed": 2,
+      "failed": 4,
+      "total": 6
+    },
+    "failed_ids": [
+      "comprehension_effects",
+      "comprehension_nested",
+      "comprehension_filter",
+      "iterator_invalid_return",
+      "list_scalar_invalid",
+      "dict_scalar_invalid",
+      "next_scalar_invalid",
+      "isinstance_builtin",
+      "isinstance_tuple",
+      "isinstance_invalid",
+      "recursion_sum_default",
+      "recursion_sum_context0",
+      "recursion_heap",
+      "comprehension_effects_default_engine",
+      "comprehension_false_filter_effect",
+      "iterator_error_prefix",
+      "classinfo_ordered_tuple_match",
+      "classinfo_ordered_tuple_raise",
+      "lv_multi_call",
+      "lv_three_call_variant",
+      "lv_function_exit",
+      "lv_dominated_policy"
+    ]
+  },
+  "quality": {
+    "passed": true,
+    "diagnostic_counts": {
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
+    },
+    "added_diagnostics": 0,
+    "modified_unit_diagnostics": 0,
+    "negative_controls_passed": true,
+    "whole_tree_mypy_clean": false
+  },
+  "verified_cards": [
+    "N4-DOM-01",
+    "N4-SEM-01",
+    "N4-SEM-02",
+    "N4-CTRL-01",
+    "N4-LLM-04"
+  ],
+  "partial_cards": [
+    "N4-STATE-01",
+    "N4-STATE-02"
+  ],
+  "remaining_known_defects": [
+    "Native target-failure prefix:3 unchanged mandatory failures, N4-PTA-01.",
+    "Native repeated allocation HeapJoin:2 unchanged mandatory failures, N4-PTA-02.",
+    "STATE02 shared-vs-distinct metadata alias partitions still join as exact shared nodes; reproduced on frozen fed9659 and current.",
+    "STATE protocol-triggered epoch/yield-from failure injection and debug handle ports need further independent coverage.",
+    "Whole-tree format/Ruff/mypy debt retained; core/scale/release and live gates not passed."
+  ],
+  "invariants": {
+    "debt_ledger_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+    "gold_modified": false,
+    "budgets_weakened": false,
+    "suppressions_added": false,
+    "frontier_retreat": false,
+    "real_llm_requests": 0,
+    "real_key_reads": 0
+  },
+  "independent_reviews": [
+    "docs/development/next/reviews/W2-independent-20261113.json",
+    "docs/development/next/STATE_metadata_independent_20261113.json",
+    "docs/development/next/reviews/LLM-04-independent-20261113.json"
+  ],
+  "evidence": "docs/development/next/evidence/w2_checkpoint_20261113",
+  "excluded_attempts": "Earlier w2-final attempt changed during ownership/schema/priority repair and had one schema guard failure. It is not used for acceptance."
+}

@@ -1,0 +1,518 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "reviewer": "recovery_audit",
+  "scope": "Read-only structural retention inventory of stale restored working tree against published source snapshot, before W2 edits. Not semantic parity or runtime acceptance.",
+  "old_directory": "/workspace/scratch/8d3426210943/PythonStAn",
+  "new_directory": "/workspace/scratch/8d3426210943/PythonStAn-resume",
+  "old_head": "31d08113310f72b9b6828b0a4ab437635b0115fd",
+  "old_head_tree": "3ed2ea7d18971e5ed1d38cf33c634d6b63ae569f",
+  "published_head": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "published_tree": "bce9a9fb397efef877ee6a93587a600a1bbebcac",
+  "published_production_checkpoint": "dc1a814364f4f82c15bd8173d3a2e5ba69cacafb",
+  "files": [
+    {
+      "path": "pythonstan/analysis/analysis.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "aa58cd5a0279b08ce761cb252d6a795c080827286b899e08d17d95ba315e853d",
+      "new_sha256": "0218f21d1c954765b4ec01123f2463eb1672937e301ef0198a6daa2e7db77e43",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/composition/oracle.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "e3ee30cccbf31b54d47f77705ed2599f1f6c1975114eabdfee8f517a30737ae6",
+      "new_sha256": "e3ee30cccbf31b54d47f77705ed2599f1f6c1975114eabdfee8f517a30737ae6",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/engines/abstract/dictionaries.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "b1282557873c40cc10082d191c9bc7dd01479c264ee536a038a5962081807144",
+      "new_sha256": "b1282557873c40cc10082d191c9bc7dd01479c264ee536a038a5962081807144",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/ai/certified/driver.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "c8b11b8b2205dc80c0f8770ebff533bdf8dd35832be0c97d70b604a19cc4853c",
+      "new_sha256": "c8b11b8b2205dc80c0f8770ebff533bdf8dd35832be0c97d70b604a19cc4853c",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/allocation.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "64efe96186d89a5f1793519940639c489a64a2cb44207af843e8d310122cf2fd",
+      "new_sha256": "64efe96186d89a5f1793519940639c489a64a2cb44207af843e8d310122cf2fd",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/analysis.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "5660c90fdc41f6115e9f7b7f4e4df5fc2030535aa2dc32e05d12098941e92aa3",
+      "new_sha256": "915ce8f8be4b64a9722fdf65eb2fead4c0a825c7bdf7a76da3694dcd43347603",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/constraints.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "1a572b2cd8b234b0ebda6346a116c58b87bcf92b084dd2efd54c4c2a726e55d0",
+      "new_sha256": "1a572b2cd8b234b0ebda6346a116c58b87bcf92b084dd2efd54c4c2a726e55d0",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/context.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "3a244f1fc3f78ea1f7bb771d9491f91dedee9ea26edb3018a886fe3036038be0",
+      "new_sha256": "0cfc2d14e0d8c49fb0b5fb0283d8ff524b086815c9ca9a0a67cc74b3e7999e5e",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/context_selector.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "88cdc700feccf996db857b716f0388d88cf6a9f2d24536e8d5a7c0c96e7d5c47",
+      "new_sha256": "cdf9a7ae372697f76b3c2189b5a8232dd91f05e54029a3eca07bbdabd582315e",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/diagnostics.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "62537da9dc1c5b63d3a378132ebf25828f0b53101ad1a6e5adb3de76a17b0a0b",
+      "new_sha256": "62537da9dc1c5b63d3a378132ebf25828f0b53101ad1a6e5adb3de76a17b0a0b",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/heap_model.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "89a6a8f2ea33cadb9855a04bd8d038323c4af3fc4b68988342c4c8914fcf153e",
+      "new_sha256": "6bf734961ccd21a6c6cb4616fc7a085231cd8c0e6e26b1e691b45fbb4b633587",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "ad40fddb35b6ff301d7c737b1ab889c092e47f3418543f70dc6ef82387abaf97",
+      "new_sha256": "fee7a409c21a2ba23723235532f7acaf473b77eb58d0dc0f79b7fc10e2639229",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/mro_projection.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "52d250747c654322b6792db9546d97e684f4d60c7a9cc9e57be46e2e1b8634ef",
+      "new_sha256": "52d250747c654322b6792db9546d97e684f4d60c7a9cc9e57be46e2e1b8634ef",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/object.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "b658994e319c7a19f48418db6c8083a1202ac252ea048702467a074915a067df",
+      "new_sha256": "faf5c93c3a328c9320400ef3d32fa579b582e9ab8535e384a69e2fa59c80dcc8",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/pointer_flow_graph.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "c6a6133561b07463f599c91372f1d714bda819babc4447a6f86199fde9353182",
+      "new_sha256": "fc624fd4444e673191d7eee6be10b5ac4fa15c92d3485a31ccde61176b02f15f",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/points_to_set.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "a78766eb233993e4c65e8f8a1d2ba7c006d74cb704f37635ffb944a2a6ad6b3b",
+      "new_sha256": "a78766eb233993e4c65e8f8a1d2ba7c006d74cb704f37635ffb944a2a6ad6b3b",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/compose_processor.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "5cd4e7ac1a57f8aa2642254406132762eceb791c2f24e6e1339916d0b7bdaf2b",
+      "new_sha256": "5cd4e7ac1a57f8aa2642254406132762eceb791c2f24e6e1339916d0b7bdaf2b",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/container.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "4e02dda81e991af1da3be42f9ac1a6302644c9b8b75dcea049230031367f6a76",
+      "new_sha256": "51504894f74e28a4b0bf76a1f1d810fe3bbfa5fab7d8ec3c09008430d961b352",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/generator.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "a45c0f598fede4957504fb03d4839488ab04f244fcf8ed96a9b697688c7a2a64",
+      "new_sha256": "c287f1b43ec98d3accc0d43777d3fe5ba5e63f6c3265003062a1215fd295aa0b",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "04aa350361b09789233acbb53203f132f44f33d939baa13fc36c8dd1a69baa3d",
+      "new_sha256": "c1d355de96e2df08bcc0cc527ef23906882e089835631ca2dd99e03f3c097309",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/processor.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "6db4b576e7429c4bee886d8a8a086df92bdb5560c136d11194eb0e1ab516ecdb",
+      "new_sha256": "6db4b576e7429c4bee886d8a8a086df92bdb5560c136d11194eb0e1ab516ecdb",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/processor/super_resolve.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "97f6796f744422614262ede923a3019a6c3d874b1aa7e83ae24bbed4ab634712",
+      "new_sha256": "97f6796f744422614262ede923a3019a6c3d874b1aa7e83ae24bbed4ab634712",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/protocol_context.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "d7ce3126de2fc3887b4611393d57bcf969015fdbfceeae3e6d40f013e8653674",
+      "new_sha256": "8faabb6b0fb2c72d4519f22f2dab3d094240454b11abe0da725792633a51f15d",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/pta_query_adapter.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "4b2d8932de845a8af4fb3f087948f7ee8c3a38290e100a625be72383e59be49f",
+      "new_sha256": "4b2d8932de845a8af4fb3f087948f7ee8c3a38290e100a625be72383e59be49f",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/query.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "8a043bc3757e8b2ef604b625d55fe04676d00307c085f11659d7e2df9c8b0789",
+      "new_sha256": "8a043bc3757e8b2ef604b625d55fe04676d00307c085f11659d7e2df9c8b0789",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/scheduler.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "a74107189ec206f32aedf9ab5649797a8cef85dd8e82dcdf9c1e441bd81945fa",
+      "new_sha256": "a74107189ec206f32aedf9ab5649797a8cef85dd8e82dcdf9c1e441bd81945fa",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "883cc2fddbfe71dcb09f593aa57a5e650eeff3d05858885f73972304bdda254b",
+      "new_sha256": "8cef4466cbc0cf9733db8b6886918f0556725a411045a8cdfd8f364fca28f2e6",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver_interface.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "612360bb9e46f04e7e9d89993b8cafec84310a4833136d54b481fd093a65b740",
+      "new_sha256": "612360bb9e46f04e7e9d89993b8cafec84310a4833136d54b481fd093a65b740",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/state.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "e36e0d9251f6c368feae3d0481d5d452e13a6f6225337fec9b8eaf3a276de25d",
+      "new_sha256": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/variable.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "ad333db3c6cea490af70c6e89005ecfb0fde2202ab454050a0033a173eeec66d",
+      "new_sha256": "39c295a80e85320799bc24d2c3bd84b0bf07d1ec446e58234b3e19c81821a662",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/worklist.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "eab3f940e3f88ade4af1e1dfd27016a7395e8f131f6e5e736ec75a9a6c39ee89",
+      "new_sha256": "eab3f940e3f88ade4af1e1dfd27016a7395e8f131f6e5e736ec75a9a6c39ee89",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/project/analysis.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "9df2ce83cd11a64719a6efc6f04f930262826ef79156575aed273ca40f237fe8",
+      "new_sha256": "40b2dfd2eef2bd27a687ee964e2556188d4ce86f8eb8f32067806b4629c76dc7",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/transform/driver.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "7f042b6a58b954d2a36024326e0e06494bd1710ef10f43f5cb66f88b53e332c0",
+      "new_sha256": "7f042b6a58b954d2a36024326e0e06494bd1710ef10f43f5cb66f88b53e332c0",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/transform/transform.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "d9962ebc8d36e56f142968bc5e1476412ce0ed6db17fe09c38eaaddab1a0d421",
+      "new_sha256": "d9962ebc8d36e56f142968bc5e1476412ce0ed6db17fe09c38eaaddab1a0d421",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/verification/closed_effects/checker.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "f2130ea5168596f16f63392bcf52929a534178a037e1561d777882d70e6ad221",
+      "new_sha256": "f2130ea5168596f16f63392bcf52929a534178a037e1561d777882d70e6ad221",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/analysis.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "54b1fcef613d01b4987bb8f12f1e3d26020adbeb95e641f8539b6c3c7098b1f3",
+      "new_sha256": "0ebe8cfa9c47d914957444162dec4a51f62d0fc25a931eceb4d847b1b1225c9d",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/api.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "c56e8bb64c32cbfba8cc511cd0d665918a1099c96dfa64fbbd7151544efcefb3",
+      "new_sha256": "c56e8bb64c32cbfba8cc511cd0d665918a1099c96dfa64fbbd7151544efcefb3",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/config.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "81013294c6902ea97e4028a84625dc54f6971ee9d15639d6bc56de512c733506",
+      "new_sha256": "b98fadeff1368953273279f39c80348b4f5dd452b8d5f10ac35ba19507c11002",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/domains/tuples.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "5c3101444bfacebee7f84fde2d652e56e765abd2f422d405cf7724726c737374",
+      "new_sha256": "b2ef44a76c1a03bde71227f6c21e2880b06ee113f893a68cd4d0744dd6c5b86d",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/compat/legacy_ai/state.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "2ac4dc666f33f709ee824ff62309ca222b71f64d37c74b66c1bae4141e58e661",
+      "new_sha256": "34cd98b8c38a040fdcaf63f74f2300214cc450f12915d30c8c86675d10796b0e",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/ir/ir_statements.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "1d9f00578d07858f15cb45785b3d7cfcdc6f9ddcd5ef21be16ca9b12997a34ec",
+      "new_sha256": "8f5ea8117a954dff1c8a5ee07441e920f773d9f175d521ad8a1022f1ccfcab75",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/utils/common.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "e3d8a097df33a8cdd5cbc8eb537d351650e3779ac1159fc7d01c788226e3ec96",
+      "new_sha256": "e3d8a097df33a8cdd5cbc8eb537d351650e3779ac1159fc7d01c788226e3ec96",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/analysis_manager.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "5c115e25019a6b42b39a35de07d3130d765f3d64f3692f8aedb788e8fa70fcba",
+      "new_sha256": "75a1e18fd33d4999efc7d6f1afa71c98c4b7e04980170baa27c908c5ff163d95",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/class_hierarchy.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "e963edfedff2791c51d184c206f2037ba389e83ff36747b5ab83b91837adf3ba",
+      "new_sha256": "e963edfedff2791c51d184c206f2037ba389e83ff36747b5ab83b91837adf3ba",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/config.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "f69c80e93ef0372b668ed57a8587d1b295216a5a7f759481b53ea6c8e72a6bfa",
+      "new_sha256": "82977ad07dcb352399bf520123d1ce82ecc7c52313164af365eaa90e6bf4d7cd",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/import_manager.py",
+      "old_status": " M",
+      "comparison": "same",
+      "old_sha256": "0bce5034b06a381033aca6e5c265f02bdc8b5ab64f9848311ea01322551c954e",
+      "new_sha256": "0bce5034b06a381033aca6e5c265f02bdc8b5ab64f9848311ea01322551c954e",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/pipeline.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "b2b16fcebcfb58bd4c63eb0886b7672e576d47eb03dc1e0b2182496594d8ea11",
+      "new_sha256": "b2faf53db4eb68eee7229a4a0a9ef3f34da7bd7f163230a3bc5862a5a843fdc3",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/scope_manager.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "ded66f2bd946aeb085346f65b7a69690a326622d22a86003f679f06abb64cdbd",
+      "new_sha256": "06bb7255e8e2dd71a04cf8c0c850c6e086c3bc4e83c5ffcfc2f30a6d17dc3512",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/world/world.py",
+      "old_status": " M",
+      "comparison": "different",
+      "old_sha256": "33a9855ce111aedaa7cd9982525b3a8542d2a3aa3a3b4784caf3131e52242428",
+      "new_sha256": "acbb1f9be431ee0a18a608a065a5328bacc6323f4788c54ab85666233d036e51",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "docs/development/next/checkpoint_ad5f04e_independent_review.json",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "31b4755744c9480fd9416f23135a084f7736ec2299ee6d03da095cce28330163",
+      "new_sha256": "31b4755744c9480fd9416f23135a084f7736ec2299ee6d03da095cce28330163"
+    },
+    {
+      "path": "docs/development/next/native_analysis_couplings.json",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "5775119fe979ab4a7a7c71fa65450e89aad952b100eb359c8358465f2b7c3a3b",
+      "new_sha256": "5775119fe979ab4a7a7c71fa65450e89aad952b100eb359c8358465f2b7c3a3b"
+    },
+    {
+      "path": "docs/development/next/resumed_native_analysis_independent_review.json",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "43e312013161b93df3317a726e7451b593c1cdc64d99d56bcfd2d123108b273c",
+      "new_sha256": "43e312013161b93df3317a726e7451b593c1cdc64d99d56bcfd2d123108b273c"
+    },
+    {
+      "path": "docs/development/next/reviews/TYPE-01-native-worker.md",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "826fc174b209794e5b0ea342d48ade1e8765f2fc526e4ccdf20ad89fac623e37",
+      "new_sha256": "826fc174b209794e5b0ea342d48ade1e8765f2fc526e4ccdf20ad89fac623e37"
+    },
+    {
+      "path": "docs/development/next/reviews/TYPE-01-resumed-native-analysis.md",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "fddac5a7b4a4ad3ad66985cde1952a344fc1e00e1703bc2ba0ca92500f962796",
+      "new_sha256": "fddac5a7b4a4ad3ad66985cde1952a344fc1e00e1703bc2ba0ca92500f962796"
+    },
+    {
+      "path": "docs/development/next/reviews/TYPE-01-summary-context-move.md",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "9804cc022af152132ce5121467353f9cb07f2462d3f4cac0b24b6a2cc2a4c3e9",
+      "new_sha256": "9804cc022af152132ce5121467353f9cb07f2462d3f4cac0b24b6a2cc2a4c3e9"
+    },
+    {
+      "path": "docs/development/next/summary_context_independent_review.json",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "da1e444f08f8c62248d626483d25b189a3437f92f3073fd555d6837b68d0b486",
+      "new_sha256": "da1e444f08f8c62248d626483d25b189a3437f92f3073fd555d6837b68d0b486"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/debug_boundary.py",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "151a7582083e963e5863d1d89f78ac8f6c5829f4a823d5eb33fab76f58a0f40c",
+      "new_sha256": "151a7582083e963e5863d1d89f78ac8f6c5829f4a823d5eb33fab76f58a0f40c",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver_statistics.py",
+      "old_status": "??",
+      "comparison": "different",
+      "old_sha256": "6bebff650ba6bb934c2ffe99e0fb2530a9b5b93d8686279cefd0fadc4a09a987",
+      "new_sha256": "354d2543cbee66a70fa29aa8ddc82f09251f0c258db2137e0c7b9650a25abfed",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "tests/regression/audit3/test_certified_driver_contracts.py",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "3e933577bfd165c060a955b891529bcb14eb671cd90349bd25f39a60fb090207",
+      "new_sha256": "3e933577bfd165c060a955b891529bcb14eb671cd90349bd25f39a60fb090207",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "tests/regression/audit3/test_native_analysis_contracts.py",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "f8eeb783f739f76798ae86e43c188a736a10a1c0a65294478510ef46554ff312",
+      "new_sha256": "f8eeb783f739f76798ae86e43c188a736a10a1c0a65294478510ef46554ff312",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "tests/regression/audit3/test_native_debug_boundary.py",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "9189b1c7a84cc698acbcc2a5147df41efc0ed72f1ffe97e1351c18c44e234cda",
+      "new_sha256": "9189b1c7a84cc698acbcc2a5147df41efc0ed72f1ffe97e1351c18c44e234cda",
+      "old_qualnames_missing_new": []
+    },
+    {
+      "path": "tests/regression/audit3/test_world_lifecycle_contracts.py",
+      "old_status": "??",
+      "comparison": "same",
+      "old_sha256": "bd9ed5574d01826b2b224843b4fcbcc8e491df738b6b31abb404e99f278bc570",
+      "new_sha256": "bd9ed5574d01826b2b224843b4fcbcc8e491df738b6b31abb404e99f278bc570",
+      "old_qualnames_missing_new": []
+    }
+  ],
+  "counts": {
+    "same": 35,
+    "different": 27,
+    "missing_new": 0
+  },
+  "missing_old_qualnames": 0,
+  "old_directory_unmodified_by_reviewer": true,
+  "limits": [
+    "Identical files prove byte retention only. Differing files require implementation-specific regression checks.",
+    "Class/function-name retention does not prove statement-level behavior parity.",
+    "Do not copy stale content over the verified published code.",
+    "No W2 local partial source was retained in this older restored directory."
+  ]
+}
