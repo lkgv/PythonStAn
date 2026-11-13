@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "execution_environment_unavailable_after_verified_consumer_checkpoint",
+  "latest_verified_source_checkpoint": {
+    "commit": "edf461c6f8ec01c05e5bdaeb5dac5ce015f8bcc1",
+    "tree": "fd000bdfd092dae3120126986c69e99c8ff1d58b",
+    "branch": "dev-cocktail-analysis",
+    "repository": "lkgv/PythonStAn",
+    "verification": "GitHub branch head verified again after executor outage",
+    "scope": "Shared finite Session/source/frontend/provider/checker/SDK/L1 consumers; later STATE, SEM04/publication and PTA02 source excluded"
+  },
+  "authorization": {
+    "github_checkpoint_pushes": "Explicitly authorized; no new permission needed",
+    "policy": "Important coherent milestones promptly; maximum one hour between pushes while execution is available, safety target30minutes"
+  },
+  "source_checkpoint_validation": {
+    "isolated_commit": "805d6b7eecdad4ba8e65004b196dd170d019abeb",
+    "audit3_controls": {
+      "passed": 4714,
+      "failed": 0
+    },
+    "original_stage": {
+      "passed": 1046,
+      "failed": 1,
+      "failure": "tests/refactor/engines/test_native_restored_boundaries.py::test_input_budget_denial_never_publishes_uncharged_remaining_values",
+      "reason": "Unchanged old public max_work2 requires two Native input facts after formerly uncharged preparation/publication; unified paid setup and terminal reservation can exhaust earlier. Original cap and assertions retained; no free-work special case or full-card acceptance."
+    },
+    "mandatory_domain_native": {
+      "passed": 34,
+      "failed": 2,
+      "remaining": "Native repeated varying-key dictionary allocation; later local PTA02 repair is not in this source checkpoint"
+    },
+    "semantic": {
+      "passed": 39,
+      "total": 52,
+      "lv_passed": 2,
+      "lv_total": 6
+    },
+    "quality": {
+      "passed": true,
+      "added_diagnostics": 0,
+      "modified_unit_diagnostics": 0,
+      "negative_controls_passed": true,
+      "retained_debt": {
+        "format": 94,
+        "ruff": 2956,
+        "mypy": 2757
+      },
+      "whole_tree_clean": false
+    },
+    "source_stable": true,
+    "record": "docs/development/next/rebuild/ROOT_CONSUMER_REBUILD_20261113.json"
+  },
+  "interrupted_local_alignment": {
+    "local_equivalent_commit": "f15d7dabeca94411f9393ee9808b4485ef61c65e",
+    "exact_tree_matches_source_checkpoint": true,
+    "attempt": "Native fetch then same-tree local-ref alignment and publication clock update",
+    "outcome": "Exec-server disconnected before process creation; none of fetch/ref/clock steps is confirmed executed",
+    "rule": "Inspect current HEAD/tree/dirty files first. Preserve all newer user/agent work; no reset or overwrite. Never assume the attempted alignment happened."
+  },
+  "environment": {
+    "status": "unavailable",
+    "observed_errors": [
+      "exec-server transport disconnected; recovery timed out after45seconds",
+      "No usable execution environment is available"
+    ],
+    "further_executor_tests": "Blocked; do not repeatedly retry without an availability signal",
+    "remote_metadata_update": "This record was created through GitHub independently of the unavailable filesystem"
+  },
+  "durability": {
+    "source_in_git": "Only source through verified checkpoint edf461c is confirmed remote",
+    "future_source": "The following local edits/receipts were not readable or uploaded after outage; hashes and summaries are recovery pointers, not saved file contents",
+    "historical_loss_rule": "Do not reuse earlier lost W3 greens as qualification. Reread and requalify any reconstructed source."
+  },
+  "unpushed_state_phase2": {
+    "source_sha256": {
+      "pythonstan/analysis/state/store.py": "4d2969bb062d48bffcfe4360bafe5458d59ed71b96ac5d7d8fe8cd4cb8844dda",
+      "pythonstan/analysis/state/transform.py": "fbe4b9aacec6d08da4883bedf5a02edcd922e89fdf731c3d6cff3565df77225a"
+    },
+    "author_latest": "V4 focused author15+original independent fixture4 executed=19pass; Ruff/format pass. V4 broad and strict launches never started after outage.",
+    "prior_only": "V3 transformd7675b0d... broader139pass/strict owned0 are not V4 results. Independently rebound original4 last confirmed on V2 transformf7fee55c..., not V4.",
+    "receipt": "docs/development/next/STATE_application_author_20261113.json may still describeV3 and needs refresh",
+    "core": "One application-owned memo across caller clone, writes and escaping graphs; distinguish exact current poststate root from captured snapshots; immutable unequal Frame keeps own primitive values; contradictory mutable alias partitions use explicit affected-owner residuals.",
+    "v4_reconstruction_delta": [
+      "ApplicationTransport.__init__ adds _heap_bindings:list[tuple[ObjectId,HeapObject,HeapObject]].",
+      "bind_heap_owner(owner,source,target) registers triples before prior source/fields/missing bindings.",
+      "guard_owner_alias_conflicts(metadata_writers,slot_writers) checks source-id-to-target-id and target-id-to-source-id partitions of owner/fields/missing roles; when a conflict includes a relevant writer, mark every owner of that conflicting group uncertain.",
+      "Store.apply collects slot_owners from HeapWrite/HeapDelete, passes owner to binding, calls conflict guard after all named owner bindings and before unchanged metadata alignment."
+    ],
+    "tests": [
+      "tests/regression/audit3/test_state_rebuild_application.py",
+      "tests/regression/audit3/test_w3_rebuild_effects_independent.py",
+      "tests/regression/audit3/test_state_phase2_sem_independent_20261113.py"
+    ],
+    "remaining": [
+      "Frozen stronger old-private-exact7 precision probe remains red. Contradictory new named-root/private mutable alias must explicitly guard both affected owners or reject via caller fallback; detaching silently loses future alias writes. Separate guarded Top/raise+unrelated17 and valid active alias7to11 controls pass.",
+      "One final independent Frame test-only accessor correction metadata.frame() to metadata['frame'] did not apply when transport failed; final file/rerun unconfirmed.",
+      "V4 independent/broad/strict rebind and whole STATE01/02 acceptance remain open."
+    ]
+  },
+  "unpushed_sem04": {
+    "source_sha256": {
+      "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743",
+      "pythonstan/analysis/semantics/comprehensions.py": "bdfeb41811e9aac6d02a793315fac5b7aca9931f52ada48e6007809513905602",
+      "pythonstan/analysis/semantics/containers.py": "59818a7999a8aa9c43a32f0c6d9ea31ac459439260a5990e1897b0f84faddc04",
+      "pythonstan/analysis/semantics/names.py": "c1201750facf7bf86f9ce4e65316d4e985e1fc4e4d345684eb48ece672bbe0be"
+    },
+    "semantics": "Latest-Store sequential typed builders; false-filter state continues; outer leftmost iterable uses outer frame; Store-only target binder excludes attribute/subscript Load bases; source-mapped bounded expression PCs coalesce after31; residual conservatively havocs effects.",
+    "scope_fix": "Parent binding classifier must exclude comprehension target Store bindings without skipping iterable/filter/element/key/value NamedExpr outer bindings; closure-shadow13 and walrus5/nonlocal4 controls repaired.",
+    "reported_author": "31focused+130original controls; frozenAS03 eight pass with local nested exporter. Owned names/comprehensions strong0, Ruff/format clean.",
+    "independent": "Original10 plus2 separately preregistered direct-target residual variants:10pass/2 typed-resource coverage gates unqualified; original assertions/profiles unchanged. Closure unavailable-but-Closed defect repaired. Original callback max_stmt_visits1 and35callback2seconds cases unavailable, not claimed covered.",
+    "profiles": "10000work/2seconds/512MB, unchanged",
+    "golden_original10": [
+      21,
+      13,
+      212,
+      "ii:277",
+      "12:old",
+      60,
+      "k1v1k2v2:2",
+      26,
+      6,
+      3534
+    ],
+    "added_direct_gold": [
+      3,
+      3434
+    ],
+    "pointers": [
+      "docs/development/next/SEM04_REBUILD_author_stage_20261113.json",
+      "docs/development/next/reviews/W3_SEM04_independent_preregistration_20261113.json",
+      "tests/regression/audit3/test_w3_comprehension_independent.py",
+      "tests/regression/audit3/test_w3_comprehension_residual_independent.py"
+    ],
+    "local_red_capsule": {
+      "path": "docs/development/next/reviews/W3_SEM04_first_red_source_20261113.tar.gz",
+      "sha256": "56e50f2c3412c1e83996491543841e70ca6746c7797384d9bcc9ed391ddfd18b",
+      "durability": "Local only; not remotely saved or replay-qualified"
+    }
+  },
+  "unpushed_publication": {
+    "source_sha256": {
+      "pythonstan/analysis/engines/abstract/publication.py": "c4ab50368e6311ca93d8b3fe3e130f92b7b6a392cb47a34c25c8009b7066a67e",
+      "pythonstan/analysis/engines/abstract/driver.py": "118dacfceee7306bd1c7466142633eef49b4977c07471d372dfea917bd152287"
+    },
+    "scope": "Paid recursive exact nested-container view; cycle/depth/missing/havoc/ref-alternative checks; export+checked freeze before statistics/oracle; registered identity-bound receipt adopts only owned frozen value/return payloads; empty actual facts produce owned empty view with module inventory retained.",
+    "author": "New20+original12=32pass, frozenAS03 eight pass, publication owned strong0.",
+    "open_regression": "tests/refactor/composition/test_regions_oracle_relations.py::test_demand_prioritization_keeps_all_root_scenarios_pending max_work10 leaks raw ResourceStop from Driver.snapshot paid export after budget stop. Preserve cap/assertions; fix bounded funded terminal/partial return without unpaid full-heap fallback.",
+    "task_dispatch": "Root attempted to resume publication owner for this fix but collaboration followup returned agent thread limit; fix was not confirmed started.",
+    "receipt": "docs/development/next/rebuild/SEM04_PUBLICATION_author_20261113.json"
+  },
+  "unpushed_pta02": {
+    "source_sha256": {
+      "pythonstan/analysis/composition/region_engine.py": "7acb73388ac7350bc3cd8ee85b12237eb2eb5dd490b58ec1cca7a0a45a9b749a",
+      "pythonstan/analysis/composition/state_adapter.py": "2b829292be87d6f6cbf226532ae1fab6b88aa23dd9c3702ed7abc4b7bc09eac1"
+    },
+    "test_sha256": "66349a21417ef113f506eae5b70ece329c1cd7cf6ed7e74b8e79a85e738ae371",
+    "author": "77expanded pass (20new+17originalNative+27ordered+13graph), strong owned2modules0, Ruff/format clean. Both original varying-key allocation tests green locally.",
+    "design": "Resolve canonical identity, build fresh literal completely before publishing, merge full owned boundary with canonical HeapObject._merge_from; repeated/quotiented allocations nonsingleton; independent cardinality, May/Must/default/missing/havoc/typed metadata; reseed merged kernel fields; solve field facts before oracle publication.",
+    "independent_open": "Fresh singleton dict{1:1} then Native saved[0]=9 retains length1 although concrete cardinality2. Weak repeated-alias insertion likewise omits reachable length2. Read-only finite-gamma finding is real; not fixed or pytest-qualified.",
+    "next_repair": "At dict target write use independent prior length/length_value, preserve on Must-present, increment only definite-absent singleton, otherwise join no-insert/insert cardinalities; group alternative keys for at most one insertion per write. Unknown/default/summarized absence does not prove increment.",
+    "test_write": "Budget agent was adding tests/regression/audit3/test_pta02_sem_independent_20261113.py when executor disconnected; file write and pytest completion not confirmed.",
+    "receipt": "docs/development/next/PTA02_REBUILD_author_20261113.json"
+  },
+  "resume_order": [
+    "Read this remote record and current repository before acting; preserve older dirty PythonStAn and all newer held work.",
+    "Verify whether the local held source survived by exact hashes. Hashes without source contents do not restore a file.",
+    "Reconstruct missing changes from live author histories only as new unqualified source, then rerun fixed original/independent controls; do not import historical greens.",
+    "Repair paid-publication raw stop and Native dict write cardinality; retain and resolve original typed-resource and stronger precision gates explicitly.",
+    "Capture coherent future component nodes in immutable worktrees, run source-bound quality/controls, push promptly with expected-SHA nonforce and exact tree verification.",
+    "Full task board43 obligations, core/release/soundness and live gates remain open; no model calls until internal gates pass."
+  ],
+  "real_OpenAI_key_reads": 0,
+  "real_model_calls": 0
+}
