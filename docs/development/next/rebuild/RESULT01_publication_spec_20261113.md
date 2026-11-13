@@ -1,0 +1,11 @@
+# Rebuilt result publication and resource boundaries
+
+Normal publication validates and freezes exactly once with pre-visit admission. The checked factory issues a private identity-registered ownership receipt. Private query adoption verifies that receipt, document identity, retained path and payload identity; a caller-created frozen wrapper or receipt cannot authorize borrowing. Public answer construction always checks and copies foreign input.
+
+Each mutable getter, selected projection, serialization and output write has fresh work admission. Projection reads retained immutable records, selects records and fields before copying them, and marks actual omissions. Context/region views decline where the joined data cannot be split. Query answer construction can retain an already owned payload, but every mutable export remains paid.
+
+Terminal publication uses only capacity reserved inside the same global cap. A checked prefix gets a bounded share of the held grant; metadata excludes full configuration and proof history. Insufficient funding yields a fixed controller response with no facts and explicit omitted scope. Query registration is paid and bounded at32 on this cleanup path; a zero-fuel controller does not enumerate or canonicalize arbitrary query vectors. Unknown or omitted record totals are not reported as observed zero totals.
+
+The first resource cause is retained. Exhausted terminal getters, including the Mapping query getter, return bounded unavailable data. Normal local stage read denial remains an error and cannot trigger a free fact read. Successful normal publication settles only known-unused terminal capacity after checked freeze, receipt issuance and output setup; spent work is never refunded. A later serialization failure uses one cached terminal view rather than renewing analysis or cleanup grants.
+
+Before an output write is dispatched, admission can select a bounded fallback. After dispatch an arbitrary destination may have observed bytes, so a late deadline or destination error propagates and never writes a second serialized document. These software counters do not promise physical CPU limits, hard aggregate memory enforcement or revocable external I/O.

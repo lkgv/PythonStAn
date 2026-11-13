@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "status": "implementation_candidate_held_for_root_integration",
+  "base_recovery_head": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "first_published_wire_candidate": "cf1e4688c2a10cd85e955d82ca24a104c817112a",
+  "historical_w3_passes_reused": false,
+  "scope": [
+    "Canonical versioned union shared by domain Value.export and engine value_snapshot",
+    "Complete v1 restores all scalar/reference/relational Value facets; references never install heap/presence/fresh authority",
+    "Incomplete/legacy/unknown/omitted records expose diagnostic retained_value+losses; .value/require_value/decode_value reject them",
+    "Display presentation None/equal/different from handler ID preserved independently",
+    "Paid checked publication; genuine issued ownership+exactpath/payload identity adoption; public foreign input always copied",
+    "Retained output selection occurs before paid copying; fields and item omissions explicit",
+    "Same-cap bounded terminal prefix or fixed typed unavailable response; first cause preserved; no internal cleanup getter exceptions",
+    "Normal successful publication releases only known-unused terminal capacity",
+    "Fresh copies/getters/serializer/write admission are paid; a late dispatched stream write never retries/appends fallback",
+    "Complete foreignv1 record bottom marker must agree with reconstructed union; both contradictory directions reject"
+  ],
+  "tests": {
+    "new_author_passed": 40,
+    "new_author_failed": 0,
+    "broad_selected_passed": 193,
+    "broad_selected_failed": 0,
+    "broad_scope": "193 selected controls before final narrow dispatched-write and funded-terminal-serializer witnesses; newest17 publication controls cover both, wire21 controls separately remain green.",
+    "independent_new_wire_last_reported": 7,
+    "independent_new_ownership_projection_terminal_last_reported": 12,
+    "independent_final_binding": "reviewer updating strict partial DTO assertions and binding latest exact source; do not reuse lost old41/115",
+    "newest_publication_author_passed": 17,
+    "latest_codec_publication_contracts_domains_mandatory_passed": 106,
+    "latest_codec_publication_contracts_domains_mandatory_scope": "40newauthor+66existingcontracts/domains/domainmandatory, including both foreignbottom corruption tests"
+  },
+  "quality": {
+    "ruff": 0,
+    "format": 0,
+    "strong_owned6_diagnostics": 0,
+    "scope_note": "Final strong scan /tmp/result-rebuild-final-types.jsonl has0diagnostics in six owned modules after the dispatched-write guard. Imported graph has2316 diagnostics and is not claimed historical-only or clean; root global gate remains authoritative."
+  },
+  "resource_model": {
+    "version": "logical-work-v1",
+    "descriptor_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
+    "semantic_ticks": 1,
+    "structural_operations_per_tick": 8,
+    "factor_not_tuned": true,
+    "physical_cpu_or_io_cancellation_claim": false
+  },
+  "limits": [
+    "The fixed controller is administrative bounded reporting; it does not return analysis facts or full query/configuration scope for free.",
+    "Terminal query registration is capped at32 and paid; larger scopes yield explicit fixed controller rather than unmetered canonicalization.",
+    "Public low-level schema inspection is a DTO. Only complete v1 data can automatically become Value.",
+    "Opaque reference IDs require their enclosing snapshot; restored metadata is not a heap authority or certificate.",
+    "External stream writes cannot be rolled back. Late failure after dispatch propagates without a duplicate response.",
+    "This record does not qualify all task cards, release, arbitrary Python soundness, or live use."
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/contracts/value_wire.py": "a71e590f120a71b3291b573efe8df0c2e2006ad218b4df1b7bb40628ba39090c",
+    "pythonstan/analysis/domains/value_wire.py": "58f1e08a070376db9458cecd76dfdcaa8213c8483092090ef782ed1ed5a82881",
+    "pythonstan/analysis/domains/relations.py": "21753e09e69446b7c176ba9ae7e1896e8f1d9b30a8776c86d7513c85a0cd8b90",
+    "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
+    "pythonstan/results/projection.py": "367b3a283ced6017bdd1647329380852ce6ead6833ec049264c226faf19b3e3a",
+    "pythonstan/results/result.py": "ec31b7fa4fa2fcdecc268c62e3631943269c04da87bbd5c6f058cd228f770f49",
+    "tests/regression/audit3/test_value_wire_rebuild.py": "af677dbec2c936ea44f1a6a24294f17226a1be94a0ad228a0dc227e7bb07b978",
+    "tests/regression/audit3/test_result_publication_rebuild.py": "91743e529544f21236e413890c45b226e3000b513904d8b185630e1ae60fddd4"
+  },
+  "real_api_calls": 0,
+  "real_credential_reads": 0,
+  "dependencies": {
+    "published_basic_ledger": "cf1e4688c2a10cd85e955d82ca24a104c817112a",
+    "additional_required_core_port": "RunLedger.charge_json(value,category,*,charge=None) forwarded to structural_meter; root stages only that method, no financial/resource_api dependency",
+    "new_wire_port": "freeze_snapshot/thaw_snapshot(...,visit=None) with depth128 and previsit text/key admission",
+    "financial_imports": false
+  }
+}

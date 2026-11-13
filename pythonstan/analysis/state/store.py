@@ -245,16 +245,27 @@ class Store:
         arena = ops.arena
         if self.identity_epoch == arena.epoch:
             return self
+        from pythonstan.analysis.domains.reabstract import IdentitySubstitution
+
         from .transform import remap_store
 
-        return remap_store(self, arena.aliases, ops, epoch=arena.epoch)
+        return remap_store(
+            self, IdentitySubstitution(arena.aliases, arena.cell_aliases), ops, epoch=arena.epoch
+        )
 
     def ensure_current(self, ops: ValueOperations) -> Store:
         arena = ops.arena
         if self.identity_epoch != arena.epoch:
+            from pythonstan.analysis.domains.reabstract import IdentitySubstitution
+
             from .transform import remap_store
 
-            mapped = remap_store(self, arena.aliases, ops, epoch=arena.epoch)
+            mapped = remap_store(
+                self,
+                IdentitySubstitution(arena.aliases, arena.cell_aliases),
+                ops,
+                epoch=arena.epoch,
+            )
             from .transform import PayloadTransformer
 
             # Prepare all fields with references to the eventual mutation
@@ -374,11 +385,13 @@ class Store:
     def join(self, other: Store, ops: ValueOperations, *, widen: bool = False) -> Store:
         self = self.current_view(ops)
         other = other.current_view(ops)
-        from .transform import PayloadMemo, detached_payload
+        from .aliases import store_alias_conflicts
+        from .transform import PayloadMemo, PayloadTransformer, detached_payload
 
-        memo: PayloadMemo = {}
-        result = detached_payload(self, memo)
-        memo[id(other)] = result
+        alias_conflicts = store_alias_conflicts(self, other, coalesce_roots=True)
+        result = object.__new__(type(self))
+        memo: PayloadMemo = {id(self): result, id(other): result}
+        PayloadTransformer(memo=memo).store_contribution(self, into=result)
         for owner in self.heap.keys() & other.heap.keys():
             memo[id(other.heap[owner])] = result.heap[owner]
         join = ops.widen if widen else ops.join
@@ -417,11 +430,20 @@ class Store:
             for obj in result.heap.values()
         ):
             result.obligations |= frozenset({"suspension_state_capacity_exceeded"})
+        for owner in alias_conflicts:
+            result.heap[owner].havoc = True
+            result.heap[owner].default = join(result.heap[owner].default, Value.unknown())
+        if alias_conflicts:
+            result.obligations |= frozenset({"metadata_alias_partition_join"})
         return result
 
     def leq(self, other: Store, ops: ValueOperations) -> bool:
         self = self.current_view(ops)
         other = other.current_view(ops)
+        from .aliases import store_alias_conflicts
+
+        if store_alias_conflicts(self, other, ignore_right_havoc=True):
+            return False
         if not self.writes <= other.writes:
             return False
         from .transform import payload_signature, payload_values_leq

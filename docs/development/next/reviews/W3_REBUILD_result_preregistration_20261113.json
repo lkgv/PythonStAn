@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "new_independent_result_ports_before_first_pytest_run",
+  "test": "tests/regression/audit3/test_w3_rebuild_result_independent.py",
+  "scope": "Owned immutable payload adoption, actual paid projection/registration, and bounded terminal response APIs, not core semantic closure or full RESULT01 qualification.",
+  "fixed_witnesses": {
+    "terminal_limits": [
+      0,
+      2,
+      64,
+      4096
+    ],
+    "saved_mapping_limit": 512,
+    "zero_fuel_query_count": 257,
+    "excluded_text_bytes": 1000000,
+    "adopted_payload_items": 5000,
+    "small_projection_scope": 64
+  },
+  "before_fix_manual_findings": [
+    "Saved exhaustedterminalanswer queryMapping+dict(answer) leakedResourceStop terminal_capacity thoughvalue/to_dict werebounded.",
+    "ControllerOnly globalcap0 retained/resolved257querykeys outsideanychargedwork."
+  ],
+  "contracts": [
+    "onlyrealissued receipt exactdocument/path/payload mayadopt",
+    "publicconstructors alwaysdetach foreignwrappers",
+    "normalpublishsuccess releasesonlyknownunusedterminalhold, failuredoesnot",
+    "selection precedespaidcopy, omittedboundness remainscovered",
+    "ordinarylocalstage-read denial isnot swallowed",
+    "terminalfirstcause andglobalcap conserved; config/proof bulknotcopied",
+    "allpublicterminalMappinggetters typedunavailable once cleanupcapacity exhausted",
+    "fixedcontroller queryregistration remainsbounded"
+  ],
+  "real_keys_read": 0,
+  "real_api_calls": 0,
+  "not_previous_fixtures": "These NEW tests are not oldlost41/115.",
+  "partial_value_api_refinement": "Projected wire remains explicit partial. Diagnostic retained_value can be inspected; strict decode_value cannot install it as wholeValue. Root approved; no oldfrozen expectations change."
+}

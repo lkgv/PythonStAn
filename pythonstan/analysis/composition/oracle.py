@@ -24,7 +24,7 @@ from pythonstan.analysis.contracts.identity import (
 from pythonstan.analysis.contracts.json_data import JsonObject
 from pythonstan.analysis.contracts.oracle import CandidateAnswer as CandidateAnswer
 from pythonstan.analysis.contracts.oracle import OracleHostPort
-from pythonstan.analysis.domains.reabstract import IdentityArena
+from pythonstan.analysis.domains.reabstract import IdentityArena, ReferenceKey
 from pythonstan.analysis.domains.values import Value, ValueOperations, ValuePolicy
 
 
@@ -90,6 +90,8 @@ def _payload(
 ) -> Hashable:
     if isinstance(value, Value):
         return ops.normalize(ops.remap(value, mapping) if mapping else value)
+    if isinstance(value, ReferenceKey):
+        return ReferenceKey(_address(value.identifier, ops, mapping))
     if _tuple_items(value):
         return tuple(_payload(item, ops, mapping) for item in value)
     if _set_items(value):
@@ -100,6 +102,11 @@ def _payload(
 def _node(
     node: InclusionNode, ops: ValueOperations, mapping: Mapping[ObjectId, ObjectId] | None = None
 ) -> InclusionNode:
+    if _tuple_items(node) and len(node) == 2 and node[0] == "cell":
+        cell = node[1]
+        if not isinstance(cell, str):
+            raise TypeError("A cell constraint owner must be a CellId")
+        return ("cell", ops.arena.resolve_cell(CellId(cell)))
     if _tuple_items(node) and len(node) == 3 and node[0] == "field":
         owner = node[1]
         if not isinstance(owner, str):
@@ -350,6 +357,8 @@ class OracleInputStamp:
     target_arena: IdentityArena
     epoch: IdentityEpoch
     target_epoch: IdentityEpoch
+    cell_aliases: Mapping[CellId, CellId]
+    target_cell_aliases: Mapping[CellId, CellId]
 
     def validate(self, owner: IncrementalCandidateOracle, *, check_epochs: bool) -> None:
         if (
@@ -363,6 +372,8 @@ class OracleInputStamp:
             or self.operations.arena is not self.arena
             or self.target_operations.policy is not self.target_policy
             or self.target_operations.arena is not self.target_arena
+            or self.arena.cell_aliases != self.cell_aliases
+            or self.target_arena.cell_aliases != self.target_cell_aliases
             or (check_epochs and self.arena.epoch != self.epoch)
             or (check_epochs and self.target_arena.epoch != self.target_epoch)
         ):
@@ -375,6 +386,7 @@ class PreparedArena:
     epoch: IdentityEpoch
     source_aliases: Mapping[ObjectId, ObjectId]
     target_aliases: Mapping[ObjectId, ObjectId]
+    source_cell_aliases: Mapping[CellId, CellId]
 
     def validate(self, *, allow_publication: bool) -> None:
         unchanged = self.arena.epoch == self.epoch and self.arena.aliases == self.source_aliases
@@ -383,7 +395,7 @@ class PreparedArena:
             and self.arena.epoch == self.epoch + 1
             and self.arena.aliases == self.target_aliases
         )
-        if not unchanged and not published:
+        if (not unchanged and not published) or self.arena.cell_aliases != self.source_cell_aliases:
             raise ValueError("stale oracle preparation: address arena changed")
 
 
@@ -526,6 +538,8 @@ class IncrementalCandidateOracle:
             target_ops.arena,
             self.kernel.ops.arena.epoch,
             target_ops.arena.epoch,
+            MappingProxyType(dict(self.kernel.ops.arena.cell_aliases)),
+            MappingProxyType(dict(target_ops.arena.cell_aliases)),
         )
         arena_inputs = [(stamp.arena, stamp.epoch)]
         if target_ops.arena is not stamp.arena:
@@ -560,13 +574,17 @@ class IncrementalCandidateOracle:
                     epoch,
                     MappingProxyType(source_aliases),
                     MappingProxyType(target_aliases),
+                    MappingProxyType(dict(arena.cell_aliases)),
                 )
             )
         prepared = self.kernel.prepare_reabstract(owned_mapping, target_ops, charge=spend)
         spend(1 + len(self._subscriptions) + len(self.calls))
         update: PreparedOracle = {
             **prepared,
-            "subscriptions": set(self._subscriptions),
+            "subscriptions": {
+                (target_ops.arena.resolve_cell(cell), consumer)
+                for cell, consumer in self._subscriptions
+            },
             "calls": set(self.calls),
             "work": work,
             "work_precharged": charge is not None,
@@ -647,11 +665,12 @@ class IncrementalCandidateOracle:
             if self.driver is not None:
                 self.driver.charge(self.kernel.work - before, "oracle_work")
         if not closed and self.driver is not None and self.driver.work >= self.driver.max_work:
-            from pythonstan.analysis.engines.abstract.driver import BudgetStop
+            from pythonstan.analysis.contracts.resources import ResourceStop
 
-            raise BudgetStop("oracle_global_work")
+            raise ResourceStop("oracle_global_work")
 
     def publish_cell(self, cell: CellId, value: Value, origin: str = "ai") -> bool:
+        cell = self.kernel.ops.arena.resolve_cell(cell)
         changed = self.kernel.add_fact(("cell", cell), value, origin)
         self._solve()
         return changed
@@ -659,23 +678,38 @@ class IncrementalCandidateOracle:
     def publish_field(
         self, objid: ObjectId, key: Hashable, value: Value, origin: str = "ai"
     ) -> bool:
-        changed = self.kernel.add_fact(("field", objid, key), value, origin)
+        changed = self.kernel.add_fact(_node(("field", objid, key), self.kernel.ops), value, origin)
         self._solve()
         return changed
 
     def register_copy(self, source: CellId, target: CellId) -> None:
+        source, target = (
+            self.kernel.ops.arena.resolve_cell(source),
+            self.kernel.ops.arena.resolve_cell(target),
+        )
         self.kernel.add_edge(("cell", source), ("cell", target))
         self._solve()
 
     def register_load(self, base: CellId, key: Hashable, target: CellId) -> None:
+        base, target = (
+            self.kernel.ops.arena.resolve_cell(base),
+            self.kernel.ops.arena.resolve_cell(target),
+        )
+        key = _payload(key, self.kernel.ops)
         self.kernel.add_load(("cell", base), key, ("cell", target))
         self._solve()
 
     def register_store(self, base: CellId, key: Hashable, source: CellId) -> None:
+        base, source = (
+            self.kernel.ops.arena.resolve_cell(base),
+            self.kernel.ops.arena.resolve_cell(source),
+        )
+        key = _payload(key, self.kernel.ops)
         self.kernel.add_store(("cell", base), key, ("cell", source))
         self._solve()
 
     def candidates(self, cell: CellId, consumer: UnitId | None = None) -> CandidateAnswer[Value]:
+        cell = self.kernel.ops.arena.resolve_cell(cell)
         driver = self.driver
         if consumer is not None and driver is not None:
             key = (cell, consumer)

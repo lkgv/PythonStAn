@@ -48,8 +48,11 @@ from pythonstan.analysis.contracts.private_slots import (
     keyword_default_slot,
     positional_default_slot,
 )
+from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger
+from pythonstan.analysis.domains.reabstract import IdentitySubstitution
 from pythonstan.analysis.domains.values import Value, ValueOperations
 from pythonstan.analysis.policies.region import EffectiveRegionPolicy, RegionExecutionContext
+from pythonstan.analysis.state.aliases import alias_partitions_agree
 from pythonstan.frontend.source import (
     SourceInput,
     SourceProgram,
@@ -118,8 +121,7 @@ def _completion_sort_key(flow: Flow) -> tuple[str, str]:
     return flow.kind, flow.exception or ""
 
 
-class BudgetStop(Exception):
-    pass
+BudgetStop = ResourceStop
 
 
 class InterproceduralDriver:
@@ -130,11 +132,17 @@ class InterproceduralDriver:
         oracle: CandidateOraclePort[Value] | None = None,
         observer: ObserverPort | None = None,
         program: SourceProgram | None = None,
+        resource_ledger: RunLedger | None = None,
     ) -> None:
         runtime = decode_runtime_options(options)
         self.options = runtime.options
         self.abstract = runtime.abstract
         self.resources = runtime.resources
+        self.resource_ledger: RunLedger = (
+            RunLedger(runtime.max_work, runtime.max_seconds, runtime.max_memory_mb)
+            if resource_ledger is None
+            else resource_ledger
+        )
         if program is not None and normalize_source_modules(modules) != program.modules:
             raise ValueError("pre-parsed SourceProgram input identity mismatch")
         program = parse_sources(modules) if program is None else program
@@ -183,13 +191,11 @@ class InterproceduralDriver:
         self.exceptions: set[str] = set()
         self.obligations: set[str] = set()
         self.events: list[tuple[str, str]] = []
-        self.work = 0
         self.started: float = 0.0
         self.stats: defaultdict[str, JsonValue] = defaultdict(int)
         self.root_keys: list[RootActivation] = []
         self.phase_trace: list[JsonObject] = []
         self.solver_status = "converged"
-        self.max_work = runtime.max_work
         self.max_seconds = runtime.max_seconds
         self.max_memory_mb = runtime.max_memory_mb
         self._last_memory_work = -64
@@ -306,7 +312,7 @@ class InterproceduralDriver:
             scenario=self.scenario,
             current_epoch=lambda: self.ops.arena.epoch,
             point=self.point,
-            remaining_work=lambda: self.max_work - self.work,
+            remaining_work=lambda: self.resource_ledger.remaining_work,
             charge=self.charge,
             record_call=lambda caller, callee, point: self.calls.add((caller, callee, point)),
             record_read=lambda owner, key, point: self.reads.add((owner, key, point)),
@@ -341,29 +347,33 @@ class InterproceduralDriver:
         return (execution or self.default_execution).integer(name, default)
 
     def _check_limits(self, force: bool = False) -> None:
-        if self.started and self.max_seconds and time.monotonic() - self.started > self.max_seconds:
-            raise BudgetStop("max_seconds")
-        if self.max_memory_mb and (force or self.work - self._last_memory_work >= 64):
-            import os
+        self.resource_ledger.checkpoint(force=force)
+        if (
+            self.started
+            and self.max_seconds
+            and time.monotonic() - self.started >= self.max_seconds
+        ):
+            raise BudgetStop("stage_max_seconds")
+        self.stats["memory_checks"] = self.resource_ledger.memory_checks
+        self.stats["resident_memory_bytes"] = self.resource_ledger.memory_used
+        self.stats["peak_sampled_resident_bytes"] = self.resource_ledger.peak_memory
 
-            with open("/proc/self/statm", encoding="ascii") as stream:
-                resident = int(stream.read().split()[1]) * os.sysconf("SC_PAGE_SIZE")
-            self._last_memory_work = self.work
-            self.increment_stat("memory_checks", 1)
-            self.stats["resident_memory_bytes"] = resident
-            self.stats["peak_sampled_resident_bytes"] = max(
-                resident, require_int(self.stats["peak_sampled_resident_bytes"])
-            )
-            if resident > self.max_memory_mb * 1024 * 1024:
-                raise BudgetStop("max_memory_mb")
+    @property
+    def work(self) -> int:
+        return self.resource_ledger.work.used
+
+    @property
+    def max_work(self) -> int:
+        limit = self.resource_ledger.work.limit
+        return 2**63 - 1 if limit is None else limit
+
+    @max_work.setter
+    def max_work(self, value: int) -> None:
+        self.resource_ledger.work.tighten_limit(value)
 
     def charge(self, amount: int, category: str) -> None:
-        if amount < 0:
-            raise ValueError("negative work charge")
         self._check_limits()
-        if amount > self.max_work - self.work:
-            raise BudgetStop("max_work")
-        self.work += amount
+        self.resource_ledger.charge_work(amount, category)
         self.increment_stat(category, amount)
 
     def tick(
@@ -405,17 +415,23 @@ class InterproceduralDriver:
             raise ValueError("Address quotient operations must share the driver identity arena")
         if self._in_reabstract:
             raise RuntimeError("Nested address quotient")
+        source_epoch = operations.arena.epoch
+        source_aliases = dict(operations.arena.aliases)
+        source_cell_aliases = dict(operations.arena.cell_aliases)
         self.charge(len(operations.arena.aliases) + len(mapping), "reabstract_alias_prepare_work")
         prepared_aliases = operations.arena.prepare(mapping)
         if prepared_aliases == operations.arena.aliases:
             return remap_payload(
-                tuple(extra_payloads), prepared_aliases, operations, epoch=operations.arena.epoch
+                tuple(extra_payloads),
+                IdentitySubstitution(prepared_aliases, source_cell_aliases),
+                operations,
+                epoch=operations.arena.epoch,
             )
         epoch = IdentityEpoch(operations.arena.epoch + 1)
         self._in_reabstract = True
         try:
             transform = PayloadTransformer(
-                prepared_aliases,
+                IdentitySubstitution(prepared_aliases, source_cell_aliases),
                 operations,
                 epoch=epoch,
                 charge=lambda amount: self.charge(amount, "reabstract_prepare_work"),
@@ -480,6 +496,12 @@ class InterproceduralDriver:
             # objects. External service commit hooks have the same contract.
             if oracle_prepared is not None:
                 oracle_prepared.validate()
+            if (
+                operations.arena.epoch != source_epoch
+                or operations.arena.aliases != source_aliases
+                or operations.arena.cell_aliases != source_cell_aliases
+            ):
+                raise ValueError("stale identity arena changed during host preparation")
             operations.arena.publish(prepared_aliases, summaries=prepared_summaries)
             self.units = payload.units
             self.functions = functions
@@ -509,7 +531,12 @@ class InterproceduralDriver:
         aliases = operations.arena.aliases
         if aliases:
             flows = list(
-                remap_payload(tuple(flows), aliases, operations, epoch=operations.arena.epoch)
+                remap_payload(
+                    tuple(flows),
+                    IdentitySubstitution(aliases, operations.arena.cell_aliases),
+                    operations,
+                    epoch=operations.arena.epoch,
+                )
             )
         cap = int(operations.policy.max_addr_set_size)
         overflow: set[ObjectId] = set()
@@ -1009,6 +1036,7 @@ class InterproceduralDriver:
                 return (
                     type(reference) is type(other)
                     and reference.exception == other.exception
+                    and alias_partitions_agree(reference, other)
                     and semantic_payload_equal(
                         (reference.continuation, reference.cleanups, reference.resume_target),
                         (other.continuation, other.cleanups, other.resume_target),
@@ -1075,6 +1103,15 @@ class InterproceduralDriver:
             sorted(right, key=_completion_sort_key),
             strict=True,
         ):
+            if (
+                a.continuation.commands
+                or a.cleanups.commands
+                or a.resume_target is not None
+                or b.continuation.commands
+                or b.cleanups.commands
+                or b.resume_target is not None
+            ) and not alias_partitions_agree(a, b):
+                return False
             if not semantic_payload_equal(
                 (a.continuation, a.cleanups, a.resume_target),
                 (b.continuation, b.cleanups, b.resume_target),
@@ -1323,6 +1360,8 @@ class InterproceduralDriver:
             solver_status=self.solver_status,
         )
         self.stats.update(publication_statistics(prepared, runtime))
+        self.stats["work_by_kind"] = self.resource_ledger.work.snapshot()["by_kind"]
+        self.stats["work_scope"] = "shared_ledger_at_driver_publication"
         oracle_statistics = self.oracle.statistics() if self.oracle is not None else None
         runtime = replace(
             runtime,

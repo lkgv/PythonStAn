@@ -51,6 +51,18 @@ _FACET_FIELDS = {
     "string_patterns": frozenset({"prefixes", "suffixes", "unknown", "conjunctions"}),
     "projection": frozenset({"complete", "omitted_fields", "truncated"}),
 }
+_RELATION_FIELDS = frozenset(
+    {
+        "token",
+        "point",
+        "key_type",
+        "key",
+        "handler",
+        "handler_id",
+        "partitioned",
+        "display_name",
+    }
+)
 
 
 def scalar_kind(value: JsonScalar) -> str:
@@ -131,13 +143,20 @@ def encode_value_wire(
     sorts = set(top_sorts)
     retained: list[JsonValue] = []
     tagged: list[JsonValue] = []
+    zero_signs: set[float] = set()
     for raw in constants:
         value = json_scalar(raw)
         if isinstance(value, float) and not math.isfinite(value):
             sorts.add("float")
             continue
+        if isinstance(value, float) and value == 0.0:
+            zero_signs.add(math.copysign(1.0, value))
         retained.append(value)
         tagged.append({"type": scalar_kind(value), "value": value})
+    if len(zero_signs) > 1:
+        sorts.add("float")
+        retained = [value for value in retained if not isinstance(value, float)]
+        tagged = [{"type": scalar_kind(json_scalar(value)), "value": value} for value in retained]
     type_names = set(types) | sorts | {scalar_kind(json_scalar(item)) for item in retained}
     if may_unbound:
         type_names.add("unbound")
@@ -219,6 +238,14 @@ def decode_value_wire(data: object) -> DecodedValueWire:
         scalar = json_scalar(tagged["value"])
         if require_string(tagged["type"]) != scalar_kind(scalar):
             raise TypeError("Tagged constant kind disagrees with its value")
+    for raw in require_array(document.get("relations", [])):
+        relation = require_object(raw)
+        losses.extend(
+            "missing_field:relations." + key for key in sorted(_RELATION_FIELDS - relation.keys())
+        )
+        losses.extend(
+            "unknown_field:relations." + key for key in sorted(relation.keys() - _RELATION_FIELDS)
+        )
     if "constants" in document and "tagged_constants" in document:
         scalar_keys = {
             (scalar_kind(json_scalar(item)), repr(json_scalar(item)))

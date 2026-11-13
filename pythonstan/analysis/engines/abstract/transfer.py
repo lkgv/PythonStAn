@@ -434,7 +434,7 @@ class Transfer:
         for node in nodes:
             next_states: list[tuple[Store, tuple[Value, ...]]] = []
             for current, values in states:
-                for flow in self.expr(node, current, frame):
+                for flow in self.expr(node, current, frame, publish=False):
                     if flow.kind == "normal":
                         next_states.append((flow.store, (*values, require_payload(flow))))
                     else:
@@ -442,7 +442,13 @@ class Transfer:
             states = next_states
         return states, errors
 
-    def expr(self, node: ast.expr | None, store: Store, frame: Frame) -> list[Flow]:
+    def expr(
+        self, node: ast.expr | None, store: Store, frame: Frame, *, publish: bool = True
+    ) -> list[Flow]:
+        result = self._expr_impl(node, store, frame)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _expr_impl(self, node: ast.expr | None, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
         self.sync(store)
         self.d.tick(node, execution=self.execution)
@@ -480,7 +486,7 @@ class Transfer:
             return self.read_name(node.id, store, frame, node)
         if isinstance(node, ast.NamedExpr):
             result = []
-            for flow in self.expr(node.value, store, frame):
+            for flow in self.expr(node.value, store, frame, publish=False):
                 if flow.kind == "normal":
                     self.assign(node.target, require_payload(flow), flow.store, frame, node)
                 result.append(flow)
@@ -523,7 +529,7 @@ class Transfer:
             return self.dictionaries.build(node, store, frame)
         if isinstance(node, ast.Attribute):
             result = []
-            for flow in self.expr(node.value, store, frame):
+            for flow in self.expr(node.value, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                 else:
@@ -549,7 +555,7 @@ class Transfer:
                 for s, vals in states
             ]
         if isinstance(node, ast.Call):
-            return self.call(node, store, frame)
+            return self.call(node, store, frame, publish=False)
         if isinstance(node, ast.BinOp):
             states, errors = self.eval_nodes((node.left, node.right), store, frame)
             result = list(errors)
@@ -566,11 +572,13 @@ class Transfer:
         if isinstance(node, ast.UnaryOp):
             result = []
             if isinstance(node.op, ast.Not):
-                for flow in self.expr(node.operand, store, frame):
+                for flow in self.expr(node.operand, store, frame, publish=False):
                     if flow.kind != "normal":
                         result.append(flow)
                         continue
-                    for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
+                    for tested in self.truth_flows(
+                        require_payload(flow), flow.store, frame, node, publish=False
+                    ):
                         result.append(
                             replace_flow(
                                 tested,
@@ -582,7 +590,7 @@ class Transfer:
                             else tested
                         )
                 return result
-            for flow in self.expr(node.operand, store, frame):
+            for flow in self.expr(node.operand, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
@@ -601,11 +609,13 @@ class Transfer:
             return [flow for flow, _ in self.boolean_paths(node, store, frame)]
         if isinstance(node, ast.IfExp):
             result = []
-            for flow in self.condition_flows(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
-                for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
+                for tested in self.truth_flows(
+                    require_payload(flow), flow.store, frame, node, publish=False
+                ):
                     if tested.kind != "normal":
                         result.append(tested)
                         continue
@@ -613,7 +623,7 @@ class Transfer:
                         if truth in require_payload(tested).bools:
                             refined = self.refine_test(node.test, tested.store.copy(), frame, truth)
                             if refined is not None:
-                                result.extend(self.expr(body, refined, frame))
+                                result.extend(self.expr(body, refined, frame, publish=False))
             return result
         if isinstance(node, ast.JoinedStr):
             return self.formatted_string(node, store, frame)
@@ -632,11 +642,11 @@ class Transfer:
                 )
                 if flow.kind == "normal"
                 else flow
-                for flow in self.expr(node.value, store, frame)
+                for flow in self.expr(node.value, store, frame, publish=False)
             ]
         if isinstance(node, ast.Await):
             result = []
-            for flow in self.expr(node.value, store, frame):
+            for flow in self.expr(node.value, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                 else:
@@ -657,13 +667,13 @@ class Transfer:
             following: list[tuple[Store, Value]] = []
             for current, prefix in states:
                 expression = part.value if isinstance(part, ast.FormattedValue) else part
-                for value in self.expr(expression, current, frame):
+                for value in self.expr(expression, current, frame, publish=False):
                     if value.kind != "normal":
                         errors.append(value)
                         continue
                     if isinstance(part, ast.FormattedValue):
                         formats = (
-                            self.expr(part.format_spec, value.store, frame)
+                            self.expr(part.format_spec, value.store, frame, publish=False)
                             if part.format_spec is not None
                             else [
                                 NormalExprFlow(StateHandle.capture(value.store), Value.constant(""))
@@ -774,7 +784,7 @@ class Transfer:
         result = []
 
         def step(position: int, left: Value, current: Store) -> None:
-            for right in self.expr(node.comparators[position], current, frame):
+            for right in self.expr(node.comparators[position], current, frame, publish=False):
                 if right.kind != "normal":
                     result.append(right)
                     continue
@@ -878,7 +888,9 @@ class Transfer:
                     if out.kind != "normal":
                         result.append(out)
                         continue
-                    for truth in self.truth_flows(require_payload(out), out.store, frame, node):
+                    for truth in self.truth_flows(
+                        require_payload(out), out.store, frame, node, publish=False
+                    ):
                         if truth.kind != "normal":
                             result.append(truth)
                             continue
@@ -899,7 +911,7 @@ class Transfer:
                             else:
                                 step(position + 1, require_payload(right), truth.store.copy())
 
-        for left in self.expr(node.left, store, frame):
+        for left in self.expr(node.left, store, frame, publish=False):
             if left.kind != "normal":
                 result.append(left)
             else:
@@ -910,15 +922,15 @@ class Transfer:
         self, node: ast.expr, store: Store, frame: Frame, *, conditional: bool = False
     ) -> list[_BooleanPath]:
         if not isinstance(node, ast.BoolOp):
-            return [(flow, None) for flow in self.expr(node, store, frame)]
+            return [(flow, None) for flow in self.expr(node, store, frame, publish=False)]
         finished: list[_BooleanPath] = []
         continuing = (
             self.boolean_paths(node.values[0], store, frame, conditional=True)
             if conditional
-            else [(flow, None) for flow in self.expr(node.values[0], store, frame)]
+            else [(flow, None) for flow in self.expr(node.values[0], store, frame, publish=False)]
         )
         proceed = isinstance(node.op, ast.And)
-        for operand in node.values[1:]:
+        for position, operand in enumerate(node.values[1:]):
             following: list[_BooleanPath] = []
             for flow, known in continuing:
                 if flow.kind != "normal":
@@ -927,7 +939,13 @@ class Transfer:
                 tests = (
                     [NormalExprFlow(StateHandle.capture(flow.store), Value(bools=known))]
                     if known is not None
-                    else self.truth_flows(require_payload(flow), flow.store, frame, node)
+                    else self.truth_flows(
+                        require_payload(flow),
+                        flow.store,
+                        frame,
+                        node.values[position],
+                        publish=False,
+                    )
                 )
                 for tested in tests:
                     if tested.kind != "normal":
@@ -950,13 +968,21 @@ class Transfer:
                             if conditional
                             else [
                                 (out, None)
-                                for out in self.expr(operand, tested.store.copy(), frame)
+                                for out in self.expr(
+                                    operand, tested.store.copy(), frame, publish=False
+                                )
                             ]
                         )
             continuing = following
         return finished + continuing
 
-    def condition_flows(self, node: ast.expr, store: Store, frame: Frame) -> list[Flow]:
+    def condition_flows(
+        self, node: ast.expr, store: Store, frame: Frame, *, publish: bool = True
+    ) -> list[Flow]:
+        result = self._condition_flows_impl(node, store, frame)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _condition_flows_impl(self, node: ast.expr, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow] = []
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
             return [
@@ -965,7 +991,7 @@ class Transfer:
                 )
                 if flow.kind == "normal"
                 else flow
-                for flow in self.condition_flows(node.operand, store, frame)
+                for flow in self.condition_flows(node.operand, store, frame, publish=False)
             ]
         for flow, known in self.boolean_paths(node, store, frame, conditional=True):
             if flow.kind != "normal":
@@ -973,7 +999,15 @@ class Transfer:
             elif known is not None:
                 result.append(replace_flow(flow, value=Value(bools=known)))
             else:
-                result.extend(self.truth_flows(require_payload(flow), flow.store, frame, node))
+                result.extend(
+                    self.truth_flows(
+                        require_payload(flow),
+                        flow.store,
+                        frame,
+                        node.values[-1] if isinstance(node, ast.BoolOp) else node,
+                        publish=False,
+                    )
+                )
         return result
 
     def truth(self, value: Value, store: Store) -> frozenset[bool]:
@@ -993,6 +1027,18 @@ class Transfer:
         return frozenset(truths)
 
     def truth_flows(
+        self,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        publish: bool = True,
+    ) -> list[Flow]:
+        result = self._truth_flows_impl(value, store, frame, node)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _truth_flows_impl(
         self, value: Value, store: Store, frame: Frame, node: ast.AST | None
     ) -> list[Flow]:
         result: list[Flow]
@@ -1047,7 +1093,7 @@ class Transfer:
                 if not hook.is_bottom():
                     current = store.copy()
                     bound = self.bound(hook, Value.ref(ref), current, frame, node)
-                    for returned in self.invoke(bound, [], (), current, frame, node):
+                    for returned in self.invoke(bound, [], (), current, frame, node, publish=False):
                         if returned.kind != "normal":
                             result.append(returned)
                             continue
@@ -1192,29 +1238,39 @@ class Transfer:
             self.write_name(target.id, value, store, frame, node)
             return [self.normal(store)]
         if isinstance(target, (ast.Tuple, ast.List)):
-            sequences = []
-            for ref in value.refs:
-                obj = store.heap.get(ref)
-                if obj and obj.kind in ("list", "tuple", "range") and "length" in obj.metadata:
-                    sequences.append(
-                        [obj.fields.get(i, obj.default) for i in range(obj.metadata["length"])]
-                    )
-            if not sequences:
-                self.d.open("unknown_unpack", store, node)
-                sequence = [Value.unknown() for _ in target.elts]
-                sequences = [sequence]
-            result = []
-            for sequence in sequences:
-                star = next(
-                    (i for i, x in enumerate(target.elts) if isinstance(x, ast.Starred)), None
-                )
+            star = next((i for i, x in enumerate(target.elts) if isinstance(x, ast.Starred)), None)
+            collections, result = self.continuations.unpack_values(
+                value, len(target.elts), star, store, frame, target
+            )
+            for collection in collections:
+                if not collection.complete:
+                    pending: list[Flow] = [self.normal(collection.store)]
+                    for element in target.elts:
+                        pending = [
+                            out
+                            for flow in pending
+                            for out in (
+                                self.assign(
+                                    element.value if isinstance(element, ast.Starred) else element,
+                                    Value.unknown(),
+                                    flow.store,
+                                    frame,
+                                    node,
+                                )
+                                if flow.kind == "normal"
+                                else [flow]
+                            )
+                        ]
+                    result.extend(pending)
+                    continue
+                sequence = list(collection.values)
                 if star is None and len(sequence) != len(target.elts):
                     result.append(self.error(store.copy(), "ValueError"))
                     continue
                 if star is not None and len(sequence) < len(target.elts) - 1:
                     result.append(self.error(store.copy(), "ValueError"))
                     continue
-                s = store.copy()
+                s = collection.store.copy()
                 pairs: list[tuple[ast.expr, Value]] = []
                 if star is None:
                     pairs = list(zip(target.elts, sequence, strict=False))
@@ -1257,7 +1313,7 @@ class Transfer:
             return result
         if isinstance(target, ast.Attribute):
             result = []
-            for flow in self.expr(target.value, store, frame):
+            for flow in self.expr(target.value, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                 else:
@@ -1275,8 +1331,11 @@ class Transfer:
             return result
         return self.unknown(store, node, "unsupported_assignment:" + type(target).__name__)
 
-    def statement(self, node: ast.stmt, store: Store, frame: Frame) -> list[Flow]:
-        return [as_statement(flow) for flow in self._statement_impl(node, store, frame)]
+    def statement(
+        self, node: ast.stmt, store: Store, frame: Frame, *, publish: bool = True
+    ) -> list[Flow]:
+        result = [as_statement(flow) for flow in self._statement_impl(node, store, frame)]
+        return self.d.compact(result, execution=self.execution) if publish else result
 
     def _statement_impl(self, node: ast.stmt, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow]
@@ -1288,14 +1347,14 @@ class Transfer:
                 else replace_flow(f, value=Value.constant(None))
                 if f.kind == "normal"
                 else f
-                for f in self.expr(node.value, store, frame)
+                for f in self.expr(node.value, store, frame, publish=False)
             ]
         if isinstance(node, ast.AnnAssign):
             return self.annotation_statement(node, store, frame)
         if isinstance(node, ast.Assign):
             targets = node.targets
             result = []
-            for flow in self.expr(node.value, store, frame):
+            for flow in self.expr(node.value, store, frame, publish=False):
                 if flow.kind != "normal":
                     if flow.kind == "suspend":
                         flow = self.continuations.wrap(
@@ -1379,7 +1438,7 @@ class Transfer:
                 else replace_flow(f, kind="return")
                 if f.kind == "normal"
                 else f
-                for f in self.expr(node.value, store, frame)
+                for f in self.expr(node.value, store, frame, publish=False)
             ]
         if isinstance(node, ast.Raise):
             if node.cause is not None:
@@ -1417,7 +1476,7 @@ class Transfer:
                     for kind in kinds
                 ]
             result = []
-            for flow in self.expr(node.exc, store, frame):
+            for flow in self.expr(node.exc, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                 else:
@@ -1425,11 +1484,13 @@ class Transfer:
             return result
         if isinstance(node, ast.If):
             result = []
-            for flow in self.condition_flows(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
-                for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
+                for tested in self.truth_flows(
+                    require_payload(flow), flow.store, frame, node, publish=False
+                ):
                     if tested.kind != "normal":
                         result.append(tested)
                         continue
@@ -1453,11 +1514,13 @@ class Transfer:
             return self.with_statement(node, store, frame)
         if isinstance(node, ast.Assert):
             result = []
-            for flow in self.condition_flows(node.test, store, frame):
+            for flow in self.condition_flows(node.test, store, frame, publish=False):
                 if flow.kind != "normal":
                     result.append(flow)
                     continue
-                for tested in self.truth_flows(require_payload(flow), flow.store, frame, node):
+                for tested in self.truth_flows(
+                    require_payload(flow), flow.store, frame, node, publish=False
+                ):
                     if tested.kind != "normal":
                         result.append(tested)
                         continue
@@ -1467,7 +1530,7 @@ class Transfer:
                             result.append(self.normal(current))
                     if False in require_payload(tested).bools:
                         messages = (
-                            self.expr(node.msg, tested.store.copy(), frame)
+                            self.expr(node.msg, tested.store.copy(), frame, publish=False)
                             if node.msg is not None
                             else [self.normal(tested.store.copy())]
                         )
@@ -1534,7 +1597,7 @@ class Transfer:
         if isinstance(target, ast.Attribute):
             return [
                 successor
-                for base in self.expr(target.value, store, frame)
+                for base in self.expr(target.value, store, frame, publish=False)
                 for successor in (
                     self.delattr(require_payload(base), target.attr, base.store, frame, node)
                     if base.kind == "normal"
@@ -1555,7 +1618,7 @@ class Transfer:
                 else:
                     result.append(out)
         elif isinstance(target, ast.Attribute):
-            for base_flow in self.expr(target.value, store, frame):
+            for base_flow in self.expr(target.value, store, frame, publish=False):
                 if base_flow.kind != "normal":
                     result.append(base_flow)
                     continue
@@ -1598,7 +1661,7 @@ class Transfer:
                     assert_never(location)
 
         for current, old, location in locations:
-            for right in self.expr(node.value, current, frame):
+            for right in self.expr(node.value, current, frame, publish=False):
                 if right.kind != "normal":
                     result.append(right)
                     continue
@@ -1623,7 +1686,7 @@ class Transfer:
         result = []
         if node.value is not None:
             initial = []
-            for evaluated in self.expr(node.value, store, frame):
+            for evaluated in self.expr(node.value, store, frame, publish=False):
                 if evaluated.kind == "suspend":
                     initial.append(
                         self.continuations.wrap(
@@ -1641,7 +1704,7 @@ class Transfer:
         elif isinstance(node.target, ast.Name):
             initial = [self.normal(store.copy())]
         elif isinstance(node.target, (ast.Attribute, ast.Subscript)):
-            initial = self.expr(node.target.value, store, frame)
+            initial = self.expr(node.target.value, store, frame, publish=False)
         else:
             assert_never(node.target)
         for current in initial:
@@ -1666,7 +1729,7 @@ class Transfer:
                     else [self.normal(current.store)]
                 )
             else:
-                annotations = self.expr(node.annotation, current.store, frame)
+                annotations = self.expr(node.annotation, current.store, frame, publish=False)
             for annotation in annotations:
                 if annotation.kind != "normal":
                     result.append(annotation)
@@ -1820,7 +1883,13 @@ class Transfer:
                         for flow in flows
                         for out in (
                             self.invoke(
-                                decorator, [require_payload(flow)], (), flow.store, frame, node
+                                decorator,
+                                [require_payload(flow)],
+                                (),
+                                flow.store,
+                                frame,
+                                node,
+                                publish=False,
                             )
                             if flow.kind == "normal"
                             else [flow]
@@ -1961,7 +2030,9 @@ class Transfer:
                 ):
                     result.append(self.error(store.copy(), "TypeError"))
                     continue
-                for made in self.invoke(Value.ref(ref), [], (), store.copy(), frame, node):
+                for made in self.invoke(
+                    Value.ref(ref), [], (), store.copy(), frame, node, publish=False
+                ):
                     if made.kind == "normal":
                         result.extend(
                             self.raise_value(require_payload(made), made.store, frame, node, True)
@@ -2013,6 +2084,7 @@ class Transfer:
             (CellId("$active_exception_owner"), context.owner),
         )
         for name, value in bindings:
+            value = self.ops.normalize(value)
             if value.is_bottom():
                 store.cells.pop(name, None)
             else:
@@ -2058,12 +2130,12 @@ class Transfer:
             back: list[Store] = []
             exits: list[Flow] = []
             escapes: list[Flow] = []
-            for tested in self.condition_flows(node.test, head.copy(), frame):
+            for tested in self.condition_flows(node.test, head.copy(), frame, publish=False):
                 if tested.kind != "normal":
                     escapes.append(tested)
                     continue
                 for truth_flow in self.truth_flows(
-                    require_payload(tested), tested.store, frame, node
+                    require_payload(tested), tested.store, frame, node, publish=False
                 ):
                     if truth_flow.kind != "normal":
                         escapes.append(truth_flow)
@@ -2256,73 +2328,82 @@ class Transfer:
                         else keys
                     )
                     continue
-                for called in self.invoke(require_payload(keys), (), (), keys.store, frame, node):
+                for called in self.invoke(
+                    require_payload(keys), (), (), keys.store, frame, node, publish=False
+                ):
                     if called.kind != "normal":
                         errors.append(called)
                         continue
-                    for collected in self.continuations.collect(
-                        require_payload(called), called.store, frame, node, "tuple"
-                    ):
-                        if collected.kind != "normal":
-                            errors.append(collected)
-                            continue
-                        sequences, broad = self.iterable_values(
-                            require_payload(collected), collected.store
-                        )
-                        if broad:
+                    collections, failed = self.continuations.collect_values(
+                        require_payload(called),
+                        called.store,
+                        frame,
+                        node,
+                        role="keyword-keys",
+                        hint_mode="iterator",
+                        publish_advances=False,
+                    )
+                    errors.extend(failed)
+                    for collected in collections:
+                        if not collected.complete:
                             self.d.open("unknown_keyword_keys", collected.store, node)
                             paths.append(
                                 replace(path, store=collected.store.copy(), uncertain=True)
                             )
                             errors.append(self.error(collected.store.copy(), "TypeError"))
-                        for sequence in sequences:
-                            pending = [replace(path, store=collected.store.copy())]
-                            for key in sequence:
-                                following: list[_CallPath] = []
-                                for item in pending:
-                                    constants = key.exact_constants()
-                                    if constants is None:
-                                        for opaque in self.unknown(
-                                            item.store, node, "unknown_keyword_key"
-                                        ):
-                                            if opaque.kind == "normal":
-                                                following.append(
-                                                    replace(
-                                                        item, store=opaque.store, uncertain=True
-                                                    )
-                                                )
-                                            else:
-                                                errors.append(opaque)
+                            continue
+                        pending = [replace(path, store=collected.store.copy())]
+                        for position, key in enumerate(collected.values):
+                            following: list[_CallPath] = []
+                            site = self.continuations.protocol_item_site(
+                                node, position, role="keyword-getitem"
+                            )
+                            for item in pending:
+                                constants = key.exact_constants()
+                                if constants is None:
+                                    for opaque in self.unknown(
+                                        item.store, node, "unknown_keyword_key"
+                                    ):
+                                        if opaque.kind == "normal":
+                                            following.append(
+                                                replace(item, store=opaque.store, uncertain=True)
+                                            )
+                                        else:
+                                            errors.append(opaque)
+                                    continue
+                                for constant in constants:
+                                    if constant in {name for name, _ in item.keywords}:
+                                        errors.append(self.error(item.store.copy(), "TypeError"))
                                         continue
-                                    for constant in constants:
-                                        if constant in {name for name, _ in item.keywords}:
-                                            errors.append(
-                                                self.error(item.store.copy(), "TypeError")
-                                            )
+                                    for fetched in self.getitem(
+                                        mapping,
+                                        Value.constant(constant),
+                                        item.store.copy(),
+                                        frame,
+                                        site,
+                                    ):
+                                        if fetched.kind != "normal":
+                                            errors.append(fetched)
                                             continue
-                                        for fetched in self.getitem(
-                                            mapping,
-                                            Value.constant(constant),
-                                            item.store.copy(),
-                                            frame,
-                                            node,
-                                        ):
-                                            if fetched.kind != "normal":
-                                                errors.append(fetched)
-                                                continue
-                                            merged, failed = self.merge_keyword_pairs(
-                                                replace(item, store=fetched.store),
-                                                ((constant, require_payload(fetched)),),
-                                            )
-                                            following.extend(merged)
-                                            errors.extend(failed)
-                                pending = following
-                            paths.extend(pending)
+                                        merged, failed = self.merge_keyword_pairs(
+                                            replace(item, store=fetched.store),
+                                            ((constant, require_payload(fetched)),),
+                                        )
+                                        following.extend(merged)
+                                        errors.extend(failed)
+                            pending = following
+                        paths.extend(pending)
         return paths, errors
 
-    def call(self, node: ast.Call, store: Store, frame: Frame) -> list[Flow]:
+    def call(
+        self, node: ast.Call, store: Store, frame: Frame, *, publish: bool = True
+    ) -> list[Flow]:
+        result = self._call_impl(node, store, frame)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _call_impl(self, node: ast.Call, store: Store, frame: Frame) -> list[Flow]:
         result: list[Flow] = []
-        for called in self.expr(node.func, store, frame):
+        for called in self.expr(node.func, store, frame, publish=False):
             if called.kind != "normal":
                 result.append(called)
                 continue
@@ -2346,7 +2427,7 @@ class Transfer:
                             following.extend(merged)
                             result.extend(errors)
                         continue
-                    for evaluated in self.expr(step.expression, path.store, frame):
+                    for evaluated in self.expr(step.expression, path.store, frame, publish=False):
                         if evaluated.kind != "normal":
                             result.append(evaluated)
                             continue
@@ -2427,11 +2508,27 @@ class Transfer:
                                 )
                 else:
                     result.extend(
-                        self.invoke(callee, path.arguments, keywords, path.store, frame, node)
+                        self.invoke(
+                            callee, path.arguments, keywords, path.store, frame, node, publish=False
+                        )
                     )
         return self.d.compact(result, execution=self.execution)
 
     def invoke(
+        self,
+        callee: Value,
+        args: Sequence[Value],
+        keywords: Sequence[tuple[str, Value]],
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        publish: bool = True,
+    ) -> list[Flow]:
+        result = self._invoke_impl(callee, args, keywords, store, frame, node)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _invoke_impl(
         self,
         callee: Value,
         args: Sequence[Value],
@@ -2473,7 +2570,9 @@ class Transfer:
             if identifier.startswith("builtin:"):
                 name = identifier.split(":", 1)[1]
                 self.d.calls.add((frame.qualname, "builtins." + name, self.d.point(node)))
-                result.extend(self.builtin(name, args, keywords, store.copy(), frame, node))
+                result.extend(
+                    self.builtin(name, args, keywords, store.copy(), frame, node, publish=False)
+                )
                 continue
             obj = store.heap.get(identifier)
             if obj is None:
@@ -2486,7 +2585,15 @@ class Transfer:
                 target = obj.metadata["callable"]
                 receiver = obj.metadata["receiver"]
                 result.extend(
-                    self.invoke(target, [receiver, *args], keywords, store.copy(), frame, node)
+                    self.invoke(
+                        target,
+                        [receiver, *args],
+                        keywords,
+                        store.copy(),
+                        frame,
+                        node,
+                        publish=False,
+                    )
                 )
             elif obj.kind == "builtin_method":
                 result.extend(
@@ -2504,7 +2611,15 @@ class Transfer:
                 result.extend(self.construct(identifier, args, keywords, store.copy(), frame, node))
             elif obj.kind == "staticmethod":
                 result.extend(
-                    self.invoke(obj.fields["callable"], args, keywords, store.copy(), frame, node)
+                    self.invoke(
+                        obj.fields["callable"],
+                        args,
+                        keywords,
+                        store.copy(),
+                        frame,
+                        node,
+                        publish=False,
+                    )
                 )
             elif obj.kind == "instance":
                 for call in self.continuations.special(
@@ -2513,7 +2628,13 @@ class Transfer:
                     if call.kind == "normal":
                         result.extend(
                             self.invoke(
-                                require_payload(call), args, keywords, call.store, frame, node
+                                require_payload(call),
+                                args,
+                                keywords,
+                                call.store,
+                                frame,
+                                node,
+                                publish=False,
                             )
                         )
                     else:
@@ -2793,7 +2914,7 @@ class Transfer:
                     result.append(method)
                     continue
                 for returned in self.invoke(
-                    require_payload(method), [], (), method.store, frame, node
+                    require_payload(method), [], (), method.store, frame, node, publish=False
                 ):
                     if returned.kind != "normal":
                         result.append(returned)
@@ -2907,7 +3028,7 @@ class Transfer:
                     result.append(method)
                     continue
                 for returned in self.invoke(
-                    require_payload(method), [], (), method.store, frame, node
+                    require_payload(method), [], (), method.store, frame, node, publish=False
                 ):
                     if returned.kind != "normal" or name == "abs":
                         result.append(returned)
@@ -2977,6 +3098,20 @@ class Transfer:
         return self.d.compact(result, execution=self.execution)
 
     def builtin(
+        self,
+        name: str,
+        args: Sequence[Value],
+        keywords: Sequence[tuple[str, Value]],
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        publish: bool = True,
+    ) -> list[Flow]:
+        result = self._builtin_impl(name, args, keywords, store, frame, node)
+        return self.d.compact(result, execution=self.execution) if publish else result
+
+    def _builtin_impl(
         self,
         name: str,
         args: Sequence[Value],
@@ -3117,25 +3252,16 @@ class Transfer:
                 ]
             )
         if name in {"list", "tuple", "set", "dict"}:
+            if name in {"dict", "set"}:
+                from pythonstan.analysis.semantics.containers import ContainerConstruction
+
+                return ContainerConstruction(self).construct(
+                    name, args, keywords, store, frame, node
+                )
             if len(args) > 1:
                 return [self.error(store, "TypeError")]
-            if name != "dict" and keywords:
+            if keywords:
                 return [self.error(store, "TypeError")]
-            if name == "dict":
-                fields = dict(keywords)
-                if args:
-                    for ref in args[0].refs:
-                        obj = store.heap.get(ref)
-                        if obj and obj.kind == "dict":
-                            fields = {**obj.fields, **fields}
-                        else:
-                            return self.unknown(store, node, "dict_constructor_input")
-                return [
-                    NormalExprFlow(
-                        StateHandle.capture(store),
-                        self.alloc(node, store, frame, name, fields, {"length": len(fields)}),
-                    )
-                ]
             if not args:
                 return [
                     NormalExprFlow(
@@ -3143,25 +3269,19 @@ class Transfer:
                         self.alloc(node, store, frame, name, {}, {"length": 0}),
                     )
                 ]
-            sequences, unknown = self.iterable_values(args[0], store)
             result = []
-            for sequence in sequences:
-                state = store.copy()
-                result.append(
-                    NormalExprFlow(
-                        StateHandle.capture(state),
-                        self.alloc(
-                            node,
-                            state,
-                            frame,
-                            name,
-                            dict(enumerate(sequence)),
-                            {"length": len(sequence)},
-                        ),
-                    )
+            operand = args[0]
+            if name == "tuple":
+                existing = frozenset(
+                    reference
+                    for reference in operand.refs
+                    if reference in store.heap and store.heap[reference].kind == "tuple"
                 )
-            if unknown:
-                result.extend(self.continuations.collect(args[0], store, frame, node, name))
+                if existing:
+                    result.append(self.normal(store.copy(), Value(refs=existing)))
+                    operand = replace(operand, refs=operand.refs - existing)
+            if not operand.is_bottom():
+                result.extend(self.continuations.collect(operand, store, frame, node, name))
             return result
         if name == "range":
             if keywords:
@@ -3214,7 +3334,7 @@ class Transfer:
                 ]
             if name == "bool":
                 return (
-                    self.truth_flows(args[0], store, frame, node)
+                    self.truth_flows(args[0], store, frame, node, publish=False)
                     if len(args) == 1 and not keywords
                     else [self.error(store, "TypeError")]
                 )
@@ -3408,7 +3528,7 @@ class Transfer:
             if len(args) > 1:
                 result = [
                     NormalExprFlow(StateHandle.capture(f.store), args[1])
-                    if f.exception == "StopIteration"
+                    if self.continuations.is_stop(f)
                     else f
                     for f in result
                 ]
@@ -3546,7 +3666,13 @@ class Transfer:
                             throw_sequences = [(args[1],)]
                         for throw_sequence in throw_sequences:
                             for made in self.invoke(
-                                Value.ref(ref), list(throw_sequence), (), store.copy(), frame, node
+                                Value.ref(ref),
+                                list(throw_sequence),
+                                (),
+                                store.copy(),
+                                frame,
+                                node,
+                                publish=False,
                             ):
                                 if made.kind == "normal":
                                     result.extend(
@@ -3581,7 +3707,7 @@ class Transfer:
                 args[0] if args else Value.constant(None),
             )
         if name == "__iter__":
-            return self.builtin("iter", [receiver], (), store, frame, node)
+            return self.builtin("iter", [receiver], (), store, frame, node, publish=False)
         for ref in receiver.refs:
             obj = store.heap.get(ref)
             if obj is None:
@@ -3787,6 +3913,8 @@ class Transfer:
         operation: str,
         value: Value | None = None,
     ) -> list[Flow]:
+        if operation == "next":
+            return self.continuations.next_iterator(receiver, store, frame, node)
         return self.continuations.resume(receiver, store, frame, node, operation, value)
 
     def aggregate_builtin(
@@ -3907,7 +4035,7 @@ class Transfer:
         for generator in node.generators:
             expanded: list[Flow] = []
             for p in paths:
-                for iterable in self.expr(generator.iter, p.store, frame):
+                for iterable in self.expr(generator.iter, p.store, frame, publish=False):
                     if iterable.kind != "normal":
                         expanded.append(iterable)
                         continue
@@ -3931,7 +4059,7 @@ class Transfer:
                                 next_possible: list[Flow] = []
                                 for candidate in possible:
                                     for tested in self.condition_flows(
-                                        condition, candidate.store, compframe
+                                        condition, candidate.store, compframe, publish=False
                                     ):
                                         if tested.kind != "normal":
                                             next_possible.append(tested)
@@ -3941,6 +4069,7 @@ class Transfer:
                                                 tested.store,
                                                 compframe,
                                                 node,
+                                                publish=False,
                                             ):
                                                 if truth_flow.kind != "normal":
                                                     next_possible.append(truth_flow)
@@ -3973,7 +4102,7 @@ class Transfer:
                             )
                     last = last.join(s, self.ops)
             else:
-                for out in self.expr(node.elt, p.store, compframe):
+                for out in self.expr(node.elt, p.store, compframe, publish=False):
                     if out.kind == "normal":
                         values.append(require_payload(out))
                         last = last.join(out.store, self.ops)

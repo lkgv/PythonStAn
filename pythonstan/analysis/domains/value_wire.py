@@ -1,11 +1,13 @@
 """Restore scalar/reference Value facets from the canonical JSON union.
 
 Restoring reference identifiers never installs heap facts or must/fresh claims.
-Unknown value extensions and output omissions produce a covering Top residual.
+Incomplete records expose diagnostic retained facets and explicit losses; they
+cannot be consumed as whole Values without their missing facets or context.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from pythonstan.analysis.contracts.identity import ObjectId, ProgramPointId
@@ -30,10 +32,20 @@ from .values import Value
 
 @dataclass(frozen=True)
 class RestoredValue:
-    value: Value
+    retained_value: Value
     complete: bool
     losses: tuple[str, ...]
     reference_info: JsonObject
+
+    def require_value(self) -> Value:
+        """An incomplete fragment cannot enter an analysis as a whole Value."""
+        if not self.complete:
+            raise ValueError("Incomplete abstract value requires its missing context/facets")
+        return self.retained_value
+
+    @property
+    def value(self) -> Value:
+        return self.require_value()
 
 
 def _strings(value: JsonValue) -> frozenset[str]:
@@ -59,6 +71,7 @@ def restore_value(data: object) -> RestoredValue:
     strings: set[str] = set()
     booleans: set[bool] = set()
     floating: set[float] = set()
+    zero_signs: set[float] = set()
     none = False
     constants = (
         [require_object(item)["value"] for item in require_array(document["tagged_constants"])]
@@ -74,6 +87,8 @@ def restore_value(data: object) -> RestoredValue:
         elif isinstance(value, int):
             integers.add(value)
         elif isinstance(value, float):
+            if value == 0.0:
+                zero_signs.add(math.copysign(1.0, value))
             floating.add(value)
         else:
             strings.add(value)
@@ -102,6 +117,9 @@ def restore_value(data: object) -> RestoredValue:
     )
     refs = frozenset(ObjectId(item) for item in _strings(document.get("objects", [])))
     sorts = set(_strings(document.get("top_sorts", [])))
+    if len(zero_signs) > 1:
+        floating.clear()
+        sorts.add("float")
     types = _strings(document.get("types", []))
     # Legacy factory records can advertise an unknown sort without a facet.
     represented = {"unbound"}
@@ -120,8 +138,17 @@ def restore_value(data: object) -> RestoredValue:
     relations: set[PartitionToken] = set()
     for raw in require_array(document.get("relations", [])):
         row = require_object(raw)
-        handler = require_string(row.get("handler_id", row.get("handler")))
+        if not {"point", "key_type", "key", "handler_id"} <= row.keys():
+            continue
+        handler = require_string(row["handler_id"])
         display = require_string(row.get("handler", handler))
+        display_name: str | None
+        if "display_name" in row:
+            display_name = (
+                None if row["display_name"] is None else require_string(row["display_name"])
+            )
+        else:
+            display_name = None if display == handler else display
         relations.add(
             PartitionToken(
                 ProgramPointId(require_string(row["point"])),
@@ -129,7 +156,7 @@ def restore_value(data: object) -> RestoredValue:
                 require_string(row["key"]),
                 ObjectId(handler),
                 _boolean(row.get("partitioned", True)),
-                None if display == handler else display,
+                display_name,
             )
         )
     incomplete = any(
@@ -149,8 +176,8 @@ def restore_value(data: object) -> RestoredValue:
         unbound=_boolean(document.get("may_unbound", "unbound" in types)) or incomplete,
         relations=frozenset(relations),
     )
-    if document.get("bottom") is False and result.is_bottom():
-        result = Value.unknown()
+    if wire.complete and _boolean(document["bottom"]) != result.is_bottom():
+        raise ValueError("Bottom marker contradicts the complete value union")
     return RestoredValue(
         result,
         wire.complete,
@@ -160,5 +187,5 @@ def restore_value(data: object) -> RestoredValue:
 
 
 def decode_value(data: object) -> Value:
-    """Convenience restoration; reference context remains external and untrusted."""
-    return restore_value(data).value
+    """Restore only complete v1 Value data; heap authority is never installed."""
+    return restore_value(data).require_value()

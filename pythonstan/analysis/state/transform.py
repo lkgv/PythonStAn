@@ -1154,6 +1154,11 @@ class PayloadTransformer:
         self._fill_record(value, result)
         return result
 
+    def store_contribution(self, value: Store, *, into: Store) -> Store:
+        """Fill a store shell whose input owner roots are already anchored."""
+        self._fill_record(value, into)
+        return into
+
     def _visit_record(self, value: GraphRecord) -> GraphRecord:
         result = object.__new__(type(value))
         self.memo[id(value)] = result

@@ -1,21 +1,24 @@
-"""Read-only selection of retained JSON result facts."""
+"""Read-only projection of retained facts; excluded payloads are never thawed."""
 
 from __future__ import annotations
 
 import fnmatch
 import json
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from pythonstan.analysis.contracts.json_data import (
+    FrozenJsonObject,
+    FrozenJsonValue,
     JsonObject,
     JsonValue,
-    require_array,
-    require_object,
-    require_string,
 )
+from pythonstan.analysis.contracts.wire import freeze_snapshot, thaw_snapshot
 
 from .output import OutputSpec
 from .queries import ValueQuery
+
+type Visitor = Callable[[int], None]
 
 
 @dataclass(frozen=True)
@@ -28,19 +31,43 @@ class ProjectedPayload:
     reason: str | None = None
 
 
+def _object(value: FrozenJsonValue) -> FrozenJsonObject:
+    if not isinstance(value, Mapping):
+        raise TypeError("Expected retained JSON object")
+    return value
+
+
+def _array(value: FrozenJsonValue) -> tuple[FrozenJsonValue, ...]:
+    if not isinstance(value, tuple):
+        raise TypeError("Expected retained JSON array")
+    return value
+
+
+def _text(value: FrozenJsonValue) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _visit(visit: Visitor | None, amount: int = 1) -> None:
+    if visit is not None:
+        visit(amount)
+
+
 def matches(value: str, patterns: tuple[str, ...]) -> bool:
     return not patterns or any(fnmatch.fnmatch(value, pattern) for pattern in patterns)
 
 
-def module_for_qualname(name: str, snapshot: JsonObject) -> str:
-    modules: set[str] = set()
-    for value in require_array(snapshot.get("inventory", [])):
-        row = require_object(value)
-        module = row.get("module")
-        if isinstance(module, str):
-            modules.add(module)
-    modules.update(require_object(snapshot.get("values", {})))
-    candidates = [module for module in modules if name == module or name.startswith(module + ".")]
+def retained_module_for_qualname(
+    name: str, snapshot: FrozenJsonObject, *, inspect: Visitor | None = None
+) -> str:
+    inventory = _array(snapshot.get("inventory", ()))
+    values = _object(snapshot.get("values", {}))
+    _visit(inspect, len(inventory) + len(values))
+    modules = {_text(_object(row).get("module")) for row in inventory}
+    modules.update(values)
+    _visit(inspect, len(modules))
+    candidates = [
+        module for module in modules if module and (name == module or name.startswith(module + "."))
+    ]
     return max(candidates, key=len) if candidates else name.rpartition(".")[0]
 
 
@@ -49,28 +76,24 @@ def _point_module(point: str) -> str:
     return pieces[0] if len(pieces) == 5 else ""
 
 
-def _record_text(value: JsonValue) -> str:
-    """Absent optional event attribution does not become a target-language name."""
-    return value if isinstance(value, str) else ""
-
-
-def _context_matches(context: JsonValue, patterns: tuple[str, ...]) -> bool:
+def _context_matches(context: FrozenJsonValue, patterns: tuple[str, ...]) -> bool:
     if not patterns:
         return True
-    values = [context] if isinstance(context, str) else require_array(context if context else [])
-    return matches(json.dumps(values, separators=(",", ":")), patterns) or any(
-        matches(str(value), patterns) for value in values
-    )
+    values = (context,) if isinstance(context, str) else _array(context if context else ())
+    context_values: list[str] = [_text(value) for value in values]
+    text = json.dumps(context_values, separators=(",", ":"))
+    return matches(text, patterns) or any(matches(_text(value), patterns) for value in values)
 
 
-def _region_matches(point: str, row: JsonObject, spec: OutputSpec, snapshot: JsonObject) -> bool:
+def _region_matches(
+    point: str, row: FrozenJsonObject, spec: OutputSpec, snapshot: FrozenJsonObject
+) -> bool:
     if not spec.regions:
         return True
-    plan = require_object(snapshot.get("plan", {}))
-    decisions = require_object(plan.get("decisions", {}))
-    decision = require_object(decisions.get(point, {}))
+    decisions = _object(_object(snapshot.get("plan", {})).get("decisions", {}))
+    decision = _object(decisions.get(point, {}))
     return any(
-        matches(str(value), spec.regions)
+        matches(_text(value), spec.regions)
         for value in (
             row.get("region_id", ""),
             decision.get("region_id", ""),
@@ -82,31 +105,73 @@ def _region_matches(point: str, row: JsonObject, spec: OutputSpec, snapshot: Jso
 
 
 def _record_matches(
-    row: JsonObject, spec: OutputSpec, snapshot: JsonObject, point: str = ""
+    row: FrozenJsonObject,
+    spec: OutputSpec,
+    snapshot: FrozenJsonObject,
+    point: str = "",
+    *,
+    inspect: Visitor | None = None,
 ) -> bool:
     raw_payload = row.get("payload", {})
-    payload = raw_payload if isinstance(raw_payload, dict) else {}
-    function = _record_text(row.get("caller", row.get("qualname", payload.get("qualname", ""))))
-    source = require_object(row.get("source") or {})
-    point = point or _record_text(row.get("site", row.get("point", payload.get("point", ""))))
-    module = _record_text(row.get("module", source.get("module", ""))) or _point_module(point)
-    module = module or module_for_qualname(function, snapshot)
-    if not matches(module, spec.modules):
-        return False
-    if spec.functions and not (
-        matches(function, spec.functions)
-        or matches(_record_text(row.get("callee", "")), spec.functions)
-    ):
-        return False
-    if not _region_matches(point, row, spec, snapshot):
-        return False
-    return _context_matches(row.get("contexts", row.get("context", [])), spec.contexts)
+    payload = raw_payload if isinstance(raw_payload, Mapping) else {}
+    function = _text(row.get("caller", row.get("qualname", payload.get("qualname", ""))))
+    source = _object(row.get("source") or {})
+    point = point or _text(row.get("site", row.get("point", payload.get("point", ""))))
+    module = _text(row.get("module", source.get("module", ""))) or _point_module(point)
+    module = module or retained_module_for_qualname(function, snapshot, inspect=inspect)
+    return (
+        matches(module, spec.modules)
+        and (
+            not spec.functions
+            or matches(function, spec.functions)
+            or matches(_text(row.get("callee", "")), spec.functions)
+        )
+        and _region_matches(point, row, spec, snapshot)
+        and _context_matches(row.get("contexts", row.get("context", ())), spec.contexts)
+    )
 
 
-def _fields(row: JsonValue, spec: OutputSpec, required: tuple[str, ...] = ()) -> JsonValue:
-    if not spec.fields or not isinstance(row, dict):
-        return row
-    return {key: item for key, item in row.items() if key in spec.fields or key in required}
+def _fields(
+    row: FrozenJsonValue,
+    spec: OutputSpec,
+    required: tuple[str, ...] = (),
+    *,
+    inspect: Visitor | None = None,
+) -> tuple[FrozenJsonValue, bool]:
+    if not spec.fields or not isinstance(row, Mapping):
+        return row, False
+    _visit(inspect, len(row))
+    retained = set(spec.fields) | set(required)
+    if "wire_kind" in row or "top" in row or "bottom" in row:
+        retained.update(("wire_kind", "value_schema_version", "top", "bottom", "top_sorts"))
+    selected: dict[str, FrozenJsonValue] = {
+        key: item for key, item in row.items() if key in retained
+    }
+    omitted = set(row) - selected.keys()
+    if omitted and ("top" in row or "wire_kind" in row):
+        prior = _object(row.get("projection", {}))
+        old_omitted = {_text(item) for item in _array(prior.get("omitted_fields", ()))}
+        selected["projection"] = {
+            **prior,
+            "complete": False,
+            "omitted_fields": tuple(sorted(old_omitted | omitted)),
+        }
+    return selected, bool(omitted)
+
+
+def _finish(
+    value: FrozenJsonValue,
+    total: int = 0,
+    count: int = 0,
+    truncated: bool = False,
+    status: str | None = None,
+    reason: str | None = None,
+    *,
+    visit: Visitor | None = None,
+) -> ProjectedPayload:
+    return ProjectedPayload(
+        thaw_snapshot(value, visit=visit), total, count, truncated, status, reason
+    )
 
 
 def _joined_unavailable(spec: OutputSpec) -> ProjectedPayload | None:
@@ -114,107 +179,27 @@ def _joined_unavailable(spec: OutputSpec) -> ProjectedPayload | None:
         return ProjectedPayload(
             None,
             status="unavailable",
-            reason="Context/region-specific value snapshots were not retained; joined values cannot be split. Use retained outcomes for context records.",
+            reason=(
+                "Context/region-specific value snapshots were not retained; joined values "
+                "cannot be split. Use retained outcomes for context records."
+            ),
         )
     return None
 
 
-def _project_effects(value: JsonObject, spec: OutputSpec) -> ProjectedPayload:
-    if spec.modules or spec.functions or spec.regions or spec.contexts:
-        return ProjectedPayload(
-            None,
-            status="unavailable",
-            reason="Joined effects lack a retained scope-specific frame and residual attribution",
-        )
-    selected = {key: item for key, item in value.items() if not spec.fields or key in spec.fields}
-    total = sum(len(item) if isinstance(item, (list, dict)) else 1 for item in selected.values())
-    remaining = spec.max_items
-    bounded: JsonObject = {}
-    for key, item in selected.items():
-        if isinstance(item, list):
-            items = item[:remaining]
-            bounded[key] = items
-            remaining -= len(items)
-        elif isinstance(item, dict):
-            fields = dict(list(item.items())[:remaining])
-            bounded[key] = fields
-            remaining -= len(fields)
-        elif remaining:
-            bounded[key] = item
-            remaining -= 1
-    count = spec.max_items - remaining
-    return ProjectedPayload(bounded, total, count, count < total)
-
-
-def _project_values(
-    view: str, value: JsonObject, spec: OutputSpec, snapshot: JsonObject
+def project_retained_payload(
+    view: str,
+    value: FrozenJsonValue,
+    spec: OutputSpec,
+    snapshot: FrozenJsonObject,
+    *,
+    visit: Visitor | None = None,
+    inspect: Visitor | None = None,
 ) -> ProjectedPayload:
-    unavailable = _joined_unavailable(spec)
-    if unavailable:
-        return unavailable
-    records: list[tuple[str, str, JsonValue]] = []
-    if view == "values":
-        for module, values in sorted(value.items()):
-            if matches(module, spec.modules):
-                for symbol, row in sorted(require_object(values).items()):
-                    if matches(module + "." + symbol, spec.functions):
-                        records.append((module, symbol, row))
-        selected: JsonObject = {}
-        for module, symbol, row in records[: spec.max_items]:
-            module_values = require_object(selected.setdefault(module, {}))
-            module_values[symbol] = _fields(row, spec, ("top", "bottom", "top_sorts"))
-    else:
-        records = [
-            (function, "", row)
-            for function, row in sorted(value.items())
-            if matches(function, spec.functions)
-            and matches(module_for_qualname(function, snapshot), spec.modules)
-        ]
-        selected = {
-            function: _fields(row, spec, ("top", "bottom", "top_sorts"))
-            for function, _, row in records[: spec.max_items]
-        }
-    total = len(records)
-    count = min(total, spec.max_items)
-    return ProjectedPayload(selected, total, count, count < total)
-
-
-def _project_outcomes(
-    value: JsonObject, spec: OutputSpec, snapshot: JsonObject
-) -> ProjectedPayload:
-    records: list[tuple[str, JsonObject]] = []
-    for function, rows in sorted(value.items()):
-        if not matches(function, spec.functions) or not matches(
-            module_for_qualname(function, snapshot), spec.modules
-        ):
-            continue
-        for item in require_array(rows):
-            row = require_object(item)
-            context = row.get("context", [])
-            if not _context_matches(context, spec.contexts):
-                continue
-            if spec.regions and not any(
-                _region_matches(require_string(point), {}, spec, snapshot)
-                for point in require_array(context)
-            ):
-                continue
-            records.append((function, row))
-    selected: JsonObject = {}
-    for function, row in records[: spec.max_items]:
-        require_array(selected.setdefault(function, [])).append(
-            _fields(row, spec, ("kind", "exception", "context", "value_present"))
-        )
-    count = min(len(records), spec.max_items)
-    return ProjectedPayload(selected, len(records), count, count < len(records))
-
-
-def project_payload(
-    view: str, value: JsonValue, spec: OutputSpec, snapshot: JsonObject
-) -> ProjectedPayload:
-    """Filter only retained facts, without executing analysis or changing claims."""
+    """Select immutable nodes first; only retained output is copied and paid."""
     if value is None:
         return ProjectedPayload(None)
-    if view == "relations":
+    if view in {"relations", "values", "returns"}:
         unavailable = _joined_unavailable(spec)
         if unavailable:
             return unavailable
@@ -223,7 +208,9 @@ def project_payload(
             return ProjectedPayload(
                 None,
                 status="unavailable",
-                reason="A global certificate cannot be relabeled as a scoped proof by output filtering",
+                reason=(
+                    "A global certificate cannot be relabeled as a scoped proof by output filtering"
+                ),
             )
         if spec.max_items == 0:
             return ProjectedPayload(
@@ -234,62 +221,180 @@ def project_payload(
                 "unavailable",
                 "The complete proof envelope was omitted by the item limit",
             )
-        return ProjectedPayload(value, 1, 1)
-    if view == "effects" and isinstance(value, dict):
-        return _project_effects(value, spec)
-    if view in ("values", "returns") and isinstance(value, dict):
-        return _project_values(view, value, spec, snapshot)
-    if view == "outcomes" and isinstance(value, dict):
-        return _project_outcomes(value, spec, snapshot)
-    if view == "plan" and isinstance(value, dict):
-        records = [
-            (point, require_object(row))
-            for point, row in sorted(require_object(value.get("decisions", {})).items())
-            if _record_matches(require_object(row), spec, snapshot, point)
-        ]
-        selected = {key: item for key, item in value.items() if key != "decisions"}
-        selected["decisions"] = {
-            point: _fields(row, spec) for point, row in records[: spec.max_items]
-        }
-        count = min(len(records), spec.max_items)
-        return ProjectedPayload(selected, len(records), count, count < len(records))
-    if view == "events" and isinstance(value, dict):
-        rows = [
-            require_object(row)
-            for row in require_array(value.get("events", []))
-            if _record_matches(require_object(row), spec, snapshot)
-        ]
-        selected = {key: item for key, item in value.items() if key != "events"}
-        selected["events"] = [_fields(row, spec) for row in rows[: spec.max_items]]
-        count = min(len(rows), spec.max_items)
-        return ProjectedPayload(selected, len(rows), count, count < len(rows))
-    if isinstance(value, list):
-        selected_rows = [
-            row
-            for row in value
-            if isinstance(row, dict)
-            and _record_matches(row, spec, snapshot)
-            or not isinstance(row, dict)
-            and not (spec.modules or spec.functions or spec.regions or spec.contexts)
-        ]
-        selected_list = [_fields(row, spec) for row in selected_rows[: spec.max_items]]
-        return ProjectedPayload(
-            selected_list,
+        return _finish(value, 1, 1, visit=visit)
+    if view == "effects" and isinstance(value, Mapping):
+        if spec.modules or spec.functions or spec.regions or spec.contexts:
+            return ProjectedPayload(
+                None,
+                status="unavailable",
+                reason=(
+                    "Joined effects lack a retained scope-specific frame and residual attribution"
+                ),
+            )
+        selected: dict[str, FrozenJsonValue] = {}
+        total = count = 0
+        omitted = False
+        for key, item in value.items():
+            _visit(inspect)
+            if spec.fields and key not in spec.fields:
+                omitted = True
+                continue
+            size = len(item) if isinstance(item, (tuple, Mapping)) else 1
+            total += size
+            remaining = max(0, spec.max_items - count)
+            if isinstance(item, tuple):
+                selected[key] = item[:remaining]
+                count += min(size, remaining)
+            elif isinstance(item, Mapping):
+                _visit(inspect, len(item))
+                selected[key] = dict(list(item.items())[:remaining])
+                count += min(size, remaining)
+            elif remaining:
+                selected[key] = item
+                count += 1
+        return _finish(selected, total, count, omitted or count < total, visit=visit)
+    if view in {"values", "returns"} and isinstance(value, Mapping):
+        selected_values: dict[str, FrozenJsonValue] = {}
+        total = count = 0
+        omitted = False
+        for owner in sorted(value):
+            _visit(inspect)
+            module = (
+                owner
+                if view == "values"
+                else retained_module_for_qualname(owner, snapshot, inspect=inspect)
+            )
+            if not matches(module, spec.modules):
+                continue
+            rows = _object(value[owner]) if view == "values" else {owner: value[owner]}
+            for symbol in sorted(rows):
+                _visit(inspect)
+                function = owner + "." + symbol if view == "values" else owner
+                if not matches(function, spec.functions):
+                    continue
+                total += 1
+                if count >= spec.max_items:
+                    continue
+                row, cut = _fields(rows[symbol], spec, inspect=inspect)
+                omitted |= cut
+                if view == "values":
+                    module_rows = dict(_object(selected_values.get(owner, {})))
+                    module_rows[symbol] = row
+                    selected_values[owner] = module_rows
+                else:
+                    selected_values[owner] = row
+                count += 1
+        return _finish(selected_values, total, count, omitted or count < total, visit=visit)
+    if view == "outcomes" and isinstance(value, Mapping):
+        selected_outcomes: dict[str, FrozenJsonValue] = {}
+        total = count = 0
+        omitted = False
+        for function in sorted(value):
+            _visit(inspect)
+            if not matches(function, spec.functions) or not matches(
+                retained_module_for_qualname(function, snapshot, inspect=inspect), spec.modules
+            ):
+                continue
+            for raw in _array(value[function]):
+                _visit(inspect)
+                row = _object(raw)
+                context = row.get("context", ())
+                if not _context_matches(context, spec.contexts):
+                    continue
+                if spec.regions and not any(
+                    _region_matches(_text(point), {}, spec, snapshot) for point in _array(context)
+                ):
+                    continue
+                total += 1
+                if count >= spec.max_items:
+                    continue
+                selected_row, cut = _fields(
+                    row,
+                    spec,
+                    (
+                        "kind",
+                        "exception",
+                        "context",
+                        "value_present",
+                    ),
+                    inspect=inspect,
+                )
+                prior = _array(selected_outcomes.get(function, ()))
+                selected_outcomes[function] = (*prior, selected_row)
+                omitted |= cut
+                count += 1
+        return _finish(selected_outcomes, total, count, omitted or count < total, visit=visit)
+    if view in {"plan", "events"} and isinstance(value, Mapping):
+        field = "decisions" if view == "plan" else "events"
+        records = (
+            _object(value.get(field, {}))
+            if view == "plan"
+            else {str(index): item for index, item in enumerate(_array(value.get(field, ())))}
+        )
+        kept: dict[str, FrozenJsonValue] = {}
+        total = count = 0
+        omitted = False
+        for key in sorted(records):
+            _visit(inspect)
+            row = _object(records[key])
+            if not _record_matches(
+                row, spec, snapshot, key if view == "plan" else "", inspect=inspect
+            ):
+                continue
+            total += 1
+            if count < spec.max_items:
+                kept[key], cut = _fields(row, spec, inspect=inspect)
+                omitted |= cut
+                count += 1
+        selected_frame = {key: item for key, item in value.items() if key != field}
+        selected_frame[field] = kept if view == "plan" else tuple(kept.values())
+        return _finish(selected_frame, total, count, omitted or count < total, visit=visit)
+    if isinstance(value, tuple):
+        selected_rows: list[FrozenJsonValue] = []
+        total = 0
+        omitted = False
+        for row in value:
+            _visit(inspect)
+            if isinstance(row, Mapping):
+                if not _record_matches(row, spec, snapshot, inspect=inspect):
+                    continue
+            elif spec.modules or spec.functions or spec.regions or spec.contexts:
+                continue
+            total += 1
+            if len(selected_rows) < spec.max_items:
+                selected_row, cut = _fields(row, spec, inspect=inspect)
+                selected_rows.append(selected_row)
+                omitted |= cut
+        return _finish(
+            tuple(selected_rows),
+            total,
             len(selected_rows),
-            len(selected_list),
-            len(selected_list) < len(selected_rows),
+            omitted or len(selected_rows) < total,
+            visit=visit,
         )
-    if isinstance(value, dict):
-        selected_object = require_object(_fields(value, spec))
-        total = len(selected_object)
-        selected_object = dict(list(selected_object.items())[: spec.max_items])
-        return ProjectedPayload(
-            selected_object, total, len(selected_object), len(selected_object) < total
+    if isinstance(value, Mapping):
+        fields, omitted = _fields(value, spec, inspect=inspect)
+        selected_object = _object(fields)
+        _visit(inspect, len(selected_object))
+        selected = dict(list(selected_object.items())[: spec.max_items])
+        return _finish(
+            selected,
+            len(selected_object),
+            len(selected),
+            omitted or len(selected) < len(selected_object),
+            visit=visit,
         )
-    return ProjectedPayload(value)
+    return _finish(value, visit=visit)
 
 
-def project_value_query(query: ValueQuery, value: JsonValue, spec: OutputSpec) -> ProjectedPayload:
+def project_retained_value_query(
+    query: ValueQuery,
+    value: FrozenJsonValue,
+    spec: OutputSpec,
+    *,
+    visit: Visitor | None = None,
+    inspect: Visitor | None = None,
+) -> ProjectedPayload:
     if not matches(query.module, spec.modules) or not matches(
         query.module + "." + query.symbol, spec.functions
     ):
@@ -305,4 +410,21 @@ def project_value_query(query: ValueQuery, value: JsonValue, spec: OutputSpec) -
         return ProjectedPayload(
             None, 1, 0, True, "unavailable", "Value omitted by output item limit"
         )
-    return ProjectedPayload(_fields(value, spec, ("top", "bottom", "top_sorts")), 1, 1)
+    selected, omitted = _fields(value, spec, inspect=inspect)
+    return _finish(selected, 1, 1, omitted, visit=visit)
+
+
+def project_payload(
+    view: str, value: JsonValue, spec: OutputSpec, snapshot: JsonObject
+) -> ProjectedPayload:
+    """Compatibility entry for untrusted mutable data; own its boundary first."""
+    retained = freeze_snapshot(snapshot)
+    return project_retained_payload(view, freeze_snapshot(value), spec, _object(retained))
+
+
+def project_value_query(query: ValueQuery, value: JsonValue, spec: OutputSpec) -> ProjectedPayload:
+    return project_retained_value_query(query, freeze_snapshot(value), spec)
+
+
+def module_for_qualname(name: str, snapshot: JsonObject) -> str:
+    return retained_module_for_qualname(name, _object(freeze_snapshot(snapshot)))

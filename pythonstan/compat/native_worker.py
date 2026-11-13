@@ -16,8 +16,9 @@ import traceback
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeGuard, override
+from typing import TYPE_CHECKING, Literal, TypeGuard, override
 
+from pythonstan.analysis.contracts.cost_model import COST_MODEL_DIGEST, COST_MODEL_VERSION
 from pythonstan.analysis.contracts.identity import EntryScenario, SourceModule
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
@@ -52,6 +53,12 @@ class WorkerHeader:
     @classmethod
     def from_wire(cls, payload: object) -> WorkerHeader:
         document = validate_json_object(payload)
+        model = document.get("cost_model")
+        if model is not None and model != {
+            "version": COST_MODEL_VERSION,
+            "digest": COST_MODEL_DIGEST,
+        }:
+            raise ValueError("Native worker cost model disagrees with its supervisor")
         config = require_object(document["config"])
         resources = require_object(config["resources"])
         return cls(
@@ -176,6 +183,10 @@ def _is_scalar(value: object) -> TypeGuard[JsonScalar]:
     return value is None or type(value) in (str, bool, int, float)
 
 
+def _constant_sort_key(value: JsonScalar) -> tuple[str, str]:
+    return type(value).__name__, repr(value)
+
+
 def _value(objects: Iterable[AbstractObject]) -> JsonObject:
     from pythonstan.analysis.pointer.kcfa.object import AllocKind, ConstantObject
 
@@ -200,10 +211,11 @@ def _value(objects: Iterable[AbstractObject]) -> JsonObject:
         else:
             identities.append(hashlib.sha256(str(obj).encode()).hexdigest()[:24])
             types.add(kind)
+    ordered_constants = sorted(constants, key=_constant_sort_key)
     result = require_object(
         thaw_snapshot(
             value_snapshot(
-                constants=sorted(constants, key=lambda value: (type(value).__name__, repr(value))),
+                constants=ordered_constants,
                 objects=sorted(set(identities)),
                 types=sorted(types),
                 top=top,
@@ -517,11 +529,23 @@ def main(payload: object, publish: ProgressPublisher | None = None) -> JsonObjec
     return aggregate
 
 
+def _worker_frame(kind: Literal["progress", "result"], result: JsonObject) -> JsonObject:
+    """Keep child memory/model observations outside semantic result data."""
+    import resource
+
+    return {
+        "kind": kind,
+        "result": result,
+        "cost_model": {"version": COST_MODEL_VERSION, "digest": COST_MODEL_DIGEST},
+        "peak_resident_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024),
+    }
+
+
 def _publish_progress(partial: JsonObject) -> None:
     stream = sys.__stdout__
     if stream is None:
         raise RuntimeError("Native process stdout is unavailable")
-    stream.write(json.dumps({"kind": "progress", "result": partial}, allow_nan=False) + "\n")
+    stream.write(json.dumps(_worker_frame("progress", partial), allow_nan=False) + "\n")
     stream.flush()
 
 
@@ -542,7 +566,7 @@ def _run_cli() -> None:
             )
     except Exception:
         result = {"error": traceback.format_exc(), "captured_log": log.getvalue()[-2000:]}
-    sys.stdout.write(json.dumps({"kind": "result", "result": result}, allow_nan=False) + "\n")
+    sys.stdout.write(json.dumps(_worker_frame("result", result), allow_nan=False) + "\n")
 
 
 if __name__ == "__main__":

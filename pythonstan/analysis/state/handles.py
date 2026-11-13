@@ -15,7 +15,7 @@ from pythonstan.analysis.contracts.identity import (
 if TYPE_CHECKING:
     from pythonstan.analysis.domains.reabstract import IdentityArena
 
-    from .store import Store
+    from .store import HeapObject, Store
 
 
 class StateOwnershipError(RuntimeError):
@@ -59,3 +59,13 @@ class ObjectHandle:
 
     def refresh(self, arena: IdentityArena) -> ObjectHandle:
         return ObjectHandle(arena.resolve(self.identity), arena.epoch)
+
+    def read_current(self, root: Store, arena: IdentityArena) -> HeapObject:
+        """Reject use of a cached object identity across a publication boundary."""
+        if (
+            self.observed_epoch != arena.epoch
+            or root.identity_epoch != arena.epoch
+            or arena.resolve(self.identity) != self.identity
+        ):
+            raise StateOwnershipError("Object handle or state has a stale identity epoch")
+        return root.heap[self.identity]

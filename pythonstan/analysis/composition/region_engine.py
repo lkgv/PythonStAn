@@ -1,25 +1,22 @@
-"""Finite straight-line Andersen region execution over a full boundary store.
+"""Finite ordered Native regions compiled into a monotone inclusion kernel.
 
-This is a supported subset engine, not a renamed abstract transfer: source
-expressions become allocation/copy/load/store inclusion constraints, solved by
-the same incremental delta/replay kernel as the optional candidate oracle.
-Opaque identities and complete boundary state are supplied by adapters.
+Cells and fields select immutable versions. Successful writes update a detached
+working boundary immediately; each possible exception snapshots that prefix.
+The underlying inclusion facts, constraints, and worklist remain monotone.
 """
 
 from __future__ import annotations
 
 import ast
 from collections.abc import Iterable
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
-from pythonstan.analysis.composition.oracle import (
-    InclusionNode,
-    IncrementalInclusionStore,
-)
+from pythonstan.analysis.composition.oracle import InclusionNode, IncrementalInclusionStore
 from pythonstan.analysis.composition.state_adapter import BoundaryObject, FullStateAdapter
 from pythonstan.analysis.contracts.identity import CellId, ObjectId
-from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar
+from pythonstan.analysis.contracts.json_data import JsonObject
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.engines.abstract.state import Frame
 from pythonstan.analysis.policies.region import RegionExecutionContext
@@ -36,6 +33,7 @@ if TYPE_CHECKING:
     from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
 
     from .plan import EffectiveRegionPlan
+
 
 _ALLOWED_EXPRESSIONS = (
     ast.Constant,
@@ -60,11 +58,29 @@ _ALLOWED_STATEMENTS = (
 )
 
 
+class _VersionSlot(Enum):
+    CELL = "native_cell_version"
+    FIELD = "native_field_version"
+
+
+class _NoNormalPath(Exception):
+    """The current straight-line normal path has terminated."""
+
+
+@dataclass(frozen=True)
+class OrderedTargetWrite:
+    target: ast.expr
+    source: InclusionNode
+
+
+@dataclass(frozen=True)
+class MaterializeUnpack:
+    """One unpack layer is fully materialized before its child writes begin."""
+
+    writes: tuple[OrderedTargetWrite, ...]
+
+
 def validate_native_statement(node: ast.stmt) -> Literal[True]:
-    if isinstance(node, ast.Assign) and len(node.targets) > 1:
-        raise ConfigurationError(
-            "native-straightline-v1 excludes multi-target assignment prefix effects"
-        )
     if not isinstance(node, _ALLOWED_STATEMENTS):
         raise ConfigurationError(
             "native-straightline-v1 does not support selected " + type(node).__name__
@@ -111,21 +127,32 @@ class NativeRegionEngine:
         ops = (execution or driver.execution_for(frame)).ops
         if flow.kind != "normal":
             return [flow]
+        if isinstance(node, ast.AnnAssign) and (frame.is_module or frame.is_class):
+            raise ConfigurationError(
+                "native-straightline-v1 does not model runtime annotation namespaces"
+            )
         if not self.adapter.check_roundtrip(flow, ops):
             raise RuntimeError("full-store boundary roundtrip lost state")
         boundary = self.adapter.encode(flow)
         kernel = IncrementalInclusionStore(ops)
         temporaries = 0
+        versions = 0
+        checkpoints = 0
+        cell_versions: dict[CellId, InclusionNode] = {}
+        field_versions: dict[tuple[ObjectId, FieldKey], FieldKey] = {}
         allocations: dict[ObjectId, BoundaryObject] = {}
-        cell_outputs: dict[CellId, InclusionNode] = {}
-        field_writes: list[tuple[ObjectId, FieldKey, InclusionNode, bool]] = []
-        loads: list[tuple[ObjectId, FieldKey]] = []
-        exceptions: set[str] = set()
+        loads: set[tuple[ObjectId, FieldKey]] = set()
+        written_cells: set[CellId] = set()
+        written_fields: set[tuple[ObjectId, FieldKey]] = set()
+        raised: list[Flow] = []
         completion: CompletionKind = "normal"
         result_node: InclusionNode | None = None
         normal_possible = True
+
         for cell, value in boundary.cells.items():
-            kernel.add_fact(("entry", cell), value, "ai_boundary_cell")
+            entry: InclusionNode = ("entry", cell)
+            cell_versions[cell] = entry
+            kernel.add_fact(entry, value, "ai_boundary_cell")
         for objid, obj in boundary.heap.items():
             for key, value in obj.fields.items():
                 kernel.add_fact(("field", objid, key), value, "ai_boundary_heap")
@@ -135,6 +162,16 @@ class NativeRegionEngine:
             nonlocal temporaries
             temporaries += 1
             return ("temporary", temporaries)
+
+        def fresh_field(ref: ObjectId, key: FieldKey) -> FieldKey:
+            nonlocal versions
+            versions += 1
+            selected: FieldKey = (_VersionSlot.FIELD, versions, key)
+            field_versions[(ref, key)] = selected
+            return selected
+
+        def field_key(ref: ObjectId, key: FieldKey) -> FieldKey:
+            return field_versions.get((ref, key), key)
 
         def settle() -> None:
             remaining = max(0, driver.max_work - driver.work)
@@ -148,12 +185,28 @@ class NativeRegionEngine:
 
                 raise BudgetStop("native_region_global_work")
 
-        def known(node_id: InclusionNode) -> Value:
+        def known(identifier: InclusionNode) -> Value:
             settle()
-            return kernel.value(node_id)
+            return kernel.value(identifier)
+
+        def failures(names: Iterable[str], *, normal: bool = True) -> None:
+            nonlocal checkpoints
+            for name in sorted(set(names)):
+                if name.startswith(("unknown_", "resource_")):
+                    raise ConfigurationError("Native region scalar operation has an open protocol")
+                # decode detaches the complete current boundary, not the entry
+                # flow, so later target writes cannot mutate this error prefix.
+                exceptional = replace(
+                    boundary, completion="raise", value=Value.constant(name), exception=name
+                )
+                raised.append(self.adapter.decode(exceptional))
+                driver.exceptions.add(name)
+                checkpoints += 1
+            if not normal:
+                raise _NoNormalPath
 
         def direct(ref: ObjectId, key: FieldKey, write: bool = False) -> BoundaryObject:
-            obj = boundary.heap.get(ref) or allocations.get(ref)
+            obj = allocations.get(ref) or boundary.heap.get(ref)
             if obj is None:
                 raise ConfigurationError("Native region boundary has no object declaration")
             if obj.havoc:
@@ -162,7 +215,7 @@ class NativeRegionEngine:
                 raise ConfigurationError(
                     "Native direct-field profile excludes class/metaclass/descriptor lookup"
                 )
-            if obj.kind not in {"dict", "list", "tuple", "instance", "class", "set"}:
+            if obj.kind not in {"dict", "list", "tuple", "instance", "set"}:
                 raise ConfigurationError(
                     "Native region does not support " + obj.kind + " object protocol"
                 )
@@ -201,22 +254,113 @@ class NativeRegionEngine:
                     classes.extend(cls.metadata.lookup("mro", cls.metadata.lookup("bases", ())))
             return obj
 
+        def scalar_part(value: Value) -> Value:
+            return replace(value, refs=frozenset(), unbound=False, relations=frozenset())
+
+        def load(expr: ast.Attribute | ast.Subscript) -> InclusionNode:
+            target = temp()
+            base = known(compile_expression(expr.value))
+            keys = (
+                [expr.attr]
+                if isinstance(expr, ast.Attribute)
+                else known(compile_expression(expr.slice)).exact_constants()
+            )
+            if base.top or base.top_sorts:
+                raise ConfigurationError("Native region load needs a closed finite receiver set")
+            if keys is None:
+                raise ConfigurationError("Native region load requires finite builtin keys")
+            errors: set[str] = set()
+            scalar = scalar_part(base)
+            if not scalar.is_bottom():
+                if isinstance(expr, ast.Attribute):
+                    constants = scalar.exact_constants()
+                    if constants is None or any(
+                        known_builtin_attribute(type(value).__name__, expr.attr)
+                        for value in constants
+                    ):
+                        raise ConfigurationError(
+                            "Native scalar attribute protocol is outside the direct-field profile"
+                        )
+                    errors.add("AttributeError")
+                else:
+                    constants = scalar.exact_constants()
+                    if constants is None:
+                        raise ConfigurationError(
+                            "Native region requires a closed builtin scalar subscript"
+                        )
+                    for concrete in constants:
+                        for key in keys:
+                            try:
+                                if not isinstance(concrete, str) or not isinstance(key, int):
+                                    raise TypeError
+                                kernel.add_fact(
+                                    target, Value.constant(concrete[key]), "scalar_load"
+                                )
+                            except (TypeError, IndexError) as error:
+                                errors.add(type(error).__name__)
+            for key in keys:
+                for ref in base.refs:
+                    obj = direct(ref, key)
+                    if isinstance(expr, ast.Attribute) and obj.kind in {
+                        "dict",
+                        "list",
+                        "tuple",
+                        "set",
+                    }:
+                        if known_builtin_attribute(obj.kind, expr.attr):
+                            raise ConfigurationError(
+                                "Native builtin attribute protocol is outside the direct-field profile"
+                            )
+                        errors.add("AttributeError")
+                        continue
+                    actual = key
+                    if isinstance(expr, ast.Subscript):
+                        if obj.kind == "set":
+                            errors.add("TypeError")
+                            continue
+                        if obj.kind in {"list", "tuple"}:
+                            if not isinstance(actual, int):
+                                errors.add("TypeError")
+                                continue
+                            length = obj.metadata.lookup("length")
+                            if length is not None:
+                                actual = actual + length if actual < 0 else actual
+                                if not 0 <= actual < length:
+                                    errors.add("IndexError")
+                                    continue
+                    specific = temp()
+                    kernel.add_fact(specific, Value.ref(ref), "valid_load_receiver")
+                    kernel.add_load(specific, field_key(ref, actual), target)
+                    if not obj.default.is_bottom():
+                        kernel.add_edge(("default", ref), target)
+                    if actual not in obj.fields or actual in obj.maybe_missing:
+                        errors.add(
+                            "AttributeError"
+                            if isinstance(expr, ast.Attribute)
+                            else "KeyError"
+                            if obj.kind == "dict"
+                            else "IndexError"
+                        )
+                    loads.add((ref, actual))
+            failures(errors, normal=not known(target).is_bottom())
+            return target
+
         def compile_expression(expr: ast.expr) -> InclusionNode:
             target = temp()
             if isinstance(expr, ast.Constant):
                 kernel.add_fact(target, Value.constant(source_constant(expr)), "literal")
-                return target
-            if isinstance(expr, ast.Name):
-                source = ("entry", frame.cell(expr.id))
-                value = kernel.facts.get(
-                    source,
-                    Value(top=True, unbound=True)
-                    if frame.module in boundary.havoc_namespaces
-                    and frame.cell(expr.id).startswith("global:")
-                    else Value(unbound=True),
-                )
+            elif isinstance(expr, ast.Name):
+                cell = frame.cell(expr.id)
+                source = cell_versions.get(cell, ("entry", cell))
+                value = known(source)
                 if source not in kernel.facts:
+                    value = (
+                        Value(top=True, unbound=True)
+                        if frame.module in boundary.havoc_namespaces and cell.startswith("global:")
+                        else Value(unbound=True)
+                    )
                     kernel.add_fact(source, value, "namespace_default_bound")
+                    cell_versions[cell] = source
                 can_fallback = (
                     frame.is_module
                     or expr.id not in frame.locals
@@ -240,14 +384,15 @@ class NativeRegionEngine:
                         value = ops.join(
                             value.without_unbound(), Value.ref(ObjectId("builtin:" + expr.id))
                         )
-                    if not value.unbound:
-                        kernel.add_fact(target, value, "builtin_name_lookup")
-                        return target
                 if value.unbound:
-                    exceptions.add("UnboundLocalError" if expr.id in frame.locals else "NameError")
-                kernel.add_edge(source, target)
-                return target
-            if isinstance(expr, (ast.List, ast.Tuple, ast.Dict)):
+                    failures(
+                        ("UnboundLocalError" if expr.id in frame.locals else "NameError",),
+                        normal=not value.without_unbound().is_bottom(),
+                    )
+                kernel.add_fact(target, value.without_unbound(), "bound_name_projection")
+                if not kernel.value(source).unbound:
+                    kernel.add_edge(source, target)
+            elif isinstance(expr, (ast.List, ast.Tuple, ast.Dict)):
                 kind = type(expr).__name__.lower()
                 objid = ObjectId(f"{kind}:{driver.point(expr)}@{'|'.join(frame.context)}")
                 old = boundary.heap.get(objid)
@@ -257,128 +402,48 @@ class NativeRegionEngine:
                 if isinstance(expr, ast.Dict):
                     for keyexpr, valueexpr in zip(expr.keys, expr.values, strict=True):
                         if keyexpr is None:
-                            raise ConfigurationError(
-                                "native-straightline-v1 rejects **mapping literals"
-                            )
-                        keynode = compile_expression(keyexpr)
-                        valuenode = compile_expression(valueexpr)
-                        literal_keys = known(keynode).exact_constants()
-                        if literal_keys is None:
-                            raise ConfigurationError(
-                                "Native region literal requires finite builtin keys"
-                            )
-                        for key in literal_keys:
-                            kernel.add_edge(valuenode, ("field", objid, key))
-                            obj.fields[key] = Value.bottom()
+                            raise ConfigurationError("Native region rejects **mapping literals")
+                        keys = known(compile_expression(keyexpr)).exact_constants()
+                        value_node = compile_expression(valueexpr)
+                        if keys is None:
+                            raise ConfigurationError("Native literal requires finite builtin keys")
+                        for key in keys:
+                            selected = fresh_field(objid, key)
+                            specific = temp()
+                            kernel.add_fact(specific, Value.ref(objid), "allocation_receiver")
+                            kernel.add_store(specific, selected, value_node)
+                            if old is not None and key in old.fields:
+                                kernel.add_fact(
+                                    ("field", objid, selected),
+                                    old.fields[key],
+                                    "allocation_slot_join",
+                                )
+                            obj.fields[key] = known(("field", objid, selected))
                 else:
                     for index, element in enumerate(expr.elts):
-                        kernel.add_edge(compile_expression(element), ("field", objid, index))
-                        obj.fields[index] = Value.bottom()
+                        source = compile_expression(element)
+                        selected = fresh_field(objid, index)
+                        specific = temp()
+                        kernel.add_fact(specific, Value.ref(objid), "allocation_receiver")
+                        kernel.add_store(specific, selected, source)
+                        if old is not None and index in old.fields:
+                            kernel.add_fact(
+                                ("field", objid, selected),
+                                old.fields[index],
+                                "allocation_slot_join",
+                            )
+                        obj.fields[index] = known(("field", objid, selected))
                 obj.metadata["length"] = len(obj.fields)
                 allocations[objid] = obj
+                boundary.heap[objid] = obj
+                kernel.add_fact(("default", objid), obj.default, "allocation_default")
                 kernel.add_fact(target, Value.ref(objid), "allocation")
-                return target
-            if isinstance(expr, (ast.Attribute, ast.Subscript)):
-                basenode = compile_expression(expr.value)
-                base = known(basenode)
-                if base.top or base.top_sorts:
-                    raise ConfigurationError(
-                        "Native region load needs a closed finite receiver set"
-                    )
-                keys: list[JsonScalar] | None = (
-                    [expr.attr]
-                    if isinstance(expr, ast.Attribute)
-                    else known(compile_expression(expr.slice)).exact_constants()
-                )
-                if keys is None:
-                    raise ConfigurationError("Native region load requires finite builtin keys")
-                scalar = replace(base, refs=frozenset(), unbound=False, relations=frozenset())
-                if not scalar.is_bottom():
-                    if isinstance(expr, ast.Attribute):
-                        scalar_values = scalar.exact_constants()
-                        if scalar_values is None or any(
-                            known_builtin_attribute(type(value).__name__, expr.attr)
-                            for value in scalar_values
-                        ):
-                            raise ConfigurationError(
-                                "Native scalar attribute protocol is outside the direct-field profile"
-                            )
-                        exceptions.add("AttributeError")
-                    else:
-                        concrete_bases = scalar.exact_constants()
-                        if concrete_bases is None:
-                            raise ConfigurationError(
-                                "Native region requires a closed builtin scalar subscript"
-                            )
-                        values = []
-                        for concrete in concrete_bases:
-                            for key in keys:
-                                try:
-                                    if not isinstance(concrete, str) or not isinstance(key, int):
-                                        raise TypeError(
-                                            "Scalar subscript requires a string and an integer index"
-                                        )
-                                    values.append(Value.constant(concrete[key]))
-                                except (TypeError, IndexError, KeyError) as error:
-                                    exceptions.add(type(error).__name__)
-                        kernel.add_fact(target, ops.join_all(values), "builtin_scalar_subscript")
-                if not base.refs:
-                    return target
-                for key in keys:
-                    for ref in base.refs:
-                        receiver = boundary.heap.get(ref) or allocations.get(ref)
-                        if receiver is None:
-                            raise ConfigurationError(
-                                "Native region boundary has no object declaration"
-                            )
-                        if isinstance(expr, ast.Attribute) and receiver.kind in {
-                            "dict",
-                            "list",
-                            "tuple",
-                            "set",
-                            "range",
-                        }:
-                            if known_builtin_attribute(receiver.kind, expr.attr):
-                                raise ConfigurationError(
-                                    "Native builtin attribute protocol is outside the direct-field profile"
-                                )
-                            exceptions.add("AttributeError")
-                            continue
-                        obj = direct(ref, key)
-                        actual = key
-                        if isinstance(expr, ast.Subscript):
-                            if obj.kind == "set":
-                                exceptions.add("TypeError")
-                                continue
-                            if obj.kind in {"list", "tuple"}:
-                                if not isinstance(actual, int):
-                                    exceptions.add("TypeError")
-                                    continue
-                                length = obj.metadata.lookup("length")
-                                if length is not None:
-                                    if actual < 0:
-                                        actual += length
-                                    if actual < 0 or actual >= length:
-                                        exceptions.add("IndexError")
-                                        continue
-                        specific = temp()
-                        kernel.add_fact(specific, Value.ref(ref), "valid_load_receiver")
-                        kernel.add_load(specific, actual, target)
-                        if not obj.default.is_bottom():
-                            kernel.add_edge(("default", ref), target)
-                        if actual not in obj.fields or actual in obj.maybe_missing:
-                            exceptions.add(
-                                "AttributeError"
-                                if isinstance(expr, ast.Attribute)
-                                else "KeyError"
-                                if obj.kind == "dict"
-                                else "IndexError"
-                            )
-                        loads.append((ref, actual))
-                return target
-            if isinstance(expr, ast.BinOp):
+            elif isinstance(expr, (ast.Attribute, ast.Subscript)):
+                return load(expr)
+            elif isinstance(expr, ast.BinOp):
                 left = compile_expression(expr.left)
                 right = compile_expression(expr.right)
+                errors: set[str] = set()
 
                 def operation(*values: Value) -> tuple[Value, Iterable[str]]:
                     if len(values) != 2:
@@ -388,72 +453,115 @@ class NativeRegionEngine:
                         raise ConfigurationError(
                             "Native scalar region cannot bypass user operators"
                         )
-                    return ops.scalar_binary(expr.op, a, b)
+                    result, failed = ops.scalar_binary(expr.op, a, b)
+                    errors.update(failed)
+                    return result, failed
 
                 kernel.add_operation((left, right), target, operation)
-                return target
-            if isinstance(expr, ast.UnaryOp):
+                failures(errors, normal=not known(target).is_bottom())
+            elif isinstance(expr, ast.UnaryOp):
                 operand = compile_expression(expr.operand)
-                if isinstance(expr.op, ast.Not):
+                errors = set()
 
-                    def negation(*values: Value) -> tuple[Value, Iterable[str]]:
-                        if len(values) != 1:
-                            raise TypeError("Truth inclusion rule requires one value")
-                        value = values[0]
-                        if value.refs or value.top:
-                            raise ConfigurationError(
-                                "Native region cannot bypass object truth protocols"
-                            )
-                        return Value(bools=frozenset(not x for x in ops.truth(value))), set()
+                def unary(*values: Value) -> tuple[Value, Iterable[str]]:
+                    if len(values) != 1:
+                        raise TypeError("Unary inclusion rule requires one value")
+                    value = values[0]
+                    if value.refs or value.top:
+                        raise ConfigurationError(
+                            "Native region cannot bypass object unary protocols"
+                        )
+                    result, failed = ops.scalar_unary(expr.op, value)
+                    errors.update(failed)
+                    return result, failed
 
-                    kernel.add_operation((operand,), target, negation)
-                else:
-                    zero = temp()
-                    kernel.add_fact(
-                        zero,
-                        Value.constant(-1 if isinstance(expr.op, ast.Invert) else 0),
-                        "unary_constant",
-                    )
-                    operator: ast.operator = (
-                        ast.BitXor()
-                        if isinstance(expr.op, ast.Invert)
-                        else ast.Sub()
-                        if isinstance(expr.op, ast.USub)
-                        else ast.Add()
-                    )
+                kernel.add_operation((operand,), target, unary)
+                failures(errors, normal=not known(target).is_bottom())
+            else:
+                raise ConfigurationError("Unsupported Native region expression")
+            known(target)
+            return target
 
-                    def unary_rule(*values: Value) -> tuple[Value, Iterable[str]]:
-                        if len(values) != 2:
-                            raise TypeError("Unary arithmetic rule requires two values")
-                        return ops.scalar_binary(operator, values[0], values[1])
-
-                    kernel.add_operation(
-                        (operand, zero) if isinstance(expr.op, ast.Invert) else (zero, operand),
-                        target,
-                        unary_rule,
-                    )
-                return target
-            raise ConfigurationError("Unsupported Native region expression")
+        def materialize(target: ast.Tuple | ast.List, source: InclusionNode) -> MaterializeUnpack:
+            value = known(source)
+            components: list[InclusionNode] = []
+            if not value.refs:
+                constants = value.exact_constants()
+                if constants is None or len(constants) != 1:
+                    raise ConfigurationError("Native unpack requires one bounded sequence shape")
+                literal = constants[0]
+                if not isinstance(literal, str):
+                    failures(("TypeError",), normal=False)
+                if not isinstance(literal, str):
+                    raise AssertionError("terminated scalar unpack")
+                if len(literal) != len(target.elts):
+                    failures(("ValueError",), normal=False)
+                for character in literal:
+                    component = temp()
+                    kernel.add_fact(component, Value.constant(character), "unpack_builtin_string")
+                    components.append(component)
+            else:
+                if len(value.refs) != 1 or not scalar_part(value).is_bottom():
+                    raise ConfigurationError("Native unpack requires one bounded sequence shape")
+                ref = next(iter(value.refs))
+                obj = direct(ref, 0)
+                if obj.kind not in {"list", "tuple"}:
+                    raise ConfigurationError("Native unpack requires a direct list or tuple")
+                length = obj.metadata.lookup("length")
+                if length is None:
+                    raise ConfigurationError("Native unpack requires a complete bounded shape")
+                if length != len(target.elts):
+                    failures(("ValueError",), normal=False)
+                for index in range(len(target.elts)):
+                    if index not in obj.fields or index in obj.maybe_missing:
+                        raise ConfigurationError("Native unpack requires every sequence component")
+                    component = temp()
+                    receiver = temp()
+                    kernel.add_fact(receiver, Value.ref(ref), "unpack_receiver")
+                    kernel.add_load(receiver, field_key(ref, index), component)
+                    known(component)
+                    components.append(component)
+            return MaterializeUnpack(
+                tuple(
+                    OrderedTargetWrite(child, component)
+                    for child, component in zip(target.elts, components, strict=True)
+                )
+            )
 
         def assign(target: ast.expr, source: InclusionNode) -> None:
-            nonlocal normal_possible
+            nonlocal versions, checkpoints
+            value = known(source)
+            if value.is_bottom():
+                raise _NoNormalPath
             if isinstance(target, ast.Name):
-                output = ("exit", frame.cell(target.id))
+                cell = frame.cell(target.id)
+                versions += 1
+                output: InclusionNode = (_VersionSlot.CELL, versions, cell)
                 kernel.add_edge(source, output)
-                cell_outputs[frame.cell(target.id)] = output
+                value = known(output).without_unbound()
+                cell_versions[cell] = output
+                boundary.cells[cell] = value
+                boundary.record_write(CellWrite(cell))
+                written_cells.add(cell)
+                driver.publish_oracle_cell(cell, value, "native_region_output")
+                checkpoints += 1
             elif isinstance(target, (ast.Attribute, ast.Subscript)):
-                basenode = compile_expression(target.value)
-                base = known(basenode)
-                if base.top or base.top_sorts:
-                    raise ConfigurationError("Native region write requires a closed receiver set")
-                keys: list[JsonScalar] | None = (
+                base = known(compile_expression(target.value))
+                keys = (
                     [target.attr]
                     if isinstance(target, ast.Attribute)
                     else known(compile_expression(target.slice)).exact_constants()
                 )
+                if base.top or base.top_sorts:
+                    raise ConfigurationError("Native region write requires a closed receiver set")
                 if keys is None:
                     raise ConfigurationError("Native region store requires finite builtin keys")
-                valid = False
+                errors: set[str] = set()
+                valid: list[tuple[ObjectId, FieldKey]] = []
+                if not scalar_part(base).is_bottom():
+                    errors.add(
+                        "AttributeError" if isinstance(target, ast.Attribute) else "TypeError"
+                    )
                 for key in keys:
                     for ref in base.refs:
                         obj = direct(ref, key, True)
@@ -462,111 +570,98 @@ class NativeRegionEngine:
                             "list",
                             "tuple",
                             "set",
-                            "range",
                         }:
-                            exceptions.add("AttributeError")
+                            errors.add("AttributeError")
                             continue
                         if isinstance(target, ast.Subscript) and obj.kind not in {"dict", "list"}:
-                            exceptions.add("TypeError")
+                            errors.add("TypeError")
                             continue
                         actual = key
                         if isinstance(target, ast.Subscript) and obj.kind == "list":
                             if not isinstance(actual, int):
-                                exceptions.add("TypeError")
+                                errors.add("TypeError")
                                 continue
                             length = obj.metadata.lookup("length")
                             if length is not None:
-                                if actual < 0:
-                                    actual += length
-                                if actual < 0 or actual >= length:
-                                    exceptions.add("IndexError")
+                                actual = actual + length if actual < 0 else actual
+                                if not 0 <= actual < length:
+                                    errors.add("IndexError")
                                     continue
                             else:
-                                exceptions.add("IndexError")
-                        valid = True
-                        field_writes.append(
-                            (ref, actual, source, len(base.refs) == 1 and len(keys) == 1)
-                        )
-                        specific = temp()
-                        kernel.add_fact(specific, Value.ref(ref), "valid_store_receiver")
-                        kernel.add_store(specific, actual, source)
-                if not base.refs:
-                    exceptions.add(
-                        "AttributeError" if isinstance(target, ast.Attribute) else "TypeError"
+                                errors.add("IndexError")
+                        valid.append((ref, actual))
+                failures(errors, normal=bool(valid))
+                for ref, written_key in valid:
+                    obj = direct(ref, written_key, True)
+                    previous = field_key(ref, written_key)
+                    selected = fresh_field(ref, written_key)
+                    receiver = temp()
+                    kernel.add_fact(receiver, Value.ref(ref), "valid_store_receiver")
+                    if not (obj.singleton and len(valid) == 1):
+                        kernel.add_edge(("field", ref, previous), ("field", ref, selected))
+                        if not obj.default.is_bottom():
+                            kernel.add_edge(("default", ref), ("field", ref, selected))
+                    kernel.add_store(receiver, selected, source)
+                    obj.fields[written_key] = known(("field", ref, selected))
+                    if obj.singleton and len(valid) == 1:
+                        obj.maybe_missing.discard(written_key)
+                    boundary.record_write(HeapWrite(ref, written_key))
+                    written_fields.add((ref, written_key))
+                    driver.publish_oracle_field(
+                        ref, written_key, obj.fields[written_key], "native_region_output"
                     )
-                normal_possible = normal_possible and valid
+                    checkpoints += 1
             elif isinstance(target, (ast.Tuple, ast.List)):
-                value = known(source)
-                if len(value.refs) != 1:
-                    raise ConfigurationError("Native unpack requires one bounded sequence shape")
-                objid = next(iter(value.refs))
-                obj = direct(objid, 0)
-                if obj.metadata.lookup("length") != len(target.elts):
-                    exceptions.add("ValueError")
-                    return
-                for index, item in enumerate(target.elts):
-                    component = temp()
-                    kernel.add_edge(("field", objid, index), component)
-                    assign(item, component)
+                plan = materialize(target, source)
+                for child in plan.writes:
+                    assign(child.target, child.source)
             else:
                 raise ConfigurationError("Unsupported Native assignment target")
 
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            if node.value is not None:
-                compiled_value = compile_expression(node.value)
-                for target in node.targets if isinstance(node, ast.Assign) else (node.target,):
-                    assign(target, compiled_value)
-        elif isinstance(node, ast.AugAssign):
-            a = compile_expression(node.target)
-            b = compile_expression(node.value)
-            compiled_value = temp()
+        try:
+            if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                if node.value is not None:
+                    compiled = compile_expression(node.value)
+                    targets = node.targets if isinstance(node, ast.Assign) else (node.target,)
+                    for target in targets:
+                        assign(target, compiled)
+            elif isinstance(node, ast.AugAssign):
+                left = compile_expression(node.target)
+                right = compile_expression(node.value)
+                result_node = temp()
+                errors: set[str] = set()
 
-            def augmented_rule(*values: Value) -> tuple[Value, Iterable[str]]:
-                if len(values) != 2:
-                    raise TypeError("Augmented arithmetic rule requires two values")
-                return ops.scalar_binary(node.op, values[0], values[1])
+                def augmented(*values: Value) -> tuple[Value, Iterable[str]]:
+                    if len(values) != 2:
+                        raise TypeError("Augmented inclusion rule requires two values")
+                    a, b = values
+                    if a.refs or b.refs or a.top or b.top:
+                        raise ConfigurationError("Native region cannot bypass augmented operators")
+                    result, failed = ops.scalar_binary(node.op, a, b)
+                    errors.update(failed)
+                    return result, failed
 
-            kernel.add_operation((a, b), compiled_value, augmented_rule)
-            assign(node.target, compiled_value)
-        elif isinstance(node, (ast.Expr, ast.Return)):
-            result_node = compile_expression(node.value) if node.value is not None else temp()
-            if node.value is None:
-                kernel.add_fact(result_node, Value.constant(None))
-            if isinstance(node, ast.Return):
-                completion = "return"
-        elif isinstance(node, ast.Raise):
-            raise ConfigurationError(
-                "Native region raise requires completion-aware Python exception planning"
-            )
-        settle()
-        for objid, obj in allocations.items():
-            for key in obj.fields:
-                obj.fields[key] = kernel.value(("field", objid, key))
-            boundary.heap[objid] = obj
-        for cell, output_node in cell_outputs.items():
-            boundary.cells[cell] = kernel.value(output_node).without_unbound()
-            boundary.record_write(CellWrite(cell))
-            driver.publish_oracle_cell(cell, boundary.cells[cell], "native_region_output")
-        for ref, key, source, one_target in field_writes:
-            obj = boundary.heap[ref]
-            value = kernel.value(source)
-            # Strong updates require the explicit boundary cardinality proof.
-            if obj.singleton and one_target:
-                obj.fields[key] = value
-            else:
-                obj.fields[key] = ops.join(obj.fields.get(key, obj.default), value)
-            obj.maybe_missing.discard(key)
-            boundary.record_write(HeapWrite(ref, key))
-            driver.publish_oracle_field(ref, key, obj.fields[key], "native_region_output")
-        boundary.completion = completion
-        boundary.value = (
-            kernel.value(result_node) if result_node is not None else Value.constant(None)
-        )
+                kernel.add_operation((left, right), result_node, augmented)
+                failures(errors, normal=not known(result_node).is_bottom())
+                assign(node.target, result_node)
+                result_node = None
+            elif isinstance(node, (ast.Expr, ast.Return)):
+                if node.value is None:
+                    result_node = temp()
+                    kernel.add_fact(result_node, Value.constant(None), "implicit_none")
+                else:
+                    result_node = compile_expression(node.value)
+                if isinstance(node, ast.Return):
+                    completion = "return"
+            settle()
+        except _NoNormalPath:
+            normal_possible = False
+
         for ref, key in loads:
             driver.reads.add((ref, str(key), driver.point(node)))
-        for cell in cell_outputs:
+        for cell in written_cells:
             driver.writes.add((frame.qualname, cell, driver.point(node)))
-        for ref, key, _, _ in field_writes:
+        for ref, key in written_fields:
             driver.writes.add((ref, str(key), driver.point(node)))
         self.runs += 1
         self.work += kernel.work
@@ -578,25 +673,15 @@ class NativeRegionEngine:
             "work": kernel.work,
             "input_cells": len(flow.store.cells),
             "input_heap_objects": len(flow.store.heap),
+            "ordered_checkpoints": checkpoints,
+            "cell_versions": len(cell_versions),
+            "field_versions": len(field_versions),
         }
         self.trace.append(trace)
         driver.phase_trace.append(trace)
         driver.increment_stat("native_region_runs")
-        output = []
-        if (
-            normal_possible
-            and not (result_node is not None and boundary.value.is_bottom())
-            and all(not boundary.cells[cell].is_bottom() for cell in cell_outputs)
-            and all(not kernel.value(source).is_bottom() for _, _, source, _ in field_writes)
-        ):
-            output.append(self.adapter.decode(boundary))
-        for name in exceptions | kernel.errors:
-            if name.startswith(("unknown_", "resource_")):
-                raise ConfigurationError("Native region scalar operation has an open protocol")
-            exceptional = self.adapter.encode(flow)
-            exceptional.completion = "raise"
-            exceptional.value = Value.constant(name)
-            exceptional.exception = name
-            output.append(self.adapter.decode(exceptional))
-            driver.exceptions.add(name)
-        return output
+        if normal_possible:
+            boundary.completion = completion
+            boundary.value = known(result_node) if result_node is not None else Value.constant(None)
+            raised.append(self.adapter.decode(boundary))
+        return raised

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "base_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "status": "STATE correctness slice authored, held, awaiting independent/root integration; STATE01/02 cards not closed",
+  "lost_source_notice": "Previous unpublished W3 files and raw logs were not restored. This is fresh implementation and fresh evidence, not revalidation of lost prior test counts.",
+  "own_write_scope": [
+    "pythonstan/analysis/state/aliases.py",
+    "pythonstan/analysis/state/store.py",
+    "pythonstan/analysis/state/transform.py",
+    "pythonstan/analysis/state/handles.py",
+    "pythonstan/analysis/composition/oracle.py",
+    "tests/regression/audit3/test_state_rebuild_identity_aliases.py",
+    "tests/regression/audit3/test_state_rebuild_reentry.py"
+  ],
+  "shared_slices": {
+    "driver.py": [
+      "reabstract_addresses canonical namespaces and late map validation",
+      "coarsen_flows namespace adapter",
+      "compact same fullFlow alias check",
+      "_outcomes_equal fullFlow alias check when tails present"
+    ],
+    "continuations.py": [
+      "block suspended-tail-once",
+      "_resume_primary guardedObjectHandle postcallback and boundedsequencecallback PC"
+    ],
+    "transfer.py": [
+      "install_exception_context Value normalization (SEM lease granted)"
+    ]
+  },
+  "tests": {
+    "initial_authored_8_baseline": {
+      "failed": 7,
+      "passed": 1,
+      "raw": "artifacts/next/evidence/STATE-rebuild-20261113/identity-baseline.txt"
+    },
+    "identity_author_current": {
+      "passed": 10,
+      "note": "Cross-input owner preanchor positive was added after repair; no pre-fix red claim for that case."
+    },
+    "old_graph_heap_and_identity_selection": {
+      "passed": 57
+    },
+    "old_continuation_epoch_graph_and_identity_selection": {
+      "passed": 101
+    },
+    "handle_and_suspension_tail": {
+      "passed": 2
+    },
+    "controlled_baseline_block_only": {
+      "failed": 1,
+      "note": "Only block method loaded from baseline8cc into current runtime; this is a method-level old/new witness, not whole-HEAD baseline comparison.",
+      "raw": "artifacts/next/evidence/STATE-rebuild-20261113/tail-baseline-method.txt"
+    },
+    "root_coalescing_runtime_counterexample": {
+      "observed_before_fix": {
+        "joined_havoc": false,
+        "entry_is_result": true,
+        "left_below_join": false,
+        "right_below_join": false
+      },
+      "after": "Join-only ambiguity mask; both inputs below join, postwrite input isolation and actual havoc-generator consumer takesTop+raise residual beforeframeaccess.",
+      "baseline_scope": "Manual current pre-fix executable probe; not a whole8cc baseline or independentpytest-red claim."
+    }
+  },
+  "quality": {
+    "ruff_owned": 0,
+    "strong_disallow_any_expr_owned": 0,
+    "strong_paths": [
+      "pythonstan/analysis/state/aliases.py",
+      "pythonstan/analysis/state/store.py",
+      "pythonstan/analysis/state/transform.py",
+      "pythonstan/analysis/state/handles.py",
+      "pythonstan/analysis/composition/oracle.py"
+    ],
+    "import_graph_legacy_or_parallel_diagnostics": 2311,
+    "whole_tree_clean": false,
+    "raw": "artifacts/next/evidence/STATE-rebuild-20261113/identity-root-coalescing-strong.jsonl",
+    "latest_strong_run_status": "five-modulecheckedroot-coalescingown4zero/Oracleimplicitexport1; onlyOraclechangedafterthatandtargetedOracleResourceStopimportrecheckownzero",
+    "followup_raw": "artifacts/next/evidence/STATE-rebuild-20261113/oracle-resource-stop-strong.jsonl"
+  },
+  "remaining": [
+    "Independent full alias/canonical graph review, additional prepare-failure cuts and full shared-module strong check",
+    "Budget structural callbacks and real postjoin address/trace capacities; no quota changes",
+    "STATE01 correlated resume selection/retention and deep fixed10000work/8second profiles remain unclosed",
+    "No claim of atomic whole-host cell-only low-level IdentityArena publication API",
+    "No core/release/live/soundness qualification",
+    "Fresh read-only actualStore.apply cross-owner metadata alias splitting found: per-footprint detached_payload freshmemos; fullSTATE02 remainsunclosed until effecttransport sharedmemo fixed. This is anexistingW2 bug outsidefirstslice."
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/state/aliases.py": "6fa6e85b44e4eeb19d2eccfa236b6ec15c3922980aa8f833a107335d1215a4b1",
+    "pythonstan/analysis/state/store.py": "1fbfdb76889cc1a71eb854207eb978c406fb93034984710158dde9d7c39aff94",
+    "pythonstan/analysis/state/transform.py": "d9eb01c29053f512d824ebc3532c80fe9f6499bb2e7030bdf2e0a865926ed2d7",
+    "pythonstan/analysis/state/handles.py": "9b31959fe922ef650eca84de3c5cdb80113146262e30f7b963e946bbaae0e98e",
+    "pythonstan/analysis/composition/oracle.py": "178952edb45f644c7dd2570f55a9c45f5191ce716f7b882ad5400c86e2331abc",
+    "tests/regression/audit3/test_state_rebuild_identity_aliases.py": "5f2e37b5fccaff3969fa4db6b005fdf91ad47f25619dec6800ded1861aa13176",
+    "tests/regression/audit3/test_state_rebuild_reentry.py": "b0186c917294a6024afdd1ef8118b71fe856934f9d61b205c204ba6ef8f9172a"
+  },
+  "alias_mask_contract": "A havoc mask covers alias disagreements; it need not list every endpoint. The unmasked induced topology must remaincompatible; operational consumers musttakehavoc residuals. Independent225 partition joins coverbothinputs.",
+  "publication_slice_limit": "Rootmaypublishinitialaliases/store/transform/handles/oracle+drivergraphslicewithoutsharedcontinuations/Transfer; reentryandtailclaimsapplyonlytostill-unpublishedconsumeruntilSEMcheckpoint. CardSTATE02notclosed; Store.applyknownexistinggap."
+}

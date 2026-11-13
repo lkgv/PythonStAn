@@ -6,12 +6,15 @@ import ast
 import fnmatch
 import hashlib
 import io
+import os
 import tokenize
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
+from pythonstan.analysis.contracts.cost_model import visit_json_text
 from pythonstan.analysis.contracts.identity import EntryScenario, SourceModule, stable_digest
 from pythonstan.analysis.contracts.json_data import (
     FrozenJsonObject,
@@ -28,6 +31,9 @@ from pythonstan.frontend.private_names import mangle
 
 from .reuse import input_resolution_contract
 from .targets import File, Project, Source, Target
+
+if TYPE_CHECKING:
+    from pythonstan.analysis.contracts.resources import RunLedger
 
 type ParsedTreeCache = Mapping[str, tuple[str, ast.Module]]
 type MutableParsedTreeCache = MutableMapping[str, tuple[str, ast.Module]]
@@ -125,12 +131,31 @@ def _read(
     is_package: bool,
     roots_digest: str,
     parsed_trees: MutableParsedTreeCache | None = None,
+    *,
+    resource_ledger: RunLedger | None = None,
 ) -> SourceModule:
     try:
-        raw = path.read_bytes()
+        if resource_ledger is None:
+            raw = path.read_bytes()
+        else:
+            resource_ledger.charge_work(1, "source_snapshot")
+            chunks: list[bytes] = []
+            with path.open("rb") as stream:
+                while True:
+                    resource_ledger.charge_work(1, "source_snapshot")
+                    chunk = stream.read(1024)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+            raw = b"".join(chunks)
+            resource_ledger.checkpoint(force=True)
         encoding, _ = tokenize.detect_encoding(io.BytesIO(raw).readline)
         source = raw.decode(encoding)
+        if resource_ledger is not None:
+            resource_ledger.charge_work(1, "source_parse")
         tree = ast.parse(source, filename=str(path), type_comments=True, feature_version=(3, 12))
+        if resource_ledger is not None:
+            resource_ledger.checkpoint(force=True)
         result = SourceModule(
             module,
             str(path),
@@ -159,26 +184,56 @@ def _module_name(path: Path, root: Path) -> str:
     return ".".join(parts) if parts else root.name
 
 
-def _imports(module: SourceModule) -> set[str]:
+def _syntax_tree(
+    module: SourceModule,
+    parsed_trees: ParsedTreeCache | None,
+    resource_ledger: RunLedger | None,
+) -> ast.Module:
+    cached = None if parsed_trees is None else parsed_trees.get(module.module)
+    if cached is not None and cached[0] == module.digest:
+        return cached[1]
+    if resource_ledger is not None:
+        visit_json_text(
+            module.source, lambda amount: resource_ledger.charge_work(amount, "source_parse")
+        )
     tree = ast.parse(module.source)
+    if resource_ledger is not None:
+        resource_ledger.checkpoint(force=True)
+    return tree
+
+
+def _imports(
+    module: SourceModule,
+    *,
+    parsed_trees: ParsedTreeCache | None = None,
+    resource_ledger: RunLedger | None = None,
+) -> set[str]:
+    tree = _syntax_tree(module, parsed_trees, resource_ledger)
     package = module.module if module.is_package else module.module.rpartition(".")[0]
     result: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            result.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                parts = package.split(".") if package else []
-                trim = node.level - 1
-                base = ".".join(parts[: len(parts) - trim] if trim else parts)
-                name = ".".join(x for x in (base, node.module) if x)
-            else:
-                name = node.module or ""
-            if name:
-                result.add(name)
-            for alias in node.names:
-                if alias.name != "*":
-                    result.add(".".join(x for x in (name, alias.name) if x))
+    meter = None if resource_ledger is None else resource_ledger.structural_meter("source_imports")
+    try:
+        for node in ast.walk(tree):
+            if meter is not None:
+                meter.visit()
+            if isinstance(node, ast.Import):
+                result.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:
+                    parts = package.split(".") if package else []
+                    trim = node.level - 1
+                    base = ".".join(parts[: len(parts) - trim] if trim else parts)
+                    name = ".".join(x for x in (base, node.module) if x)
+                else:
+                    name = node.module or ""
+                if name:
+                    result.add(name)
+                for alias in node.names:
+                    if alias.name != "*":
+                        result.add(".".join(x for x in (name, alias.name) if x))
+    finally:
+        if meter is not None:
+            meter.close()
     return result
 
 
@@ -187,11 +242,15 @@ def _add_dependencies(
     roots: Sequence[Path],
     roots_digest: str,
     parsed_trees: MutableParsedTreeCache | None = None,
+    *,
+    resource_ledger: RunLedger | None = None,
 ) -> None:
     pending = list(modules.values())
     while pending:
         module = pending.pop()
-        for name in sorted(_imports(module)):
+        for name in sorted(
+            _imports(module, parsed_trees=parsed_trees, resource_ledger=resource_ledger)
+        ):
             pieces = name.split(".")
             for size in range(1, len(pieces) + 1):
                 candidate = ".".join(pieces[:size])
@@ -204,8 +263,17 @@ def _add_dependencies(
                         (stem / "__init__.py", True),
                         (stem.with_suffix(".py"), False),
                     ):
+                        if resource_ledger is not None:
+                            resource_ledger.charge_work(1, "source_resolution")
                         if path.is_file():
-                            found = _read(path, candidate, package, roots_digest, parsed_trees)
+                            found = _read(
+                                path,
+                                candidate,
+                                package,
+                                roots_digest,
+                                parsed_trees,
+                                resource_ledger=resource_ledger,
+                            )
                             break
                     if found:
                         break
@@ -214,23 +282,37 @@ def _add_dependencies(
                     pending.append(found)
 
 
-def _entry(module: SourceModule, qualname: str | None) -> EntryScenario:
+def _entry(
+    module: SourceModule,
+    qualname: str | None,
+    *,
+    parsed_trees: ParsedTreeCache | None = None,
+    resource_ledger: RunLedger | None = None,
+) -> EntryScenario:
     if qualname is None:
         return EntryScenario(module.module)
     parts = qualname.split(".")
-    nodes: list[ast.stmt] = ast.parse(module.source).body
+    nodes: list[ast.stmt] = _syntax_tree(module, parsed_trees, resource_ledger).body
     found: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | None = None
     private: str | None = None
     for part in parts:
-        found = next(
-            (
-                n
-                for n in nodes
-                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-                and n.name == part
-            ),
-            None,
+        meter = (
+            None if resource_ledger is None else resource_ledger.structural_meter("source_entry")
         )
+        try:
+            found = None
+            for node in nodes:
+                if meter is not None:
+                    meter.visit()
+                if (
+                    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                    and node.name == part
+                ):
+                    found = node
+                    break
+        finally:
+            if meter is not None:
+                meter.close()
         if found is None:
             raise InputError(f"Unresolved entry: {module.module}:{qualname}")
         if isinstance(found, ast.ClassDef):
@@ -258,9 +340,36 @@ def _entry(module: SourceModule, qualname: str | None) -> EntryScenario:
     )
 
 
+def _project_paths(root: Path, resource_ledger: RunLedger | None) -> list[Path]:
+    if resource_ledger is None:
+        return sorted(root.rglob("*.py"))
+    paths: list[Path] = []
+    pending = [root]
+    while pending:
+        directory = pending.pop()
+        resource_ledger.charge_work(1, "source_inventory")
+        try:
+            with os.scandir(directory) as entries:
+                while True:
+                    resource_ledger.charge_work(1, "source_inventory")
+                    entry = next(entries, None)
+                    if entry is None:
+                        break
+                    path = Path(entry.path)
+                    if fnmatch.fnmatchcase(entry.name, "*.py"):
+                        paths.append(path)
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(path)
+        except OSError as error:
+            raise InputError(f"{directory}: {error}") from error
+    return sorted(paths)
+
+
 def snapshot_target(
     target: Target,
     config: EffectiveConfig | Mapping[str, JsonValue],
+    *,
+    resource_ledger: RunLedger | None = None,
 ) -> SourceSnapshot:
     if not isinstance(target, (Source, File, Project)):
         raise TypeError("target must be Source, File, or Project")
@@ -276,6 +385,10 @@ def snapshot_target(
     entries: tuple[str, ...]
     target_record: JsonObject
     if isinstance(target, Source):
+        if resource_ledger is not None:
+            visit_json_text(
+                target.code, lambda amount: resource_ledger.charge_work(amount, "source_snapshot")
+            )
         roots = [Path(p).expanduser().resolve() for p in target.import_roots]
         if target.project_root is not None:
             roots.append(Path(target.project_root).expanduser().resolve())
@@ -288,6 +401,8 @@ def snapshot_target(
             )
         except SyntaxError as exc:
             raise InputError(str(exc)) from exc
+        if resource_ledger is not None:
+            resource_ledger.checkpoint(force=True)
         roots_digest = stable_digest([str(p) for p in roots])
         modules[target.module] = SourceModule(
             target.module,
@@ -298,7 +413,9 @@ def snapshot_target(
         )
         parsed_trees[target.module] = (modules[target.module].digest, tree)
         main = target.module
-        _add_dependencies(modules, roots, roots_digest, parsed_trees)
+        _add_dependencies(
+            modules, roots, roots_digest, parsed_trees, resource_ledger=resource_ledger
+        )
         target_record = {"kind": "source", "filename": target.filename, "module": main}
         entries = options.entries
     elif isinstance(target, File):
@@ -319,8 +436,17 @@ def snapshot_target(
         )
         roots_digest = stable_digest([str(p) for p in roots])
         main = target.module or _module_name(path, root)
-        modules[main] = _read(path, main, path.name == "__init__.py", roots_digest, parsed_trees)
-        _add_dependencies(modules, roots, roots_digest, parsed_trees)
+        modules[main] = _read(
+            path,
+            main,
+            path.name == "__init__.py",
+            roots_digest,
+            parsed_trees,
+            resource_ledger=resource_ledger,
+        )
+        _add_dependencies(
+            modules, roots, roots_digest, parsed_trees, resource_ledger=resource_ledger
+        )
         target_record = {
             "kind": "file",
             "path": str(path),
@@ -351,7 +477,7 @@ def snapshot_target(
         for source_root in roots:
             if not source_root.is_dir():
                 raise InputError(f"Source root not found: {source_root}")
-            for path in sorted(source_root.rglob("*.py")):
+            for path in _project_paths(source_root, resource_ledger):
                 rel = path.relative_to(source_root)
                 if any(ex in rel.parts or fnmatch.fnmatch(str(rel), ex) for ex in exclusions):
                     continue
@@ -361,7 +487,12 @@ def snapshot_target(
                         f"Duplicate module identity {name}: {modules[name].filename}, {path}"
                     )
                 modules[name] = _read(
-                    path, name, path.name == "__init__.py", roots_digest, parsed_trees
+                    path,
+                    name,
+                    path.name == "__init__.py",
+                    roots_digest,
+                    parsed_trees,
+                    resource_ledger=resource_ledger,
                 )
         if not modules:
             raise InputError("no_entry: project has no analyzable Python modules")
@@ -380,7 +511,14 @@ def snapshot_target(
             name, qualname = entry.split(":", 1)
             if name not in modules:
                 raise InputError(f"Entry module absent from inventory: {name}")
-            scenarios.append(_entry(modules[name], qualname or None))
+            scenarios.append(
+                _entry(
+                    modules[name],
+                    qualname or None,
+                    parsed_trees=parsed_trees,
+                    resource_ledger=resource_ledger,
+                )
+            )
     else:
         scenarios = [
             EntryScenario(name) for name in sorted(modules) if main is None or name == main

@@ -106,6 +106,20 @@ def test_nonfinite_factory_constants_produce_covering_float_top(number: float) -
     assert "float" in decode_value(wire).top_sorts
 
 
+def test_factory_does_not_merge_signed_zero_members_silently() -> None:
+    wire = require_object(thaw_snapshot(value_snapshot(constants=(-0.0, 0.0))))
+    assert wire["constants"] == []
+    assert "float" in decode_value(wire).top_sorts
+
+
+@pytest.mark.parametrize("value,bottom", [(Value.constant(1), True), (Value.bottom(), False)])
+def test_complete_union_rejects_a_contradictory_bottom_marker(value: Value, bottom: bool) -> None:
+    wire = value.export()
+    wire["bottom"] = bottom
+    with pytest.raises(ValueError, match="Bottom marker"):
+        decode_value(wire)
+
+
 @pytest.mark.parametrize("field", ["items", "slots"])
 def test_future_schema_is_rejected_even_when_nested(field: str) -> None:
     nested = {"wire_kind": "abstract_value", "value_schema_version": 2}
@@ -119,32 +133,40 @@ def test_unknown_extension_cannot_be_silently_discarded_as_closed() -> None:
     wire = Value.constant(1).export()
     wire["future_union_facet"] = {"possible": "additional values"}
     restored = restore_value(wire)
-    assert not restored.complete and restored.value.top
-    assert restored.value.ints.may_contain(1)
+    assert not restored.complete and restored.retained_value.top
+    assert restored.retained_value.ints.may_contain(1)
+    with pytest.raises(ValueError, match="Incomplete"):
+        _ = restored.value
 
 
 def test_projected_value_decodes_with_a_covering_residual() -> None:
     wire = Value.constant("known").export()
     wire["projection"] = {"complete": False, "omitted_fields": ["integer_interval"]}
     restored = restore_value(wire)
-    assert not restored.complete and restored.value.top
-    assert _string_member(restored.value.strings, "known")
+    assert not restored.complete and restored.retained_value.top
+    assert _string_member(restored.retained_value.strings, "known")
+    with pytest.raises(ValueError, match="Incomplete"):
+        decode_value(wire)
 
 
 def test_legacy_reference_is_explicitly_not_a_heap_fact() -> None:
     restored = restore_value({"objects": ["object:one"], "types": ["list"], "top": False})
-    assert restored.value.refs == {"object:one"}
+    assert restored.retained_value.refs == {"object:one"}
     assert not restored.complete
     assert restored.reference_info["identity"] == "may_alias"
     assert restored.reference_info["facts"] == {}
+    with pytest.raises(ValueError, match="Incomplete"):
+        restored.require_value()
 
 
-def test_relation_handler_identity_survives_a_different_display_name() -> None:
+@pytest.mark.parametrize("display", [None, "runtime:17", "pretty.function"])
+def test_relation_handler_identity_survives_display_choices(display: str | None) -> None:
     token = PartitionToken(
-        ProgramPointId("site"), "str", "'key'", ObjectId("runtime:17"), True, "pretty.function"
+        ProgramPointId("site"), "str", "'key'", ObjectId("runtime:17"), True, display
     )
     wire = Value(relations=frozenset({token}), top=True).export()
     row = require_object(wire["relations"][0])
-    assert row["handler"] == "pretty.function"
+    assert row["handler"] == ("runtime:17" if display is None else display)
+    assert row["display_name"] == display
     assert row["handler_id"] == "runtime:17"
     assert decode_value(wire).relations == {token}

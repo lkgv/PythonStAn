@@ -414,8 +414,10 @@ class RunLedger:
             scope=lambda: (get_ident(), tuple(scope.identity for scope in self._work_scopes)),
         )
 
-    def charge_json(self, value: JsonValue, category: str) -> None:
-        with self.structural_meter(category) as meter:
+    def charge_json(
+        self, value: JsonValue, category: str, *, charge: Callable[[int], None] | None = None
+    ) -> None:
+        with self.structural_meter(category, charge=charge) as meter:
 
             def visit(node: JsonValue) -> None:
                 if isinstance(node, str):

@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "active_incremental_rebuild_after_restore_loss",
+  "canonical_workspace": "/workspace/scratch/8d3426210943/PythonStAn-resume",
+  "preserve_older_dirty_workspace": "/workspace/scratch/8d3426210943/PythonStAn",
+  "published_remote_head": "cf1e4688c2a10cd85e955d82ca24a104c817112a",
+  "first_rebuilt_source_commit": "a1e5ed4c041b5aea1dc7efcdbd073eced8d72937",
+  "publication_policy": "Important tested/coherent component nodes immediately; while execution available no interval over60minutes. Ignored artifacts/next/PUBLICATION_CLOCK.json target45minutes. All GitHub writes via connector expected-SHA nonforce/exact local-tree check. No native push.",
+  "recovery_fact": "Restored workspace31d lacked all prior unpushed W3source/evidence. Prior historical115/336/27 passes are not current qualifications. Exact previous3generatorfixture sources remain lost/open. Rebuilt frozenW2 semantic52+6 and Native/domain36 preserved.",
+  "published_scope": [
+    "Pure logical-work-v1 meter/text helper;20freshcontrols strictown0.",
+    "Corrected versioned valuecodec +standalonework/deadline/memory/grants core, isolated129author/original+25independent checks pass; bytescontrolalso passes. Runtime/API/terminal/STATE/SEMcode not in cf1e468."
+  ],
+  "model_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
+  "local_history_note": "Local70a839f same tree asremotea1e5; local497534e same tree asremotecf1e. Preserved localcheckpoint refs. HEAD branchresume-w3-20261113 safely retargeted only after exact tree/index proof, leavingall dirty work intact.",
+  "baseline_worktree": "../PythonStAn-w3-rebuild-baseline at8ccff58",
+  "isolated_component_worktree": "../PythonStAn-checkpoint-wire-core at497534e",
+  "active_owners": {
+    "root": [
+      "integration/publication/quality/taskboard",
+      "inputs/snapshot.py optionalRunLedger pre-I/O/parser/inventory ports+test_rebuilt_source_admission.py (14passed;strongpending)",
+      "contracts/cost_model.py held/published"
+    ],
+    "w3_state_rebuild": [
+      "state/aliases,store,transform,handles",
+      "driver graph/reabstract/compact/outcome comparison slices",
+      "composition/oracle namespace/atomicity",
+      "continuations block/resume/delegate; notSEMiteratorhelpers"
+    ],
+    "w3_sem_rebuild": [
+      "Transfer",
+      "semantics/iteration.py,containers.py",
+      "continuationsiterator/collect/for_loop/hint/PCmethods"
+    ],
+    "w3_budget_rebuild": [
+      "contracts/resources.py/work.py nowreleasedaftercapture",
+      "NEWresource_api.py financialgrants",
+      "Session/preparation/frontendSource/CLI/provider/strategy/DSL",
+      "driver resourceports only"
+    ],
+    "w3_result_rebuild": [
+      "contracts/value_wire.py,domains/value_wire.py,wiresnapshot paidvisitors",
+      "values.exportONLY/relations handler_id",
+      "results/projection.py/result.py paidprojection/ownership/terminal"
+    ],
+    "w3_pta_rebuild": [
+      "region_engine.py orderedprefix+AnnAssignguard HELD",
+      "NEWdelegatedcompat/legacy_runner.py/native_worker.py actualsharedledger supervisor/protocol"
+    ],
+    "w3_rebuild_review": [
+      "independent50testfile+prereg/receipts",
+      "wire7/core18 qualified; graph17+SEM7 beingbound; no production"
+    ]
+  },
+  "current_remaining": [
+    "STATEinitialgraph+namespace nowcandidate; criticalopposite-root join fixedafternewcounterexample. SharedStore.apply component graphmemo bugnewlyfound—STATE02 NOTclosed.",
+    "SEM17author+original188+frozen27green butnewindepdictpair/fullkeyexhaust2cases stillfail, ownerfixing.",
+    "PTA01Native15green/original17=15pass2PTA02 red, finiteAnnAssignguard: module/classreject/functionlocalallowed. ActualsharedNativebudgetport nowPTAownerinprogress; Budgetwaiting.",
+    "RESULTprojection/issuerreceipt/terminal/privateadoption rebuilding; transient workingtree API NameErrorknown, notpublished.",
+    "FinancialAPIgrants/SDKCPU/modelbilling ports beingrebuilt, no livekeys/pricesqualification.",
+    "SourceIO Rootoptionalledger14controls passes; actualprepare/frontendwiringBudgetowned.",
+    "Allcomponentreceipts bounded; no fullW3card acceptance/release/soundness/live claim."
+  ],
+  "next_steps": [
+    "PublishSTATEcoherentgraph+sourceIO/PTA/SEMnodes after fresh componentguards—donotwaitallglobalgateswhile1hbackupconstraint.",
+    "Before sourcecapture coordinate shareddriver/continuations/wire slices. Freeze/capture exact selected files, testIMMUTABLEcandidate in separate worktree so uncommittedother features cannot supply hidden dependencies.",
+    "Do not publish knownnew codec/graph bugs untilnarrowfix+newindependentwitness; preserveoldredrecords.",
+    "Run sameversionfullquality andoriginalstage/ALLcontrols/mandatory36/semantic58 after runtimeintegration; no gold/cap/debt resets."
+  ],
+  "real_model_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "authored_held_awaiting_independent_and_root_integration",
+  "lease": "Root delegated Native supervisor budget/protocol only; PTA01 region source remains separately held.",
+  "behavior": [
+    "run_legacy(...,ledger=None) retains the existing unshared implementation and its original7 contracts.",
+    "Actual shared-ledger path prepays setup JSON, reserves supervisor wire and finite child quota before dispatch, and uses the same absolute deadline.",
+    "Output is disk-spooled; each frame base and startedKiB are admitted before reads; malformed/oversized data stops without unfunded reads.",
+    "Registered cumulative child work is observed monotonically; duplicate progress is idempotent. Successful terminal+exit0+matching model settles exact known usage.",
+    "Timeout/missing/nonmonotone/overreported/error/model mismatch/after-terminal protocols retain unknown held child capacity, preserve completed validated prefix, and latch stop.",
+    "Known complete work is settled even when RSS evidence fails the request; missing RSS under a configured cap fails open with known work retained.",
+    "Bidirectional cost-model identity and outer child peak RSS do not alter semantic result records.",
+    "Cancellation/OOM/process errors return bounded typed partial/controller records without raw stderr or worker traceback text."
+  ],
+  "tests": {
+    "fresh_shared_fault_controls": 27,
+    "original_unshared_contracts": 7,
+    "original_actual_worker_contracts": 17,
+    "combined_passed": 51,
+    "combined_failed": 0,
+    "log": "artifacts/next/evidence/PTA01-rebuild-20261113/shared-plus-legacy-final.txt",
+    "real_child_probe": {
+      "source": "result=17",
+      "solver_status": "converged",
+      "coverage_status": "open",
+      "cost_model": "logical-work-v1",
+      "model_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
+      "native_setup_raw_visits": 459,
+      "native_setup_ticks": 58,
+      "native_wire_ticks": 7,
+      "native_worker_ticks": 72,
+      "used": 137,
+      "reserved": 0,
+      "scope": "Direct actual run_legacy shared component under fresh ledger; not a complete AnalysisSession final-export measurement."
+    }
+  },
+  "quality": {
+    "ruff": 0,
+    "owned_strong_diagnostics": 0,
+    "historical_or_parallel_import_graph_diagnostics": 2311,
+    "log": "artifacts/next/evidence/PTA01-rebuild-20261113/native-supervisor-strong-held.jsonl",
+    "whole_tree_clean": false
+  },
+  "limitations": [
+    "Memory enforcement is sampled combined RSS. Per-child RLIMIT_AS is distinct from aggregate OS enforcement.",
+    "Post-timeout inspection consumes only pre-reserved bounded supervisor cleanup capacity; no hard zero-overrun physical wall claim.",
+    "Output spool disk usage is not a newly introduced OS hard disk quota.",
+    "Standalone no-ledger behavior is preserved for compatibility; actual Session must pass its existing request ledger, never silently fall back.",
+    "Finite trusted process protocol validation is not a security sandbox for arbitrary hostile Python mutation of internal objects.",
+    "Root global gates, exact source binding and independent review remain required."
+  ],
+  "source_sha256": {
+    "pythonstan/compat/legacy_runner.py": "eb341fb14a11bd8652989732d4b1dc704528dd151a48ddaaad13846bceb7495f",
+    "pythonstan/compat/native_worker.py": "8c7720f6325c9621497b0d58f92911b7205d0612da29acbc0a7a21d546c831e2",
+    "tests/regression/audit3/test_native_supervisor_rebuild.py": "82d908a6f6bedb6688eedce6e9b2c94ecc3f817f13c8c92e797727842a921259"
+  },
+  "real_api_requests": 0,
+  "real_credential_reads": 0,
+  "gold_or_debt_changed": false,
+  "budgets_raised": false
+}

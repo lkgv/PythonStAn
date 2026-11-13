@@ -307,7 +307,7 @@ def test_existing_frozen_bytes_boundary_is_not_narrowed_to_an_opaque_reference()
 
 
 def test_wire_projection_preserves_possible_unbound_even_when_both_labels_are_omitted() -> None:
-    from pythonstan.analysis.domains.value_wire import restore_value
+    from pythonstan.analysis.domains.value_wire import decode_value, restore_value
 
     original = replace(Value.constant(1), unbound=True)
     document = original.export()
@@ -319,8 +319,12 @@ def test_wire_projection_preserves_possible_unbound_even_when_both_labels_are_om
     }
     restored = restore_value(document)
     assert not restored.complete
-    assert restored.value.unbound
-    assert ValueOperations().leq(original, restored.value)
+    assert restored.retained_value.unbound
+    assert ValueOperations().leq(original, restored.retained_value)
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        _ = restored.value
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        decode_value(document)
 
 
 def test_wire_dual_constant_contradiction_is_rejected_or_explicitly_covering() -> None:
@@ -333,8 +337,10 @@ def test_wire_dual_constant_contradiction_is_rejected_or_explicitly_covering() -
     except (TypeError, ValueError):
         return
     assert not restored.complete
-    assert ValueOperations().leq(Value.constant(1), restored.value)
-    assert ValueOperations().leq(Value.constant(2), restored.value)
+    assert ValueOperations().leq(Value.constant(1), restored.retained_value)
+    assert ValueOperations().leq(Value.constant(2), restored.retained_value)
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        restored.require_value()
 
 
 def test_wire_missing_top_facet_is_not_claimed_complete() -> None:
@@ -347,7 +353,53 @@ def test_wire_missing_top_facet_is_not_claimed_complete() -> None:
     except (TypeError, ValueError):
         return
     assert not restored.complete
-    assert ValueOperations().leq(Value.unknown(), restored.value)
+    assert ValueOperations().leq(Value.unknown(), restored.retained_value)
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        restored.require_value()
+
+
+@pytest.mark.parametrize("has_constant", [False, True])
+def test_complete_wire_bottom_marker_must_match_its_actual_union(has_constant: bool) -> None:
+    from pythonstan.analysis.domains.value_wire import decode_value, restore_value
+
+    original = Value.constant(1) if has_constant else Value()
+    document = original.export()
+    document["bottom"] = not original.is_bottom()
+    with pytest.raises(ValueError, match="[Bb]ottom"):
+        restore_value(document)
+    with pytest.raises(ValueError, match="[Bb]ottom"):
+        decode_value(document)
+
+
+@pytest.mark.parametrize("omitted", ["objects", "relations"])
+def test_partial_reference_or_relation_fragment_cannot_be_consumed_as_a_whole_value(
+    omitted: str,
+) -> None:
+    from pythonstan.analysis.contracts.identity import ProgramPointId
+    from pythonstan.analysis.domains.relations import PartitionToken
+    from pythonstan.analysis.domains.value_wire import decode_value, restore_value
+
+    original = Value(
+        ints=Value.constant(17).ints,
+        refs=frozenset({ObjectId("A")}),
+        relations=frozenset(
+            {PartitionToken(ProgramPointId("call"), "str", "key", ObjectId("handler"))}
+        ),
+    )
+    document = original.export()
+    document.pop(omitted)
+    document["projection"] = {"complete": False, "omitted_fields": [omitted]}
+    restored = restore_value(document)
+    assert not restored.complete and restored.losses
+    # This lattice retains explicit reference/relation order obligations even
+    # on Top. The diagnostic fragment therefore is not a whole-value cover.
+    assert not ValueOperations().leq(original, restored.retained_value)
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        _ = restored.value
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        restored.require_value()
+    with pytest.raises(ValueError, match="[Ii]ncomplete"):
+        decode_value(document)
 
 
 @pytest.mark.parametrize("container", ["items", "slots"])

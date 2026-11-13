@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "base_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "status": "coherent_rebuild_candidate_held_awaiting_root_frozen_integration",
+  "provenance": "Prior unpublished W3 source/logs were lost on platform restore. These are new implementations and new evidence, not the historical336/115 fixtures.",
+  "task": "N4-SEM-03",
+  "source_and_tests_held": true,
+  "implementation": [
+    "Total facet iterator acquisition and advance; __iter__ return validates __next__ slot presence separately from callability; next(default) only catches StopIteration family.",
+    "List/tuple preserve iterator and original iterable length-hint timing; PySequenceFast-style keys/pairs reacquire returned iterator before its hint.",
+    "Dict iterable-of-pairs exhausts each pair before shape validation; mapping keys finish before per-key getitem and hash/equality protocol insertion.",
+    "Known tuple(t) returns original tuple identity. Sets stream insertion, retain first equal scalar representative, and small finite iteration covers permutations; over-cap or changed set residuals are Open.",
+    "Each unpack layer validates/materializes before its target writes; non-star unpack checks only N+1 items, starred tail uses the iterator hint protocol.",
+    "Source-anchored bounded implicit protocol step PCs distinguish acquisition/reacquisition/hint and advance positions0..31; later positions coalesce. This is a finite constructor-protocol expansion, not general argument partitioning.",
+    "Public expr/condition/truth/statement/call/invoke/builtin ports publish by default; owned internal microcalls explicitly defer to their owner, with no mutable nesting cache.",
+    "Incomplete collection normal residual keeps Top together with allocated refs/defaultUnknown, preserving frozen bytes unsupported-boundary contract; complete finite constructors are unchanged.",
+    "TypeError subclasses raised by __len__ are cleared before hint fallback; uncertain exception unions retain escaping alternatives."
+  ],
+  "tests": {
+    "strengthened_new_subset_baseline": {
+      "cases": 17,
+      "passed": 3,
+      "failed": 14,
+      "path": "artifacts/next/evidence/SEM03-rebuild-20261113/strengthened-baseline.txt"
+    },
+    "last_complete_author_and_original_selected": {
+      "passed": 191,
+      "failed": 0,
+      "path": "artifacts/next/evidence/SEM03-rebuild-20261113/held-controls.txt",
+      "note": "18 fresh controls plus173 existing W2/continuation/namespace controls."
+    },
+    "frozen_selected": {
+      "passed": 27,
+      "failed": 0,
+      "path": "artifacts/next/evidence/SEM03-rebuild-20261113/frozen-selected.json",
+      "scope": "AS01/02/05/08 and bytes unsupported boundary; run before final subtype/keyword forwarding refinements, needs root final rebind."
+    },
+    "independent_semantic_current": {
+      "passed": 7,
+      "failed": 0,
+      "scope": "6 newly preregistered concrete protocol witnesses plus frozen bytes; independent reviewer must rebind final root snapshot.",
+      "initial_current_red": "2 protocol precision failures captured before bounded-step source PCs; baseline8cc5red2green."
+    },
+    "lowered_cap_diagnostic": {
+      "caps": [
+        1,
+        2
+      ],
+      "result": "Mixed scalar/list input retains TypeError result9 and normalTop with explicit Open; no claim of closed useful precision for partially present heap owners."
+    }
+  },
+  "quality": {
+    "owned_strong_any_expression_diagnostics": 0,
+    "owned_modules": [
+      "pythonstan/analysis/engines/abstract/transfer.py",
+      "pythonstan/analysis/engines/abstract/continuations.py",
+      "pythonstan/analysis/semantics/iteration.py",
+      "pythonstan/analysis/semantics/containers.py"
+    ],
+    "import_graph_diagnostics_in_last_run": 2309,
+    "whole_tree_clean": false,
+    "ruff_owned": 0,
+    "shared_formatter": "Root may format shared Continuation once STATE and Budget slices are held; final root source manifest is authoritative."
+  },
+  "remaining": [
+    "Root isolated candidate/final full quality and runtime checks, including current frozen27 rerun after all later shared changes.",
+    "Independent final source binding and original task-card closure decision remain root-owned.",
+    "STATE01 resource failures, Native repeated allocation, comprehensions, ClassInfo, recursion and LLM query effects are not claimed solved.",
+    "No actual SDK/model request or credential access; source has no network path."
+  ],
+  "frozen_manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "debt_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/transfer.py": "8f88f6f3d044734da7451fe2a68d3f734dabf4b6790ad2788c3eaffe04abd8d7",
+    "pythonstan/analysis/engines/abstract/continuations.py": "b5120741fac40556eaffcc380f9464e833d9dbeaf8bb2e528fbc378fa10b45ff",
+    "pythonstan/analysis/semantics/iteration.py": "14e164f1e8ee3f04ffacf4d7f20ba8de4288553939614659099013fd13f3818f",
+    "pythonstan/analysis/semantics/containers.py": "3f7c4299365d5b2a404124859677259f0f80537a2ecd3acc5f5f119192d13065",
+    "tests/regression/audit3/test_iteration_rebuild_20261113.py": "8959dff241fc6a8d59ba5479e17ef41b551661df0129057b5adcd9355e87d394"
+  }
+}

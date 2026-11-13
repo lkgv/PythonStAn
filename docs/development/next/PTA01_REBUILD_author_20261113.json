@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "base_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "status": "implementation_candidate_held_for_parent_checkpoint_and_independent_review",
+  "rebuild_reason": "Prior unpushed W3 source was lost when platform restored W1 workspace. All tests below are fresh; no historical W3 pass counts reused.",
+  "owned_scope": [
+    "Native ordered assignment compilation and detached exception prefixes in region_engine.py",
+    "Fresh CPython witness tests"
+  ],
+  "implementation": [
+    "One actual IncrementalInclusionStore retains all monotone facts/edges/load/store rules; current cell and field selectors advance to immutable versions after successful writes.",
+    "Each unpack layer materializes all components before child target writes; nested layers materialize only when reached.",
+    "Successful writes immediately update detached working boundary and effects/oracle candidates. May-raise checkpoints decode a detached copy of that current prefix; definite failure stops siblings/chained targets.",
+    "No AI transfer replay is used to execute Native selected statements.",
+    "Repeated allocation retains existing same-slot joins to avoid regressing fixed-key controls; complete varying-key HeapJoin remains N4-PTA-02."
+  ],
+  "fresh_evidence": {
+    "CPython_witness_baseline": {
+      "passed": 16,
+      "failed": 8,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/baseline.txt",
+      "scope": "Owned region_engine stayed at baseline before patch; other agents may work independently."
+    },
+    "current_new_witnesses_and_frozen_native": {
+      "passed": 38,
+      "failed": 3,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/current2.txt",
+      "failures": [
+        "Existing AI-control scalar integer unpack (native=False), reported SEM owner",
+        "N4-PTA-02 varying-key repeated allocation Native size2",
+        "N4-PTA-02 varying-key repeated allocation Native size3"
+      ]
+    },
+    "current_owned_native_witnesses": {
+      "passed": 15,
+      "failed": 0,
+      "deselected": 12,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/owned-native-final.txt",
+      "note": "Twelve Native assignment witnesses plus two module/class capability guards and one function-local annotation positive control."
+    },
+    "current_original_native_mandatory": {
+      "passed": 15,
+      "failed": 2,
+      "note": "Original W2 Native subset was12pass5fail; the three exception-prefix failures are repaired; full domain+Native36 rerun belongs root."
+    },
+    "original_composition_graph_protocol_controls": {
+      "passed": 63,
+      "failed": 0,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/controls.txt",
+      "files": [
+        "tests/refactor/composition/test_independent_review.py",
+        "tests/refactor/composition/test_regions_oracle_relations.py",
+        "tests/refactor/composition/test_dom05_graph_recovery.py"
+      ]
+    },
+    "strong_type": {
+      "owned_diagnostics": 0,
+      "import_graph_diagnostics": 2306,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/strong-final.jsonl",
+      "whole_tree_clean": false
+    },
+    "ruff": 0,
+    "new_witnesses_with_AI_controls": {
+      "passed": 26,
+      "failed": 1,
+      "log": "artifacts/next/evidence/PTA01-rebuild-20261113/guard-current.txt",
+      "failure": "Existing AI scalar integer unpack control, sent SEM owner; Native half and all annotation capability tests pass."
+    }
+  },
+  "remaining_obligations": [
+    "Parent final frozen-source quality/integration and independent review; this receipt does not verify the card.",
+    "N4-PTA-02 complete repeated-allocation fields/default/missing/metadata/cardinality join remains pending.",
+    "Other Native class/builtin/user protocol capabilities are not established by this bounded assignment change.",
+    "Module/class annotations are an explicit unsupported capability; restoring annotation namespace behavior requires a separate shared semantic implementation, not a false closed result."
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/composition/region_engine.py": "d5df3da8edffe034788f681ec6832a3074fb91baae2f934dfb6b69a809f18088",
+    "tests/regression/audit3/test_native_ordered_rebuild.py": "57b7fc760bdb6f1d5a23ba27818e23b6169ac90080d051873a85b8fa9c1030d3"
+  },
+  "frozen_gold_changed": false,
+  "budgets_raised": false,
+  "debt_reset": false,
+  "real_key_reads": 0,
+  "real_api_requests": 0,
+  "annotation_capability_refinement": {
+    "parent_authorized": true,
+    "effect": "Module/class runtime annotation namespaces are explicitly rejected before any Native write or fallback replay; function-local nonexecuted annotation remains supported.",
+    "independent_cpython_witness": "x:missing=1 raises NameError after x becomes1 at module scope. Native does not claim to model annotation namespace effects.",
+    "guards": "No driver work, Native run, state write, or AI replay occurs before rejection."
+  }
+}

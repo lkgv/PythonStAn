@@ -9,6 +9,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterable
 from dataclasses import replace
+from itertools import permutations
 from typing import TYPE_CHECKING, assert_never
 
 from pythonstan.analysis.contracts.identity import (
@@ -20,6 +21,11 @@ from pythonstan.analysis.contracts.identity import (
 )
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.semantics.control import resume_pending
+from pythonstan.analysis.semantics.iteration import (
+    NONITERABLE_SCALAR_SORTS,
+    CollectedValues,
+    HintMode,
+)
 from pythonstan.analysis.state.continuation import (
     AssignResume,
     CallResumeContext,
@@ -112,6 +118,11 @@ class ContinuationEngine:
         for position, node in enumerate(commands):
             result: list[Flow] = []
             for flow in flows:
+                # A suspension produced by an earlier command already owns
+                # the entire remaining tail. Do not append it a second time.
+                if flow.kind == "suspend":
+                    result.append(flow)
+                    continue
                 if not isinstance(node, ast.stmt):
                     produced = self.marker(node, flow, frame)
                 elif flow.kind == "normal":
@@ -139,7 +150,7 @@ class ContinuationEngine:
                 else self.t.execution
             )
             flows = self.d.compact(result, execution=execution)
-            if not flows:
+            if not flows or all(flow.kind == "suspend" for flow in flows):
                 break
         return flows
 
@@ -448,18 +459,35 @@ class ContinuationEngine:
         frame: Frame,
         node: ast.AST | None,
         asynchronous: bool = False,
+        *,
+        role: str = "iterator",
+        publish: bool = True,
     ) -> list[Flow]:
-        result: list[Flow]
-        result = []
+        self.t.sync(store)
+        value = self.ops.normalize(value)
+        result: list[Flow] = []
+        slot_site = self.protocol_item_site(node, 0, role=role + ":iter")
         if asynchronous:
-            for method in self.special(value, "__aiter__", store, frame, node, "TypeError"):
+            for method in self.special(value, "__aiter__", store, frame, slot_site, "TypeError"):
                 if method.kind != "normal":
                     result.append(method)
                     continue
-                result.extend(
-                    self.t.invoke(require_payload(method), [], (), method.store, frame, node)
-                )
-            return result
+                for called in self.t.invoke(
+                    require_payload(method), [], (), method.store, frame, slot_site, publish=False
+                ):
+                    if called.kind == "normal":
+                        result.extend(
+                            self.validate_iterator(
+                                require_payload(called),
+                                called.store,
+                                frame,
+                                node,
+                                asynchronous=True,
+                            )
+                        )
+                    else:
+                        result.append(called)
+            return self.d.compact(result, execution=self.t.execution) if publish else result
         for ref in value.refs:
             obj = store.heap.get(ref)
             if obj and obj.kind in {"iterator", "generator"}:
@@ -485,7 +513,41 @@ class ContinuationEngine:
                     )
                 )
                 continue
-            if obj and obj.kind in {"list", "tuple", "set", "range"}:
+            if obj and obj.kind == "set":
+                length = obj.metadata.lookup("length")
+                count = 1
+                if (
+                    type(length) is int
+                    and 0 <= length <= 6
+                    and obj.default.is_bottom()
+                    and not obj.havoc
+                ):
+                    for size in range(2, length + 1):
+                        count *= size
+                    if count <= self.t.execution.max_paths:
+                        items = tuple(obj.fields.get(index, obj.default) for index in range(length))
+                        for order in permutations(items):
+                            self.d.charge(1, "iteration_work")
+                            current = store.copy()
+                            allocated = self.t.alloc(
+                                node,
+                                current,
+                                frame,
+                                "iterator",
+                                metadata={
+                                    "sequence": order,
+                                    "index": 0,
+                                    "set_owner": Value.ref(ref),
+                                    "set_size": length,
+                                    "set_items": items,
+                                },
+                                role=role,
+                            )
+                            result.append(self.normal(current, allocated))
+                        continue
+                result.extend(self.t.unknown(store.copy(), node, "set_iteration_order"))
+                continue
+            if obj and obj.kind in {"list", "tuple", "range"}:
                 s = store.copy()
                 result.append(
                     NormalExprFlow(
@@ -496,51 +558,40 @@ class ContinuationEngine:
                             frame,
                             "iterator",
                             metadata={"container": Value.ref(ref), "index": 0},
+                            role=role,
                         ),
                     )
                 )
                 continue
             if obj and obj.kind == "instance":
-                hooks = self.ops.join_all(
-                    self.t.lookup_class(c, "__iter__", store) for c in obj.class_ids
-                )
+                hooks, missing = self.iterator_slot(Value.ref(ref), "__iter__", store)
                 if not hooks.is_bottom():
                     s = store.copy()
-                    bound = self.t.bound(hooks, Value.ref(ref), s, frame, node)
-                    for out in self.t.invoke(bound, [], (), s, frame, node):
-                        if out.kind != "normal":
-                            result.append(out)
+                    for bound in self.t.attributes._descriptor_get(
+                        hooks, Value.ref(ref), Value(refs=obj.class_ids), s, frame, slot_site
+                    ):
+                        if bound.kind != "normal":
+                            result.append(bound)
                             continue
-                        valid = False
-                        unknown = require_payload(out).top or bool(require_payload(out).top_sorts)
-                        for target in require_payload(out).refs:
-                            item = out.store.heap.get(target)
-                            if (
-                                item
-                                and item.kind in {"iterator", "generator"}
-                                or (
-                                    item
-                                    and item.kind == "instance"
-                                    and not self.ops.join_all(
-                                        self.t.lookup_class(c, "__next__", out.store)
-                                        for c in item.class_ids
-                                    ).is_bottom()
-                                )
-                            ):
-                                valid = True
+                        for out in self.t.invoke(
+                            require_payload(bound),
+                            [],
+                            (),
+                            bound.store,
+                            frame,
+                            slot_site,
+                            publish=False,
+                        ):
+                            if out.kind != "normal":
+                                result.append(out)
                             else:
-                                result.append(self.t.error(out.store.copy(), "TypeError"))
-                        if valid:
-                            result.append(out)
-                        if unknown:
-                            result.extend(
-                                self.t.unknown(out.store, node, "unknown_iterator_result")
-                            )
-                    continue
-                getitem = self.ops.join_all(
-                    self.t.lookup_class(c, "__getitem__", store) for c in obj.class_ids
-                )
-                if not getitem.is_bottom():
+                                result.extend(
+                                    self.validate_iterator(
+                                        require_payload(out), out.store, frame, node
+                                    )
+                                )
+                getitem, absent = self.iterator_slot(Value.ref(ref), "__getitem__", store)
+                if missing and not getitem.is_bottom():
                     s = store.copy()
                     result.append(
                         NormalExprFlow(
@@ -555,10 +606,16 @@ class ContinuationEngine:
                                     "index": 0,
                                     "sequence_protocol": True,
                                 },
+                                role=role,
                             ),
                         )
                     )
-                    continue
+                if missing and absent:
+                    result.append(self.t.error(store.copy(), "TypeError"))
+                continue
+            if obj is None or obj.kind == "class":
+                result.extend(self.t.unknown(store.copy(), node, "unknown_iteration_receiver"))
+                continue
             result.append(self.t.error(store.copy(), "TypeError"))
         strings = value.strings.get_consts()
         if strings is not None:
@@ -576,15 +633,68 @@ class ContinuationEngine:
                                 "sequence": tuple(Value.constant(c) for c in text),
                                 "index": 0,
                             },
+                            role=role,
                         ),
                     )
                 )
         elif not value.strings.is_bottom():
             result.extend(self.t.unknown(store, node, "abstract_string_iteration"))
-        if value.top or value.top_sorts:
-            result.extend(self.t.unknown(store, node, "unknown_iteration_protocol"))
-        if not value.ints.is_bottom or value.bools or value.none or value.floats:
-            result.append(self.t.error(store.copy(), "TypeError"))
+        for facet in self.ops.facets(replace(value, refs=frozenset())):
+            if facet.kind == "str":
+                continue
+            if facet.kind in NONITERABLE_SCALAR_SORTS:
+                result.append(self.t.error(store.copy(), "TypeError"))
+            else:
+                result.extend(self.t.unknown(store.copy(), node, "unknown_iteration_protocol"))
+        return self.d.compact(result, execution=self.t.execution) if publish else result
+
+    def iterator_slot(self, receiver: Value, name: str, store: Store) -> tuple[Value, bool]:
+        """Special-slot presence is independent of whether its value is callable."""
+        hook = Value.bottom()
+        missing = not receiver.refs
+        for reference in self.ops.normalize(receiver).refs:
+            obj = store.heap.get(reference)
+            if obj is None or not obj.class_ids:
+                missing = True
+                continue
+            for cls in obj.class_ids:
+                alternative, absent = self.t.attributes.lookup_presence(cls, name, store)
+                hook = self.ops.join(hook, alternative)
+                missing |= absent
+        return hook, missing
+
+    def validate_iterator(
+        self,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        asynchronous: bool = False,
+    ) -> list[Flow]:
+        result: list[Flow] = []
+        value = self.ops.normalize(value)
+        for reference in value.refs:
+            obj = store.heap.get(reference)
+            if obj is None:
+                result.extend(self.t.unknown(store.copy(), node, "unknown_iterator_result"))
+            elif obj.kind in ({"async_generator"} if asynchronous else {"iterator", "generator"}):
+                result.append(self.normal(store.copy(), Value.ref(reference)))
+            elif obj.kind == "instance":
+                hook, missing = self.iterator_slot(
+                    Value.ref(reference), "__anext__" if asynchronous else "__next__", store
+                )
+                if not hook.is_bottom():
+                    result.append(self.normal(store.copy(), Value.ref(reference)))
+                if missing:
+                    result.append(self.t.error(store.copy(), "TypeError"))
+            else:
+                result.append(self.t.error(store.copy(), "TypeError"))
+        for facet in self.ops.facets(replace(value, refs=frozenset())):
+            if facet.kind in {"unknown", "unbound"}:
+                result.extend(self.t.unknown(store.copy(), node, "unknown_iterator_result"))
+            else:
+                result.append(self.t.error(store.copy(), "TypeError"))
         return result
 
     def next_iterator(
@@ -594,11 +704,63 @@ class ContinuationEngine:
         frame: Frame,
         node: ast.AST | None,
         asynchronous: bool = False,
+        *,
+        publish: bool = True,
     ) -> list[Flow]:
-        result: list[Flow]
+        self.t.sync(store)
+        iterator = self.ops.normalize(iterator)
+        result: list[Flow] = []
         if not asynchronous:
-            return self.resume(iterator, store, frame, node, "next")
-        result = []
+            for reference in iterator.refs:
+                obj = store.heap.get(reference)
+                if obj is not None and obj.kind == "iterator" and "set_owner" in obj.metadata:
+                    owner = obj.metadata.lookup("set_owner")
+                    expected = obj.metadata.lookup("set_size")
+                    initial = obj.metadata.lookup("set_items")
+                    if not isinstance(owner, Value) or type(expected) is not int:
+                        result.extend(self.t.unknown(store.copy(), node, "unknown_set_iterator"))
+                        continue
+                    for target in owner.refs:
+                        current_set = store.heap.get(target)
+                        if current_set is None or current_set.havoc:
+                            result.extend(
+                                self.t.unknown(store.copy(), node, "mutated_set_iterator")
+                            )
+                        elif current_set.metadata.lookup("length") != expected:
+                            result.append(self.t.error(store.copy(), "RuntimeError"))
+                        elif tuple(current_set.fields.values()) != initial:
+                            result.extend(
+                                self.t.unknown(store.copy(), node, "mutated_set_iterator")
+                            )
+                        else:
+                            result.extend(
+                                self.resume(Value.ref(reference), store.copy(), frame, node, "next")
+                            )
+                elif obj is not None and obj.kind == "instance":
+                    for method in self.special(
+                        Value.ref(reference), "__next__", store.copy(), frame, node, "TypeError"
+                    ):
+                        if method.kind == "normal":
+                            result.extend(
+                                self.t.invoke(
+                                    require_payload(method), [], (), method.store, frame, node
+                                )
+                            )
+                        else:
+                            result.append(method)
+                else:
+                    result.extend(
+                        self.resume(Value.ref(reference), store.copy(), frame, node, "next")
+                    )
+            for facet in self.ops.facets(replace(iterator, refs=frozenset())):
+                if facet.kind in {
+                    "unknown",
+                    "unbound",
+                } or facet.kind not in NONITERABLE_SCALAR_SORTS | {"str", "bytes"}:
+                    result.extend(self.t.unknown(store.copy(), node, "unknown_resume"))
+                else:
+                    result.append(self.t.error(store.copy(), "TypeError"))
+            return self.d.compact(result, execution=self.t.execution) if publish else result
         for method in self.special(iterator, "__anext__", store, frame, node, "TypeError"):
             if method.kind != "normal":
                 result.append(method)
@@ -610,7 +772,7 @@ class ContinuationEngine:
                     result.extend(
                         self.resume(require_payload(called), called.store, frame, node, "await")
                     )
-        return result
+        return self.d.compact(result, execution=self.t.execution) if publish else result
 
     def is_stop(self, flow: Flow, asynchronous: bool = False) -> bool:
         if flow.kind != "raise":
@@ -619,57 +781,202 @@ class ContinuationEngine:
         tags = self.t.raised_tags(flow)
         return flow.exception == name or tags is not None and "builtin:" + name in tags
 
-    def collect(
-        self, value: Value, store: Store, frame: Frame, node: ast.AST | None, kind: str
+    def protocol_item_site(self, node: ast.AST | None, index: int, *, role: str) -> ast.AST:
+        """Give bounded implicit calls stable source identities, never argument contexts."""
+        site = ast.Pass()
+        if node is not None:
+            ast.copy_location(site, node)
+        return self.d.register_generated(
+            site, f"{self.d.point(node)}:protocol:{role}:{min(index, 31)}"
+        )
+
+    def length_hint(
+        self,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        fallback: bool = False,
     ) -> list[Flow]:
-        result: list[Flow]
-        result = []
-        states: list[tuple[Store, Value, tuple[Value, ...]]] = []
-        for iterator_flow in self.get_iterator(value, store, frame, node):
-            if iterator_flow.kind == "normal":
-                states.append((iterator_flow.store, require_payload(iterator_flow), ()))
-            else:
-                result.append(iterator_flow)
-        raw_limit = self.t.execution.integer("max_stmt_visits", 100)
-        if not isinstance(raw_limit, (str, int, float)):
-            raise TypeError("max_stmt_visits must be numeric")
-        limit = max(1, int(raw_limit))
-        for _ in range(limit):
-            following: list[tuple[Store, Value, tuple[Value, ...]]] = []
-            for current, iterator, values in states:
-                for advanced in self.next_iterator(iterator, current, frame, node):
-                    if self.is_stop(advanced):
-                        fields: dict[FieldKey, Value] = dict(enumerate(values))
-                        if kind == "set":
-                            known: dict[FieldKey, Value] = {}
-                            uncertain = False
-                            for value_ in values:
-                                constants = value_.exact_constants()
-                                if constants is None or len(constants) != 1:
-                                    uncertain = True
-                                    break
-                                known.setdefault(constants[0], value_)
-                            if uncertain:
+        result: list[Flow] = []
+        slot = "__length_hint__" if fallback else "__len__"
+        slot_site = self.protocol_item_site(node, 0, role=slot)
+        for facet in self.ops.facets(value):
+            if facet.kind != "reference":
+                if facet.kind in {"unknown", "unbound"}:
+                    result.extend(self.t.unknown(store.copy(), node, "unknown_length_hint"))
+                else:
+                    result.append(self.normal(store.copy()))
+                continue
+            for reference in facet.value.refs:
+                obj = store.heap.get(reference)
+                if obj is None:
+                    result.extend(self.t.unknown(store.copy(), node, "unknown_length_hint"))
+                    continue
+                if obj.kind != "instance":
+                    result.append(self.normal(store.copy()))
+                    continue
+                hook, missing = self.iterator_slot(Value.ref(reference), slot, store)
+                if missing:
+                    result.extend(
+                        [self.normal(store.copy())]
+                        if fallback
+                        else self.length_hint(
+                            Value.ref(reference), store.copy(), frame, node, fallback=True
+                        )
+                    )
+                if hook.is_bottom():
+                    continue
+                for bound in self.t.attributes._descriptor_get(
+                    hook,
+                    Value.ref(reference),
+                    Value(refs=obj.class_ids),
+                    store.copy(),
+                    frame,
+                    slot_site,
+                ):
+                    if bound.kind != "normal":
+                        result.append(bound)
+                        continue
+                    for called in self.t.invoke(
+                        require_payload(bound), [], (), bound.store, frame, slot_site, publish=False
+                    ):
+                        if called.kind == "raise" and not fallback:
+                            tags = self.t.raised_tags(called)
+                            if tags is None or "builtin:TypeError" in tags:
                                 result.extend(
-                                    self.t.unknown(
-                                        advanced.store, node, "set_constructor_key_protocol"
+                                    self.length_hint(
+                                        Value.ref(reference),
+                                        called.store.copy(),
+                                        frame,
+                                        node,
+                                        fallback=True,
                                     )
                                 )
-                                continue
-                            fields = dict(enumerate(known.values()))
-                        result.append(
-                            NormalExprFlow(
-                                StateHandle.capture(advanced.store),
-                                self.t.alloc(
-                                    node,
-                                    advanced.store,
-                                    frame,
-                                    kind,
-                                    fields,
-                                    {"length": len(fields)},
-                                ),
-                            )
-                        )
+                            if not self.only_builtin_exception(called, "TypeError"):
+                                result.append(called)
+                        elif called.kind != "normal":
+                            result.append(called)
+                        else:
+                            payload = require_payload(called)
+                            constants = payload.exact_constants()
+                            if constants is None:
+                                result.extend(
+                                    self.t.unknown(called.store, node, "abstract_length_hint")
+                                )
+                            else:
+                                for constant in constants:
+                                    if type(constant) in {int, bool}:
+                                        if isinstance(constant, int) and constant < 0:
+                                            result.append(
+                                                self.t.error(called.store.copy(), "ValueError")
+                                            )
+                                        elif (
+                                            isinstance(constant, int)
+                                            and constant > 9223372036854775807
+                                        ):
+                                            result.append(
+                                                self.t.error(called.store.copy(), "OverflowError")
+                                            )
+                                        else:
+                                            result.append(self.normal(called.store.copy()))
+                                    elif fallback:
+                                        result.append(
+                                            self.t.error(called.store.copy(), "TypeError")
+                                        )
+                                    else:
+                                        result.extend(
+                                            self.length_hint(
+                                                Value.ref(reference),
+                                                called.store.copy(),
+                                                frame,
+                                                node,
+                                                fallback=True,
+                                            )
+                                        )
+        return result
+
+    def only_builtin_exception(self, flow: Flow, name: str) -> bool:
+        """Prove all represented exception classes belong to the caught family."""
+        if flow.kind != "raise":
+            return False
+        if flow.exception == name:
+            return True
+        value = require_payload(flow)
+        if not value.refs or not replace(value, refs=frozenset()).is_bottom():
+            return False
+        for reference in value.refs:
+            obj = flow.store.heap.get(reference)
+            if obj is None or obj.havoc or not obj.class_ids:
+                return False
+            if any(
+                "builtin:" + name not in self.t.exception_class_tags(cls, flow.store)
+                for cls in obj.class_ids
+            ):
+                return False
+        return True
+
+    def collect_values(
+        self,
+        value: Value,
+        store: Store,
+        frame: Frame,
+        node: ast.AST | None,
+        *,
+        role: str = "collect",
+        hint_mode: HintMode = "value",
+        publish_advances: bool = True,
+    ) -> tuple[list[CollectedValues], list[Flow]]:
+        completed: list[CollectedValues] = []
+        result: list[Flow] = []
+        states: list[tuple[Store, Value, tuple[Value, ...]]] = []
+        for iterator_flow in self.get_iterator(value, store, frame, node, role=role, publish=False):
+            if iterator_flow.kind != "normal":
+                result.append(iterator_flow)
+                continue
+            candidates = (
+                self.get_iterator(
+                    require_payload(iterator_flow),
+                    iterator_flow.store,
+                    frame,
+                    node,
+                    role=role + ":reacquire",
+                    publish=False,
+                )
+                if hint_mode == "iterator"
+                else [iterator_flow]
+            )
+            for candidate in candidates:
+                if candidate.kind != "normal":
+                    result.append(candidate)
+                    continue
+                hints = (
+                    [self.normal(candidate.store)]
+                    if hint_mode == "none"
+                    else self.length_hint(
+                        require_payload(iterator_flow) if hint_mode == "iterator" else value,
+                        candidate.store,
+                        frame,
+                        node,
+                    )
+                )
+                for hinted in hints:
+                    if hinted.kind == "normal":
+                        states.append((hinted.store, require_payload(candidate), ()))
+                    else:
+                        result.append(hinted)
+        limit = max(1, self.t.execution.integer("max_stmt_visits", 100))
+        for position in range(limit):
+            following: list[tuple[Store, Value, tuple[Value, ...]]] = []
+            advance_site = self.protocol_item_site(node, position, role=role + ":next")
+            for current, iterator, values in states:
+                self.d.charge(1, "iteration_work")
+                for advanced in self.next_iterator(
+                    iterator, current, frame, advance_site, publish=publish_advances
+                ):
+                    if self.is_stop(advanced):
+                        completed.append(CollectedValues(advanced.store, values))
                     elif advanced.kind == "normal":
                         following.append(
                             (advanced.store, iterator, (*values, require_payload(advanced)))
@@ -678,11 +985,145 @@ class ContinuationEngine:
                         result.append(advanced)
             states = following
             if not states:
-                return self.d.compact(result, execution=self.t.execution)
+                return completed, result
             if len(states) > self.t.execution.max_paths:
                 break
-        for current, _, _ in states:
-            result.extend(self.t.unknown(current, node, "iterator_collection_budget"))
+        for current, _, values in states:
+            for residual in self.t.unknown(current, node, "iterator_collection_budget"):
+                if residual.kind == "normal":
+                    completed.append(CollectedValues(residual.store, values, False))
+                else:
+                    result.append(residual)
+        return completed, result
+
+    def unpack_values(
+        self, value: Value, count: int, star: int | None, store: Store, frame: Frame, node: ast.AST
+    ) -> tuple[list[CollectedValues], list[Flow]]:
+        """Finish each UNPACK layer before the first write to that layer's targets."""
+        value = self.ops.normalize(value)
+        completed: list[CollectedValues] = []
+        errors: list[Flow] = []
+        fast: set[ObjectId] = set()
+        for reference in value.refs:
+            obj = store.heap.get(reference)
+            length = None if obj is None else obj.metadata.lookup("length")
+            if (
+                obj is not None
+                and obj.kind in {"tuple", "list"}
+                and not obj.havoc
+                and type(length) is int
+                and not obj.maybe_missing
+            ):
+                fast.add(reference)
+                completed.append(
+                    CollectedValues(
+                        store.copy(),
+                        tuple(obj.fields.get(index, obj.default) for index in range(length)),
+                    )
+                )
+        remaining = replace(value, refs=value.refs - fast)
+        states: list[tuple[Store, Value, tuple[Value, ...]]] = []
+        if not remaining.is_bottom():
+            for acquired in self.get_iterator(
+                remaining, store.copy(), frame, node, role="unpack", publish=False
+            ):
+                if acquired.kind == "normal":
+                    states.append((acquired.store, require_payload(acquired), ()))
+                else:
+                    errors.append(acquired)
+        stop_at = count if star is None else star
+        for position in range(stop_at + 1):
+            if star is not None and position == star:
+                for current, iterator, prefix in states:
+                    tails, failed = self.collect_values(
+                        iterator,
+                        current,
+                        frame,
+                        node,
+                        role="unpack-star",
+                        hint_mode="value",
+                        publish_advances=False,
+                    )
+                    completed.extend(
+                        CollectedValues(tail.store, prefix + tail.values, tail.complete)
+                        for tail in tails
+                    )
+                    errors.extend(failed)
+                return completed, errors
+            following: list[tuple[Store, Value, tuple[Value, ...]]] = []
+            advance_site = self.protocol_item_site(node, position, role="unpack:next")
+            for current, iterator, prefix in states:
+                self.d.charge(1, "iteration_work")
+                for advanced in self.next_iterator(
+                    iterator, current, frame, advance_site, publish=False
+                ):
+                    if self.is_stop(advanced):
+                        if position == count:
+                            completed.append(CollectedValues(advanced.store, prefix))
+                        else:
+                            errors.append(self.t.error(advanced.store, "ValueError"))
+                    elif advanced.kind != "normal":
+                        errors.append(advanced)
+                    elif position == count:
+                        errors.append(self.t.error(advanced.store, "ValueError"))
+                    else:
+                        following.append(
+                            (advanced.store, iterator, prefix + (require_payload(advanced),))
+                        )
+            states = following
+            if not states:
+                break
+            if len(states) > self.t.execution.max_paths:
+                for current, _, prefix in states:
+                    for residual in self.t.unknown(current, node, "unpack_path_budget"):
+                        if residual.kind == "normal":
+                            completed.append(CollectedValues(residual.store, prefix, False))
+                        else:
+                            errors.append(residual)
+                break
+        return completed, errors
+
+    def collect(
+        self, value: Value, store: Store, frame: Frame, node: ast.AST | None, kind: str
+    ) -> list[Flow]:
+        completed, result = self.collect_values(
+            value,
+            store,
+            frame,
+            node,
+            hint_mode="none" if kind == "set" else "value",
+            publish_advances=False,
+        )
+        for collection in completed:
+            values = tuple(self.ops.normalize(item) for item in collection.values)
+            if kind == "set":
+                known: dict[FieldKey, Value] = {}
+                uncertain = not collection.complete
+                for item in values:
+                    constants = item.exact_constants()
+                    if constants is None or len(constants) != 1:
+                        uncertain = True
+                        break
+                    known.setdefault(constants[0], item)
+                if uncertain:
+                    result.extend(
+                        self.t.unknown(collection.store, node, "set_constructor_key_protocol")
+                    )
+                    continue
+                values = tuple(known.values())
+            allocated = self.t.alloc(
+                node,
+                collection.store,
+                frame,
+                kind,
+                dict(enumerate(values)),
+                {"length": len(values)} if collection.complete else {},
+            )
+            if not collection.complete:
+                for reference in allocated.refs:
+                    collection.store.heap[reference].default = Value.unknown()
+                allocated = self.ops.join(allocated, Value.unknown())
+            result.append(self.normal(collection.store, allocated))
         return self.d.compact(result, execution=self.t.execution)
 
     def for_loop(self, node: ast.For | ast.AsyncFor, store: Store, frame: Frame) -> list[Flow]:
@@ -1155,12 +1596,20 @@ class ContinuationEngine:
                     source = current.heap.get(container)
                     if item.metadata.lookup("sequence_protocol"):
                         for out in self.t.getitem(
-                            Value.ref(container), Value.constant(index), current, frame, node
+                            Value.ref(container),
+                            Value.constant(index),
+                            current,
+                            frame,
+                            self.protocol_item_site(node, index, role="sequence-getitem"),
                         ):
                             if out.kind == "normal":
                                 values.append(require_payload(out))
                                 current = out.store
-                                item = current.heap[ref]
+                                current.ensure_current(self.ops)
+                                live = ObjectHandle(ref, self.ops.arena.epoch).refresh(
+                                    self.ops.arena
+                                )
+                                item = live.read_current(current, self.ops.arena)
                             elif out.exception == "IndexError":
                                 missing = True
                             else:
@@ -1313,7 +1762,9 @@ class ContinuationEngine:
             for flow in flows:
                 flow.store.ensure_current(self.ops)
                 resumed_ref = active_object.refresh(self.ops.arena).identity
-                target = flow.store.heap[resumed_ref]
+                target = active_object.refresh(self.ops.arena).read_current(
+                    flow.store, self.ops.arena
+                )
                 target_record = target.metadata.record
                 if isinstance(target_record, GeneratorMeta):
                     states = suspension_states(target_record)

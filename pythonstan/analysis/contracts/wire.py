@@ -3,19 +3,35 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from types import MappingProxyType
 
+from .cost_model import visit_json_text
 from .json_data import FrozenJsonObject, FrozenJsonValue, JsonObject, JsonValue
 from .value_wire import encode_value_wire
 
 
-def freeze_snapshot(value: object) -> FrozenJsonValue:
+def freeze_snapshot(
+    value: object, *, visit: Callable[[int], None] | None = None
+) -> FrozenJsonValue:
     """Deep-copy JSON data into immutable containers, rejecting live objects."""
-    return _freeze(value, set())
+    return _freeze(value, set(), 0, visit)
 
 
-def _freeze(value: object, active: set[int]) -> FrozenJsonValue:
+def _visit(value: object, visit: Callable[[int], None] | None) -> None:
+    if visit is not None:
+        if isinstance(value, str):
+            visit_json_text(value, visit)
+        else:
+            visit(1)
+
+
+def _freeze(
+    value: object, active: set[int], depth: int, visit: Callable[[int], None] | None
+) -> FrozenJsonValue:
+    if depth > 128:
+        raise ValueError("snapshot JSON exceeds the supported nesting depth (128)")
+    _visit(value, visit)
     if value is None or isinstance(value, (str, bool, int)):
         return value
     if isinstance(value, float):
@@ -31,7 +47,8 @@ def _freeze(value: object, active: set[int]) -> FrozenJsonValue:
             for key, item in value.items():
                 if not isinstance(key, str):
                     raise TypeError("snapshot mappings require string keys")
-                result[key] = _freeze(item, active)
+                _visit(key, visit)
+                result[key] = _freeze(item, active, depth + 1, visit)
         finally:
             active.remove(id(value))
         return MappingProxyType(result)
@@ -40,19 +57,26 @@ def _freeze(value: object, active: set[int]) -> FrozenJsonValue:
             raise ValueError("snapshot JSON contains a reference cycle")
         active.add(id(value))
         try:
-            return tuple(_freeze(item, active) for item in value)
+            return tuple(_freeze(item, active, depth + 1, visit) for item in value)
         finally:
             active.remove(id(value))
     raise TypeError(f"non-JSON object cannot enter an engine snapshot: {type(value).__name__}")
 
 
-def thaw_snapshot(value: object) -> JsonValue:
+def thaw_snapshot(value: object, *, visit: Callable[[int], None] | None = None) -> JsonValue:
     """Return independent JSON data; reading never invokes an analysis."""
-    return _thaw(value, set())
+    return _thaw(value, set(), 0, visit)
 
 
-def _thaw(value: object, active: set[int]) -> JsonValue:
+def _thaw(
+    value: object, active: set[int], depth: int, visit: Callable[[int], None] | None
+) -> JsonValue:
+    if depth > 128:
+        raise ValueError("snapshot JSON exceeds the supported nesting depth (128)")
+    _visit(value, visit)
     if value is None or isinstance(value, (str, bool, int, float)):
+        if isinstance(value, float) and not math.isfinite(value):
+            raise ValueError("snapshot JSON numbers must be finite")
         return value
     if isinstance(value, Mapping):
         if id(value) in active:
@@ -63,7 +87,8 @@ def _thaw(value: object, active: set[int]) -> JsonValue:
             for key, item in value.items():
                 if not isinstance(key, str):
                     raise TypeError("snapshot mappings require string keys")
-                result[key] = _thaw(item, active)
+                _visit(key, visit)
+                result[key] = _thaw(item, active, depth + 1, visit)
         finally:
             active.remove(id(value))
         return result
@@ -72,7 +97,7 @@ def _thaw(value: object, active: set[int]) -> JsonValue:
             raise ValueError("snapshot JSON contains a reference cycle")
         active.add(id(value))
         try:
-            return [_thaw(item, active) for item in value]
+            return [_thaw(item, active, depth + 1, visit) for item in value]
         finally:
             active.remove(id(value))
     raise TypeError(f"not snapshot data: {type(value).__name__}")

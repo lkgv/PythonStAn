@@ -54,6 +54,7 @@ class PartitionToken:
             "key": self.key_repr,
             "handler": self.handler if self.display_name is None else self.display_name,
             "handler_id": self.handler,
+            "display_name": self.display_name,
             "partitioned": self.partitioned,
         }
 

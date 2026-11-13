@@ -74,5 +74,16 @@
     "tests/regression/audit3/semantic_manifest.json",
     "docs/development/next/quality_debt.json"
   ],
-  "lost_prior_generator_fixtures": "Exact prior sources unavailable. Their3 failures remain open/unreproduced; no newly written variant counts as closing them."
+  "lost_prior_generator_fixtures": "Exact prior sources unavailable. Their3 failures remain open/unreproduced; no newly written variant counts as closing them.",
+  "partial_value_api_refinement": {
+    "authority": "Root explicit stricter API decision after finite lattice counterexample",
+    "reason": "Top does not erase explicit refs/relations order. Lost IDs cannot be reconstructed by finite Top, so incomplete DTOs are diagnostic fragments only.",
+    "contract": "RestoredValue.retained_value is diagnostic; .value/require_value/decode_value reject every incomplete fragment. Complete v1 fullfacet roundtrip unchanged.",
+    "scope": "Only NEW codec APIs/tests change. Frozen semantic manifest, resource profile and debt data unchanged."
+  },
+  "additional_bottom_integrity": {
+    "cases": 2,
+    "provenance": "NEW controls after author reported contradictory complete bottom marker and root authorized minimal source repair. First independent pytest is after repair; no independent pytest red claim.",
+    "rule": "Complete union bottom marker must equal actual reconstructed Value.is_bottom; both false-bottom and false-nonbottom are rejected."
+  }
 }
