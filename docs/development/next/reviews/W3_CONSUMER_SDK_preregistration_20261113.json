@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "status": "preregistered_before_first_execution",
+  "date": "2026-11-13",
+  "baseline_head": "c7e23393adaeef1a0da8072e96776e52fa7ccd3e",
+  "source_hashes": {
+    "pythonstan/llm/openai_transport.py": "590984bfce2d217cae3b58d58f7db670e2c1d7b754d082055c9dd4c24603c626",
+    "pythonstan/llm/responses.py": "9a922f98b6035b42a4667568f5ef75506d7fdb470de16bcd990946bfbc2fc7e6",
+    "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+    "pythonstan/analysis/contracts/resource_api.py": "f1e3d93b038a9905c84ce3687a6f072a333ee3ace4102dbb64ad393bd8d89b55"
+  },
+  "mode": "synthetic SDK and synthetic credentials only; no network, no real environment reads",
+  "frozen_caps_unchanged": {
+    "SDK_direct_global_work": 2000,
+    "seconds": 1
+  },
+  "cases": [
+    {
+      "id": "zero_sdk_cpu",
+      "expected": "No SDK discovery/client or credential lookup before denied CPU grant"
+    },
+    {
+      "id": "foreign_work_grant",
+      "expected": "Reject before discovery/key and consume no foreign credit"
+    },
+    {
+      "id": "sibling_scope_grant",
+      "expected": "Reject grant scope migration before discovery/key"
+    },
+    {
+      "id": "known_usage_postreturn_cpu_denial",
+      "expected": "Receipt with valid matching-model usage settles exact five tokens/fees even when synthetic create exhausts its funded CPU grant before returning; later CPU output work can fail"
+    },
+    {
+      "id": "literal_echo",
+      "expected": "Retain known settled fees and return redacted bounded DTO"
+    },
+    {
+      "id": "unicode_echo",
+      "expected": "One JSON escape-layer secret echo is redacted without fee loss"
+    }
+  ],
+  "additional_readonly_candidates": [
+    "Response context manager close can throw after a receipt exists but before reconciliation",
+    "Hosted concrete SDK spends full registered grant rather than proposer max_work clamp; separate prereg needed before running"
+  ],
+  "forbidden": [
+    "Raise the original2000/1 caps",
+    "Read a real credential",
+    "Issue network requests",
+    "Modify production, frozen manifests, or existing test expectations"
+  ],
+  "qualification": "These are new independent controls. Lost previousW3 pass counts are not reused."
+}

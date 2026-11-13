@@ -4,70 +4,63 @@
   "status": "active_incremental_rebuild_after_restore_loss",
   "canonical_workspace": "/workspace/scratch/8d3426210943/PythonStAn-resume",
   "preserve_older_dirty_workspace": "/workspace/scratch/8d3426210943/PythonStAn",
-  "published_remote_head": "cf1e4688c2a10cd85e955d82ca24a104c817112a",
+  "published_remote_head": "c7e23393adaeef1a0da8072e96776e52fa7ccd3e",
   "first_rebuilt_source_commit": "a1e5ed4c041b5aea1dc7efcdbd073eced8d72937",
-  "publication_policy": "Important tested/coherent component nodes immediately; while execution available no interval over60minutes. Ignored artifacts/next/PUBLICATION_CLOCK.json target45minutes. All GitHub writes via connector expected-SHA nonforce/exact local-tree check. No native push.",
+  "publication_policy": "Important tested/coherent component nodes immediately; while execution available no interval over60minutes. Ignored artifacts/next/PUBLICATION_CLOCK.json targets30minutes. Connector expected-SHA nonforce/exact local-tree verification; no native push.",
   "recovery_fact": "Restored workspace31d lacked all prior unpushed W3source/evidence. Prior historical115/336/27 passes are not current qualifications. Exact previous3generatorfixture sources remain lost/open. Rebuilt frozenW2 semantic52+6 and Native/domain36 preserved.",
   "published_scope": [
-    "Pure logical-work-v1 meter/text helper;20freshcontrols strictown0.",
-    "Corrected versioned valuecodec +standalonework/deadline/memory/grants core, isolated129author/original+25independent checks pass; bytescontrolalso passes. Runtime/API/terminal/STATE/SEMcode not in cf1e468."
+    "a1e5ed4: pure fixed logical-work-v1 helper and20 controls.",
+    "cf1e468: canonical value wire plus standalone finite resource core.",
+    "4bfba00: runtime graph/SEM/PTA/Native/source/result ports;226 isolated selected controls, quality0new0modified.",
+    "c7e2339: financial request grants, no-cache SDK boundary and known/unknown fees;151 isolated controls, quality0new0modified."
   ],
   "model_digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043",
-  "local_history_note": "Local70a839f same tree asremotea1e5; local497534e same tree asremotecf1e. Preserved localcheckpoint refs. HEAD branchresume-w3-20261113 safely retargeted only after exact tree/index proof, leavingall dirty work intact.",
+  "local_history_note": "Remote code trees verified equal to preserved local checkpoint refs. Local resume branch safely aligned only after exact tree/index proof, preserving all dirty work.",
   "baseline_worktree": "../PythonStAn-w3-rebuild-baseline at8ccff58",
   "isolated_component_worktree": "../PythonStAn-checkpoint-wire-core at497534e",
   "active_owners": {
     "root": [
-      "integration/publication/quality/taskboard",
-      "inputs/snapshot.py optionalRunLedger pre-I/O/parser/inventory ports+test_rebuilt_source_admission.py (14passed;strongpending)",
-      "contracts/cost_model.py held/published"
+      "integration/publication/quality/taskboard"
     ],
     "w3_state_rebuild": [
-      "state/aliases,store,transform,handles",
-      "driver graph/reabstract/compact/outcome comparison slices",
-      "composition/oracle namespace/atomicity",
-      "continuations block/resume/delegate; notSEMiteratorhelpers"
-    ],
-    "w3_sem_rebuild": [
-      "Transfer",
-      "semantics/iteration.py,containers.py",
-      "continuationsiterator/collect/for_loop/hint/PCmethods"
+      "Store.apply sharedmemo candidate4freshindependentpass; capturedsnapshot/ambiguousalias controlsinprogress"
     ],
     "w3_budget_rebuild": [
-      "contracts/resources.py/work.py nowreleasedaftercapture",
-      "NEWresource_api.py financialgrants",
-      "Session/preparation/frontendSource/CLI/provider/strategy/DSL",
-      "driver resourceports only"
+      "Session/preparation/frontendSource/provider/SDK CPU/current-scope shared consumers"
     ],
-    "w3_result_rebuild": [
-      "contracts/value_wire.py,domains/value_wire.py,wiresnapshot paidvisitors",
-      "values.exportONLY/relations handler_id",
-      "results/projection.py/result.py paidprojection/ownership/terminal"
+    "w3_sem_rebuild": [
+      "strategy.py sharedplanner adaptation re-HOLD, original42 rerun; SEM04 source/test HOLD with10/10freshscalar/7of8originalAS03 remainingnestedexport"
     ],
     "w3_pta_rebuild": [
-      "region_engine.py orderedprefix+AnnAssignguard HELD",
-      "NEWdelegatedcompat/legacy_runner.py/native_worker.py actualsharedledger supervisor/protocol"
+      "checker finitegrant finalHOLD+lateauthoritycancelvariant; nextPTA02 region_engine/state_adapter"
+    ],
+    "w3_result_rebuild": [
+      "SDKindependent6green andgenuineREDcapsuleheld; publication.py finiteexactnestedexport+previsit helper; Driver.snapshot caller awaitsNode5capture"
     ],
     "w3_rebuild_review": [
-      "independent50testfile+prereg/receipts",
-      "wire7/core18 qualified; graph17+SEM7 beingbound; no production"
+      "independent provider/checker/L1/child-memory consumer review; no production"
     ]
   },
   "current_remaining": [
-    "STATEinitialgraph+namespace nowcandidate; criticalopposite-root join fixedafternewcounterexample. SharedStore.apply component graphmemo bugnewlyfound—STATE02 NOTclosed.",
-    "SEM17author+original188+frozen27green butnewindepdictpair/fullkeyexhaust2cases stillfail, ownerfixing.",
-    "PTA01Native15green/original17=15pass2PTA02 red, finiteAnnAssignguard: module/classreject/functionlocalallowed. ActualsharedNativebudgetport nowPTAownerinprogress; Budgetwaiting.",
-    "RESULTprojection/issuerreceipt/terminal/privateadoption rebuilding; transient workingtree API NameErrorknown, notpublished.",
-    "FinancialAPIgrants/SDKCPU/modelbilling ports beingrebuilt, no livekeys/pricesqualification.",
-    "SourceIO Rootoptionalledger14controls passes; actualprepare/frontendwiringBudgetowned.",
-    "Allcomponentreceipts bounded; no fullW3card acceptance/release/soundness/live claim."
+    "Node5 isolated805d6b7:4714audit controls pass, originalstage1046pass1explicitunchangedNativecap2 contract failure; quality0new0modified. Critical configcopy/SDKknownusage/localceiling/observer/cross-thread read issues repaired and freshly verified. Awaiting exacttree connector publication.",
+    "Prior publishedNode4 isolated source had mandatory34/36, semantic39/52 andLV2/6; finalNode5same semantic/Native unresolvedfamilies. Laterfuturecode not inferred accepted.",
+    "STATE02 Store.apply shared graph transport remainsopen; phase2repairinprogress. STATE01 oldlost generatorfixtures not requalified.",
+    "PTA02 varying-key allocation, SEM04 comprehensions, SEM05 classinfo, recursion/query and latercards remainopen.",
+    "No realkeys/modelcalls/vendorprice qualification; allsource/testreceipts bounded.",
+    "Full BUDGET closure also requires actual paid driver heap/publication traversal; future optionalvisitor helper and caller port owned separately, not hidden by later paid result freeze."
   ],
   "next_steps": [
-    "PublishSTATEcoherentgraph+sourceIO/PTA/SEMnodes after fresh componentguards—donotwaitallglobalgateswhile1hbackupconstraint.",
-    "Before sourcecapture coordinate shareddriver/continuations/wire slices. Freeze/capture exact selected files, testIMMUTABLEcandidate in separate worktree so uncommittedother features cannot supply hidden dependencies.",
-    "Do not publish knownnew codec/graph bugs untilnarrowfix+newindependentwitness; preserveoldredrecords.",
-    "Run sameversionfullquality andoriginalstage/ALLcontrols/mandatory36/semantic58 after runtimeintegration; no gold/cap/debt resets."
+    "Freeze/capture consumer source onceowners HOLD, isolatedselected/original/quality gates, publish within30minute target.",
+    "Preserve genuine newindependent redcounterexamples and fixbefore claimedclosure; use localresiduals for unsupported ambiguouseffectaliascases.",
+    "Proceed narrowDAG-ready nexttasks with exacttaskboardobligations; no broadrewrite or gold/debt/cap weakening."
   ],
   "real_model_calls": 0,
-  "real_OpenAI_key_reads": 0
+  "real_OpenAI_key_reads": 0,
+  "full_regression_record": "docs/development/next/rebuild/ROOT_FULL_REGRESSION_20261113.json",
+  "full_consumer_record": "docs/development/next/rebuild/ROOT_CONSUMER_REBUILD_20261113.json",
+  "current_future_slices": [
+    "SEM04+publication nested finiteexact views passedauthor27/32; independent10 now7pass/closure-scopefail+2budget-limited probes pending precise diagnosis.",
+    "PTA02 canonical heapjoin author76passes, independentandfinalstrict pending.",
+    "STATE02 phase2 graphapplication 14passes but explicitaffectedowner ambiguity residual stillbeingrefined; independentred remains retained."
+  ]
 }

@@ -9,8 +9,15 @@ from dataclasses import dataclass, field
 
 from pythonstan.analysis.contracts import SemanticIdentity, thaw_snapshot
 from pythonstan.analysis.contracts.identity import stable_digest
+from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger, WorkReservation
 
-from .language import CandidateError, GuardedSummary, candidate_to_dict, parse_candidate
+from .language import (
+    CandidateError,
+    GuardedSummary,
+    candidate_to_dict,
+    identity_to_dict,
+    parse_candidate,
+)
 from .obligations import (
     ProgramFacts,
     UnsupportedSource,
@@ -18,17 +25,30 @@ from .obligations import (
     VerificationUnknown,
     WorkMeter,
     generate_obligations,
+    verification_meter,
 )
 
 CHECKER_VERSION = "guarded-dispatch-source-refinement-1"
 _CERTIFICATE_KEY = secrets.token_bytes(32)
 
 
-def _certificate_digest(candidate: GuardedSummary, facts: ProgramFacts) -> str:
+def _certificate_digest(candidate: GuardedSummary, facts: ProgramFacts, meter: WorkMeter) -> str:
+    with meter.traversal("certificate_candidate_copy") as visit:
+        candidate_wire = candidate_to_dict(candidate, visit=visit)
+    with meter.traversal("certificate_identity_copy") as visit:
+        identity_wire = identity_to_dict(facts.identity, visit=visit)
+    meter.admit_json(identity_wire, "certificate_identity_hash")
+    with meter.traversal("certificate_source_vector") as visit:
+        visit(1 + 6 * len(facts.handlers) + 6 * len(facts.calls))
+    with meter.traversal("certificate_call_payloads") as visit:
+        calls = [
+            (c.target, c.point, c.key, thaw_snapshot(c.payload, visit=visit), c.reachable)
+            for c in facts.calls
+        ]
     payload = {
         "checker": CHECKER_VERSION,
         "identity": facts.identity.digest,
-        "candidate": candidate_to_dict(candidate),
+        "candidate": candidate_wire,
         "dispatch": facts.dispatch,
         "parameters": facts.dispatch_parameters,
         "table_name": facts.table_name,
@@ -37,12 +57,11 @@ def _certificate_digest(candidate: GuardedSummary, facts: ProgramFacts) -> str:
         "handlers": [
             (h.name, h.parameter, h.relation, h.allocation, h.digest) for h in facts.handlers
         ],
-        "calls": [
-            (c.target, c.point, c.key, thaw_snapshot(c.payload), c.reachable) for c in facts.calls
-        ],
+        "calls": calls,
         "source_nodes": facts.source_nodes,
         "complete_source": True,
     }
+    meter.admit_json(payload, "certificate_json_hash")
     return stable_digest(payload)
 
 
@@ -103,10 +122,17 @@ def identity_for_source(
     policy_digest: str = "default-policy",
     state_version: str = "0",
     budget: VerificationBudget | None = None,
+    resource_ledger: RunLedger | None = None,
+    work_reservation: WorkReservation | None = None,
 ) -> SemanticIdentity:
     """Trusted profile identity; this creates no certificate or caller evidence."""
     return generate_obligations(
-        source, policy_digest=policy_digest, state_version=state_version, budget=budget
+        source,
+        policy_digest=policy_digest,
+        state_version=state_version,
+        budget=budget,
+        resource_ledger=resource_ledger,
+        work_reservation=work_reservation,
     ).identity
 
 
@@ -116,11 +142,51 @@ def check_source_candidate(
     *,
     identity: object = None,
     budget: VerificationBudget | None = None,
+    resource_ledger: RunLedger | None = None,
+    work_reservation: WorkReservation | None = None,
 ) -> VerificationResult:
     budget = budget or VerificationBudget()
-    meter = WorkMeter(budget)
+    meter: WorkMeter | None = None
     try:
-        proposal = parse_candidate(candidate)
+        with verification_meter(
+            budget, resource_ledger=resource_ledger, work_reservation=work_reservation
+        ) as meter:
+            return _check_candidate(source, candidate, identity, budget, meter)
+    except (VerificationUnknown, ResourceStop) as error:
+        return VerificationResult(
+            "unknown",
+            (str(error),),
+            checked_work=0 if meter is None else meter.work,
+            counters=() if meter is None else tuple(sorted(meter.counts.items())),
+        )
+    except MemoryError:
+        if resource_ledger is not None:
+            resource_ledger.stop("max_memory_mb")
+        return VerificationResult(
+            "unknown",
+            ("checker memory unavailable",),
+            checked_work=0 if meter is None else meter.work,
+            counters=() if meter is None else tuple(sorted(meter.counts.items())),
+        )
+
+
+def _same_identity(left: SemanticIdentity, right: SemanticIdentity, meter: WorkMeter) -> bool:
+    with meter.traversal("checker_identity_comparison") as visit:
+        identity_to_dict(left, visit=visit)
+        identity_to_dict(right, visit=visit)
+    return left == right
+
+
+def _check_candidate(
+    source: object,
+    candidate: object,
+    identity: object,
+    budget: VerificationBudget,
+    meter: WorkMeter,
+) -> VerificationResult:
+    try:
+        with meter.traversal("checker_candidate_parse") as visit:
+            proposal = parse_candidate(candidate, visit=visit)
     except (
         CandidateError,
         TypeError,
@@ -129,10 +195,18 @@ def check_source_candidate(
         KeyError,
         RecursionError,
     ) as error:
-        return VerificationResult("rejected", ("malformed candidate: " + str(error),))
+        return VerificationResult(
+            "rejected",
+            ("malformed candidate: " + str(error),),
+            checked_work=meter.work,
+            counters=tuple(sorted(meter.counts.items())),
+        )
     if identity is not None and not isinstance(identity, SemanticIdentity):
         return VerificationResult(
-            "rejected", ("expected identity must be a trusted SemanticIdentity",)
+            "rejected",
+            ("expected identity must be a trusted SemanticIdentity",),
+            checked_work=meter.work,
+            counters=tuple(sorted(meter.counts.items())),
         )
     policy = identity.policy_digest if identity is not None else "default-policy"
     state = identity.state_version if identity is not None else "0"
@@ -140,18 +214,20 @@ def check_source_candidate(
         facts = generate_obligations(
             source, policy_digest=policy, state_version=state, budget=budget, meter=meter
         )
-        if identity is not None and facts.identity != identity:
+        if identity is not None and not _same_identity(facts.identity, identity, meter):
             return VerificationResult(
                 "rejected",
                 ("current source/IR/model/policy/dependency identity mismatch",),
                 checked_work=meter.work,
             )
-        if proposal.identity != facts.identity:
+        if not _same_identity(proposal.identity, facts.identity, meter):
             return VerificationResult(
                 "rejected",
                 ("candidate source/IR/model/policy/dependency identity mismatch",),
                 checked_work=meter.work,
             )
+        with meter.traversal("checker_claim_vectors") as visit:
+            visit(1 + len(facts.handlers) + len(proposal.handlers) + len(proposal.arms))
         names = tuple(sorted(handler.name for handler in facts.handlers))
         claims = {handler.name: handler for handler in proposal.handlers}
         if set(claims) != set(names):
@@ -207,7 +283,8 @@ def check_source_candidate(
                 failures.append(key + ": key-handler-return relation refinement failed")
         # Source calls outside a candidate guard are not deleted. They are
         # retained in source_facts so guard/application computes a complement.
-        meter.tick("source_call_obligations", len(facts.calls))
+        for _ in facts.calls:
+            meter.tick("source_call_obligations")
         if failures:
             return VerificationResult(
                 "rejected",
@@ -217,10 +294,12 @@ def check_source_candidate(
                 source_coverage=True,
                 counters=tuple(sorted(meter.counts.items())),
             )
-        digest = _certificate_digest(proposal, facts)
+        digest = _certificate_digest(proposal, facts, meter)
+        meter.tick("certificate_host_seal")
         certificate = VerifiedSummary(
             proposal, facts, digest, meter.work, _seal=_certificate_stamp(proposal, facts, digest)
         )
+        meter.checkpoint(force=True)
         return VerificationResult(
             "accepted",
             (),
@@ -253,8 +332,17 @@ def recheck_certificate(
     *,
     identity: object = None,
     budget: VerificationBudget | None = None,
+    resource_ledger: RunLedger | None = None,
+    work_reservation: WorkReservation | None = None,
 ) -> VerificationResult:
     """Durable/cache candidate data is always independently checked again."""
     if not isinstance(certificate, VerifiedSummary) or not certificate.issued_by_checker:
         return VerificationResult("rejected", ("not a checker-issued summary",))
-    return check_source_candidate(source, certificate.candidate, identity=identity, budget=budget)
+    return check_source_candidate(
+        source,
+        certificate.candidate,
+        identity=identity,
+        budget=budget,
+        resource_ledger=resource_ledger,
+        work_reservation=work_reservation,
+    )

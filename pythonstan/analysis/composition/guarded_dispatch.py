@@ -39,6 +39,7 @@ from pythonstan.analysis.contracts.json_data import (
     require_object,
     require_string,
 )
+from pythonstan.analysis.contracts.resources import RunLedger
 from pythonstan.analysis.domains.relations import PartitionToken
 from pythonstan.analysis.domains.values import Value
 from pythonstan.analysis.state.effects import HeapWrite
@@ -215,10 +216,13 @@ class GuardedDispatchProvider:
         config: JsonObject,
         proposer: CandidateProvider,
         remaining_work: int | None = None,
+        *,
+        resource_ledger: RunLedger | None = None,
     ) -> None:
         self.config = config
         self.policy_digest = stable_digest(config)
         self.proposer = proposer
+        self.resource_ledger = resource_ledger
         self.programs: dict[str, VerifiedSummary] = {}
         self.source_calls: dict[str, SourceCall] = {}
         self._records: dict[str, JsonObject] = {}
@@ -286,18 +290,68 @@ class GuardedDispatchProvider:
         remaining = require_int(resources.get("max_work", 100000))
         if self._remaining_work is not None:
             remaining = min(remaining, max(0, self._remaining_work))
+        if self.resource_ledger is not None:
+            remaining = min(remaining, self.resource_ledger.remaining_work)
         visited_modules = set()
         for source in modules:
             if self._stats["proposals"] >= max_proposals or remaining <= 0:
                 break
             visited_modules.add(source.module)
             self._stats["proposals"] += 1
+            recorded_copy_work = 0
             # Identity creation in the untrusted proposer is metadata hashing;
             # the checker independently compares the actual full source below.
-            proposal = self.proposer.propose(source.source, max_work=remaining)
-            self._stats["proposal_work"] += proposal.work
+            if self.resource_ledger is None:
+                proposal = self.proposer.propose(source.source, max_work=remaining)
+            else:
+                from pythonstan.llm.candidates import CandidateProposal
+                from pythonstan.llm.providers import (
+                    OfflineDispatchProposer,
+                    RecordedDispatchProposer,
+                )
+                from pythonstan.llm.responses import ResponsesCandidateProposer
+
+                ledger = self.resource_ledger
+                grant = ledger.reserve_work(
+                    min(remaining, ledger.remaining_work), category="guarded_proposer_cpu"
+                )
+                try:
+                    grant.consume(1, owner=ledger)
+                    if isinstance(
+                        self.proposer,
+                        (
+                            OfflineDispatchProposer,
+                            RecordedDispatchProposer,
+                            ResponsesCandidateProposer,
+                        ),
+                    ):
+                        proposal = self.proposer.propose(
+                            source.source, max_work=max(0, remaining - 1), work_reservation=grant
+                        )
+                    else:
+                        proposal = CandidateProposal(
+                            "blocked",
+                            None,
+                            "budget_port_unavailable",
+                            0,
+                            0,
+                            ("registered proposer budget port required",),
+                        )
+                    proposal = replace(proposal, work=grant.observed)
+                    if isinstance(self.proposer, RecordedDispatchProposer):
+                        # The established recorded-proposal metric counts one
+                        # dispatch; measured source/DTO copying is bridge work.
+                        recorded_copy_work = max(0, grant.observed - 1)
+                finally:
+                    if grant.status == "reserved":
+                        grant.settle(grant.observed)
+            self._stats["proposal_work"] += proposal.work - recorded_copy_work
+            self._stats["bridge_setup_work"] += recorded_copy_work
             self._stats["proposer_seconds"] += proposal.seconds
             remaining -= proposal.work
+            if self.resource_ledger is not None:
+                self._stats["charged_to_driver_work"] += proposal.work
+                remaining = min(remaining, self.resource_ledger.remaining_work)
             if proposal.candidate is None:
                 self._record_unknown(source.module, "proposal_unavailable")
                 if proposal.provider == "openai_live":
@@ -324,7 +378,21 @@ class GuardedDispatchProvider:
             # Bind the host policy version. Source/IR/model/dependency data still
             # originates in the untrusted proposal and must pass the checker.
             try:
-                wire = candidate_to_dict(parse_candidate(proposal.candidate))
+                if self.resource_ledger is None:
+                    wire = candidate_to_dict(parse_candidate(proposal.candidate))
+                else:
+                    before = self.resource_ledger.work.used
+                    try:
+                        with self.resource_ledger.structural_meter(
+                            "guarded_candidate_parse"
+                        ) as meter:
+                            parsed = parse_candidate(proposal.candidate, visit=meter.visit)
+                            wire = candidate_to_dict(parsed, visit=meter.visit)
+                    finally:
+                        consumed = self.resource_ledger.work.used - before
+                        self._stats["bridge_setup_work"] += consumed
+                        self._stats["charged_to_driver_work"] += consumed
+                        remaining = min(remaining - consumed, self.resource_ledger.remaining_work)
                 wire_identity = require_object(wire["identity"])
                 wire_identity["policy_digest"] = self.policy_digest
                 identity = parse_identity(wire_identity)
@@ -340,10 +408,14 @@ class GuardedDispatchProvider:
                 budget=VerificationBudget(
                     max_work=max(0, min(require_int(llm.get("checker_budget", 10000)), remaining))
                 ),
+                resource_ledger=self.resource_ledger,
             )
             self._stats["checker_seconds"] += time.monotonic() - started
             self._stats["checker_work"] += result.checked_work
             remaining -= result.checked_work
+            if self.resource_ledger is not None:
+                self._stats["charged_to_driver_work"] += result.checked_work
+                remaining = min(remaining, self.resource_ledger.remaining_work)
             if not result.certified:
                 if result.status == "rejected":
                     self._stats["rejected"] += 1
@@ -362,10 +434,14 @@ class GuardedDispatchProvider:
                 certificate.source_facts.handlers
             )
             if bridge_work > remaining:
-                self._stats["bridge_setup_work"] += max(0, remaining)
+                if self.resource_ledger is None:
+                    self._stats["bridge_setup_work"] += max(0, remaining)
                 remaining = 0
                 self._record_unknown(source.module, "bridge setup work budget exhausted")
                 continue
+            if self.resource_ledger is not None:
+                self.resource_ledger.charge_work(bridge_work, "guarded_bridge_setup")
+                self._stats["charged_to_driver_work"] += bridge_work
             self._stats["bridge_setup_work"] += bridge_work
             remaining -= bridge_work
             self.programs[source.module] = certificate
@@ -412,6 +488,7 @@ class GuardedDispatchProvider:
             "consumed_driver_work": self._stats["charged_to_driver_work"],
             "uncharged_attempted_work": unpaid,
             "work_count_status": "fully_charged" if not unpaid else "unpaid_reported_work",
+            "recorded_proposal_work_scope": "One dispatch per attempted recording; actual source/DTO copy fuel is included in bridge_setup_work and the shared global ledger",
             "state_work_scope": "Committed invalidations; aborted detached preparation is measured by the host reabstract_summary_work counter",
             "total_seconds": sum(self._stats[key] for key in DURATION_METRICS),
             "required_property_points": len(self.required_property_points),
@@ -500,6 +577,8 @@ class GuardedDispatchProvider:
 
     def charge_setup(self, context: SummaryApplicationContext) -> None:
         self._ensure_prepared()
+        if self.resource_ledger is not None:
+            return
         if context.host_token not in self._charged_drivers:
             self._charged_drivers.add(context.host_token)
             self._charge(context, sum(self._stats[key] for key in SETUP_METRICS))

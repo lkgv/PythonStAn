@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "case": "W3 consumer SDK independent six controls",
+  "initial": {
+    "passed": 5,
+    "failed": 1,
+    "source_bound": true,
+    "source_sha256": {
+      "pythonstan/llm/openai_transport.py": "590984bfce2d217cae3b58d58f7db670e2c1d7b754d082055c9dd4c24603c626",
+      "pythonstan/llm/responses.py": "9a922f98b6035b42a4667568f5ef75506d7fdb470de16bcd990946bfbc2fc7e6",
+      "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+      "pythonstan/analysis/contracts/resource_api.py": "f1e3d93b038a9905c84ce3687a6f072a333ee3ace4102dbb64ad393bd8d89b55",
+      "tests/regression/audit3/test_w3_consumer_sdk_independent.py": "7573c8a2273b14388aa63bb036b26d5297aa3857bcc72ef639b107e06201c627",
+      "docs/development/next/reviews/W3_CONSUMER_SDK_preregistration_20261113.json": "20b081aff20ddacd1fe3e19bb31bfb5ffa058b0dd32a34cb6ef60e82dc92cc94"
+    },
+    "sanitized_replay_archive": "docs/development/next/reviews/W3_CONSUMER_SDK_red_source_20261113.tar.gz",
+    "archive_sha256": "fc74c5d50f453663177acdd833c5c61612558507211b48fc18741dc8275a0ca3"
+  },
+  "unchanged_rerun": {
+    "passed": 6,
+    "failed": 0,
+    "source_sha256": {
+      "pythonstan/llm/openai_transport.py": "fe9bea90bb45acd97fdc998059f067ca229c5f5c59b6b9a645096249bdcfdd2d",
+      "pythonstan/llm/responses.py": "9a922f98b6035b42a4667568f5ef75506d7fdb470de16bcd990946bfbc2fc7e6",
+      "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+      "pythonstan/analysis/contracts/resource_api.py": "f1e3d93b038a9905c84ce3687a6f072a333ee3ace4102dbb64ad393bd8d89b55",
+      "tests/regression/audit3/test_w3_consumer_sdk_independent.py": "7573c8a2273b14388aa63bb036b26d5297aa3857bcc72ef639b107e06201c627",
+      "docs/development/next/reviews/W3_CONSUMER_SDK_preregistration_20261113.json": "20b081aff20ddacd1fe3e19bb31bfb5ffa058b0dd32a34cb6ef60e82dc92cc94"
+    },
+    "test_unchanged": true,
+    "caps_unchanged": {
+      "global_work": 2000,
+      "seconds": 1
+    }
+  },
+  "scope": "Known receipt reconciliation preadmission fixed by Budget owner; no claim about context-manager-close exceptions, proposer-local cap enforcement, or wholeW3 acceptance.",
+  "production_edit_by_reviewer": false,
+  "network_or_real_environment": false
+}

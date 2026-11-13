@@ -95,6 +95,11 @@ class ApiReservation:
     def cost_known(self) -> bool:
         return self._cost_known
 
+    @property
+    def resource_ledger(self) -> RunLedger:
+        self._registered()
+        return self._owner
+
     def _registered(self, owner: RunLedger | None = None) -> None:
         if owner is not None and owner is not self._owner:
             raise ValueError("API grant belongs to another request")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+from concurrent.futures import ThreadPoolExecutor
 from types import MappingProxyType
 
 import pytest
@@ -262,3 +263,21 @@ def test_funded_terminal_can_serialize_and_write_after_the_original_stop() -> No
     assert json.loads(stream.getvalue())["coverage_status"] == "open"
     assert ledger.stop_reason == "max_seconds"
     assert ledger.work.used + ledger.work.reserved <= ledger.work.limit
+
+
+def test_foreign_thread_public_reads_charge_same_ledger_without_execution_authority() -> None:
+    def create() -> tuple[AnalysisResult, RunLedger]:
+        ledger = RunLedger(2000, 1, 0)
+        result = AnalysisResult(_data(), (ValueQuery("sample", "result"),), resource_ledger=ledger)
+        return result, ledger
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        result, ledger = executor.submit(create).result()
+    before = ledger.work.used
+    assert require_object(result.query(ValueQuery("sample", "result")).value)["constants"] == [17]
+    assert result.to_dict()["solver_status"] == "converged"
+    assert json.loads(result.serialize())["solver_status"] == "converged"
+    assert ledger.work.used > before
+    assert ledger.work.used + ledger.work.reserved <= 2000
+    with pytest.raises(ValueError), ledger.work_scope(0, "foreign_execution"):
+        raise AssertionError("A reader gained execution scope authority")

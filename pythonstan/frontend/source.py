@@ -7,7 +7,7 @@ identities remain on SourceModule; public results contain frozen JSON only.
 from __future__ import annotations
 
 import ast
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from types import EllipsisType, MappingProxyType
 from typing import override
@@ -72,7 +72,7 @@ def make_source_constant(value: SourceLiteral) -> ast.Constant:
 
 def _location(node: ast.AST) -> tuple[int, int] | None:
     """Validate the CPython AST's dynamic source-position metadata at its boundary."""
-    attributes = vars(node)
+    attributes: Mapping[str, object] = vars(node)
     line: object = attributes.get("lineno")
     if line is None:
         return None
@@ -152,10 +152,13 @@ def _index_tree(
     nodes: dict[int, ast.AST],
     node_modules: dict[int, str],
     synthetic: dict[int, ProgramPointId],
+    visit: Callable[[int], None] | None = None,
 ) -> None:
     """Index owned ASTs iteratively without constructing unused whole-tree paths."""
     pending: list[tuple[ast.AST, str]] = [(tree, "module")]
     while pending:
+        if visit is not None:
+            visit(1)
         node, path = pending.pop()
         identifier: ProgramPointId | None = None
         nodes[id(node)] = node
@@ -163,7 +166,8 @@ def _index_tree(
         if _location(node) is None:
             identifier = source_node_identity(name, source.digest, node, path)
             synthetic[id(node)] = identifier
-        for field, raw_value in ast.iter_fields(node):
+        fields: Iterable[tuple[str, object]] = ast.iter_fields(node)
+        for field, raw_value in fields:
             # CPython exposes dynamic AST fields; immediately bound their scope
             # to validated AST/list alternatives before any typed consumer.
             value: object = raw_value
@@ -178,7 +182,8 @@ def _index_tree(
                     child_path = f"{identifier}.{field}"
                 pending.append((value, child_path))
             elif isinstance(value, list):
-                for index, child in enumerate(value):
+                children: Sequence[object] = value
+                for index, child in enumerate(children):
                     if isinstance(child, ast.AST) and not isinstance(child, _LOCATIONLESS_MARKERS):
                         if _location(child) is not None:
                             child_path = ""
@@ -242,6 +247,7 @@ def parse_sources(
     modules: Mapping[str, SourceInput] | Iterable[SourceInput],
     *,
     parsed_trees: ParsedTreeCache | None = None,
+    visit: Callable[[int], None] | None = None,
 ) -> SourceProgram:
     """Create one execution's validated program without executing target source.
 
@@ -249,12 +255,16 @@ def parse_sources(
     digests. They are reused only within their owning execution. A rerun supplies
     an empty cache, so private-name lowering never shares ASTs between sessions.
     """
+    if visit is not None:
+        visit(1)
     sources = normalize_source_modules(modules)
     trees: dict[str, ast.Module] = {}
     nodes: dict[int, ast.AST] = {}
     node_modules: dict[int, str] = {}
     synthetic: dict[int, ProgramPointId] = {}
     for name, source in sources.items():
+        if visit is not None:
+            visit(1)
         cached = parsed_trees.get(name) if parsed_trees is not None else None
         tree = (
             ast.parse(source.source, source.filename, type_comments=True, feature_version=(3, 12))
@@ -266,7 +276,7 @@ def parse_sources(
         compile(tree, source.filename, "exec", dont_inherit=True)
         tree = lower_private_names(tree)
         trees[name] = tree
-        _index_tree(name, source, tree, nodes, node_modules, synthetic)
+        _index_tree(name, source, tree, nodes, node_modules, synthetic, visit)
     frozen_sources = sources
     frozen_ownership = MappingProxyType(node_modules)
     return SourceProgram(

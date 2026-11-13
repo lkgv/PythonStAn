@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import TypeGuard
 
 from pythonstan.analysis.contracts import freeze_snapshot, thaw_snapshot
+from pythonstan.analysis.contracts.cost_model import visit_json_text
 from pythonstan.analysis.contracts.identity import SemanticIdentity, VersionedDependency
 from pythonstan.analysis.contracts.json_data import JsonObject
 
@@ -113,7 +114,60 @@ class GuardedSummary:
     profile: str = PROFILE
 
 
-def identity_to_dict(identity: SemanticIdentity) -> JsonObject:
+def _admit_record(keys: tuple[str, ...], visit: Callable[[int], None]) -> None:
+    visit(1)
+    for key in keys:
+        visit_json_text(key, visit)
+
+
+def _admit_atom(value: str | int | bool | None, visit: Callable[[int], None]) -> None:
+    if isinstance(value, str):
+        visit_json_text(value, visit)
+    else:
+        visit(1)
+
+
+def _admit_identity(identity: SemanticIdentity, visit: Callable[[int], None]) -> None:
+    _admit_record(
+        (
+            "source_digest",
+            "ir_digest",
+            "model_digest",
+            "policy_digest",
+            "profile",
+            "state_version",
+            "python_version",
+            "dependencies",
+        ),
+        visit,
+    )
+    for value in (
+        identity.source_digest,
+        identity.ir_digest,
+        identity.model_digest,
+        identity.policy_digest,
+        identity.profile,
+        identity.state_version,
+        identity.python_version,
+    ):
+        _admit_atom(value, visit)
+    visit(1)
+    for dependency in identity.dependencies:
+        _admit_record(("kind", "identity", "version", "negative"), visit)
+        for dependency_value in (
+            dependency.kind,
+            dependency.identity,
+            dependency.version,
+            dependency.negative,
+        ):
+            _admit_atom(dependency_value, visit)
+
+
+def identity_to_dict(
+    identity: SemanticIdentity, *, visit: Callable[[int], None] | None = None
+) -> JsonObject:
+    if visit is not None:
+        _admit_identity(identity, visit)
     return {
         "source_digest": identity.source_digest,
         "ir_digest": identity.ir_digest,
@@ -167,7 +221,61 @@ def parse_identity(value: object) -> SemanticIdentity:
     )
 
 
-def candidate_to_dict(candidate: GuardedSummary) -> JsonObject:
+def candidate_to_dict(
+    candidate: GuardedSummary, *, visit: Callable[[int], None] | None = None
+) -> JsonObject:
+    if visit is not None:
+        _admit_record(
+            ("schema_version", "profile", "identity", "dispatch", "guard", "handlers", "arms"),
+            visit,
+        )
+        _admit_atom(candidate.schema_version, visit)
+        _admit_atom(candidate.profile, visit)
+        _admit_identity(candidate.identity, visit)
+        _admit_atom(candidate.dispatch, visit)
+        _admit_record(
+            ("table_name", "keys", "exact_builtin_dict", "stable_bindings", "payload"), visit
+        )
+        _admit_atom(candidate.guard.table_name, visit)
+        visit(1)
+        for key in candidate.guard.keys:
+            _admit_atom(key, visit)
+        _admit_atom(candidate.guard.exact_builtin_dict, visit)
+        _admit_atom(candidate.guard.stable_bindings, visit)
+        _admit_atom(candidate.guard.payload, visit)
+        visit(1)
+        for handler in candidate.handlers:
+            _admit_record(
+                (
+                    "name",
+                    "relation",
+                    "input_parameter",
+                    "slot",
+                    "existing_heap",
+                    "normal_exit",
+                    "exceptions",
+                    "suspends",
+                ),
+                visit,
+            )
+            for value in (
+                handler.name,
+                handler.relation,
+                handler.input_parameter,
+                handler.slot,
+                handler.existing_heap,
+                handler.normal_exit,
+                handler.suspends,
+            ):
+                _admit_atom(value, visit)
+            visit(1)
+            for exception in handler.exceptions:
+                _admit_atom(exception, visit)
+        visit(1)
+        for arm in candidate.arms:
+            _admit_record(("key", "handler", "relation"), visit)
+            for value in (arm.key, arm.handler, arm.relation):
+                _admit_atom(value, visit)
     return {
         "schema_version": candidate.schema_version,
         "profile": candidate.profile,
@@ -215,7 +323,9 @@ def _no_duplicates(
 def parse_candidate(value: object, *, visit: Callable[[int], None] | None = None) -> GuardedSummary:
     if visit is not None:
         visit(1)
-    data: object = candidate_to_dict(value) if isinstance(value, GuardedSummary) else value
+    data: object = (
+        candidate_to_dict(value, visit=visit) if isinstance(value, GuardedSummary) else value
+    )
     if isinstance(data, str):
         if visit is not None:
             # Admit the atomic JSON decoder's bounded input before it can

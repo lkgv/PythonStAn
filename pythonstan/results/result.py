@@ -612,7 +612,7 @@ class AnalysisResult:
             ) as meter:
                 return thaw_snapshot(value, visit=meter.visit)
         with (
-            self._resource_ledger.phase("export"),
+            self._resource_ledger.read_phase("export"),
             self._resource_ledger.structural_meter("result_projection_copy") as meter,
         ):
             return thaw_snapshot(value, visit=meter.visit)
@@ -708,7 +708,7 @@ class AnalysisResult:
             with ledger.structural_meter(category, charge=self._terminal_capacity.consume) as meter:
                 yield meter.visit
         else:
-            with ledger.phase("export"), ledger.structural_meter(category) as meter:
+            with ledger.read_phase("export"), ledger.structural_meter(category) as meter:
                 yield meter.visit
 
     def _controller_answer(self, query: QuerySpec) -> QueryAnswer:
@@ -1028,7 +1028,7 @@ class AnalysisResult:
             ledger.charge_json(value, category, charge=self._terminal_capacity.consume)
             yield
         else:
-            with ledger.phase("export"):
+            with ledger.read_phase("export"):
                 ledger.charge_json(value, category)
                 yield
                 ledger.checkpoint(force=True)

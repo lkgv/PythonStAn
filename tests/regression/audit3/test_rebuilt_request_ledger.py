@@ -208,3 +208,49 @@ def test_sampled_memory_and_disabled_enforcement_are_distinct_observations() -> 
 def test_rate_card_uses_cached_and_reasoning_token_subsets_without_double_counting() -> None:
     card = RateCard("synthetic", "fixture-digest", "synthetic:test-only", 1000000, 500000, 2000000)
     assert card.cost(10, 4, 6) == 15
+
+
+def test_foreign_immutable_reads_charge_without_changing_owner_execution_timing_or_quotas() -> None:
+    now = [0.0]
+    run = RunLedger(10, 0, 0, clock=lambda: now[0], memory_reader=lambda: 0)
+    with run.phase("source"):
+        now[0] = 1
+        run.charge_work(2, "source")
+
+    def read() -> object:
+        with pytest.raises(ValueError, match="request owner"), run.phase("execution"):
+            raise AssertionError("foreign execution phase entered")
+        with pytest.raises(ValueError, match="request owner"), run.work_scope(0, "quota"):
+            raise AssertionError("foreign execution quota entered")
+        with run.read_phase("query"):
+            now[0] = 5
+            run.charge_json({"x": 1}, "readonly_copy")
+        return run.snapshot()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        observed = require_object(pool.submit(read).result())
+    assert observed["elapsed_seconds"] == 1
+    assert observed["wall_observed_seconds"] == 5
+    assert observed["foreign_read_seconds"] == {"query": 4}
+    assert observed["work_scopes"] == []
+    assert run.work.used == 3 and run.work.reserved == 0
+    assert "query" in run.raw_structural_by_phase
+
+
+def test_public_grant_ceiling_is_atomic_across_consumers() -> None:
+    run = ledger(10)
+    grant = run.reserve_work(10, category="shared_worker")
+
+    def consume(_: int) -> bool:
+        try:
+            grant.consume(1, owner=run, ceiling=3)
+            return True
+        except ResourceStop:
+            return False
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        admitted = list(pool.map(consume, range(10)))
+    assert admitted.count(True) == grant.observed == run.work.used == 3
+    assert grant.held == run.work.reserved == 7
+    grant.settle(3)
+    assert run.work.reserved == 0 and run.remaining_work == 7

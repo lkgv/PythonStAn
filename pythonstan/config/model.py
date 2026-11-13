@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
@@ -28,6 +28,7 @@ from pythonstan.analysis.contracts.json_data import (
     thaw_json_object,
     validate_json_object,
 )
+from pythonstan.analysis.contracts.wire import thaw_snapshot
 
 from .errors import ConfigurationError
 from .llm_provider import ProviderOptions
@@ -204,8 +205,10 @@ class EffectiveConfig(Mapping[str, JsonValue]):
         object.__setattr__(self, "andersen", freeze_json_object(require_object(data["andersen"])))
         object.__setattr__(self, "abstract", freeze_json_object(require_object(data["abstract"])))
 
-    def to_dict(self) -> JsonObject:
-        return thaw_json_object(self._document)
+    def to_dict(self, *, visit: Callable[[int], None] | None = None) -> JsonObject:
+        if visit is None:
+            return thaw_json_object(self._document)
+        return require_object(thaw_snapshot(self._document, visit=visit))
 
     @property
     def provenance(self) -> dict[str, str]:
@@ -213,8 +216,11 @@ class EffectiveConfig(Mapping[str, JsonValue]):
 
     @property
     def digest(self) -> str:
+        return self.digest_for()
+
+    def digest_for(self, *, visit: Callable[[int], None] | None = None) -> str:
         payload = json.dumps(
-            self.to_dict(),
+            self.to_dict(visit=visit),
             sort_keys=True,
             separators=(",", ":"),
             ensure_ascii=False,

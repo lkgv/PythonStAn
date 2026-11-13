@@ -347,16 +347,19 @@ class InterproceduralDriver:
         return (execution or self.default_execution).integer(name, default)
 
     def _check_limits(self, force: bool = False) -> None:
-        self.resource_ledger.checkpoint(force=force)
+        try:
+            self.resource_ledger.checkpoint(force=force)
+        finally:
+            self.stats["memory_checks"] = self.resource_ledger.memory_checks
+            self.stats["memory_samples"] = self.resource_ledger.memory_samples
+            self.stats["resident_memory_bytes"] = self.resource_ledger.memory_used
+            self.stats["peak_sampled_resident_bytes"] = self.resource_ledger.peak_memory
         if (
             self.started
             and self.max_seconds
             and time.monotonic() - self.started >= self.max_seconds
         ):
             raise BudgetStop("stage_max_seconds")
-        self.stats["memory_checks"] = self.resource_ledger.memory_checks
-        self.stats["resident_memory_bytes"] = self.resource_ledger.memory_used
-        self.stats["peak_sampled_resident_bytes"] = self.resource_ledger.peak_memory
 
     @property
     def work(self) -> int:

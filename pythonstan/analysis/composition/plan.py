@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import fnmatch
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Literal, override
@@ -25,6 +25,8 @@ from pythonstan.analysis.contracts.json_data import (
     thaw_json,
     thaw_json_object,
 )
+from pythonstan.analysis.contracts.resources import RunLedger
+from pythonstan.analysis.contracts.wire import thaw_snapshot
 from pythonstan.analysis.policies.region import EffectiveRegionPolicy
 from pythonstan.config import ConfigurationError, EffectiveConfig, resolve_config
 from pythonstan.config.resolve import inherit_region_abstract, normalize_region_abstract
@@ -492,8 +494,10 @@ class EffectiveRegionPlan:
         )
         object.__setattr__(self, "_decisions", owned_decisions)
 
-    def to_dict(self) -> JsonObject:
-        return thaw_json_object(self._data)
+    def to_dict(self, *, visit: Callable[[int], None] | None = None) -> JsonObject:
+        if visit is None:
+            return thaw_json_object(self._data)
+        return require_object(thaw_snapshot(self._data, visit=visit))
 
     def decision(self, module: str, qualname: str, node_id: ProgramPointId) -> RegionDecision:
         value = self._decisions.get(node_id)
@@ -509,14 +513,24 @@ class EffectiveRegionPlan:
 
 
 def build_plan(
-    snapshot: SourceSnapshot, config: JsonObject | EffectiveConfig
+    snapshot: SourceSnapshot,
+    config: JsonObject | EffectiveConfig,
+    *,
+    resource_ledger: RunLedger | None = None,
 ) -> EffectiveRegionPlan:
     """Compile validated source selectors into actual immutable execution decisions."""
-    options = (
-        config.to_dict()
-        if isinstance(config, EffectiveConfig)
-        else resolve_config(config=config).to_dict()
-    )
+    if resource_ledger is None:
+        options = (
+            config.to_dict()
+            if isinstance(config, EffectiveConfig)
+            else resolve_config(config=config).to_dict()
+        )
+    else:
+        if not isinstance(config, EffectiveConfig):
+            raise ConfigurationError("Shared planning requires an already resolved configuration")
+        resource_ledger.charge_work(1, "region_plan_configuration_dispatch")
+        with resource_ledger.structural_meter("region_plan_configuration_copy") as meter:
+            options = config.to_dict(visit=meter.visit)
     try:
         rows, functions = _inventory(snapshot)
         components, graph = _scc(functions)
@@ -526,6 +540,8 @@ def build_plan(
         )
         decisions = _decisions(rows, rules, default_engine, require_object(options["abstract"]))
         _validate_components(components, decisions, graph)
+        if resource_ledger is not None:
+            resource_ledger.charge_json(options, "region_plan_policy_digest")
         policy_digest = stable_digest(options)
         data: JsonObject = {
             "schema_version": 1,

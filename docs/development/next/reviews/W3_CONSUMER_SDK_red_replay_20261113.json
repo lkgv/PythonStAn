@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "base_remote_commit": "c7e23393adaeef1a0da8072e96776e52fa7ccd3e",
+  "status": "initial_independent_red_source_stable",
+  "source_sha256": {
+    "pythonstan/llm/openai_transport.py": "590984bfce2d217cae3b58d58f7db670e2c1d7b754d082055c9dd4c24603c626",
+    "pythonstan/llm/responses.py": "9a922f98b6035b42a4667568f5ef75506d7fdb470de16bcd990946bfbc2fc7e6",
+    "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+    "pythonstan/analysis/contracts/resource_api.py": "f1e3d93b038a9905c84ce3687a6f072a333ee3ace4102dbb64ad393bd8d89b55",
+    "tests/regression/audit3/test_w3_consumer_sdk_independent.py": "7573c8a2273b14388aa63bb036b26d5297aa3857bcc72ef639b107e06201c627",
+    "docs/development/next/reviews/W3_CONSUMER_SDK_preregistration_20261113.json": "20b081aff20ddacd1fe3e19bb31bfb5ffa058b0dd32a34cb6ef60e82dc92cc94"
+  },
+  "source_relationship": "Overlay exact six archived files on verified remote base; no Session module overlay required by direct SDK tests. SDK pre-fix source reverse-patch reconstruction was verified byte-exact by the initial RED SHA256 before archiving. All credential environments and SDK create paths are synthetic.",
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "-q",
+    "--import-mode=importlib",
+    "-p",
+    "no:cacheprovider",
+    "tests/regression/audit3/test_w3_consumer_sdk_independent.py"
+  ],
+  "observed": {
+    "passed": 5,
+    "failed": 1,
+    "failed_test": "test_known_usage_settles_before_first_postresponse_cpu_denial",
+    "failure": "Actual permit.status is dispatched; expected settled after known matching-model usage receipt and funded CPU drained at mocked create return.",
+    "known_tokens": 5,
+    "known_microusd": 5,
+    "global_work_cap": 2000,
+    "seconds": 1
+  },
+  "replay": "Create an isolated checkout of base_remote_commit, overlay archive preserving paths, install pinned project/development dependencies including SDK, run command with no real credential in environment. Fake SDK prevents network and replaces environment before SDK import.",
+  "scope": "New independent SDK controls only; no full W3 closure or historical pass reuse.",
+  "excludes": [
+    "raw logs",
+    "raw receipt JSON",
+    "real credential material"
+  ]
+}

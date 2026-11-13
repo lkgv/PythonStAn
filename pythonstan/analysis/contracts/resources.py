@@ -122,6 +122,7 @@ class _WorkScope:
     name: str
     limit: int
     deadline: float | None
+    memory_cap: int | None = None
     consumed: int = 0
     held: int = 0
     active: bool = True
@@ -197,7 +198,7 @@ class WorkReservation:
             self._observed = total
             self._held -= delta
 
-    def consume(self, amount: int, *, owner: RunLedger) -> None:
+    def consume(self, amount: int, *, owner: RunLedger, ceiling: int | None = None) -> None:
         """Admit new work, unlike retrospective known-usage settlement."""
         with self._owner._lock:
             self._validate(owner)
@@ -209,9 +210,11 @@ class WorkReservation:
                 raise ValueError("Work grant is no longer active")
             if type(amount) is not int or amount < 0:
                 raise ValueError("Invalid ordinary grant charge")
+            if ceiling is not None and (type(ceiling) is not int or ceiling < 0):
+                raise ValueError("Invalid ordinary grant ceiling")
             self._owner.attempted[self.category] += amount
             self._owner.checkpoint()
-            if amount > self.held:
+            if amount > self.held or (ceiling is not None and amount > ceiling - self.observed):
                 raise ResourceStop("stage_max_work")
             self.observe(self.observed + amount)
 
@@ -314,6 +317,8 @@ class RunLedger:
         self.phase_seconds: defaultdict[str, float] = defaultdict(float)
         self.inclusive_phase_seconds: defaultdict[str, float] = defaultdict(float)
         self.phase_attempts: Counter[str] = Counter()
+        self._read_stacks: dict[int, list[str]] = {}
+        self.foreign_read_seconds: defaultdict[str, float] = defaultdict(float)
         self.work: SharedWorkLedger = SharedWorkLedger(max_work, admission=self._admit_work)
         self.max_api_calls: int = max_api_calls
         self.max_api_tokens: int = max_api_tokens
@@ -371,7 +376,13 @@ class RunLedger:
     def remaining_memory_bytes(self) -> int | None:
         with self._lock:
             self._sample_memory()
-            return None if self.memory_cap is None else max(0, self.memory_cap - self.memory_used)
+            caps = self._memory_caps()
+            return None if not caps else max(0, min(caps) - self.memory_used)
+
+    def _memory_caps(self) -> list[int]:
+        return ([self.memory_cap] if self.memory_cap is not None else []) + [
+            scope.memory_cap for scope in self._work_scopes if scope.memory_cap is not None
+        ]
 
     def stop(self, reason: str) -> None:
         with self._lock:
@@ -381,11 +392,17 @@ class RunLedger:
         self.memory_used = self.memory_reader() + self.child_memory
         self.peak_memory = max(self.peak_memory, self.memory_used)
         self.memory_samples += 1
-        self.memory_checks += self.memory_cap is not None
+        self.memory_checks += bool(self._memory_caps())
         self._last_memory_work = self.work.used
         if self.memory_cap is not None and self.memory_used > self.memory_cap:
             self.stop("max_memory_mb")
             raise ResourceStop(self.stop_reason or "max_memory_mb")
+        if any(
+            scope.memory_cap is not None and self.memory_used > scope.memory_cap
+            for scope in self._work_scopes
+        ):
+            self.scope_denials["stage_max_memory_mb"] += 1
+            raise ResourceStop("stage_max_memory_mb")
 
     def checkpoint(self, force: bool = False) -> None:
         with self._lock:
@@ -435,7 +452,9 @@ class RunLedger:
             raise ValueError("Invalid admitted structural visit count")
         with self._lock:
             self.raw_structural[category] += amount
-            phase = self.raw_structural_by_phase.setdefault(self._stack[-1], Counter[str]())
+            read_stack = self._read_stacks.get(get_ident())
+            label = read_stack[-1] if read_stack else self._stack[-1]
+            phase = self.raw_structural_by_phase.setdefault(label, Counter[str]())
             phase[category] += amount
 
     def structural_meter(
@@ -530,23 +549,30 @@ class RunLedger:
             self.child_memory = 0
 
     @contextmanager
-    def work_scope(self, limit: int, name: str, *, max_seconds: float = 0) -> Iterator[None]:
+    def work_scope(
+        self, limit: int, name: str, *, max_seconds: float = 0, max_memory_mb: float = 0
+    ) -> Iterator[None]:
         if get_ident() != self._owner_thread:
             raise ValueError("Only the request owner can change quota scopes")
         if type(limit) is not int or limit < 0 or not name:
             raise ValueError("Invalid local work scope")
         if not math.isfinite(max_seconds) or max_seconds < 0:
             raise ValueError("Invalid local deadline")
+        if not math.isfinite(max_memory_mb) or max_memory_mb < 0:
+            raise ValueError("Invalid local memory cap")
         with self._lock:
             scope = _WorkScope(
                 len(self._scope_records),
                 name,
                 limit,
                 self.clock() + max_seconds if max_seconds else None,
+                int(max_memory_mb * 1024 * 1024) if max_memory_mb else None,
             )
             self._scope_records.append(scope)
             self._work_scopes.append(scope)
         try:
+            if max_memory_mb:
+                self.checkpoint(force=True)
             yield
         finally:
             with self._lock:
@@ -559,6 +585,31 @@ class RunLedger:
         now = self.clock()
         self.phase_seconds[self._stack[-1]] += max(0.0, now - self._time_at)
         self._time_at = max(self._time_at, now)
+
+    @contextmanager
+    def read_phase(self, name: str) -> Iterator[None]:
+        """Charge immutable reads without changing another thread's execution scopes."""
+        if get_ident() == self._owner_thread:
+            with self.phase(name):
+                yield
+            return
+        if not name:
+            raise ValueError("A read phase needs a name")
+        thread = get_ident()
+        with self._lock:
+            stack = self._read_stacks.setdefault(thread, [])
+            stack.append(name)
+            self.phase_attempts[name] += 1
+            started = self.clock()
+        try:
+            self.checkpoint()
+            yield
+        finally:
+            with self._lock:
+                stack.pop()
+                if not stack:
+                    del self._read_stacks[thread]
+                self.foreign_read_seconds[name] += max(0.0, self.clock() - started)
 
     @contextmanager
     def phase(self, name: str) -> Iterator[None]:
@@ -604,6 +655,7 @@ class RunLedger:
                         "reserved": scope.held,
                         "active": scope.active,
                         "deadline": scope.deadline,
+                        "memory_cap_bytes": scope.memory_cap,
                     }
                     for scope in self._scope_records
                 ],
@@ -612,6 +664,8 @@ class RunLedger:
                 "wall_observed_seconds": max(0.0, self.clock() - self.started_at),
                 "exclusive_phase_seconds": dict[str, JsonValue](self.phase_seconds),
                 "inclusive_phase_seconds": dict[str, JsonValue](self.inclusive_phase_seconds),
+                "foreign_read_seconds": dict[str, JsonValue](self.foreign_read_seconds),
+                "foreign_read_timing_scope": "Readonly caller durations may overlap each other and owner phases; they do not change owner execution timing or quota scopes.",
                 "timing_scope": "Exclusive phases partition owner-timing-as-of elapsed_seconds; inclusive phases overlap.",
                 "phase_attempts": dict[str, JsonValue](self.phase_attempts),
                 "memory": {

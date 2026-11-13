@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Self
 
 from pythonstan.analysis.contracts.json_data import (
+    FrozenJsonValue,
     JsonObject,
+    JsonValue,
     require_array,
     require_int,
     require_object,
     validate_json_object,
 )
+from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger, WorkReservation
+from pythonstan.analysis.contracts.wire import thaw_snapshot
 from pythonstan.config import ResolvedConfig
 from pythonstan.config.errors import ConfigurationError
 from pythonstan.inputs import SourceSnapshot
@@ -43,12 +48,32 @@ class AnalysisSession:
     _source_override: SourceSnapshot | None
     _reuse_validation_seconds: float
 
-    def __init__(self, request: ResolvedRequest) -> None:
+    def __init__(
+        self, request: ResolvedRequest, *, resource_ledger: RunLedger | None = None
+    ) -> None:
         if not isinstance(request, ResolvedRequest):
             raise ConfigurationError(
                 "AnalysisSession requires a ResolvedRequest from resolve_request"
             )
         self.request = request
+        resources = request.config.resources
+        provider = request.config.llm.provider_options
+        self.resource_ledger: RunLedger = (
+            RunLedger(
+                resources.max_work,
+                resources.max_seconds,
+                resources.max_memory_mb,
+                started_at=request.started_at,
+                max_api_calls=provider.max_calls,
+                max_api_tokens=provider.max_total_tokens,
+            )
+            if resource_ledger is None
+            else resource_ledger
+        )
+        self._terminal_permit: WorkReservation | None = None
+        self._last_partial: Mapping[str, JsonValue | FrozenJsonValue] | None = None
+        self._resolution_billed: bool = False
+        self._policy_digest_value: str | None = None
         self.started = request.started_at
         self.run_id = uuid.uuid4().hex
         self.closed = False
@@ -72,11 +97,30 @@ class AnalysisSession:
     def output(self) -> OutputSpec:
         return self.request.output
 
+    def _configuration(self, category: str) -> JsonObject:
+        with self.resource_ledger.structural_meter(category) as meter:
+            return self.config.to_dict(visit=meter.visit)
+
+    def _policy_digest(self) -> str:
+        if self._policy_digest_value is None:
+            with self.resource_ledger.structural_meter("configuration_digest") as meter:
+                self._policy_digest_value = self.config.digest_for(visit=meter.visit)
+        return self._policy_digest_value
+
     def prepare(self) -> PreparedRun:
         if self.closed:
             raise RuntimeError("AnalysisSession is closed")
         if self._prepared is None:
-            self._prepared = prepare_request(self.request, source_override=self._source_override)
+            with self.resource_ledger.phase("setup"):
+                if not self._resolution_billed:
+                    self.resource_ledger.charge_work(1, "configuration_resolution")
+                    self._configuration("configuration_resolution")
+                    self._resolution_billed = True
+                self._prepared = prepare_request(
+                    self.request,
+                    source_override=self._source_override,
+                    resource_ledger=self.resource_ledger,
+                )
         return self._prepared
 
     @property
@@ -86,18 +130,29 @@ class AnalysisSession:
         return self._prepared.snapshot
 
     @classmethod
-    def from_snapshot(cls, request: ResolvedRequest, snapshot: SourceSnapshot) -> AnalysisSession:
+    def from_snapshot(
+        cls,
+        request: ResolvedRequest,
+        snapshot: SourceSnapshot,
+        *,
+        resource_ledger: RunLedger | None = None,
+    ) -> AnalysisSession:
         """Retain frozen bytes while creating a fresh AST and state on execution."""
         validation_started = time.monotonic()
-        validate_snapshot_request(request, snapshot)
+        session = cls(request, resource_ledger=resource_ledger)
+        with session.resource_ledger.phase("snapshot_reuse"):
+            session.resource_ledger.charge_work(
+                1 + len(snapshot.modules), "snapshot_reuse_validation"
+            )
+            validate_snapshot_request(request, snapshot, resource_ledger=session.resource_ledger)
         validation_seconds = time.monotonic() - validation_started
-        session = cls(request)
         session._source_override = snapshot
         session._reuse_validation_seconds = validation_seconds
         return session
 
     def _observer(self, prepared: PreparedRun) -> ObservationSink | None:
         config = self.config
+        policy_digest = self._policy_digest()
         if not config.observation.enabled:
             return None
         from pythonstan.analysis.contracts.observation import ObservationSink
@@ -106,7 +161,7 @@ class AnalysisSession:
             run_id=self.run_id,
             source_digest=prepared.snapshot.source_digest,
             model_digest="pythonstan-builtins-v1",
-            policy_digest=config.digest,
+            policy_digest=policy_digest,
             profile=config.semantic_profile,
             sources=prepared.snapshot.module_map,
             max_events=config.observation.max_events,
@@ -122,7 +177,7 @@ class AnalysisSession:
         from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
 
         config = self.config
-        options = config.to_dict()
+        options = self._configuration("abstract_configuration_copy")
         native_phase: JsonObject | None = None
         native_work = 0
         oracle = None
@@ -132,9 +187,12 @@ class AnalysisSession:
 
             native_config = validate_json_object(execution_config)
             native_config["engine"] = "native"
-            native_phase = validate_json_object(
-                run_legacy(prepared.execution_snapshot, native_config)
+            native_phase = run_legacy(
+                prepared.execution_snapshot, native_config, ledger=self.resource_ledger
             )
+            self._last_partial = native_phase
+            if self.resource_ledger.stop_reason is not None:
+                return native_phase, native_phase
             stats = require_object(native_phase.get("stats", {}))
             native_work = require_int(
                 stats.get("total_work", stats.get("global_work_used", stats.get("native_work", 0)))
@@ -143,15 +201,15 @@ class AnalysisSession:
                 source_digest=prepared.snapshot.source_digest,
                 profile=config.semantic_profile,
                 model_digest="pythonstan-builtins-v1",
-                policy_digest=config.digest,
+                policy_digest=self._policy_digest(),
             )
             oracle = NativeSnapshotOracle(
                 native_phase,
                 source_digest=prepared.snapshot.source_digest,
                 profile=config.semantic_profile,
-                policy_digest=config.digest,
+                policy_digest=self._policy_digest(),
                 model_digest="pythonstan-builtins-v1",
-                max_work=max(0, config.resources.max_work - native_work),
+                max_work=self.resource_ledger.remaining_work,
             )
         driver = InterproceduralDriver(
             prepared.snapshot.module_map,
@@ -159,10 +217,10 @@ class AnalysisSession:
             oracle=oracle,
             observer=sink,
             program=prepared.program,
+            resource_ledger=self.resource_ledger,
         )
         if oracle is not None:
             driver.install_oracle(oracle, incremental=oracle, phase_record=oracle.phase_record)
-        driver.max_work = max(0, config.resources.max_work - native_work)
         provider: GuardedDispatchProvider | None = None
         provider_failure: str | None = None
         if config.llm.enabled and config.llm.level2:
@@ -170,8 +228,15 @@ class AnalysisSession:
                 from pythonstan.llm.providers import make_summary_provider
 
                 provider = make_summary_provider(
-                    prepared.snapshot, options, remaining_work=driver.max_work
+                    prepared.snapshot,
+                    options,
+                    remaining_work=self.resource_ledger.remaining_work,
+                    resource_ledger=self.resource_ledger,
                 )
+            except ResourceStop:
+                raise
+            except MemoryError:
+                raise
             except Exception as error:
                 provider_failure = type(error).__name__
         configure_driver(
@@ -181,18 +246,17 @@ class AnalysisSession:
             config=options,
             summary_provider=provider,
         )
-        seconds = config.resources.max_seconds
-        remaining = seconds - (time.monotonic() - self.started) if seconds else None
-        if remaining is not None and remaining <= 0:
-            driver.max_work = 0
-        elif remaining is not None:
-            reserve = min(1.0, max(0.05, remaining * 0.25))
-            driver.max_seconds = max(0.001, remaining - reserve)
-        snapshot = driver.run(prepared.execution_snapshot.scenarios)
-        result = validate_json_object(snapshot.to_dict())
+        with self.resource_ledger.phase("core"):
+            snapshot = driver.run(prepared.execution_snapshot.scenarios)
+        self._last_partial = snapshot
+        with (
+            self.resource_ledger.phase("bridge"),
+            self.resource_ledger.structural_meter("engine_result_copy") as meter,
+        ):
+            result = require_object(thaw_snapshot(snapshot, visit=meter.visit))
         stats = require_object(result.setdefault("stats", {}))
         stats["native_prepass_work"] = native_work
-        stats["total_work"] = native_work + driver.work
+        stats["total_work"] = self.resource_ledger.work.used
         if native_phase is not None:
             result["phase_trace"] = require_array(
                 native_phase.get("phase_trace", [])
@@ -213,9 +277,36 @@ class AnalysisSession:
         return result, native_phase
 
     def execute(self) -> AnalysisResult:
+        self._terminal_permit = self.resource_ledger.ensure_terminal_permit(self._terminal_permit)
+        try:
+            with self.resource_ledger.work_scope(
+                self.config.resources.max_work, "analysis_session"
+            ):
+                return self._execute()
+        except ResourceStop as stopped:
+            return self._terminal_result(stopped.reason)
+        except (MemoryError, KeyboardInterrupt) as failure:
+            reason = "max_memory_mb" if isinstance(failure, MemoryError) else "cancelled"
+            self.resource_ledger.stop(reason)
+            return self._terminal_result(reason)
+
+    def _terminal_result(self, reason: str) -> AnalysisResult:
+        status = "budget_exhausted" if reason.startswith(("max_", "stage_")) else "failed"
+        return AnalysisResult.from_terminal(
+            self._last_partial,
+            self.queries,
+            self.output,
+            resource_ledger=self.resource_ledger,
+            terminal_permit=self._terminal_permit,
+            reason=reason,
+            status=status,
+            engine=self.config.engine,
+        )
+
+    def _execute(self) -> AnalysisResult:
         prepared = self.prepare()
         config = self.config
-        execution_config = config.to_dict()
+        execution_config = self._configuration("execution_configuration_copy")
         elapsed = time.monotonic() - self.started
         seconds = config.resources.max_seconds
         exhausted = bool(seconds and elapsed >= seconds)
@@ -249,9 +340,14 @@ class AnalysisSession:
         elif config.engine == "native":
             from pythonstan.compat.legacy_runner import run_legacy
 
-            result = validate_json_object(run_legacy(prepared.execution_snapshot, execution_config))
+            result = run_legacy(
+                prepared.execution_snapshot, execution_config, ledger=self.resource_ledger
+            )
         else:
             result, native_phase = self._run_abstract(prepared, execution_config, sink)
+        self._last_partial = result
+        if self.resource_ledger.stop_reason is not None:
+            return self._terminal_result(self.resource_ledger.stop_reason)
         engine_seconds = 0.0 if exhausted else time.monotonic() - engine_started
         attach_request_metadata(
             result,
@@ -279,29 +375,61 @@ class AnalysisSession:
             result["events"] = events
             require_object(result["stats"])["observation"] = validate_json_object(sink.stats)
         if prepared.plan is not None:
-            result["plan"] = validate_json_object(prepared.plan.to_dict())
+            with self.resource_ledger.structural_meter("region_plan_result_copy") as meter:
+                result["plan"] = prepared.plan.to_dict(visit=meter.visit)
         if config.llm.enabled and config.llm.level1:
             from pythonstan.llm.strategy import RefinementController
 
+            self.resource_ledger.charge_json(result["stats"], "l1_baseline_stats_copy")
+            self.resource_ledger.charge_json(
+                result.get("phase_trace", []), "l1_baseline_trace_copy"
+            )
             baseline_stats = dict(require_object(result["stats"]))
             baseline_trace = list(require_array(result.get("phase_trace", [])))
             result, feedback = RefinementController().run(
                 target=self.target,
                 source_snapshot=prepared.snapshot,
-                config=config.to_dict(),
+                config=self._configuration("l1_configuration_copy"),
                 queries=self.queries,
                 output=self.output,
                 baseline=result,
+                resource_ledger=self.resource_ledger,
             )
+            self.resource_ledger.charge_json(feedback, "l1_feedback_install")
+            self.resource_ledger.charge_json(baseline_trace, "l1_feedback_trace_copy")
             attach_l1_feedback(
                 result,
                 feedback=feedback,
-                requested_config=config.to_dict(),
+                requested_config=self._configuration("l1_requested_configuration_copy"),
                 baseline_stats=baseline_stats,
                 baseline_trace=baseline_trace,
                 total_seconds=time.monotonic() - self.started,
             )
-        return AnalysisResult(result, self.queries, self.output)
+        self._last_partial = result
+        with self.resource_ledger.phase("export"):
+            self.resource_ledger.charge_work(1, "session_export_metadata")
+            level1 = require_object(result.get("llm", {})).get("level1")
+            if isinstance(level1, dict):
+                level1["total_work"] = self.resource_ledger.work.used
+                level1["reanalysis_work"] = self.resource_ledger.work.used - require_int(
+                    level1["baseline_work"]
+                )
+                level1["total_work_scope"] = "before_checked_publication_freeze"
+                level1["reanalysis_work_scope"] = (
+                    "All post-baseline control, validation, rerun, paid read and feedback work before checked publication freeze"
+                )
+            result["resource_ledger"] = self.resource_ledger.snapshot()
+            result["resource_ledger_scope"] = "before_checked_publication_freeze"
+            stats = require_object(result.setdefault("stats", {}))
+            stats["total_work"] = self.resource_ledger.work.used
+            stats["total_work_scope"] = "before_checked_publication_freeze"
+            return AnalysisResult(
+                result,
+                self.queries,
+                self.output,
+                resource_ledger=self.resource_ledger,
+                terminal_permit=self._terminal_permit,
+            )
 
     def close(self) -> None:
         self.closed = True

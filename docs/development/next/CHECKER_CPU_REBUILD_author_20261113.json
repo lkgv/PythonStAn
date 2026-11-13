@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-13",
+  "scope": "fresh rebuilt checker finite CPU grant consumer; held for root capture",
+  "source_files": {
+    "pythonstan/analysis/verification/guarded_dispatch/checker.py": "d81cc4b8be245de93f02ec372f3fd0d039c1c87146e6f86f4723301dc6f8c3c7",
+    "pythonstan/analysis/verification/guarded_dispatch/obligations.py": "d9ae90f77b5b829bb124bede5c4661ba911c7dd95230d5408f52a769f542d7ad"
+  },
+  "test_files": {
+    "tests/regression/audit3/test_checker_cpu_rebuild.py": "37649d012296380c571e38f2079514e58a8ff20d2419e0b98a9bf7cd09ae9e79"
+  },
+  "behavior": [
+    "Additive resource_ledger and work_reservation ports use registered guarded_checker_cpu grants. Standalone calls reserve finite local work before parsing; hosted grants retain caller-owned settlement.",
+    "Source, JSON, DSL, AST queues, identities, payload copies and certificate preparation pay before bounded operations. Malformed and rejected candidates return actual checked_work.",
+    "Original per-candidate caps remain; zero work enters no candidate decoder/source parser. Foreign, wrong-purpose, unknown and expired-scope grants issue no certificate.",
+    "Read-only synchronous proof workers may consume an original live registered grant; no Store or Driver authority is conveyed.",
+    "Only registered grant.consume ValueError is converted to VerificationUnknown so mid-check UNKNOWN yields no certificate and no refund; no broad validation catch."
+  ],
+  "validation": {
+    "selected_author_and_original": {
+      "passed": 71,
+      "failed": 0,
+      "author_tests": 13,
+      "original_tests": 58,
+      "log": "artifacts/next/evidence/CHECKER_CPU_REBUILD_20261113/author-plus-original-held-final.txt"
+    },
+    "strict_owned_diagnostics": 0,
+    "strict_import_graph_diagnostics": 2278,
+    "strict_log": "artifacts/next/evidence/CHECKER_CPU_REBUILD_20261113/strong-held-final.jsonl",
+    "ruff_owned": "0 diagnostics",
+    "independent": {
+      "passed": 6,
+      "source_stable": true,
+      "evidence_prefix": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/checker-current"
+    }
+  },
+  "fresh_red_green": "Mid-check grant UNKNOWN previously escaped ValueError; final test requires typed unknown, no certificate, actual observed work retained and UNKNOWN held work unchanged.",
+  "limitations": [
+    "Finite supported checker profiles only; not a whole-project type-clean claim.",
+    "Imported legacy diagnostic debt remains outside these two source files.",
+    "Hosted grants are settled by their issuer; UNKNOWN reservations remain held."
+  ],
+  "unchanged": [
+    "Frozen goldens",
+    "Budget cap values",
+    "Cost-model descriptor and factor",
+    "Type-debt baselines"
+  ],
+  "ownership": "HOLD checker.py and obligations.py after this receipt; root owns capture and publication."
+}

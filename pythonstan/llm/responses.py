@@ -252,6 +252,7 @@ class ResponsesCandidateProposer:
         permit: ApiReservation,
         work: WorkReservation,
         spend: Callable[[int], None],
+        work_ceiling: int,
     ) -> TransportResponse | TransportFailure:
         permit.validate(
             model=self.options.model,
@@ -264,7 +265,17 @@ class ResponsesCandidateProposer:
 
         def send() -> None:
             try:
-                response = self.transport.send(prompt, self.options, reservation=permit)
+                response = (
+                    self.transport.send(
+                        prompt,
+                        self.options,
+                        reservation=permit,
+                        work_reservation=work,
+                        work_ceiling=work_ceiling,
+                    )
+                    if isinstance(self.transport, OpenAIResponsesTransport)
+                    else self.transport.send(prompt, self.options, reservation=permit)
+                )
             except Exception:
                 response = TransportFailure(
                     FailureCode.TRANSPORT_FAILURE, permit.status in {"dispatched", "unknown"}
@@ -346,9 +357,7 @@ class ResponsesCandidateProposer:
             work_grant = grant
 
             def spend(amount: int) -> None:
-                if amount > limit - (work_grant.observed - start_work):
-                    raise ResourceStop("stage_max_work")
-                work_grant.consume(amount, owner=self.resource_ledger)
+                work_grant.consume(amount, owner=self.resource_ledger, ceiling=start_work + limit)
 
             spend(1)
             if self.resource_ledger.rate_card is None:
@@ -411,7 +420,7 @@ class ResponsesCandidateProposer:
                     cache_writes_allowed=False,
                 )
                 self.calls += 1
-            response = self._await_transport(prompt, permit, work_grant, spend)
+            response = self._await_transport(prompt, permit, work_grant, spend, start_work + limit)
             if isinstance(response, TransportFailure):
                 self._retire_received(response, permit)
                 self.stopped = permit.status == "unknown"

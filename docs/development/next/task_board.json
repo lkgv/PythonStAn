@@ -953,7 +953,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-03",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "review",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1030,7 +1030,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-SEM-04",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "running",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1040,7 +1040,8 @@
           "日志ab、内层[i]与filter可能长度0/1全部覆盖。",
           "空迭代、class/closure scope、多个filter、第二轮异常、dict key/value顺序通过。",
           "不能从抽象分支/fields数量推具体容器长度。"
-        ]
+        ],
+        "scope": "Bounded dependent implementation while remaining global card obligations stay open; no gate acceptance inferred."
       }
     },
     {
@@ -1179,7 +1180,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-PTA-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "review",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1257,7 +1258,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-PTA-02",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "pending_dependencies",
+      "status": "running",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -1267,7 +1268,8 @@
           "varying-key dict旧alias可读present；fixed-key/list/tuple正控保持。",
           "两次各长度1的不同key字典合并后不能误成长度2。",
           "default/missing/summary/havoc以及cap触发身份变换的变体通过。"
-        ]
+        ],
+        "scope": "Bounded dependent implementation while remaining global card obligations stay open; no gate acceptance inferred."
       }
     },
     {
@@ -1408,7 +1410,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-RESULT-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "M",
-      "status": "ready",
+      "status": "review",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -2644,7 +2646,7 @@
       "evidence_directory": "artifacts/next/evidence/N4-BUDGET-01",
       "evidence_git_policy": "raw receipts/logs/requests/responses live under gitignored artifacts; only reviewed non-sensitive summaries enter docs or git",
       "effort_class": "L",
-      "status": "ready",
+      "status": "running",
       "implementation_record": {
         "owner": "unassigned",
         "reviewer": "requirements_audit",
@@ -3616,7 +3618,7 @@
     "dirty_at_clone": false
   },
   "status_note": "Current implementation ledger; historical task obligations and denominators unchanged. No gate inferred from task counts.",
-  "current_phase": "W2 checkpoint verified; remaining STATE and newly DAG-ready work continue",
+  "current_phase": "W3 bounded rebuilt runtime and financial components published; consumer integration and STATE02 repair active",
   "qualification": {
     "core_qualified": false,
     "scale_qualified": false,
@@ -3628,7 +3630,7 @@
     "benefit_demonstrated": "not_evaluated",
     "release_qualified": false,
     "type_01_verified": true,
-    "working_tree_verified": true
+    "working_tree_verified": false
   },
   "publication_status": {
     "remote_branch": "dev-cocktail-analysis",
@@ -3654,6 +3656,38 @@
       "source_snapshot_digest": "1ee6e173f285301f4e13722557b9a8f73df9145d56ebe5f4e51339d734bd4035",
       "record": "docs/development/next/W2_CHECKPOINT_20261113.json",
       "state": "published_and_remote_head_verified"
+    }
+  },
+  "rebuild_overlay_20261113": {
+    "latest_verified_remote": "c7e23393adaeef1a0da8072e96776e52fa7ccd3e",
+    "continuity_record": "docs/development/next/CONTINUITY_REBUILD_20261113.json",
+    "current_full_regression": "docs/development/next/rebuild/ROOT_FULL_REGRESSION_20261113.json",
+    "source_of_truth": "Exact published trees plus fresh isolated receipts. Earlier lost W3 unpushed source/evidence has not been reused as qualification. Historical W2 card obligations and all denominators retained.",
+    "open_component_cards": [
+      "N4-STATE-01",
+      "N4-STATE-02",
+      "N4-SEM-03",
+      "N4-PTA-01",
+      "N4-RESULT-01",
+      "N4-BUDGET-01"
+    ],
+    "card_closure_note": "Review/running statuses do not imply complete acceptance; current known failures retained.",
+    "future_slices_in_progress": {
+      "N4-SEM-04": "source/test HOLD; nested export dependency open, excluded from Node5",
+      "N4-PTA-02": "ordered Native allocation reuse planned; excluded from Node5"
+    },
+    "consumer_candidate_805d6b7": {
+      "record": "docs/development/next/rebuild/ROOT_CONSUMER_REBUILD_20261113.json",
+      "audit_controls_passed": 4714,
+      "stage_passed": 1046,
+      "stage_failed": 1,
+      "whole_card_accepted": false,
+      "source_scope_exclusions": [
+        "STATEphase2",
+        "SEM04",
+        "PTA02",
+        "publicationvisitor"
+      ]
     }
   }
 }

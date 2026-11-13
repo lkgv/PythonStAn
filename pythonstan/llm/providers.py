@@ -9,11 +9,12 @@ from __future__ import annotations
 import ast
 import hashlib
 import time
-from collections.abc import Mapping
-from copy import deepcopy
+from collections.abc import Callable, Mapping
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from pythonstan.analysis.contracts import SemanticIdentity, SourceModule, VersionedDependency
+from pythonstan.analysis.contracts.cost_model import visit_json_text
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
     require_array,
@@ -23,6 +24,7 @@ from pythonstan.analysis.contracts.json_data import (
     require_string,
     validate_json_object,
 )
+from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger, WorkReservation
 from pythonstan.config import EffectiveConfig
 from pythonstan.config.errors import ConfigurationError
 from pythonstan.config.llm_provider import ProviderMode, ProviderOptions
@@ -33,7 +35,10 @@ if TYPE_CHECKING:
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
 
 
-def _ast_digest(node: ast.AST) -> str:
+def _ast_digest(node: ast.AST, spend: Callable[[int], None] | None = None) -> str:
+    if spend is not None:
+        for _ in ast.walk(node):
+            spend(1)
     return hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
 
 
@@ -41,7 +46,9 @@ def _dependency_key(item: VersionedDependency) -> tuple[str, str]:
     return item.kind, item.identity
 
 
-def _literal_table(node: ast.Assign) -> tuple[str, tuple[tuple[str, str], ...]]:
+def _literal_table(
+    node: ast.Assign, spend: Callable[[int], None] | None = None
+) -> tuple[str, tuple[tuple[str, str], ...]]:
     """Recognize the proposer's finite string-table syntax without trusting it."""
     if not isinstance(node.value, ast.Dict) or not node.targets:
         raise ValueError("No finite dispatch table")
@@ -50,6 +57,8 @@ def _literal_table(node: ast.Assign) -> tuple[str, tuple[tuple[str, str], ...]]:
         raise ValueError("Dispatch table needs a named binding")
     table: list[tuple[str, str]] = []
     for key, value in zip(node.value.keys, node.value.values, strict=True):
+        if spend is not None:
+            spend(1)
         if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
             raise ValueError("Dispatch keys must be literal strings")
         if not isinstance(value, ast.Name):
@@ -85,15 +94,77 @@ def _adversarial_change(wire: JsonObject, mutation: str | None) -> None:
 
 class OfflineDispatchProposer:
     def __init__(
-        self, *, coarse: bool = False, adversarial: str | None = None, max_work: int = 100000
+        self,
+        *,
+        coarse: bool = False,
+        adversarial: str | None = None,
+        max_work: int = 100000,
+        resource_ledger: RunLedger | None = None,
     ) -> None:
         self.coarse: bool = coarse
         self.adversarial: str | None = adversarial
         self.max_work: int = max_work
         self.provider_name = "adversarial" if adversarial else "offline"
+        self.resource_ledger = (
+            RunLedger(max_work, 0, 0) if resource_ledger is None else resource_ledger
+        )
 
     def propose(
-        self, source: str, *, identity: SemanticIdentity | None = None, max_work: int | None = None
+        self,
+        source: str,
+        *,
+        identity: SemanticIdentity | None = None,
+        max_work: int | None = None,
+        work_reservation: WorkReservation | None = None,
+    ) -> CandidateProposal:
+        started = time.monotonic()
+        grant = work_reservation
+        before = 0 if grant is None else grant.observed
+        try:
+            limit = self.max_work if max_work is None else min(self.max_work, max(0, max_work))
+            if grant is None:
+                grant = self.resource_ledger.reserve_work(
+                    min(limit, self.resource_ledger.remaining_work), category="offline_proposer_cpu"
+                )
+            grant.consume(0, owner=self.resource_ledger)
+            before = grant.observed
+
+            def spend(amount: int) -> None:
+                if amount > limit - (grant.observed - before):
+                    raise ResourceStop("proposal_max_work")
+                grant.consume(amount, owner=self.resource_ledger)
+
+            result = self._build_proposal(source, identity=identity, max_work=limit, spend=spend)
+            return replace(result, work=grant.observed - before)
+        except ResourceStop:
+            return CandidateProposal(
+                "budget_exhausted",
+                None,
+                self.provider_name,
+                0 if grant is None else grant.observed - before,
+                time.monotonic() - started,
+                ("proposal work budget",),
+            )
+        except (TypeError, ValueError, UnicodeError, RecursionError):
+            return CandidateProposal(
+                "unavailable",
+                None,
+                self.provider_name,
+                0 if grant is None else grant.observed - before,
+                time.monotonic() - started,
+                ("proposal input is unavailable",),
+            )
+        finally:
+            if work_reservation is None and grant is not None and grant.status == "reserved":
+                grant.settle(grant.observed)
+
+    def _build_proposal(
+        self,
+        source: str,
+        *,
+        identity: SemanticIdentity | None,
+        max_work: int,
+        spend: Callable[[int], None],
     ) -> CandidateProposal:
         from pythonstan.analysis.verification.guarded_dispatch.language import (
             PROFILE,
@@ -108,6 +179,9 @@ class OfflineDispatchProposer:
         started = time.monotonic()
         work = 0
         try:
+            spend(1)
+            with self.resource_ledger.structural_meter("offline_source", charge=spend) as meter:
+                visit_json_text(source, meter.visit)
             if type(source) is not str or len(source.encode()) > 1_000_000:
                 return CandidateProposal(
                     "budget_exhausted",
@@ -117,8 +191,11 @@ class OfflineDispatchProposer:
                     time.monotonic() - started,
                     ("source budget",),
                 )
+            spend(1)
             tree = ast.parse(source, type_comments=True, feature_version=(3, 12))
-            work = sum(1 for _ in ast.walk(tree))
+            for _ in ast.walk(tree):
+                spend(1)
+                work += 1
             limit = self.max_work if max_work is None else min(self.max_work, max(0, max_work))
             if work > limit:
                 return CandidateProposal(
@@ -136,12 +213,17 @@ class OfflineDispatchProposer:
                 for node in tree.body
                 if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict)
             )
-            table_name, table = _literal_table(table_node)
+            table_name, table = _literal_table(table_node, spend)
             handlers = []
             for function in functions:
+                spend(1)
                 if function is dispatch:
                     continue
-                returns = [node for node in ast.walk(function) if isinstance(node, ast.Return)]
+                returns = []
+                for node in ast.walk(function):
+                    spend(1)
+                    if isinstance(node, ast.Return):
+                        returns.append(node)
                 relation = (
                     "fresh_box" if returns and isinstance(returns[-1].value, ast.Dict) else "input"
                 )
@@ -160,11 +242,15 @@ class OfflineDispatchProposer:
                 dependencies = tuple(
                     sorted(
                         [
-                            VersionedDependency("function", function.name, _ast_digest(function))
+                            VersionedDependency(
+                                "function", function.name, _ast_digest(function, spend)
+                            )
                             for function in functions
                         ]
                         + [
-                            VersionedDependency("table", table_name, _ast_digest(table_node)),
+                            VersionedDependency(
+                                "table", table_name, _ast_digest(table_node, spend)
+                            ),
                             VersionedDependency("model", PROFILE, MODEL_DIGEST),
                         ],
                         key=_dependency_key,
@@ -172,7 +258,7 @@ class OfflineDispatchProposer:
                 )
                 identity = SemanticIdentity(
                     hashlib.sha256(source.encode()).hexdigest(),
-                    _ast_digest(tree),
+                    _ast_digest(tree, spend),
                     MODEL_DIGEST,
                     "default-policy",
                     PROFILE,
@@ -187,7 +273,8 @@ class OfflineDispatchProposer:
                     DispatchArm(key, handler, claims[handler].relation) for key, handler in table
                 ),
             )
-            wire = candidate_to_dict(candidate)
+            with self.resource_ledger.structural_meter("offline_candidate", charge=spend) as meter:
+                wire = candidate_to_dict(candidate, visit=meter.visit)
             _adversarial_change(wire, self.adversarial)
             return CandidateProposal(
                 "candidate",
@@ -217,44 +304,113 @@ class OfflineDispatchProposer:
 
 class RecordedDispatchProposer:
     def __init__(
-        self, recordings: Mapping[str, object], *, provider_name: str = "recorded"
+        self,
+        recordings: Mapping[str, object],
+        *,
+        provider_name: str = "recorded",
+        resource_ledger: RunLedger | None = None,
     ) -> None:
-        self.recordings: dict[str, object] = deepcopy(dict(recordings))
+        self.recordings: Mapping[str, object] = recordings
         self.provider_name = provider_name
+        self.resource_ledger = (
+            RunLedger(100000, 0, 0) if resource_ledger is None else resource_ledger
+        )
 
     def propose(
-        self, source: str, *, identity: SemanticIdentity | None = None, max_work: int | None = None
+        self,
+        source: str,
+        *,
+        identity: SemanticIdentity | None = None,
+        max_work: int | None = None,
+        work_reservation: WorkReservation | None = None,
     ) -> CandidateProposal:
         started = time.monotonic()
-        if max_work is not None and max_work < 1:
+        grant = work_reservation
+        before = 0
+        try:
+            limit = self.resource_ledger.remaining_work if grant is None else grant.held
+            if max_work is not None:
+                limit = min(limit, max(0, max_work))
+            if grant is None:
+                grant = self.resource_ledger.reserve_work(limit, category="recorded_proposer_cpu")
+            grant.consume(0, owner=self.resource_ledger)
+            before = grant.observed
+
+            def spend(amount: int) -> None:
+                if amount > limit - (grant.observed - before):
+                    raise ResourceStop("proposal_max_work")
+                grant.consume(amount, owner=self.resource_ledger)
+
+            spend(1)
+            with self.resource_ledger.structural_meter("recorded_source", charge=spend) as meter:
+                visit_json_text(source, meter.visit)
+            digest = hashlib.sha256(source.encode()).hexdigest()
+            candidate = self.recordings.get(digest)
+            from pythonstan.analysis.contracts.wire import freeze_snapshot, thaw_snapshot
+
+            if candidate is not None:
+                with self.resource_ledger.structural_meter(
+                    "recorded_candidate", charge=spend
+                ) as meter:
+                    candidate = thaw_snapshot(
+                        freeze_snapshot(candidate, visit=meter.visit), visit=meter.visit
+                    )
+            return CandidateProposal(
+                "candidate" if candidate is not None else "unavailable",
+                candidate,
+                self.provider_name,
+                grant.observed - before,
+                time.monotonic() - started,
+            )
+        except ResourceStop:
             return CandidateProposal(
                 "budget_exhausted",
                 None,
                 self.provider_name,
-                0,
+                0 if grant is None else grant.observed - before,
                 time.monotonic() - started,
                 ("proposal work budget",),
             )
-        digest = hashlib.sha256(source.encode()).hexdigest()
-        candidate = self.recordings.get(digest)
-        return CandidateProposal(
-            "candidate" if candidate is not None else "unavailable",
-            deepcopy(candidate),
-            self.provider_name,
-            1,
-            time.monotonic() - started,
-        )
+        except (TypeError, ValueError, UnicodeError, RecursionError):
+            return CandidateProposal(
+                "unavailable",
+                None,
+                self.provider_name,
+                0 if grant is None else grant.observed - before,
+                time.monotonic() - started,
+                ("recorded candidate is not bounded JSON",),
+            )
+        finally:
+            if work_reservation is None and grant is not None and grant.status == "reserved":
+                grant.settle(grant.observed)
 
 
 def make_summary_provider(
     snapshot: SourceBundle | Mapping[str, SourceModule],
     config: EffectiveConfig | Mapping[str, object],
     remaining_work: int | None = None,
+    *,
+    resource_ledger: RunLedger | None = None,
 ) -> GuardedDispatchProvider | None:
     """Assemble only explicitly enabled L2; proposals retain no trust authority."""
-    options = (
-        config.to_dict() if isinstance(config, EffectiveConfig) else validate_json_object(config)
-    )
+    if resource_ledger is None:
+        options = (
+            config.to_dict()
+            if isinstance(config, EffectiveConfig)
+            else validate_json_object(config)
+        )
+    else:
+        from pythonstan.analysis.contracts import freeze_snapshot, thaw_snapshot
+
+        resource_ledger.charge_work(1, "provider_configuration_dispatch")
+        with resource_ledger.structural_meter("provider_configuration_copy") as meter:
+            options = (
+                config.to_dict(visit=meter.visit)
+                if isinstance(config, EffectiveConfig)
+                else require_object(
+                    thaw_snapshot(freeze_snapshot(config, visit=meter.visit), visit=meter.visit)
+                )
+            )
     llm = require_object(options.get("llm", {}))
     if not require_bool(llm.get("enabled", False)) or not require_bool(llm.get("level2", False)):
         return None
@@ -269,7 +425,7 @@ def make_summary_provider(
         from .responses import ResponsesCandidateProposer
 
         proposer = ResponsesCandidateProposer(
-            provider_options, policy_digest=stable_digest(options)
+            provider_options, policy_digest=stable_digest(options), resource_ledger=resource_ledger
         )
     elif provider_options.mode is ProviderMode.REPLAY:
         recordings: dict[str, object] = {}
@@ -278,7 +434,9 @@ def make_summary_provider(
                 digest = record.get("source_digest")
                 if isinstance(digest, str):
                     recordings[digest] = record.get("candidate")
-        proposer = RecordedDispatchProposer(recordings, provider_name=provider_name)
+        proposer = RecordedDispatchProposer(
+            recordings, provider_name=provider_name, resource_ledger=resource_ledger
+        )
     elif provider_options.mode in (ProviderMode.OFFLINE, ProviderMode.ADVERSARIAL):
         limit = require_int(require_object(options.get("resources", {})).get("max_work", 100000))
         if remaining_work is not None:
@@ -286,11 +444,14 @@ def make_summary_provider(
         proposer = OfflineDispatchProposer(
             adversarial="wrong_handler" if provider_name == "adversarial" else None,
             max_work=limit,
+            resource_ledger=resource_ledger,
         )
     else:
         raise ConfigurationError("Unsupported candidate provider")
     from pythonstan.analysis.composition.guarded_dispatch import GuardedDispatchProvider
 
-    provider = GuardedDispatchProvider(snapshot, options, proposer, remaining_work=remaining_work)
+    provider = GuardedDispatchProvider(
+        snapshot, options, proposer, remaining_work=remaining_work, resource_ledger=resource_ledger
+    )
     provider.prepare()
     return provider

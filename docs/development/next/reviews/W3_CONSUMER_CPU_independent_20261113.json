@@ -1,0 +1,173 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "bounded26_new_consumer_controls_green_with_unchanged_prior137_integration",
+  "test": "tests/regression/audit3/test_w3_consumer_cpu_independent.py",
+  "cases_preregistered": 20,
+  "first_finding": {
+    "schema_version": 1,
+    "base": "c7e23393 (verified remote financial checkpoint)",
+    "case": "Session config copy completes at used1/remaining0 before admission under valid config padding2000/global2000/child1",
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "tests/regression/audit3/test_w3_consumer_cpu_independent.py",
+      "-k",
+      "session_one_tick"
+    ],
+    "outcome": {
+      "failed": 1,
+      "deselected": 19,
+      "source_stable": true
+    },
+    "source_sha256": {
+      "pythonstan/session.py": "22a482876b07646de75c509c1de3ede27cf0921f568804937ad21e2ac0b339bd",
+      "pythonstan/config/model.py": "4af921bc5ad9888a9b8d550ebac5f89412112bd17142593a3d1380bf0364e55d",
+      "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+      "tests/regression/audit3/test_w3_consumer_cpu_independent.py": "5e006508b10267367e18b726e05e54d6d9a19bb22f2dd3beb9d186c580990640",
+      "docs/development/next/reviews/W3_CONSUMER_CPU_preregistration_20261113.json": "fec5e1d3f68af477e7529018ee246b24dcdfcd030784cb6595284a020da5bba3"
+    },
+    "raw_evidence": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/session-config-before-fix.* (gitignored)",
+    "recipe": "Extract only into a fresh base checkout; never overwrite active author source. Execute the receipt command. This preserves a finite new source/control, not old lost fixtures."
+  },
+  "red_source_capsule": {
+    "path": "docs/development/next/reviews/W3_CONSUMER_session_config_red_source_20261113.tar.gz",
+    "sha256": "71a4cc007a88c672639030944af96eac0dce6b5c1ab8895644001664160007b0",
+    "bytes": 17134,
+    "contents": "Only reviewed source/test/prereg + sanitized summary; no raw log or raw receipt."
+  },
+  "scope": "Finite consumer CPU/Session copy contract only; not a whole-card or physical CPU/security guarantee. Original2000/1 limits unchanged.",
+  "real_credentials_read": 0,
+  "real_api_calls": 0,
+  "source_capsule_replay": {
+    "base": "c7e23393",
+    "capsule_sha256": "71a4cc007a88c672639030944af96eac0dce6b5c1ab8895644001664160007b0",
+    "source_hashes_match": true,
+    "exit_code": 1,
+    "seconds": 0.631,
+    "failed": 1,
+    "deselected": 19
+  },
+  "current_slices": {
+    "nonchecker": {
+      "passed": 13,
+      "deselected": 7,
+      "source_stable": true,
+      "receipt": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/nonchecker-current.receipt.json"
+    },
+    "checker": {
+      "passed": 6,
+      "deselected": 14,
+      "source_stable": true,
+      "receipt": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/checker-current.receipt.json"
+    },
+    "session_config": {
+      "failed": 1,
+      "deselected": 19,
+      "source_stable": true,
+      "receipt": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/session-config-before-fix.receipt.json"
+    }
+  },
+  "delegated_sdk_first_outcome": {
+    "test": "tests/regression/audit3/test_w3_consumer_sdk_independent.py",
+    "preregistration": "docs/development/next/reviews/W3_CONSUMER_SDK_preregistration_20261113.json",
+    "passed": 5,
+    "failed": 1,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/llm/openai_transport.py": "590984bfce2d217cae3b58d58f7db670e2c1d7b754d082055c9dd4c24603c626"
+    },
+    "actual_failure": "Known valid SDK usage after mocked create drains exact registered2000 CPU grant remains dispatched because first post-response spend denies before settlement. Expected known5 tokens/5 microUSD settled.",
+    "owner_notified": true,
+    "artifact_directory": "artifacts/next/evidence/W3_CONSUMER_SDK-independent-20261113"
+  },
+  "aggregate_scope_note": "First separate runs show 24 green and 2 actual red across CPU20+SDK6. This is not a combined same-source run or full consumer-card closure; both repairs require source-bound final execution.",
+  "final": {
+    "new_CPU": 20,
+    "new_SDK": 6,
+    "new_total": 26,
+    "prior_controls_reexecuted": 137,
+    "passed": 163,
+    "failed": 0,
+    "pytest_seconds": 5.02,
+    "outer_seconds": 5.62,
+    "source_stable": true,
+    "changed_paths": [],
+    "production_tree_sha256": "634b6cd8b22950e34ba1ca859a1cd5f123f4fe3dec0a5e7375fd92dc5f62cf5f",
+    "receipt": "artifacts/next/evidence/W3_CONSUMER-independent-20261113/combined163-final.receipt.json",
+    "environment": "Inherited environment cleared; only PATH plus synthetic dummy API key. SDK uses mock clients/transports."
+  },
+  "final_named_source_and_test_sha256": {
+    "pythonstan/analysis/contracts/cost_model.py": "da403e33b1caad64f64cb9b5facdfc53c967ce6256d3bf8398ba859bca42214a",
+    "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+    "pythonstan/analysis/contracts/resource_api.py": "f1e3d93b038a9905c84ce3687a6f072a333ee3ace4102dbb64ad393bd8d89b55",
+    "pythonstan/analysis/contracts/work.py": "e06e6aba36af19d725bf44ac13e87db2aa532c7bf6bc9e0f1092e94755fe884a",
+    "pythonstan/analysis/contracts/value_wire.py": "a71e590f120a71b3291b573efe8df0c2e2006ad218b4df1b7bb40628ba39090c",
+    "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
+    "pythonstan/analysis/domains/value_wire.py": "58f1e08a070376db9458cecd76dfdcaa8213c8483092090ef782ed1ed5a82881",
+    "pythonstan/analysis/domains/values.py": "9ffec1935f01f63a273ff3055f5dcae88c615593463ebfc1a3ad425404e24048",
+    "pythonstan/analysis/domains/relations.py": "21753e09e69446b7c176ba9ae7e1896e8f1d9b30a8776c86d7513c85a0cd8b90",
+    "pythonstan/results/result.py": "ec31b7fa4fa2fcdecc268c62e3631943269c04da87bbd5c6f058cd228f770f49",
+    "pythonstan/results/projection.py": "367b3a283ced6017bdd1647329380852ce6ead6833ec049264c226faf19b3e3a",
+    "pythonstan/analysis/state/aliases.py": "6fa6e85b44e4eeb19d2eccfa236b6ec15c3922980aa8f833a107335d1215a4b1",
+    "pythonstan/analysis/state/store.py": "7e481e9cb62582703791f36e654cb04d01f73b8d05241103948818096d5d2994",
+    "pythonstan/analysis/state/handles.py": "9b31959fe922ef650eca84de3c5cdb80113146262e30f7b963e946bbaae0e98e",
+    "pythonstan/analysis/composition/oracle.py": "178952edb45f644c7dd2570f55a9c45f5191ce716f7b882ad5400c86e2331abc",
+    "pythonstan/analysis/engines/abstract/driver.py": "3ebfb4625d861d161d6094ef34d052e5d5c4c855f8b0d97ba13a9cf745b0df25",
+    "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743",
+    "pythonstan/analysis/engines/abstract/continuations.py": "842b2b4298818789c7fb925a5891d8eb9931052de1dda7029dea7163ac8c1105",
+    "pythonstan/analysis/semantics/iteration.py": "14e164f1e8ee3f04ffacf4d7f20ba8de4288553939614659099013fd13f3818f",
+    "pythonstan/analysis/semantics/containers.py": "59818a7999a8aa9c43a32f0c6d9ea31ac459439260a5990e1897b0f84faddc04",
+    "pythonstan/llm/responses.py": "9a922f98b6035b42a4667568f5ef75506d7fdb470de16bcd990946bfbc2fc7e6",
+    "pythonstan/llm/openai_transport.py": "5d185726da64c5873c4a002ede0acd4aef2682817b80690e6d26675f74342806",
+    "pythonstan/llm/response_schema.py": "db0ee18347a151b9c2c9de7b3cfd3d3a694bce86d62d311ab6ea9a8f60978254",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "c2735114287aa9dd99923f4ddd3c2142e01bd5cb36b30aaeb3ecb363e1561406",
+    "pythonstan/frontend/source.py": "b676a4d0b94bcb49324fae02d8372f57e645f01626e57f7e158a313411c02490",
+    "pythonstan/session.py": "efab4332227cf9d3735bf9d6a4a7878f8ce11abe2d0b92e49c45d9277cb498c7",
+    "pythonstan/session_preparation.py": "7b74c7a02923a2e44810e4c0f9b7c3cf139ed73ac97ef31e512997f464a1ce74",
+    "pythonstan/config/model.py": "35a0c4c8eae31c4d573127f2e2543517cfb721ba80563045c5a7e5f14261e007",
+    "pythonstan/analysis/composition/plan.py": "60489197c9a460a5898d1c267dc7956bd99beaa5f7ce15d06588da7c3d29e4c1",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "042a26cd3ba94bcdc1cab5e1c62e5bba79a36da89506068471617c25ead7ec42",
+    "pythonstan/analysis/verification/guarded_dispatch/checker.py": "d81cc4b8be245de93f02ec372f3fd0d039c1c87146e6f86f4723301dc6f8c3c7",
+    "pythonstan/analysis/verification/guarded_dispatch/obligations.py": "d9ae90f77b5b829bb124bede5c4661ba911c7dd95230d5408f52a769f542d7ad",
+    "pythonstan/llm/providers.py": "5d9757fbda22e21cf2320f2d5afcbea9c93491f9b206cca41725bf59a67c3428",
+    "pythonstan/llm/strategy.py": "a519e19dd008b46fed02a7878f66daaf607f05a884a1fe04a2084943fda377f4",
+    "tests/regression/audit3/test_w3_consumer_cpu_independent.py": "5e006508b10267367e18b726e05e54d6d9a19bb22f2dd3beb9d186c580990640",
+    "tests/regression/audit3/test_w3_consumer_sdk_independent.py": "7573c8a2273b14388aa63bb036b26d5297aa3857bcc72ef639b107e06201c627",
+    "docs/development/next/reviews/W3_CONSUMER_CPU_preregistration_20261113.json": "fec5e1d3f68af477e7529018ee246b24dcdfcd030784cb6595284a020da5bba3",
+    "docs/development/next/reviews/W3_CONSUMER_SDK_preregistration_20261113.json": "20b081aff20ddacd1fe3e19bb31bfb5ffa058b0dd32a34cb6ef60e82dc92cc94"
+  },
+  "tests_unchanged_from_actual_red": {
+    "CPU_test": true,
+    "SDK_test": true,
+    "numeric_caps": "global2000, child1, checker0/1/30/70 and global second1 unchanged"
+  },
+  "repair_validation": [
+    {
+      "id": "Session-config-copy-before-admission",
+      "actual_before": "Valid config padding2000 completed mutable config copy at used1/remaining0, then denied. Actual source-bound one-test red and byte-exact isolated c7 replay retained.",
+      "after": "Typed EffectiveConfig.to_dict/digest_for visitor traverses retained frozen config; Session/provider/planner use paid projection. Unchanged one-tick control now passes.",
+      "independent_production_edits": false
+    },
+    {
+      "id": "SDK-first-post-response-fee-retirement",
+      "actual_before": "At fixed2000 grant exhaustion on mocked create return, known5-token/5-microUSD usage remained dispatched when post-response spend denied. Actual source-bound red retained by delegated reviewer.",
+      "after": "Bounded usage retires before post-response paid scans. Unchanged SDK six pass; latest root-approved cleanup change rechecked in full163.",
+      "independent_production_edits": false
+    }
+  ],
+  "sdk_review_record": "docs/development/next/reviews/W3_CONSUMER_SDK_review_20261113.json",
+  "sdk_red_source_capsule": {
+    "path": "docs/development/next/reviews/W3_CONSUMER_SDK_red_source_20261113.tar.gz",
+    "sha256": "fc74c5d50f453663177acdd833c5c61612558507211b48fc18741dc8275a0ca3",
+    "provenance": "Exact old source reverse patch was verified against the original independent red SHA before archiving; no historical old lost fixture claim."
+  },
+  "qualification": "Finite26 newly preregistered consumer controls plus137 prior controls rerun on current held source. No whole-card/release/live vendor/physical CPU preemption/arbitrary Python sandbox claim. The later SDK cleanup two controls belong to the author, not this independent26. State.apply effects and SEM04 are separate, not closed by this run.",
+  "handoff": "Reviewer tests and preregistrations HOLD for parent immutable capture and isolated replay. Narrative records finalized after run; no remote publication of Node5 is claimed.",
+  "static_followup_not_executed": "A hosted Responses grant larger than propose(max_work=...) may let the concrete SDK spend outside the proposer local clamp. This is an unexecuted audit candidate, not counted as a red or a closed gate."
+}

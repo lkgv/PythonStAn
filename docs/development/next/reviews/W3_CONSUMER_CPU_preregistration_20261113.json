@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "NEW preregistration before first independent execution",
+  "base_remote_checkpoint": "c7e23393",
+  "test": "tests/regression/audit3/test_w3_consumer_cpu_independent.py",
+  "scope": "Finite post-checkpoint hosted proposer/checker CPU authority, shared setup conservation, local memory and L1 absolute request ledger. Production is read-only. Synthetic clocks/RSS/candidates only; no credential or external I/O.",
+  "cases": [
+    "Offline and recorded supplied grants: zero, foreign owner, expired quota scope reject before parser/candidate visit (6).",
+    "Rejected offline syntax and non-JSON recording retain measured work and caller settlement authority (2).",
+    "Checker original local caps0/1/30/70 preadmit before atomic JSON decoder and preserve exact measured cap (4).",
+    "Checker foreign and expired scoped grants reject before candidate decoder, with no mutation (2).",
+    "Nested memory cap includes parent RSS plus child observation and fails before entering body; local denial does not latch global stop (1).",
+    "Absolute global deadline remains first cause through a later child deadline (1).",
+    "Shared recorded setup sum equals global paid work; repeat prepare and charge_setup with two hosts add no charge (1).",
+    "L1 shares actual parent ledger/deadline despite forged baseline stats; a late execute observes global expiry and retains baseline (1).",
+    "L1 original max_work2000 and child1 retain baseline, consume exactly child1 and never start core execution (1)."
+  ],
+  "numeric_limits": {
+    "global_work": 2000,
+    "child_work": 1,
+    "checker_caps": [
+      0,
+      1,
+      30,
+      70
+    ],
+    "global_seconds": 1,
+    "memory_MB": [
+      1,
+      2,
+      3
+    ]
+  },
+  "source_sha256_at_preregistration": {
+    "pythonstan/llm/providers.py": "9e8aec1a5960bef8e08602dc9114057763bbde646d4b4172d39c92a4dcd221a5",
+    "pythonstan/analysis/composition/guarded_dispatch.py": "042a26cd3ba94bcdc1cab5e1c62e5bba79a36da89506068471617c25ead7ec42",
+    "pythonstan/analysis/verification/guarded_dispatch/checker.py": "d81cc4b8be245de93f02ec372f3fd0d039c1c87146e6f86f4723301dc6f8c3c7",
+    "pythonstan/analysis/verification/guarded_dispatch/obligations.py": "54d5579793df7cddd2458f984b364c674d9914bad0949cd37d48af5e48df6504",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "c2735114287aa9dd99923f4ddd3c2142e01bd5cb36b30aaeb3ecb363e1561406",
+    "pythonstan/analysis/contracts/resources.py": "ce1287ff3a9565efbc681a2d25994dc838e7c84b02ef1a574154bf1b143fb084",
+    "pythonstan/llm/strategy.py": "fc76fcf49e06b418c9a84644459945a64b2fbf5789294b6ee35642204b1154cf",
+    "pythonstan/session.py": "22a482876b07646de75c509c1de3ede27cf0921f568804937ad21e2ac0b339bd",
+    "pythonstan/session_preparation.py": "aca126282ee22f9fb0b43fafb2cb52364ef911cf6e3bc919783bcc25e6446fe4"
+  },
+  "qualification": "Not the lost W3 controls, not a physical CPU preemption or arbitrary Python sandbox claim. PTA checker/obligations still own-gate WIP at preregistration; wait HOLD for first execution.",
+  "additional_session_config_copy": {
+    "status": "Preregistered before first execution; root identified evaluation-order candidate",
+    "valid_input": "Resolved config llm.proposals=[{padding:list(range(2000))}], resources max_work2000, actual admitted child window1.",
+    "rule": "After the one configuration-resolution dispatch tick exhausts child fuel, no complete mutable config copy may be materialized before metered structural admission. Spy records only completion of the actual to_dict thaw, not merely entering a callback.",
+    "expected_before_source_fix": "Root suspected real eager self.config.to_dict() allocation before charge_json argument admission; must capture actual outcome."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "base": "c7e23393adaeef1a0da8072e96776e52fa7ccd3e",
+  "archive": "W3_CONSUMER_SDK_red_source_20261113.tar.gz",
+  "isolated_replay": {
+    "passed": 5,
+    "failed": 1,
+    "same_known_fee_failure": true
+  },
+  "command": "python -m pytest -q --import-mode=importlib -p no:cacheprovider tests/regression/audit3/test_w3_consumer_sdk_independent.py",
+  "dependencies": "Only exact archive overlay on base; no canonical Session or laterconsumer files needed."
+}

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import time
 from collections.abc import Mapping, Sequence
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -28,6 +30,8 @@ from pythonstan.analysis.contracts.json_data import (
     validate_json,
     validate_json_object,
 )
+from pythonstan.analysis.contracts.resources import RunLedger
+from pythonstan.analysis.contracts.wire import thaw_snapshot
 from pythonstan.config import ConfigurationError, resolve_config
 from pythonstan.inputs import Source, SourceSnapshot
 from pythonstan.inputs.targets import Target
@@ -189,6 +193,49 @@ def _work(snapshot: JsonObject) -> int:
     )
 
 
+def _proposal_document(raw: object, ledger: RunLedger | None, category: str) -> JsonValue:
+    if ledger is None:
+        return raw.to_dict() if isinstance(raw, PolicyProposal) else validate_json(raw)
+    source: object = raw
+    if isinstance(raw, PolicyProposal):
+        # These are immutable source records; the metered boundary makes the
+        # actual owned JSON copy, rather than thawing all payloads beforehand.
+        source = {
+            "query": query_to_wire(raw.query),
+            "source_digest": raw.source_digest,
+            "region": raw.region,
+            "strategy": raw.strategy,
+            "parameters": raw.parameters,
+            "resources": raw.resources,
+            "reason": raw.reason,
+        }
+    with ledger.structural_meter(category) as meter:
+        return thaw_snapshot(source, visit=meter.visit)
+
+
+def _revalidate_source(snapshot: SourceSnapshot, ledger: RunLedger | None) -> None:
+    for module in snapshot.modules:
+        try:
+            if ledger is None:
+                current = hashlib.sha256(Path(module.filename).read_bytes()).hexdigest()
+            else:
+                ledger.charge_work(1, "l1_source_revalidation")
+                digest = hashlib.sha256()
+                with Path(module.filename).open("rb") as source:
+                    while True:
+                        ledger.charge_work(1, "l1_source_revalidation")
+                        block = source.read(1024)
+                        if not block:
+                            break
+                        digest.update(block)
+                ledger.checkpoint(force=True)
+                current = digest.hexdigest()
+        except OSError as error:
+            raise ConfigurationError("L1 source changed after the baseline snapshot") from error
+        if current != module.original_bytes_digest:
+            raise ConfigurationError("L1 source changed after the baseline snapshot")
+
+
 class RefinementController:
     proposer: StrategyProposer
 
@@ -196,9 +243,21 @@ class RefinementController:
         self.proposer = OfflineStrategyProposer() if proposer is None else proposer
 
     def validate(
-        self, raw: object, source_snapshot: SourceSnapshot, config: JsonObject
+        self,
+        raw: object,
+        source_snapshot: SourceSnapshot,
+        config: JsonObject,
+        *,
+        resource_ledger: RunLedger | None = None,
     ) -> tuple[PolicyProposal, JsonObject]:
-        proposal = PolicyProposal.parse(raw)
+        if resource_ledger is None:
+            proposal = PolicyProposal.parse(raw)
+        else:
+            resource_ledger.charge_work(1, "l1_validation_attempt")
+            proposal = PolicyProposal.parse(
+                _proposal_document(raw, resource_ledger, "l1_validation_copy")
+            )
+            resource_ledger.charge_json(config, "l1_policy_copy")
         if proposal.source_digest != source_snapshot.source_digest:
             raise ConfigurationError("Stale L1 source identity")
         if proposal.strategy not in REGISTERED_STRATEGIES:
@@ -237,7 +296,24 @@ class RefinementController:
             "name": "l1:" + proposal.strategy,
         }
         updated["regions"] = [*require_array(updated["regions"]), rule]
-        build_plan(source_snapshot, updated)
+        if resource_ledger is not None:
+            resource_ledger.charge_json(updated, "l1_plan_configuration")
+            for module in source_snapshot.modules:
+                resource_ledger.charge_work(1, "l1_plan_module")
+                cached = source_snapshot.parsed_trees.get(module.module)
+                if cached is None:
+                    resource_ledger.charge_json(module.source, "l1_plan_source")
+                    tree = ast.parse(module.source, module.filename)
+                else:
+                    tree = cached[1]
+                for _ in ast.walk(tree):
+                    resource_ledger.charge_work(1, "l1_plan_nodes")
+        if resource_ledger is None:
+            build_plan(source_snapshot, updated)
+        else:
+            resolved = resolve_config(config=updated)
+            build_plan(source_snapshot, resolved, resource_ledger=resource_ledger)
+            resource_ledger.checkpoint(force=True)
         return proposal, updated
 
     def run(
@@ -249,6 +325,7 @@ class RefinementController:
         queries: Sequence[QueryInput],
         output: OutputSpec,
         baseline: JsonObject,
+        resource_ledger: RunLedger | None = None,
     ) -> tuple[JsonObject, JsonObject]:
         from pythonstan.session import AnalysisSession
 
@@ -256,7 +333,8 @@ class RefinementController:
         rows: list[JsonValue] = []
         seen: set[str] = set()
         selected = baseline
-        charged_work = _work(baseline)
+        baseline_work = _work(baseline) if resource_ledger is None else resource_ledger.work.used
+        charged_work = baseline_work
         baseline_wall = require_number(
             require_object(baseline.get("stats", {})).get("total_wall_seconds", 0)
         )
@@ -266,40 +344,82 @@ class RefinementController:
         )
         provider_error: JsonValue = None
         proposals: list[PolicyProposal | JsonValue] = []
+        baseline_quality: JsonObject = {
+            "status": "unavailable",
+            "reason": "not_observed_with_control_budget",
+        }
+        selected_quality = baseline_quality
         try:
-            raw_proposals: object = self.proposer.propose(baseline, source_snapshot, config)
-            if not isinstance(raw_proposals, (list, tuple)):
-                raise ConfigurationError("L1 provider must return a finite proposal array")
-            for raw in raw_proposals:
-                proposals.append(raw if isinstance(raw, PolicyProposal) else validate_json(raw))
+            with nullcontext() if resource_ledger is None else resource_ledger.phase("l1_proposer"):
+                if resource_ledger is not None:
+                    resource_ledger.charge_work(1, "l1_proposer_attempt")
+                    resource_ledger.charge_json(baseline.get("values", {}), "l1_quality")
+                    baseline_quality = _quality(baseline)
+                    selected_quality = baseline_quality
+                    observed_baseline = require_object(
+                        _proposal_document(baseline, resource_ledger, "l1_proposer_baseline_copy")
+                    )
+                    observed_config = require_object(
+                        _proposal_document(
+                            config, resource_ledger, "l1_proposer_configuration_copy"
+                        )
+                    )
+                else:
+                    observed_baseline, observed_config = baseline, config
+                raw_proposals: object = self.proposer.propose(
+                    observed_baseline, source_snapshot, observed_config
+                )
+                if resource_ledger is not None:
+                    resource_ledger.checkpoint(force=True)
+                if not isinstance(raw_proposals, (list, tuple)):
+                    raise ConfigurationError("L1 provider must return a finite proposal array")
+                bounded = (
+                    raw_proposals if resource_ledger is None else raw_proposals[: max(0, limit)]
+                )
+                for raw in bounded:
+                    proposals.append(
+                        raw
+                        if isinstance(raw, PolicyProposal)
+                        else _proposal_document(raw, resource_ledger, "l1_proposal_materialization")
+                    )
         except Exception as error:
+            if isinstance(error, MemoryError):
+                if resource_ledger is not None:
+                    resource_ledger.stop("max_memory_mb")
+                raise
             provider_error = {"kind": type(error).__name__, "reason": str(error)}
         for raw in proposals[: max(0, limit)]:
-            row: JsonObject = {
-                "status": "rejected",
-                "proposal": raw.to_dict() if isinstance(raw, PolicyProposal) else raw,
-            }
+            row: JsonObject = {"status": "rejected"}
             reserved_work = 0
             finished_work = False
+            attempt_start = 0 if resource_ledger is None else resource_ledger.work.used
             try:
-                proposal, updated = self.validate(raw, source_snapshot, config)
-                if not isinstance(target, Source):
-                    for module in source_snapshot.modules:
-                        try:
-                            current = hashlib.sha256(Path(module.filename).read_bytes()).hexdigest()
-                        except OSError as error:
-                            raise ConfigurationError(
-                                "L1 source changed after the baseline snapshot"
-                            ) from error
-                        if current != module.original_bytes_digest:
-                            raise ConfigurationError(
-                                "L1 source changed after the baseline snapshot"
-                            )
+                with (
+                    nullcontext()
+                    if resource_ledger is None
+                    else resource_ledger.phase("l1_validation")
+                ):
+                    row["proposal"] = _proposal_document(raw, resource_ledger, "l1_proposal_record")
+                    proposal, updated = (
+                        self.validate(raw, source_snapshot, config)
+                        if resource_ledger is None
+                        else self.validate(
+                            raw, source_snapshot, config, resource_ledger=resource_ledger
+                        )
+                    )
+                    if not isinstance(target, Source):
+                        _revalidate_source(source_snapshot, resource_ledger)
+                    if resource_ledger is not None:
+                        resource_ledger.charge_json(updated, "l1_policy_identity")
                 digest = stable_digest(updated)
                 if digest in seen:
                     raise ConfigurationError("Repeated L1 policy")
                 seen.add(digest)
-                remaining_work = require_int(resource_limits["max_work"]) - charged_work
+                remaining_work = (
+                    require_int(resource_limits["max_work"]) - charged_work
+                    if resource_ledger is None
+                    else resource_ledger.remaining_work
+                )
                 if remaining_work <= 0:
                     raise ConfigurationError("No remaining global L1 work budget")
                 updated_resources = require_object(updated["resources"])
@@ -307,7 +427,19 @@ class RefinementController:
                     require_int(updated_resources["max_work"]), remaining_work
                 )
                 seconds = require_number(resource_limits["max_seconds"])
-                if seconds:
+                if resource_ledger is not None:
+                    remaining_seconds = resource_ledger.remaining_seconds
+                    if remaining_seconds is not None:
+                        resource_ledger.checkpoint()
+                        if remaining_seconds <= 0:
+                            raise ConfigurationError("No remaining global L1 time budget")
+                        proposed_seconds = require_number(updated_resources["max_seconds"])
+                        updated_resources["max_seconds"] = (
+                            min(proposed_seconds, remaining_seconds)
+                            if proposed_seconds
+                            else remaining_seconds
+                        )
+                elif seconds:
                     remaining_seconds = seconds - baseline_wall - (time.monotonic() - started)
                     if remaining_seconds <= 0:
                         raise ConfigurationError("No remaining global L1 time budget")
@@ -317,57 +449,112 @@ class RefinementController:
                         if proposed_seconds
                         else remaining_seconds
                     )
-                before = _quality(selected)
+                before = _quality(selected) if resource_ledger is None else selected_quality
                 rerun_started = time.monotonic()
                 reserved_work = require_int(updated_resources["max_work"])
-                rerun_request = resolve_request(
-                    target, config=updated, queries=queries, output=output
+                with (
+                    nullcontext() if resource_ledger is None else resource_ledger.phase("rerun"),
+                    nullcontext()
+                    if resource_ledger is None
+                    else resource_ledger.work_scope(
+                        reserved_work,
+                        "l1_rerun",
+                        max_seconds=require_number(updated_resources["max_seconds"]),
+                        max_memory_mb=require_number(updated_resources["max_memory_mb"]),
+                    ),
+                ):
+                    if resource_ledger is not None:
+                        resource_ledger.charge_work(1, "l1_rerun_request")
+                    rerun_request = resolve_request(
+                        target, config=updated, queries=queries, output=output
+                    )
+                    prepared_session = (
+                        AnalysisSession.from_snapshot(rerun_request, source_snapshot)
+                        if resource_ledger is None
+                        else AnalysisSession.from_snapshot(
+                            rerun_request, source_snapshot, resource_ledger=resource_ledger
+                        )
+                    )
+                    with prepared_session as session:
+                        result = session.execute()
+                    after = result.raw_snapshot()
+                charged_work = (
+                    charged_work + _work(after)
+                    if resource_ledger is None
+                    else resource_ledger.work.used
                 )
-                with AnalysisSession.from_snapshot(rerun_request, source_snapshot) as session:
-                    result = session.execute()
-                after = result.raw_snapshot()
-                charged_work += _work(after)
                 finished_work = True
+                if resource_ledger is not None:
+                    resource_ledger.charge_json(after.get("values", {}), "l1_quality")
+                after_solver = after.get("solver_status", "failed")
+                after_coverage = after.get("coverage_status", "open")
+                after_quality = _quality(after)
                 row.update(
                     status="accepted",
                     policy_digest=digest,
                     before=before,
-                    after=_quality(after),
+                    after=after_quality,
                     seconds=time.monotonic() - rerun_started,
-                    solver_status=result.solver_status,
-                    coverage_status=result.coverage_status,
+                    solver_status=after_solver,
+                    coverage_status=after_coverage,
                 )
                 row["proposal_policy_digest"] = digest
-                row["policy_digest"] = after["policy_digest"]
+                row["policy_digest"] = after.get("policy_digest", digest)
                 row["phase_trace"] = after.get("phase_trace", [])
-                if result.solver_status == "converged" and (
+                if after_solver == "converged" and (
                     selected.get("coverage_status") != "closed_under_profile"
-                    or result.coverage_status == "closed_under_profile"
+                    or after_coverage == "closed_under_profile"
                 ):
                     selected = after
+                    selected_quality = after_quality
                 else:
                     row.update(
                         status="retained_baseline",
                         reason="Reanalysis did not retain the established convergence/coverage",
                     )
             except Exception as error:
+                if isinstance(error, MemoryError):
+                    if resource_ledger is not None:
+                        resource_ledger.stop("max_memory_mb")
+                    raise
                 row["reason"] = str(error)
                 row["error_kind"] = type(error).__name__
-                if reserved_work and not finished_work:
-                    charged_work += reserved_work
-                    row.update(status="retained_baseline", reserved_failed_work=reserved_work)
+                if reserved_work:
+                    row["status"] = "retained_baseline"
+                    if not finished_work:
+                        if resource_ledger is None:
+                            charged_work += reserved_work
+                            row["reserved_failed_work"] = reserved_work
+                        else:
+                            charged_work = resource_ledger.work.used
+                            row["rerun_work_limit"] = reserved_work
+                            row["failed_work_count_status"] = "measured_shared_ledger"
+            if resource_ledger is not None:
+                row["charged_attempt_work"] = resource_ledger.work.used - attempt_start
             rows.append(row)
+            if resource_ledger is not None and (
+                resource_ledger.stop_reason is not None or resource_ledger.remaining_work <= 0
+            ):
+                break
+        if resource_ledger is not None:
+            charged_work = resource_ledger.work.used
         return selected, {
             "provider": llm["provider"],
             "proposals": rows,
             "seconds": time.monotonic() - started,
-            "baseline_quality": _quality(baseline),
-            "selected_quality": _quality(selected),
+            "baseline_quality": _quality(baseline) if resource_ledger is None else baseline_quality,
+            "selected_quality": _quality(selected) if resource_ledger is None else selected_quality,
             "attempted": len(rows),
             "limit": limit,
             "clean_reanalysis": True,
             "provider_error": provider_error,
-            "baseline_work": _work(baseline),
+            "baseline_work": baseline_work,
             "total_work": charged_work,
-            "reanalysis_work": charged_work - _work(baseline),
+            "reanalysis_work": charged_work - baseline_work,
+            "total_work_scope": "controller_return_before_outer_publication"
+            if resource_ledger is not None
+            else "legacy_supplied_baseline_plus_child_reported_or_reserved_work",
+            "reanalysis_work_scope": "All post-baseline L1 control, validation, rerun and paid read work before outer publication"
+            if resource_ledger is not None
+            else "Legacy supplied baseline plus child reported or conservatively reserved work",
         }

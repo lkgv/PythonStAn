@@ -1,0 +1,53 @@
+{
+  "component": "BUDGET01 rebuilt Session, producer CPU and registered SDK consumers",
+  "date": "2026-11-13",
+  "status": "partial; unified global budget intentionally conflicts with one legacy free-setup Native cap2 contract; later export work remains separate",
+  "immutable_node5_base": "967afc6f4273019e0bcd41e521ad5aba0a9572c0",
+  "followup_production_sha256": {
+    "pythonstan/analysis/contracts/resources.py": "7d9ba8f9b3894fc8b8423d05c171392aaf6e4d1c231ba8fdc80b02749fa879d4",
+    "pythonstan/session.py": "37953523a83715c55095aa7ed038a9d04386e242ee78de12b7b19386535c3823",
+    "pythonstan/llm/responses.py": "c38fbe8a1b96bc0d5ded68a67a19bbc1e152ad33ab8b2d06de4dd621a8ed6468",
+    "pythonstan/llm/openai_transport.py": "a17e8b66c25156597b60d9590d3508acbcbe44632dd57dd00c9aa17c91718102"
+  },
+  "author_test_sha256": {
+    "tests/regression/audit3/test_rebuilt_request_ledger.py": "d286c1a5f77f18cac2dd2fa0c54ddf1ad79fc82dc291013c95c20c08643ecbe2",
+    "tests/regression/audit3/test_rebuilt_proposer_fuel.py": "b74d129224cf25d65415ffa3507e28f432f0a79c75fc54987b1c56eab9d6e605",
+    "tests/regression/audit3/test_rebuilt_sdk_cpu.py": "f15bec4cb76a28d03c5e24662bb1c380f7672dfb7a7a565aad86d58ec981f783"
+  },
+  "followup_fresh_tests": {
+    "passed": 121,
+    "log": "artifacts/next/evidence/BUDGET01-rebuild/followup-final-held.log",
+    "scope": "Original SDK46 + author ledger/API/proposer/SDK CPU + independent CPU/SDK controls; no whole-project acceptance claim"
+  },
+  "original_observation_control": {
+    "passed": 1,
+    "log": "artifacts/next/evidence/BUDGET01-rebuild/ceiling-observation-green.log",
+    "behavior": "All executions compute actual immutable policy digest once; repeated users reuse paid cache, preserving observation-gate primary-work equality"
+  },
+  "typing": {
+    "command": "mypy --disallow-any-expr --disallow-any-explicit --output json on followup four modules",
+    "owned_diagnostics": 0,
+    "imported_diagnostics": 2279,
+    "log": "artifacts/next/evidence/BUDGET01-rebuild/public-ceiling-strong.jsonl",
+    "whole_tree_clean": false
+  },
+  "red_replay_capsule": {
+    "path": "docs/development/next/reviews/BUDGET01_REBUILD_CONSUMER_RED_20261113.tar.gz",
+    "sha256": "05b5c1a775b29902c675eea31797ac723ccc742f2c9b3a678a805dc90557cb9e",
+    "raw_logs_included": false
+  },
+  "contracts": {
+    "configuration": "Visitor thaws retained frozen config before allocation; no EffectiveConfig Mapping __getitem__ projection; default None remains legacy compatible",
+    "local_rss": "Active child memory caps bound sampled parent+child RSS before stage entry; global first cause is retained",
+    "proposal_work": "Actual registered CPU grant work; recorded dispatch metric remains1 with all measured source/DTO copy work in bridge_setup_work; reconciles to global ledger",
+    "api_usage": "Bounded usage reconciliation prepaid before RPC, settled before cleanup/output scan; unknown late reports cannot refund held reservations",
+    "sdk_ceiling": "Concrete SDK and proposer consume the same immutable cumulative ceiling through public WorkReservation.consume under its canonical owner lock",
+    "foreign_result_read": "read_phase charges same ledger with separate foreign-read telemetry, without changing owner execution timing or quota scopes"
+  },
+  "not_qualified": [
+    "Real vendor pricing or live exact-body token quotation",
+    "Physical CPU/time/RSS hard bounds",
+    "Complete BUDGET01 full-gate acceptance",
+    "Unchanged legacy max_work2 Native partial facts under the new one-cap paid setup contract"
+  ]
+}

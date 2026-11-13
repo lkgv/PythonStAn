@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "task": "L1 shared-ledger consumer rebuild",
+  "financial_checkpoint": "c7e23393",
+  "status": "production_and_tests_held_for_root_independent_capture",
+  "scope": [
+    "pythonstan/llm/strategy.py",
+    "tests/regression/audit3/test_l1_shared_ledger_rebuild.py"
+  ],
+  "implementation": [
+    "Optional resource_ledger defaults to None and preserves legacy external supplied-baseline accounting contract.",
+    "Shared path uses the same actual ledger for proposer, checked proposal/config copies, validation, planner/source revalidation, clean rerun and paid raw_snapshot read. Global work and absolute deadline never reset.",
+    "Each rerun runs under a local lower work/time/memory scope; setup resolution and paid terminal raw_snapshot stay inside the scope. Actual shared ledger is forwarded to AnalysisSession.from_snapshot.",
+    "Adoption reads status and coverage from the actual returned snapshot, with fallback proposed policy identity when a bounded terminal controller omits policy_digest. Truncated results cannot replace a usable baseline.",
+    "Shared failure reports actual charged work, without inventing full-window work. Baseline work uses the actual ledger entry total instead of untrusted baseline counters.",
+    "Quality copies/scans are admitted and cached so denied setup does not perform a later unpaid large scan. Proposer receives isolated JSON DTO copies of baseline and config.",
+    "Outer Session owns final feedback total/scope refresh before paid publication. LLM query-quality selection, provider transports and credentials are unchanged."
+  ],
+  "tests": {
+    "original_before": {
+      "passed": 32,
+      "failed": 1,
+      "path": "artifacts/next/evidence/L1-shared-rebuild-20261113/before.txt",
+      "failure": "Existing L1 total-work report did not match shared outer-session accounting."
+    },
+    "held_final_exact": {
+      "passed": 42,
+      "failed": 0,
+      "original_controls": 33,
+      "new_controls": 9,
+      "seconds": 2.55,
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m pytest -q tests/refactor/llm/test_strategy.py tests/refactor/llm/test_strategy_independent.py tests/refactor/api/test_recovery_controls.py tests/regression/audit3/test_l1_shared_ledger_rebuild.py",
+      "path": "artifacts/next/evidence/L1-shared-rebuild-20261113/held-final-exact.txt"
+    },
+    "new_controls": [
+      "same actual ledger ignores forged baseline cost",
+      "rejected validation has paid fees without starting rerun",
+      "child max_work=1 does not refresh global budget",
+      "post-work rerun failure does not charge an invented full window",
+      "actual bounded returned snapshot controls adoption",
+      "zero outer work scope prevents proposer callback",
+      "sampled lower memory cap denies before child execution",
+      "proposer mutation cannot alter trusted baseline or policy",
+      "post-proposal checkpoint retains original absolute deadline"
+    ],
+    "preserved_original_limits": "Existing max_work=2000 and lowered child max_work=1 assertions unchanged.",
+    "test_setup_correction": "One initial authored fixture omitted required actual_engine; corrected before held green runs. This is a test-only setup correction, not production red-to-green credit."
+  },
+  "quality": {
+    "owned_strong_any_expression_diagnostics": 0,
+    "strong_command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m mypy --no-incremental --output=json --disallow-any-expr pythonstan/llm/strategy.py",
+    "path": "artifacts/next/evidence/L1-shared-rebuild-20261113/strong-final.jsonl",
+    "import_graph_diagnostics": 2283,
+    "whole_tree_clean": false,
+    "ruff_owned": 0,
+    "format_owned": 0
+  },
+  "limits": [
+    "Tests use offline/synthetic proposers and deterministic fake clock/memory observations where indicated; no live vendor request or credential access.",
+    "Logical work is a versioned software budget, not physical CPU preemption. Arbitrary synchronous proposer callbacks are admitted before invocation and checked for deadline after return.",
+    "Legacy None baseline accounting preserves externally supplied reported historical totals; it does not retroactively measure prior work.",
+    "Independent final source binding, whole-candidate gates and task closure remain root-owned. SEM production remained held and unchanged during this task."
+  ],
+  "cost_model": {
+    "version": "logical-work-v1",
+    "digest": "21d3f74512c790657e1c779e914f596106ccde903d66e578684085b3f6e3e043"
+  },
+  "source_sha256": {
+    "pythonstan/llm/strategy.py": "a519e19dd008b46fed02a7878f66daaf607f05a884a1fe04a2084943fda377f4",
+    "tests/regression/audit3/test_l1_shared_ledger_rebuild.py": "9e95e007c5f4487d93e5638033733b12575db78a479ae7e28e166c90d428c4b1"
+  },
+  "frozen_manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "debt_sha256": "8514b09e7ad8d91eaa0b848e46a3f9be4156862df4b109df8057008be11811a7",
+  "final_planner_port": {
+    "reason": "Budget shared build_plan now requires resolved EffectiveConfig to prevent legacy unmetered configuration thaw/resolution.",
+    "change": "Shared validate resolves already-shape-admitted updated config then passes same ledger to build_plan; legacy None call unchanged.",
+    "tests": "42 original+author controls pass in2.54s; independent consumer CPU20 pass, no caps/assertion edits.",
+    "paths": [
+      "artifacts/next/evidence/L1-shared-rebuild-20261113/planner-port-final.txt",
+      "artifacts/next/evidence/L1-shared-rebuild-20261113/planner-port-independent.txt",
+      "artifacts/next/evidence/L1-shared-rebuild-20261113/planner-port-strong.jsonl"
+    ],
+    "owned_strong_diagnostics": 0
+  }
+}
