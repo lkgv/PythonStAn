@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "preregistered_before_analyzer_runs",
+  "provenance": "NEW independent fixtures after loss of uncommitted W3. They are not the lost previous52 fixtures or115 controls.",
+  "baseline_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "baseline_worktree": "../PythonStAn-w3-rebuild-baseline",
+  "semantic_cases": [
+    {
+      "id": "iter_result_must_be_iterator",
+      "source": "log=''\nclass Bad:\n def __iter__(self):\n  global log\n  log=log+'i'\n  return 1\ntry:\n list(Bad())\nexcept TypeError:\n result=log+'t'\n",
+      "source_sha256": "3991c7f37999b6107e642f9fd26cc81d9cedada63e6c5b77f029070f80a0673d",
+      "expected": "it"
+    },
+    {
+      "id": "next_default_does_not_swallow_noncallable_slot",
+      "source": "class Bad:\n __next__=1\ntry:\n result=next(Bad(),9)\nexcept TypeError:\n result='type'\n",
+      "source_sha256": "52d3a4359c4828352b3739dbf7ba9a548a2f6936ff079600cb4d4291cfdad7f2",
+      "expected": "type"
+    },
+    {
+      "id": "list_length_hint_precedes_next",
+      "source": "log=''\nclass I:\n def __iter__(self):\n  global log\n  log=log+'i'\n  return self\n def __length_hint__(self):\n  global log\n  log=log+'h'\n  return 0\n def __next__(self):\n  global log\n  log=log+'n'\n  raise StopIteration\nresult=list(I())\nresult=log\n",
+      "source_sha256": "4afe927acd36374552643b61a3476a0103093adb122809aea2309c83aeaf9280",
+      "expected": "ihn"
+    },
+    {
+      "id": "tuple_constructor_retains_exact_tuple_identity",
+      "source": "value=(1,2)\nresult=tuple(value) is value\n",
+      "source_sha256": "4f37cd423d45e2a903d3b260cab14f997e279b42b5a28173197c4b9213407c0a",
+      "expected": true
+    },
+    {
+      "id": "dict_pair_exhaustion_precedes_arity_error",
+      "source": "log=''\nclass Pair:\n def __init__(self):\n  self.i=0\n def __iter__(self):\n  return self\n def __next__(self):\n  global log\n  self.i=self.i+1\n  log=log+str(self.i)\n  if self.i<=3:\n   return self.i\n  raise StopIteration\ntry:\n dict([Pair()])\nexcept ValueError:\n result=log+'v'\n",
+      "source_sha256": "8705ed1da32c5e4745a01e5df447467609a246f58e1b5a2664873c03c5201491",
+      "expected": "1234v"
+    },
+    {
+      "id": "mapping_keys_exhaust_before_getitem",
+      "source": "log=''\nclass Keys:\n def __init__(self):\n  self.i=0\n def __iter__(self):\n  global log\n  log=log+'i'\n  return self\n def __length_hint__(self):\n  global log\n  log=log+'h'\n  return 2\n def __next__(self):\n  global log\n  log=log+'n'\n  self.i=self.i+1\n  if self.i==1:\n   return 'a'\n  if self.i==2:\n   return 'b'\n  raise StopIteration\nclass Mapping:\n def keys(self):\n  global log\n  log=log+'k'\n  return Keys()\n def __getitem__(self,key):\n  global log\n  log=log+key\n  return key\nresult=dict(Mapping())\nresult=log\n",
+      "source_sha256": "13a36367fdc454773581d129182c6d7953c4a373919f81d170572c9176d32874",
+      "expected": "kiihnnnab"
+    }
+  ],
+  "state_obligations": [
+    "cross-owner alias topology vs equal values",
+    "pure covering join with only affected owner havoc",
+    "Flow root-tail alias worlds preserve observable post-write difference",
+    "ObjectId/CellId separate namespaces",
+    "oracle explicit ReferenceKey remapping and literal lookalike preservation",
+    "atomic final-force late cellmap and oracle-generation race"
+  ],
+  "resource_obligations": [
+    "negative/bool admission cannot mutate ledger",
+    "unknown grants hold capacity and reject late settlement",
+    "consume current scope and owner identity",
+    "scope-specific refund attribution",
+    "fresh-meter quota prepayment and no transferred credit"
+  ],
+  "result_obligations": [
+    "finite scalar/value codec roundtrip covers same facts",
+    "opaque and future schemas never silently narrow",
+    "public constructors own input",
+    "only genuinely issued retained-owner payload is adopted"
+  ],
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 8,
+    "max_memory_mb": 1536,
+    "outer_worker_timeout": 15
+  },
+  "unchanged_baselines": [
+    "tests/regression/audit3/semantic_manifest.json",
+    "docs/development/next/quality_debt.json"
+  ],
+  "lost_prior_generator_fixtures": "Exact prior sources unavailable. Their3 failures remain open/unreproduced; no newly written variant counts as closing them."
+}

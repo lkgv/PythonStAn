@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "bounded_wire_and_work_core_review_green",
+  "baseline": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "tests": {
+    "wire_passed": 7,
+    "work_core_passed": 18,
+    "failed": 0
+  },
+  "source_stable": true,
+  "source_sha256": {
+    "pythonstan/analysis/contracts/value_wire.py": "2b5ca35ebcb38c76407db553ee075e5c49849f4210c901645f4ff39b4ee4825a",
+    "pythonstan/analysis/domains/value_wire.py": "844ac19cb5788a4d529f2ccf849a63e95e1041de2754005f7738accba38734f3",
+    "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
+    "pythonstan/analysis/domains/values.py": "9ffec1935f01f63a273ff3055f5dcae88c615593463ebfc1a3ad425404e24048",
+    "pythonstan/analysis/domains/relations.py": "f9472c9d012e9d840a342745e2d54c3b4f0ce75da147add26aaae3d59d3fec4b",
+    "pythonstan/analysis/contracts/resources.py": "b491cb550ba4f006a37e0217a94d376b24653086f50d2673494744770f7fc034",
+    "pythonstan/analysis/contracts/work.py": "e06e6aba36af19d725bf44ac13e87db2aa532c7bf6bc9e0f1092e94755fe884a",
+    "pythonstan/analysis/contracts/cost_model.py": "da403e33b1caad64f64cb9b5facdfc53c967ce6256d3bf8398ba859bca42214a",
+    "tests/regression/audit3/test_w3_rebuild_independent.py": "74e015824df3f5c9993802ff843e94bf2a2b2d49db410e654a128a9e0fd5a886",
+    "docs/development/next/reviews/W3_REBUILD_preregistration_20261113.json": "158f5e7109aee5fd2ee8e18c20f6d16fcad994ced5d76efa875ab8f581c4c124"
+  },
+  "current_receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/wire-core-stable.receipt.json",
+  "current_log": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/wire-core-stable.log",
+  "findings": [
+    {
+      "id": "WIRE-projected-boundness",
+      "prior_observation": "Manualactualprobe: omitted may_unbound+types producedTopTrue/unboundFalse; ValueOperations.leq(original,restored) False.",
+      "repair_validation": "new independent covering/unbound test passes"
+    },
+    {
+      "id": "WIRE-dual-constants",
+      "prior_observation": "Manualactualprobe constants1/tagged2 acceptedcompleteTrue and restored2, failingcoverageofplainfield1.",
+      "repair_validation": "new independent rejects-or-explicit-covering test passes"
+    },
+    {
+      "id": "WIRE-missing-top",
+      "prior_observation": "Manualactualprobe omitted requiredtop fromToprecord restoredTop safelybutcompleteTrue withnoloss.",
+      "repair_validation": "new independent missing-facet partial/rejection test passes"
+    }
+  ],
+  "qualification": "Finite codec + work-reservation/meter/scope/time/memory ports only. Does not accept BUDGET01/RESULT01 wholecards, receipt adoption/terminal/paidprovider/realvendor gates, STATE01/02 or lost previousW3 fixture results.",
+  "not_claimed": "No oldlost115/52recreatedfixtureclaim; no graph/semanticfullcard/API/terminalqualification. Immutableactualinitialwirecandidate0804f57 reproducesall3decoder counterexamples aspytestreds.",
+  "real_credentials_read": 0,
+  "real_api_calls": 0,
+  "wire_before_fix": {
+    "commit": "0804f57",
+    "failed": 3,
+    "passed": 4,
+    "receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/wire0804-before-fix.receipt.json"
+  },
+  "state_original_baseline": {
+    "commit": "8ccff58",
+    "failed": 12,
+    "passed": 3,
+    "receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/state-baseline8cc.receipt.json",
+    "current": "pendingcandidatecheck",
+    "invalid_fixture_attempt": "Initial readonlypropertysettermistake retainedbutexcluded."
+  }
+}

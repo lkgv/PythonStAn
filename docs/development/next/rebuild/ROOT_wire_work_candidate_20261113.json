@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "bounded_component_validated_in_isolated_committed_tree",
+  "base_remote": "a1e5ed4c041b5aea1dc7efcdbd073eced8d72937",
+  "scope": [
+    "Versioned value wire codec; three independent decoding counterexamples repaired.",
+    "Standalone shared work/deadline/memory/reservation core; runtime/API/terminal consumers not included."
+  ],
+  "evidence": [
+    "Authorwire84checks",
+    "Authorworkcore25checks",
+    "Independentwire7+workcore18checks; initialwirecandidate0804f57 reproduces3red4green, repairedcandidate7green."
+  ],
+  "source_scope_note": "Independent review manifest records a broader working tree containing an uncommitted optional wire visitor port. This component deliberately retains the already captured no-visitor wire implementation. An isolated committed-tree rerun is required before remote publication; its manifest is authoritative for the published subset.",
+  "included_new_independent_test_module": "50 preregistered/currentcases now exist, only25 wire/core cases qualified. Followup fixes correct the external process guard and candidate-answer fixture, and add two actual root-cross-store controls; these do not imply STATE/SEM acceptance in this component.",
+  "not_included": [
+    "State/SEM/Native ordered checkpoint repairs still held in working tree.",
+    "Source pre-admission optional port and Session/driver runtime ledger integration.",
+    "Paid result projection/ownership/terminal integration.",
+    "API fees/provider integration."
+  ],
+  "retained_boundaries": [
+    "No historical lostW3 test evidence reused.",
+    "No frozen restored gold/budget/debt modified.",
+    "Previous lost three generator fixture exact sources remain unavailable/open.",
+    "No overall soundness/core/release/live qualification."
+  ],
+  "real_key_reads": 0,
+  "real_model_calls": 0,
+  "isolated_validation": {
+    "commit": "4a2ccbc",
+    "author_and_original_checks_passed": 129,
+    "independent_wire_work_checks_passed": 25,
+    "ruff": 0,
+    "format": 0,
+    "strong_owned_diagnostics": 0,
+    "historical_imported_diagnostics_not_claimed_clean": 2305,
+    "whole_test_file": "Only25wire/workprobesqualified; otherstate/SEMprobes remainunqualified inthiscomponent. Latertest-onlyfixturefixesdoNOTchangequalifiedassertions."
+  }
+}

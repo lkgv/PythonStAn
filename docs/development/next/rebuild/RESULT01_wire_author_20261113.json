@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "status": "wire_slice_held_ready_for_component_checkpoint",
+  "base": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "historical_w3_evidence_reused": false,
+  "scope": [
+    "Canonicalv1normalizer shared by Value.export and contract.value_snapshot",
+    "Domain decoder restores scalar facets and opaque reference IDs; no heap authority",
+    "Residual string constants coexist with patterns, interval/parity preserved",
+    "Stablehandler_id separate fromdisplayhandler",
+    "Unknownextensions/projectedvalues getcoveringTop, futureversionsrejected evennestedslots/items"
+  ],
+  "current_tests": {
+    "passed": 84,
+    "failed": 0,
+    "command": "python -m pytest --import-mode=importlib -p no:cacheprovider tests/regression/audit3/test_value_wire_rebuild.py tests/refactor/contracts tests/refactor/domains tests/regression/audit3/test_domain_mandatory.py"
+  },
+  "quality": {
+    "ruff": 0,
+    "strong_owned_diagnostics": 0,
+    "strong_imported_legacy_diagnostics_not_claimed_clean": true
+  },
+  "remaining": [
+    "Independent fresh wire review",
+    "Paid projection selection before copy",
+    "Genuine publication ownership and bounded terminal/read integration",
+    "Finalstable-source wholepipelinegates"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/contracts/value_wire.py": "e5128eb7c8f054dbc9cca2921908d59fff4bffebdc563c1b664d92fad21f73c1",
+    "pythonstan/analysis/domains/value_wire.py": "240c8e6fca9ada24aff86ec2abad2a831e3aaa24a80d77e2f16741871d1b8112",
+    "pythonstan/analysis/contracts/wire.py": "20ccd1002bbad6ad14e5b97e6e14b488905a579562f11d8e8e0b4cfc0b79ee42",
+    "pythonstan/analysis/domains/values.py": "9ffec1935f01f63a273ff3055f5dcae88c615593463ebfc1a3ad425404e24048",
+    "pythonstan/analysis/domains/relations.py": "f9472c9d012e9d840a342745e2d54c3b4f0ce75da147add26aaae3d59d3fec4b",
+    "tests/regression/audit3/test_value_wire_rebuild.py": "15881ddbb098c03e56579f14ff715d638c98e996d2101e50fe853307d9339ac0"
+  },
+  "no_real_keys_or_api": true
+}

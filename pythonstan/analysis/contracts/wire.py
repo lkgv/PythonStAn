@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from types import MappingProxyType
 
 from .json_data import FrozenJsonObject, FrozenJsonValue, JsonObject, JsonValue
+from .value_wire import encode_value_wire
 
 
 def freeze_snapshot(value: object) -> FrozenJsonValue:
@@ -83,40 +84,26 @@ def value_snapshot(
     objects: Sequence[str] = (),
     types: Sequence[str] = (),
     top: bool = False,
+    top_sorts: Sequence[str] = (),
+    may_unbound: bool = False,
     relations: Sequence[object] = (),
     items: Sequence[object] | None = None,
     slots: Mapping[str, object] | None = None,
 ) -> FrozenJsonObject:
-    """Canonical full-value wire; bool/int remain distinct in tagged members."""
-    tagged: list[FrozenJsonValue] = []
-    scalars: list[FrozenJsonValue] = []
-    for value in constants:
-        if value is None:
-            kind = "none"
-        elif isinstance(value, bool):
-            kind = "bool"
-        elif isinstance(value, int):
-            kind = "int"
-        elif isinstance(value, float):
-            kind = "float"
-        elif isinstance(value, str):
-            kind = "str"
-        else:
-            raise TypeError("constant must be a JSON scalar")
-        scalar = freeze_snapshot(value)
-        scalars.append(scalar)
-        tagged.append(MappingProxyType({"type": kind, "value": scalar}))
-    result: dict[str, FrozenJsonValue] = {
-        "constants": tuple(scalars),
-        "tagged_constants": tuple(tagged),
-        "objects": tuple(freeze_snapshot(item) for item in objects),
-        "types": tuple(freeze_snapshot(item) for item in types),
-        "top": freeze_snapshot(top),
-        "bottom": not top and not constants and not objects and not types,
-        "relations": tuple(freeze_snapshot(item) for item in relations),
-    }
-    if items is not None:
-        result["items"] = tuple(freeze_snapshot(item) for item in items)
-    if slots is not None:
-        result["slots"] = freeze_snapshot(slots)
-    return MappingProxyType(result)
+    """Canonical v1 union; bool/int tagging and nonfinite covering agree with Value."""
+    result = freeze_snapshot(
+        encode_value_wire(
+            constants=constants,
+            objects=objects,
+            types=types,
+            top=top,
+            top_sorts=top_sorts,
+            may_unbound=may_unbound,
+            relations=relations,
+            items=items,
+            slots=slots,
+        )
+    )
+    if not isinstance(result, Mapping):
+        raise TypeError("Value wire did not freeze to an object")
+    return result

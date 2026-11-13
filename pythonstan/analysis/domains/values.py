@@ -18,6 +18,7 @@ from typing import Protocol, override
 
 from pythonstan.analysis.contracts.identity import ObjectId
 from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar, JsonValue
+from pythonstan.analysis.contracts.value_wire import canonical_value_document
 
 from .ints import IntDomain, IntLattice
 from .reabstract import IdentityArena
@@ -286,7 +287,7 @@ class Value:
                 "unknown": self.strings.has_unknown,
                 "conjunctions": [[prefix, suffix] for prefix, suffix in self.strings.conjunctions],
             }
-        return out
+        return canonical_value_document(out)
 
 
 @dataclass(frozen=True)

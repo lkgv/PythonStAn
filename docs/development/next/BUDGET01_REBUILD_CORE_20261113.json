@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "status": "standalone_work_core_candidate_only",
+  "scope": "Freshly rebuilt request work/deadline/sampled-memory/phase/reservation core; API grants and actual Session/provider consumers are not yet integrated.",
+  "base_commit": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
+  "tests": {
+    "author_and_original_native_services_passed": 25,
+    "failed": 0
+  },
+  "quality": {
+    "ruff_owned": 0,
+    "strong_owned_diagnostics": 0,
+    "whole_tree_clean": false,
+    "import_graph_diagnostics_at_run": 2308,
+    "note": "Other agents are rebuilding concurrently; full imported diagnostic count is not accepted debt or whole-tree qualification."
+  },
+  "source_sha256": {
+    "pythonstan/analysis/contracts/resources.py": "b491cb550ba4f006a37e0217a94d376b24653086f50d2673494744770f7fc034",
+    "pythonstan/analysis/contracts/work.py": "e06e6aba36af19d725bf44ac13e87db2aa532c7bf6bc9e0f1092e94755fe884a",
+    "tests/regression/audit3/test_rebuilt_request_ledger.py": "3a9b4d67a96fcef327ee8110be00ef0a325f6a6c107f1ab6679729c57ad5f6e6"
+  },
+  "raw_evidence": "artifacts/next/evidence/BUDGET01-rebuild/core-strong-final.jsonl",
+  "qualification": "No BUDGET card closure, release, real vendor pricing verification, or live calls inferred. Prior lost W3 evidence was not reused."
+}
