@@ -7,7 +7,7 @@ for selecting ignored source, guard evidence, verification status or tools.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TypeGuard
 
@@ -199,25 +199,39 @@ def candidate_to_dict(candidate: GuardedSummary) -> JsonObject:
     }
 
 
-def _no_duplicates(pairs: list[tuple[str, object]]) -> dict[str, object]:
+def _no_duplicates(
+    pairs: list[tuple[str, object]], visit: Callable[[int], None] | None = None
+) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
+        if visit is not None:
+            visit(1)
         if key in result:
             raise CandidateError("duplicate JSON key: " + key)
         result[key] = value
     return result
 
 
-def parse_candidate(value: object) -> GuardedSummary:
+def parse_candidate(value: object, *, visit: Callable[[int], None] | None = None) -> GuardedSummary:
+    if visit is not None:
+        visit(1)
     data: object = candidate_to_dict(value) if isinstance(value, GuardedSummary) else value
     if isinstance(data, str):
+        if visit is not None:
+            # Admit the atomic JSON decoder's bounded input before it can
+            # allocate its result, including malformed and duplicate-key data.
+            visit(len(data))
         if len(data.encode("utf-8")) > 1_000_000:
             raise CandidateError("candidate byte budget exceeded")
-        decoded: object = json.loads(data, object_pairs_hook=_no_duplicates)
+
+        def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            return _no_duplicates(pairs, visit)
+
+        decoded: object = json.loads(data, object_pairs_hook=unique)
         data = decoded
     elif isinstance(data, Mapping):
         try:
-            data = thaw_snapshot(freeze_snapshot(data))
+            data = thaw_snapshot(freeze_snapshot(data, visit=visit), visit=visit)
             if len(json.dumps(data, ensure_ascii=False, allow_nan=False).encode()) > 1_000_000:
                 raise CandidateError("candidate byte budget exceeded")
         except (TypeError, ValueError, RecursionError) as error:

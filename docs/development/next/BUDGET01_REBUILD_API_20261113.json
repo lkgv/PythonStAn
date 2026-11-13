@@ -1,0 +1,55 @@
+{
+  "component": "BUDGET01 rebuilt registered API/SDK authority",
+  "date": "2026-11-13",
+  "status": "component-only; provider/checker and complete Session gates remain open",
+  "source_sha256": {
+    "pythonstan/analysis/contracts/resources.py": "032df5de7c51c4c6f5c521afe7b1df16c9902c4efd2b970bbef27c2986f6ea27",
+    "pythonstan/analysis/contracts/resource_api.py": "546c7eb0c890c8e5f5038d391842a30d5aa9922ca125f26aba8ba18412e15a16",
+    "pythonstan/llm/responses.py": "cef8831a497b1cccdabd49f33af4cbc1648a1fe28e3850dbb457eb44e3398fc1",
+    "pythonstan/llm/openai_transport.py": "a986dd89957b34d8a195db0125fc12b868acacd8f7e1ebfac7839bb33cc62c92",
+    "pythonstan/llm/response_schema.py": "db0ee18347a151b9c2c9de7b3cfd3d3a694bce86d62d311ab6ea9a8f60978254",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "7e370533a3db6dea2f846b760ee3ceb64a8a647bfb8ceeebf2cbb4f87d1422c4",
+    "tests/regression/audit3/test_rebuilt_api_reservations.py": "fe893e1004b441ea1bdbc4bc0935c2c4a7d4191129e36cd7e558deb9e97e19e1"
+  },
+  "author_checks": {
+    "command": "quality-env/bin/python -m pytest -q tests/regression/audit3/test_rebuilt_api_reservations.py",
+    "passed": 14,
+    "scope": "Synthetic rates and registered API ownership/cache policy only; no network or key reads"
+  },
+  "independent_checks": {
+    "passed": 137,
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/combined137-final.receipt.json",
+    "note": "Independent reviewer reported stable production source and preserved SDK46 original assertions/caps. Author14 is separate."
+  },
+  "typing": {
+    "command": "mypy --disallow-any-expr --disallow-any-explicit --output json on financial five modules",
+    "owned_diagnostics": 0,
+    "imported_diagnostics": 2278,
+    "log": "artifacts/next/evidence/BUDGET01-rebuild/cache-sdk-strong-final.jsonl"
+  },
+  "sdk_versions": {
+    "openai": "3.50.0",
+    "httpx2": "2.16.0"
+  },
+  "cache_contract": {
+    "fixed_sdk_request": {
+      "prompt_cache_options": {
+        "mode": "explicit"
+      }
+    },
+    "breakpoints": [],
+    "grant_cache_reads_allowed": false,
+    "grant_cache_writes_allowed": false,
+    "unexpected_positive_cache_usage": "unknown with full reservation retained",
+    "generic_cache_write_rate": "Optional caller-verified single finite write-price profile; no vendor rates are hardcoded",
+    "optional_reasoning": "Omission preserves known whole output billing",
+    "missing_cache_breakdown": "Whole token usage retained; unknown cost when an allowed cache category changes price"
+  },
+  "external_reference": "https://developers.openai.com/api/docs/guides/prompt-caching",
+  "unqualified": [
+    "Current vendor pricing/rate-card verification",
+    "A real exact-body token quotation implementation",
+    "Physical CPU/RSS/time hard bounds",
+    "Full BUDGET01 end-to-end acceptance"
+  ]
+}

@@ -10,11 +10,13 @@ from typing import TYPE_CHECKING
 import pytest
 
 from pythonstan import Source, analyze
+from pythonstan.analysis.contracts.identity import stable_digest
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
     require_object,
     validate_json_object,
 )
+from pythonstan.analysis.contracts.resources import ApiReservation, RateCard, RunLedger
 from pythonstan.config import ConfigurationError, resolve_config
 from pythonstan.config.llm_provider import ProviderMode, ProviderOptions
 from pythonstan.llm.openai_transport import (
@@ -25,7 +27,8 @@ from pythonstan.llm.openai_transport import (
     TransportResponse,
 )
 from pythonstan.llm.providers import OfflineDispatchProposer, make_summary_provider
-from pythonstan.llm.responses import ResponsesCandidateProposer
+from pythonstan.llm.response_schema import response_request
+from pythonstan.llm.responses import InputTokenQuote, ResponsesCandidateProposer
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -45,10 +48,20 @@ class FakeTransport:
         self.failure: TransportFailure | None = None
         self.change: str = ""
 
-    def send(self, prompt: str, options: ProviderOptions) -> TransportResponse | TransportFailure:
+    def send(
+        self,
+        prompt: str,
+        options: ProviderOptions,
+        *,
+        reservation: ApiReservation | None = None,
+    ) -> TransportResponse | TransportFailure:
         self.calls += 1
         if self.failure is not None:
+            if reservation is not None and self.failure.charge_uncertain:
+                reservation.dispatch()
             return self.failure
+        if reservation is not None:
+            reservation.dispatch()
         request = validate_json_object(json.loads(prompt.split("\n", 1)[1]))
         proposal = OfflineDispatchProposer().propose(SOURCE)
         candidate = validate_json_object(proposal.candidate)
@@ -82,9 +95,51 @@ class FakeTransport:
         )
 
 
+class SyntheticTokenCounter:
+    def quote(self, request_digest: str, model: str, request_body: str) -> InputTokenQuote:
+        return InputTokenQuote(request_digest, model, 3)
+
+
+def synthetic_ledger(options: ProviderOptions) -> RunLedger:
+    return RunLedger(
+        100000,
+        options.timeout_seconds,
+        0,
+        memory_reader=lambda: 0,
+        max_api_calls=options.max_calls,
+        max_api_tokens=options.max_total_tokens,
+        max_api_microusd=options.max_total_tokens * 10,
+        rate_card=RateCard(
+            options.model,
+            "synthetic-rate-card-only",
+            "synthetic:test-only",
+            1000000,
+            500000,
+            1000000,
+        ),
+    )
+
+
+def synthetic_api_grant(prompt: str, options: ProviderOptions) -> ApiReservation:
+    return synthetic_ledger(options).reserve_api(
+        model=options.model,
+        request_digest=stable_digest(response_request(prompt, options)),
+        input_tokens=3,
+        output_tokens=options.max_output_tokens,
+        cache_reads_allowed=False,
+        cache_writes_allowed=False,
+    )
+
+
 def proposer(transport: FakeTransport, **changes: int) -> ResponsesCandidateProposer:
     options = replace(ProviderOptions(ProviderMode.OPENAI_LIVE), **changes)
-    return ResponsesCandidateProposer(options, policy_digest="test-policy", transport=transport)
+    return ResponsesCandidateProposer(
+        options,
+        policy_digest="test-policy",
+        transport=transport,
+        resource_ledger=synthetic_ledger(options),
+        token_counter=SyntheticTokenCounter(),
+    )
 
 
 def test_valid_wire_is_only_an_untrusted_candidate() -> None:
@@ -163,14 +218,22 @@ def test_known_token_budget_exhaustion_stops_further_requests() -> None:
 def test_transport_exception_text_never_enters_a_proposal() -> None:
     class ExplodingTransport:
         def send(
-            self, prompt: str, options: ProviderOptions
+            self,
+            prompt: str,
+            options: ProviderOptions,
+            *,
+            reservation: ApiReservation | None = None,
         ) -> TransportResponse | TransportFailure:
+            if reservation is not None:
+                reservation.dispatch()
             raise RuntimeError(CANARY)
 
     provider = ResponsesCandidateProposer(
         ProviderOptions(ProviderMode.OPENAI_LIVE),
         policy_digest="test-policy",
         transport=ExplodingTransport(),
+        resource_ledger=synthetic_ledger(ProviderOptions(ProviderMode.OPENAI_LIVE)),
+        token_counter=SyntheticTokenCounter(),
     )
     result = provider.propose(SOURCE)
     assert result.diagnostics == (FailureCode.TRANSPORT_FAILURE.value,)
@@ -190,7 +253,11 @@ def test_missing_sdk_checks_no_credentials(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(boundary.importlib.util, "find_spec", absent)
     monkeypatch.setattr(boundary.os, "environ", ForbiddenEnvironment())
     result = OpenAIResponsesTransport().send(
-        "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        "synthetic input",
+        ProviderOptions(ProviderMode.OPENAI_LIVE),
+        reservation=synthetic_api_grant(
+            "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        ),
     )
     assert result == TransportFailure(FailureCode.SDK_UNAVAILABLE, False)
 
@@ -210,7 +277,11 @@ def test_broken_sdk_discovery_is_typed_and_reads_no_credentials(
     monkeypatch.setattr(boundary.importlib.util, "find_spec", broken_spec)
     monkeypatch.setattr(boundary.os, "environ", ForbiddenEnvironment())
     result = OpenAIResponsesTransport().send(
-        "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        "synthetic input",
+        ProviderOptions(ProviderMode.OPENAI_LIVE),
+        reservation=synthetic_api_grant(
+            "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        ),
     )
     assert result == TransportFailure(FailureCode.SDK_UNAVAILABLE, False)
     assert CANARY not in repr(result)
@@ -235,7 +306,11 @@ def test_broken_sdk_import_is_typed_and_redacted(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(boundary.os, "environ", {"OPENAI_API_KEY": CANARY})
     monkeypatch.setattr(builtins, "__import__", broken_import)
     result = OpenAIResponsesTransport().send(
-        "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        "synthetic input",
+        ProviderOptions(ProviderMode.OPENAI_LIVE),
+        reservation=synthetic_api_grant(
+            "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        ),
     )
     assert result == TransportFailure(FailureCode.SDK_UNAVAILABLE, False)
     assert CANARY not in repr(result)
@@ -274,7 +349,11 @@ def test_missing_credentials_is_blocked_without_sdk_import(monkeypatch: pytest.M
     monkeypatch.setattr(boundary.os, "environ", {})
     monkeypatch.setattr(builtins, "__import__", guarded_import)
     result = OpenAIResponsesTransport().send(
-        "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        "synthetic input",
+        ProviderOptions(ProviderMode.OPENAI_LIVE),
+        reservation=synthetic_api_grant(
+            "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        ),
     )
     assert result == TransportFailure(FailureCode.CREDENTIALS_UNAVAILABLE, False)
 
@@ -300,7 +379,11 @@ def test_disabled_analysis_imports_no_sdk_or_credentials(monkeypatch: pytest.Mon
         return original_import(name, globals, locals, fromlist, level)
 
     def forbidden_send(
-        self: OpenAIResponsesTransport, prompt: str, options: ProviderOptions
+        self: OpenAIResponsesTransport,
+        prompt: str,
+        options: ProviderOptions,
+        *,
+        reservation: ApiReservation | None = None,
     ) -> TransportResponse | TransportFailure:
         transport_calls.append(prompt)
         raise AssertionError("disabled execution reached transport")
@@ -384,7 +467,13 @@ def test_sdk_request_contract_uses_official_endpoint_and_no_retries(
                         "content": [{"type": "output_text", "text": "{}"}],
                     }
                 ],
-                "usage": {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5},
+                "usage": {
+                    "input_tokens": 3,
+                    "output_tokens": 2,
+                    "total_tokens": 5,
+                    "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+                    "output_tokens_details": {"reasoning_tokens": 0},
+                },
             },
         )
 
@@ -403,13 +492,18 @@ def test_sdk_request_contract_uses_official_endpoint_and_no_retries(
     monkeypatch.setattr(boundary.os, "environ", {"OPENAI_API_KEY": CANARY})
     monkeypatch.setattr(openai, "OpenAI", client)
     result = OpenAIResponsesTransport().send(
-        "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        "synthetic input",
+        ProviderOptions(ProviderMode.OPENAI_LIVE),
+        reservation=synthetic_api_grant(
+            "synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE)
+        ),
     )
     assert isinstance(result, TransportResponse)
     assert result.usage == TokenUsage(3, 2, 5)
     request = requests[0]
     assert request["store"] is False and request["stream"] is False
     assert request["tools"] == [] and request["model"] == "gpt-6-luna"
+    assert request == response_request("synthetic input", ProviderOptions(ProviderMode.OPENAI_LIVE))
     text_format = require_object(require_object(request["text"])["format"])
     assert text_format["strict"] is True and text_format["type"] == "json_schema"
     assert CANARY not in json.dumps(request)
@@ -421,7 +515,11 @@ def test_public_provider_records_blocked_status_without_offline_success(
     from pythonstan.inputs import snapshot_target
 
     def blocked(
-        self: OpenAIResponsesTransport, prompt: str, options: ProviderOptions
+        self: OpenAIResponsesTransport,
+        prompt: str,
+        options: ProviderOptions,
+        *,
+        reservation: ApiReservation | None = None,
     ) -> TransportFailure:
         return TransportFailure(FailureCode.SDK_UNAVAILABLE, False)
 
@@ -438,6 +536,8 @@ def test_public_provider_records_blocked_status_without_offline_success(
     assert provider is not None
     records = provider.proof_records
     assert any(record.get("provider_status") == "blocked" for record in records)
-    assert any(record.get("provider_diagnostics") == ("sdk_unavailable",) for record in records)
+    assert any(
+        record.get("provider_diagnostics") == ("rate_card_unavailable",) for record in records
+    )
     assert all(record.get("status") != "verified" for record in records)
     assert CANARY not in repr(records)

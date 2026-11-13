@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "final_46_SDK_cases_green_with_original_assertions_preserved",
+  "authority": "Parent explicitly granted narrow TEST-ONLY lease on the two W2 SDK test files. No production edits by independent reviewer.",
+  "files": [
+    "tests/refactor/llm/test_responses_transport.py",
+    "tests/refactor/llm/test_responses_independent_review.py"
+  ],
+  "preservation": "All original mutation/redaction/wire/cap assertions preserved. Valid success fixture usage gains explicit cached/reasoning zeros; missing-usage mutation remains missing. Existing fixture numeric resource settings preserved; synthetic authority added to reach actual new API/CPU gates.",
+  "explicit_contract_delta": {
+    "test": "test_public_provider_records_blocked_status_without_offline_success",
+    "before": "sdk_unavailable",
+    "after": "rate_card_unavailable",
+    "reason": "New mandatory independently supplied price card blocks before reaching SDK; test still requires blocked/no verified/redacted public proof."
+  },
+  "synthetic_authority": [
+    "Fixed synthetic per-model RateCard; no claimed real vendor rates",
+    "Exact response_request stable digest and registered ApiReservation",
+    "Synthetic positive input-token quote; finite RunLedger CPU authority",
+    "Mock transport dispatches actual grant before successful/uncertain response",
+    "No real API endpoint, credential, or price lookup"
+  ],
+  "first_run": {
+    "passed": 46,
+    "seconds": 1.15,
+    "exit_code": 0,
+    "ruff_diagnostics": 0,
+    "environment": "env -i, explicit PATH and synthetic dummy OPENAI_API_KEY only; SDK uses mocktransport",
+    "source_stable": "Not claimed: first-run stdout observed, no before/after receipt. Final hash-bound run pending source HOLD."
+  },
+  "original_test_sha256": {
+    "tests/refactor/llm/test_responses_transport.py": "2100ca0350cb7724d39edbcb8eda9e8319df3bc979eceaad451e25e9128e676c",
+    "tests/refactor/llm/test_responses_independent_review.py": "85a289d94f155cb45f201fa56cf75fea9f1de7c63d4d79d13ff9f505c2ab7836"
+  },
+  "migrated_test_sha256_at_record": {
+    "tests/refactor/llm/test_responses_transport.py": "9047bdc02440b56fc2cd4164a6bed461a2928329a9135f14a9290672a2545ce8",
+    "tests/refactor/llm/test_responses_independent_review.py": "8c5b7eb4ec319aa5d32acf79f9e99b53c651b11427b1c8c760be153ee564b907"
+  },
+  "source_sha256_at_record": {
+    "pythonstan/analysis/contracts/resources.py": "c0d34305755cf95094d664c7c8020c6a1c4e729155f0d5d6b9079e229ab19a08",
+    "pythonstan/analysis/contracts/resource_api.py": "a1ae11aff0fb509e20f1bb525f9a2d6f4795e0cee35b44e7da589bb74466e80a",
+    "pythonstan/llm/responses.py": "d556cc30852cc45f695628e669209d6253695f8044e26da176e6708e5c1c1df1",
+    "pythonstan/llm/openai_transport.py": "4707b25e813269218963d88e17b84df11849a91a9b3e210bbc8a05515af17429",
+    "pythonstan/llm/response_schema.py": "844827136cdafd6f2d9a2a9d21678e4c72d5a9d7eaa990b6cec5951847344648"
+  },
+  "real_credentials_read": 0,
+  "real_api_calls": 0,
+  "vendor_schema_assumption": "Valid fake usage explicitly reports cached/reasoning/cache-write zero solely to exercise a complete known synthetic settlement. Missing-usage mutation remains absent. No requirement that a real vendor report optional fields is asserted.",
+  "cache_authority_refinement": "Direct SDK fixture grants explicitly disable cache reads and writes, matching the exact request body with explicit cache mode and no breakpoints. Proposer obtains the same no-cache authority itself. No original wire assertions removed.",
+  "second_reader_audit": {
+    "agent": "PTA owner",
+    "baseline": "8ccff58",
+    "result": "No original assertion removed or relaxed; all existing mutation/redaction/wire/cap witnesses unchanged; sole approved diagnostic reason delta. Does not qualify production financial behavior."
+  },
+  "additional_exact_body_control": "Existing official SDK request test now also compares the full observed body to response_request used for the permit digest; all original individual field assertions remain.",
+  "post_cache_first_run": {
+    "passed": 135,
+    "fixture_failures": 2,
+    "source_stable": true,
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/combined137-current.receipt.json",
+    "diagnosis": [
+      "NEW counterfeit constructor omitted two newly required cache permission fields; copied actual flags before issuer-registry assertion.",
+      "Valid SDK usage fixture omitted optional cache_write_tokens, so honest None differed from the preserved original TokenUsage(3,2,5) equality. Added explicit synthetic zero; assertion remains exact."
+    ],
+    "product_failure_claim": false
+  },
+  "final_run": {
+    "sdk_passed": 46,
+    "all_selected_passed": 137,
+    "all_selected_failed": 0,
+    "pytest_seconds": 4.41,
+    "outer_seconds": 4.889,
+    "source_stable": true,
+    "production_tree_sha256": "de86288b181f77f7493605be34d3e2bf94546f6246d076a4d5710a32cf82fbc2",
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/combined137-final.receipt.json",
+    "environment": "Cleared inherited environment; explicit PATH plus synthetic dummy API key only. All SDK traffic uses mocked transports.",
+    "scope": "Mandatory precondition fixture migration only, not real vendor reporting/pricing or network behavior."
+  },
+  "source_sha256_final": {
+    "pythonstan/analysis/contracts/resources.py": "032df5de7c51c4c6f5c521afe7b1df16c9902c4efd2b970bbef27c2986f6ea27",
+    "pythonstan/analysis/contracts/resource_api.py": "546c7eb0c890c8e5f5038d391842a30d5aa9922ca125f26aba8ba18412e15a16",
+    "pythonstan/llm/responses.py": "cef8831a497b1cccdabd49f33af4cbc1648a1fe28e3850dbb457eb44e3398fc1",
+    "pythonstan/llm/openai_transport.py": "a986dd89957b34d8a195db0125fc12b868acacd8f7e1ebfac7839bb33cc62c92",
+    "pythonstan/llm/response_schema.py": "db0ee18347a151b9c2c9de7b3cfd3d3a694bce86d62d311ab6ea9a8f60978254"
+  },
+  "migrated_test_sha256_final": {
+    "tests/refactor/llm/test_responses_transport.py": "7c6a5e7a46bbeb7bac8394da69b50dd550a8a07ae0deb51265e48f955b67e21b",
+    "tests/refactor/llm/test_responses_independent_review.py": "58f5592af29b2b456c8416535c87cf50a770ba169ae1ccf4261963bd0c000186"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "new_direct_port_probes_before_first_test_run",
+  "test": "tests/regression/audit3/test_w3_rebuild_finance_independent.py",
+  "scope": "Registered API grant work/money/token primitives only, not SDK, network, actual vendor rates, production privacy, hosted proposer or BUDGET fullcard.",
+  "synthetic_card": {
+    "model": "fixture-model",
+    "source": "synthetic:test-only",
+    "input_microUSD_per_million": 1000000,
+    "cached_input_microUSD_per_million": 500000,
+    "output_microUSD_per_million": 2000000,
+    "positive_write_fixture_only_microUSD_per_million": 1000000
+  },
+  "fixed_witnesses": {
+    "reservation": {
+      "input": 10,
+      "output": 4,
+      "max_tokens": 14,
+      "max_money": 18
+    },
+    "usage": {
+      "input": 10,
+      "output": 4,
+      "cached": 6,
+      "reasoning": 2,
+      "cache_write": 2,
+      "tokens": 14,
+      "money": 15
+    },
+    "concurrent": {
+      "attempts": 10,
+      "tokens_cap": 42,
+      "money_cap": 54,
+      "max_accepted": 3
+    }
+  },
+  "obligations": [
+    "exact model/body/issuer/registry/rate identity",
+    "one-shot dispatch; unknown latches old+new grants, late usage never refunds",
+    "subsets do not doublecharge tokens or currency",
+    "unknown overbound remains held and observed, never zero-cost success",
+    "each declared cap atomically guards registration",
+    "invalid input does not mutate accounting",
+    "ordinary scope and absolute deadline dispatch guard",
+    "higher cache price uses conservative reservation"
+  ],
+  "real_keys_read": 0,
+  "network_calls": 0,
+  "not_previous_fixtures": "This is a NEW rebuild set, not the lost old74 tests.",
+  "cache_write_refinement": {
+    "status": "preregistered before first new control execution",
+    "authority": "Budget author documentation check and parent finite direct API review",
+    "new_control": "Positive cache-write usage without an explicitly verified write rate cannot settle as known cost. Preserve original 18 reserve/15 actual fixture by supplying a synthetic write rate equal to input after API is refined.",
+    "not_claimed": "No live vendor price or optional usage field requirement inferred.",
+    "fixture_migration": "Only original positive-write fixture supplies cache_write_rate=1000000 and cache_writes_allowed=True. All original reserve18/actual15/token14 and numeric caps stay exact. New no-price rejection case still uses six-field card with writes denied.",
+    "additional_cases_preregistered_before_execution": {
+      "higher_write_rate": {
+        "input_rate": 1000000,
+        "cached_rate": 500000,
+        "write_rate": 3000000,
+        "output_rate": 2000000,
+        "reserve_money": 38,
+        "actual_money": 19,
+        "usage": "input10/output4/cached6/write2/reasoning2; all token total14"
+      },
+      "forbidden_reads": "Exact no-cache grant reserves18 even if cached rate is2; unexpected positive cached usage must stay unknown/held, never known settlement."
+    }
+  }
+}

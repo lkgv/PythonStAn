@@ -9,9 +9,15 @@ from pathlib import Path
 
 import pytest
 
+from pythonstan.analysis.contracts.resources import RateCard, RunLedger
 from pythonstan.config.llm_provider import ProviderMode, ProviderOptions
 from pythonstan.llm.openai_transport import FailureCode
-from pythonstan.llm.responses import ResponsesCandidateProposer
+from pythonstan.llm.responses import InputTokenQuote, ResponsesCandidateProposer
+
+
+class IndependentSyntheticCounter:
+    def quote(self, request_digest: str, model: str, request_body: str) -> InputTokenQuote:
+        return InputTokenQuote(request_digest, model, 3)
 
 
 @pytest.mark.parametrize(
@@ -60,7 +66,13 @@ def test_real_sdk_codec_failures_are_redacted_and_do_not_retry(
             ],
         }
         if mutation != "usage":
-            data["usage"] = {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5}
+            data["usage"] = {
+                "input_tokens": 3,
+                "output_tokens": 2,
+                "total_tokens": 5,
+                "input_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 0},
+                "output_tokens_details": {"reasoning_tokens": 0},
+            }
         return httpx2.Response(200, json=data)
 
     original = openai.OpenAI
@@ -80,6 +92,24 @@ def test_real_sdk_codec_failures_are_redacted_and_do_not_retry(
     proposer = ResponsesCandidateProposer(
         replace(ProviderOptions(ProviderMode.OPENAI_LIVE), max_calls=2),
         policy_digest="independent-policy",
+        resource_ledger=RunLedger(
+            100000,
+            30,
+            0,
+            memory_reader=lambda: 0,
+            max_api_calls=2,
+            max_api_tokens=8192,
+            max_api_microusd=81920,
+            rate_card=RateCard(
+                "gpt-6-luna",
+                "independent-synthetic-rate-only",
+                "synthetic:test-only",
+                1000000,
+                500000,
+                1000000,
+            ),
+        ),
+        token_counter=IndependentSyntheticCounter(),
     )
     proposal = proposer.propose("answer=1\n")
     assert proposal.candidate is None and proposal.diagnostics == (code.value,)

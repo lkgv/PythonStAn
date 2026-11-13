@@ -23,6 +23,7 @@ from .cost_model import (
     visit_json_text,
 )
 from .json_data import JsonObject, JsonValue
+from .resource_api import ApiReservation, reserve_api
 from .work import SharedWorkLedger
 
 type WorkStatus = Literal["reserved", "settled", "unknown"]
@@ -72,6 +73,7 @@ class RateCard:
     cached_input_rate: int
     output_rate: int
     count_request_cost: int | None = None
+    cache_write_rate: int | None = None
 
     def __post_init__(self) -> None:
         if not self.model or not self.digest or not self.source_url:
@@ -83,19 +85,32 @@ class RateCard:
             type(self.count_request_cost) is not int or self.count_request_cost < 0
         ):
             raise ValueError("Invalid token quotation cost")
+        if self.cache_write_rate is not None and (
+            type(self.cache_write_rate) is not int or self.cache_write_rate < 0
+        ):
+            raise ValueError("Invalid cache write rate")
 
-    def cost(self, input_tokens: int, output_tokens: int, cached_tokens: int = 0) -> int:
+    def cost(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cached_tokens: int = 0,
+        cache_write_tokens: int = 0,
+    ) -> int:
         if (
             any(
                 type(count) is not int or count < 0
-                for count in (input_tokens, output_tokens, cached_tokens)
+                for count in (input_tokens, output_tokens, cached_tokens, cache_write_tokens)
             )
-            or cached_tokens > input_tokens
+            or cached_tokens + cache_write_tokens > input_tokens
         ):
             raise ValueError("Invalid token quantities")
+        if cache_write_tokens and self.cache_write_rate is None:
+            raise ValueError("Cache write price is not verified")
         numerator = (
-            (input_tokens - cached_tokens) * self.input_rate
+            (input_tokens - cached_tokens - cache_write_tokens) * self.input_rate
             + cached_tokens * self.cached_input_rate
+            + cache_write_tokens * (self.cache_write_rate or 0)
             + output_tokens * self.output_rate
         )
         return (numerator + 999999) // 1000000
@@ -304,6 +319,37 @@ class RunLedger:
         self.max_api_tokens: int = max_api_tokens
         self.max_api_microusd: int = max_api_microusd
         self.rate_card: RateCard | None = rate_card
+        self.api_calls: int = 0
+        self.api_reservation_attempts: int = 0
+        self.api_denials: Counter[str] = Counter()
+        self.api_stopped: bool = False
+        self.api_observed_tokens: int = 0
+        self.api_observed_money: int = 0
+        self.api_consumed_tokens: int = 0
+        self.api_reserved_tokens: int = 0
+        self.api_consumed_money: int = 0
+        self.api_reserved_money: int = 0
+        self._api_reservations: list[ApiReservation] = []
+
+    def reserve_api(
+        self,
+        *,
+        model: str,
+        request_digest: str,
+        input_tokens: int,
+        output_tokens: int,
+        cache_reads_allowed: bool = True,
+        cache_writes_allowed: bool = False,
+    ) -> ApiReservation:
+        return reserve_api(
+            self,
+            model=model,
+            request_digest=request_digest,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_reads_allowed=cache_reads_allowed,
+            cache_writes_allowed=cache_writes_allowed,
+        )
 
     @property
     def remaining_work(self) -> int:
@@ -577,10 +623,35 @@ class RunLedger:
                     "samples": self.memory_samples,
                 },
                 "stop_reason": self.stop_reason,
+                "api": {
+                    "calls": self.api_calls,
+                    "reservation_attempts": self.api_reservation_attempts,
+                    "denials": dict[str, JsonValue](self.api_denials),
+                    "stopped_after_unknown_charge": self.api_stopped,
+                    "observed_tokens": self.api_observed_tokens,
+                    "observed_cost_at_frozen_card_microusd": (
+                        None
+                        if any(
+                            permit.status == "unknown" and not permit.cost_known
+                            for permit in self._api_reservations
+                        )
+                        else self.api_observed_money
+                    ),
+                    "known_observed_cost_subtotal_microusd": self.api_observed_money,
+                    "settlement_scope": "Consumed means settled exact-at-card reports; observed totals include unsettled reports. Unknown pricing is null, never inferred as zero.",
+                    "consumed_tokens": self.api_consumed_tokens,
+                    "reserved_tokens": self.api_reserved_tokens,
+                    "consumed_microusd": self.api_consumed_money,
+                    "reserved_microusd": self.api_reserved_money,
+                    "rate_card_digest": None if self.rate_card is None else self.rate_card.digest,
+                    "quotation_scope": "Caller-verified exact request; no token-count network service is invoked by this ledger.",
+                    "reservations": [permit.to_dict() for permit in self._api_reservations],
+                },
             }
 
 
 __all__ = [
+    "ApiReservation",
     "RateCard",
     "ResourceStop",
     "RunLedger",

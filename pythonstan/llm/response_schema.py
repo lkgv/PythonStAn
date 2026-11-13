@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pythonstan.analysis.contracts.json_data import JsonObject, JsonValue
 from pythonstan.analysis.verification.guarded_dispatch.language import PROFILE
+
+if TYPE_CHECKING:
+    from pythonstan.config.llm_provider import ProviderOptions
 
 
 def _record(properties: JsonObject) -> JsonObject:
@@ -73,3 +78,24 @@ def candidate_schema() -> JsonObject:
         "arms": _array(_record({"key": text, "handler": text, "relation": relation})),
     }
     return _record(fields)
+
+
+def response_request(prompt: str, options: ProviderOptions) -> JsonObject:
+    """The exact body whose digest and quotation authorize one SDK request."""
+    return {
+        "model": options.model,
+        "input": prompt,
+        "store": False,
+        "stream": False,
+        "tools": [],
+        "prompt_cache_options": {"mode": "explicit"},
+        "max_output_tokens": options.max_output_tokens,
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "pythonstan_dispatch_candidate",
+                "strict": True,
+                "schema": candidate_schema(),
+            }
+        },
+    }

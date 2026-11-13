@@ -1,28 +1,57 @@
 {
   "schema_version": 1,
   "date": "2026-11-13",
-  "status": "bounded_wire_and_work_core_review_green",
+  "status": "bounded_91_new_controls_and_46_migrated_W2_SDK_tests_green",
   "baseline": "8ccff583fe1fd0966973498c3c49ffd09e90440d",
   "tests": {
-    "wire_passed": 7,
-    "work_core_passed": 18,
+    "main_new": 54,
+    "financial_direct_new": 25,
+    "ownership_projection_terminal_new": 12,
+    "new_total": 91,
+    "existing_W2_SDK_fixtures_migrated": 46,
+    "passed": 137,
     "failed": 0
   },
   "source_stable": true,
   "source_sha256": {
-    "pythonstan/analysis/contracts/value_wire.py": "2b5ca35ebcb38c76407db553ee075e5c49849f4210c901645f4ff39b4ee4825a",
-    "pythonstan/analysis/domains/value_wire.py": "844ac19cb5788a4d529f2ccf849a63e95e1041de2754005f7738accba38734f3",
-    "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
-    "pythonstan/analysis/domains/values.py": "9ffec1935f01f63a273ff3055f5dcae88c615593463ebfc1a3ad425404e24048",
-    "pythonstan/analysis/domains/relations.py": "f9472c9d012e9d840a342745e2d54c3b4f0ce75da147add26aaae3d59d3fec4b",
-    "pythonstan/analysis/contracts/resources.py": "b491cb550ba4f006a37e0217a94d376b24653086f50d2673494744770f7fc034",
-    "pythonstan/analysis/contracts/work.py": "e06e6aba36af19d725bf44ac13e87db2aa532c7bf6bc9e0f1092e94755fe884a",
     "pythonstan/analysis/contracts/cost_model.py": "da403e33b1caad64f64cb9b5facdfc53c967ce6256d3bf8398ba859bca42214a",
-    "tests/regression/audit3/test_w3_rebuild_independent.py": "74e015824df3f5c9993802ff843e94bf2a2b2d49db410e654a128a9e0fd5a886",
-    "docs/development/next/reviews/W3_REBUILD_preregistration_20261113.json": "158f5e7109aee5fd2ee8e18c20f6d16fcad994ced5d76efa875ab8f581c4c124"
+    "pythonstan/analysis/contracts/resources.py": "032df5de7c51c4c6f5c521afe7b1df16c9902c4efd2b970bbef27c2986f6ea27",
+    "pythonstan/analysis/contracts/resource_api.py": "546c7eb0c890c8e5f5038d391842a30d5aa9922ca125f26aba8ba18412e15a16",
+    "pythonstan/analysis/contracts/work.py": "e06e6aba36af19d725bf44ac13e87db2aa532c7bf6bc9e0f1092e94755fe884a",
+    "pythonstan/analysis/contracts/value_wire.py": "a71e590f120a71b3291b573efe8df0c2e2006ad218b4df1b7bb40628ba39090c",
+    "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
+    "pythonstan/analysis/domains/value_wire.py": "58f1e08a070376db9458cecd76dfdcaa8213c8483092090ef782ed1ed5a82881",
+    "pythonstan/analysis/domains/values.py": "9ffec1935f01f63a273ff3055f5dcae88c615593463ebfc1a3ad425404e24048",
+    "pythonstan/analysis/domains/relations.py": "21753e09e69446b7c176ba9ae7e1896e8f1d9b30a8776c86d7513c85a0cd8b90",
+    "pythonstan/results/result.py": "ec31b7fa4fa2fcdecc268c62e3631943269c04da87bbd5c6f058cd228f770f49",
+    "pythonstan/results/projection.py": "367b3a283ced6017bdd1647329380852ce6ead6833ec049264c226faf19b3e3a",
+    "pythonstan/analysis/state/aliases.py": "6fa6e85b44e4eeb19d2eccfa236b6ec15c3922980aa8f833a107335d1215a4b1",
+    "pythonstan/analysis/state/store.py": "1fbfdb76889cc1a71eb854207eb978c406fb93034984710158dde9d7c39aff94",
+    "pythonstan/analysis/state/handles.py": "9b31959fe922ef650eca84de3c5cdb80113146262e30f7b963e946bbaae0e98e",
+    "pythonstan/analysis/composition/oracle.py": "178952edb45f644c7dd2570f55a9c45f5191ce716f7b882ad5400c86e2331abc",
+    "pythonstan/analysis/engines/abstract/driver.py": "1649529cf88f20517643cffc1eb1fbe5894b801589196e0318c9ae581a4efcc2",
+    "pythonstan/analysis/engines/abstract/transfer.py": "8f88f6f3d044734da7451fe2a68d3f734dabf4b6790ad2788c3eaffe04abd8d7",
+    "pythonstan/analysis/engines/abstract/continuations.py": "842b2b4298818789c7fb925a5891d8eb9931052de1dda7029dea7163ac8c1105",
+    "pythonstan/analysis/semantics/iteration.py": "14e164f1e8ee3f04ffacf4d7f20ba8de4288553939614659099013fd13f3818f",
+    "pythonstan/analysis/semantics/containers.py": "3f7c4299365d5b2a404124859677259f0f80537a2ecd3acc5f5f119192d13065",
+    "tests/regression/audit3/test_w3_rebuild_independent.py": "b417a47c2e09a43abd4e8d029f376594e9086a967bc5c5036d29789a29162a70",
+    "tests/regression/audit3/test_w3_rebuild_finance_independent.py": "0de69c29893d5963813f10704c78f9a2eacc2a98bccf1fcdc0ced94eee5f2eab",
+    "tests/regression/audit3/test_w3_rebuild_result_independent.py": "caaaed0990f7fbf5f64511a27f228dd6269e7cd6ff2d542e53cdc1715c23ed92",
+    "docs/development/next/reviews/W3_REBUILD_preregistration_20261113.json": "952056fe075b1b6cfc547b1858d5409cb476da45dc9b92f7b5d8c5de363f079a",
+    "docs/development/next/reviews/W3_REBUILD_finance_preregistration_20261113.json": "a030efa8b633a544e9fd80ff80f7d970f903f4d4bc37bf77ad9bac0a08df1b06",
+    "docs/development/next/reviews/W3_REBUILD_result_preregistration_20261113.json": "8fe69b6bffc2eca176a2fab34b3d1af79a330369b0821b004cea32d00aaa064c",
+    "pythonstan/llm/responses.py": "cef8831a497b1cccdabd49f33af4cbc1648a1fe28e3850dbb457eb44e3398fc1",
+    "pythonstan/llm/openai_transport.py": "a986dd89957b34d8a195db0125fc12b868acacd8f7e1ebfac7839bb33cc62c92",
+    "pythonstan/llm/response_schema.py": "db0ee18347a151b9c2c9de7b3cfd3d3a694bce86d62d311ab6ea9a8f60978254",
+    "pythonstan/analysis/verification/guarded_dispatch/language.py": "7e370533a3db6dea2f846b760ee3ceb64a8a647bfb8ceeebf2cbb4f87d1422c4",
+    "pythonstan/frontend/source.py": "b676a4d0b94bcb49324fae02d8372f57e645f01626e57f7e158a313411c02490",
+    "pythonstan/session.py": "de3ee0b8d47838c46246f7e0536a524c9b91e598177803cca786ba4736584194",
+    "pythonstan/session_preparation.py": "aca126282ee22f9fb0b43fafb2cb52364ef911cf6e3bc919783bcc25e6446fe4",
+    "tests/refactor/llm/test_responses_transport.py": "7c6a5e7a46bbeb7bac8394da69b50dd550a8a07ae0deb51265e48f955b67e21b",
+    "tests/refactor/llm/test_responses_independent_review.py": "58f5592af29b2b456c8416535c87cf50a770ba169ae1ccf4261963bd0c000186"
   },
-  "current_receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/wire-core-stable.receipt.json",
-  "current_log": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/wire-core-stable.log",
+  "current_receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/combined137-final.receipt.json",
+  "current_log": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/combined137-final.log",
   "findings": [
     {
       "id": "WIRE-projected-boundness",
@@ -40,8 +69,8 @@
       "repair_validation": "new independent missing-facet partial/rejection test passes"
     }
   ],
-  "qualification": "Finite codec + work-reservation/meter/scope/time/memory ports only. Does not accept BUDGET01/RESULT01 wholecards, receipt adoption/terminal/paidprovider/realvendor gates, STATE01/02 or lost previousW3 fixture results.",
-  "not_claimed": "No oldlost115/52recreatedfixtureclaim; no graph/semanticfullcard/API/terminalqualification. Immutableactualinitialwirecandidate0804f57 reproducesall3decoder counterexamples aspytestreds.",
+  "qualification": "Finite 91 NEW ports plus 46 original W2 SDK cases migrated for mandatory synthetic authority. No whole-card or release acceptance, live API/vendor price qualification, arbitrary Python graph/security theorem, or reconstruction of lost exact generator sources. Four Store.apply controls remain separately visible and excluded.",
+  "not_claimed": "No lost 115/52 fixture reconstruction, whole-card closure, arbitrary Python graph/security theorem, real vendor-price or live API qualification. Old exact generator sources remain unavailable. Actual initial wire candidate 0804f57 independently reproduces the three initial decoder failures.",
   "real_credentials_read": 0,
   "real_api_calls": 0,
   "wire_before_fix": {
@@ -55,7 +84,115 @@
     "failed": 12,
     "passed": 3,
     "receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/state-baseline8cc.receipt.json",
-    "current": "pendingcandidatecheck",
+    "current": "Superseded by corrected fixture baseline/current receipts in state_first_slice; 12 red + 3 green on 8cc, all 15 green current.",
     "invalid_fixture_attempt": "Initial readonlypropertysettermistake retainedbutexcluded."
-  }
+  },
+  "current_scope": "Named-port/source-hash scope only; notwhole-treefreeze or wholeN4card qualification. Freshmodels/historicallostfixturesnotconflated.",
+  "partial_decode_contract": {
+    "authority": "Explicit parent/root refinement after omittedrefs/relations lattice counterexample",
+    "rule": "Onlycompletev1data canproduce a usableValue; diagnostic retained_value pluslossesnotreadyauthority. .value/require_value/decode_value allrejectincomplete.",
+    "not_changed": "ExistingValueorder,frozensemanticgoldandallnumericprofiles."
+  },
+  "state_first_slice": {
+    "baseline_failed": 12,
+    "baseline_passed": 3,
+    "current_passed": 15,
+    "baseline_receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/state-baseline8cc-finalfixture.receipt.json",
+    "current_receipt": "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/state-current-finalfixture.receipt.json",
+    "two_later_root_cases": "Currentadditionalcross-source-rootcover+ordinaryexternalStorecontrolpassed; authorreportedpre-fixmanualwitness, noindepredclaim."
+  },
+  "state_finite_diagnostics": {
+    "alias_partition_pairs": 225,
+    "agreement_and_disagreeing_edge_mask_passed": 225,
+    "join_left_and_right_order_passed": 225,
+    "limits": "Finitefour-owner shared-list family, ignored diagnostic scripts, no arbitrarygraph theorem.",
+    "receipts": [
+      "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/alias-partition225-diagnostic.json",
+      "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/alias-partition225-join-order-diagnostic.json"
+    ]
+  },
+  "sem_fresh": {
+    "baseline_failed": 5,
+    "baseline_passed": 2,
+    "initial_current_failed": 2,
+    "initial_current_passed": 5,
+    "later_current_all7": "Passed as part of combined86 after source-anchored boundedprotocolposition contexts.",
+    "receipts": [
+      "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/sem-baseline8cc.receipt.json",
+      "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/sem-current.receipt.json",
+      "/workspace/scratch/8d3426210943/PythonStAn-resume/artifacts/next/evidence/W3_REBUILD-independent-20261113/combined86-current.receipt.json"
+    ]
+  },
+  "open_effects_application": {
+    "test": "tests/regression/audit3/test_w3_rebuild_effects_independent.py",
+    "failed": 3,
+    "passed": 1,
+    "scope": "Twowrittenmetadataowners alias,newescapingobjectrootbackedge,newedgetountouchedowner\u2014allactualcurrentfailures beyondfirstSTATEslice.",
+    "not_in_green86": "FullSTATE02 remainsopen until repaired+rechecked.",
+    "status": "Last independently executed outcome remains three red and one positive. Parent is coordinating a separate phase-2 source repair; no closure is inferred from this green set."
+  },
+  "additional_terminal_findings": [
+    {
+      "id": "saved-terminal-Mapping-query",
+      "before": "Actualmanual512fuel: aftersaved.value unavailable, saved[query]/dict(saved) leakedinternalterminal_capacity; to_dict bounded.",
+      "after": "Newindependentgettertestgreen, ordinarynormalzero-localreadstillraises asrequired."
+    },
+    {
+      "id": "zero-fuel-unbounded-query-registration",
+      "before": "Actualmanual0fuel retained/resolved257validquerykeys withused0/raw0 incontroller-onlyfactory.",
+      "after": "New257casecontrollerregistrationempty/unavailablegreen; fundedterminalregistration paid+bounded."
+    }
+  ],
+  "latest_named_port_run": {
+    "exit_code": 0,
+    "pytest_seconds": 4.41,
+    "outer_seconds": 4.889,
+    "source_stable": true,
+    "changed_paths": []
+  },
+  "scope": "137 finite controls (91 new +46 existing SDK fixtures), synthetic pricing and mocked SDK only. Four separate effects controls last known 3 red/1 positive; no complete STATE02 claim.",
+  "current_status_note": "Final 137 test assertions and named production/test/preregistration hashes were stable; the entire pythonstan .py tree digest was unchanged during execution. Narrative review/migration records were finalized after that run and are not self-hash authority. All original SDK assertions/caps remain; sole authorized precondition diagnostic delta is documented.",
+  "additional_complete_bottom_integrity": {
+    "new_cases": 2,
+    "passed": 2,
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/bottom-integrity-current.receipt.json",
+    "provenance": "Author found the original marker contradiction and root authorized repair before this independent pytest. No independent pre-fix red claim."
+  },
+  "additional_cache_write_finding": {
+    "new_cases": 1,
+    "failed_before_repair": 1,
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/cachewrite-before-refinement.receipt.json",
+    "actual_failure": "Positive write usage settled successfully without any verified write rate; expected typed rejection and unresolved held reservation.",
+    "authority": "Budget author identified a missing cache-write price dimension; final explicit-rate fixture migration and recheck pending.",
+    "exact_pre_repair_source_capsule": {
+      "path": "docs/development/next/reviews/W3_REBUILD_cachewrite_red_source_20261113.tar.gz",
+      "sha256": "5115b10b32c8ef9650ada554f1d4e5ba3d356660ed96ed36700733cbe9d8eb8e",
+      "recipe": "Extract only into a fresh copy of immutable LOCAL runtime b092e24 and run sanitized summary command; captures exact red source, not remote publication. Raw logs/receipts stay ignored in artifacts.",
+      "contents": "Two exact finance modules + new test/prereg + sanitized counts/argv/hash/replay summary only."
+    },
+    "additional_preregistered_controls": "Higher-write-price and forbidden-read controls were preregistered before first execution and passed in final137.",
+    "capsule_replay": {
+      "base": "b092e24 local immutable",
+      "source_hashes_match_original_red": true,
+      "failed": 1,
+      "deselected": 22,
+      "failure_summary": "DID NOT RAISE ValueError",
+      "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/cachewrite-source-capsule-replay.receipt.json"
+    },
+    "repair_validation": "All three independent cache controls pass in final137: missing-rate writes stay unresolved, explicit high write rate reserves38/settles19, forbidden cache reads stay unresolved. Original positive-write reserve18/actual15 fixture now explicitly supplies synthetic write-rate1, without changing numeric assertions or caps."
+  },
+  "sdk_fixture_migration": {
+    "record": "docs/development/next/reviews/W3_REBUILD_SDK_fixture_migration_20261113.json",
+    "first_run_passed": 46,
+    "final_hash_bind": "combined137-final.receipt.json; entire production tree and all named test hashes stable.",
+    "reason_delta": "Only public missing-precondition diagnostic changes sdk_unavailable to rate_card_unavailable; all mutation/redaction/wire/cap assertions remain.",
+    "final_sdk_passed": 46,
+    "final_total_passed": 137
+  },
+  "historical_complete_run": {
+    "passed": 86,
+    "receipt": "artifacts/next/evidence/W3_REBUILD-independent-20261113/combined86-final.receipt.json",
+    "scope": "Earlier 52 main +22 finance +12 result control versions; current cache capabilities/strict bottom additions are separately validated in final137."
+  },
+  "production_tree_sha256": "de86288b181f77f7493605be34d3e2bf94546f6246d076a4d5710a32cf82fbc2"
 }
