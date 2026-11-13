@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "scope": "Finite nested exact shape and explicitly shared Driver publication preadmission; legacy direct Driver core-work interface retained.",
+  "before_new_test_execution": true,
+  "unchanged_baseline": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "cases": [
+    "nested tuple/list",
+    "missing/default/havoc/extra fields",
+    "all reference alternatives agree",
+    "bool/int shape distinction",
+    "mixed scalar/reference",
+    "cycle and depth",
+    "zero visitor before Value.export",
+    "registered exact frozen payload adoption",
+    "forged/rebound receipts rejected",
+    "actual shared preparation paid",
+    "shared budget exhaustion returns bounded open controller",
+    "legacy cap10 exact demanded root preserved",
+    "empty known-module query unaffected"
+  ],
+  "not_claimed": "No prior lost pass count is reused; no full card closure, soundness proof, vendor request or raw-source-free budget exemption.",
+  "receipt_origin_followup": {
+    "before_new_test_execution": true,
+    "expectation": "An issued frozen payload from one PreparedPublication cannot be replayed with another prepared origin, even when its own payload identities remain genuine."
+  },
+  "phase_followup": {
+    "before_test_execution": true,
+    "expectation": "Shared Driver publication raw work and exclusive timing are attributed to export inside an outer core phase; legacy direct None contract performs no checked export phase."
+  }
+}

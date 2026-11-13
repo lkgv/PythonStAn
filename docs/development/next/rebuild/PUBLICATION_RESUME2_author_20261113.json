@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "source_and_tests_firm_hold_for_root_capture",
+  "base_remote": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "scope": [
+    "pythonstan/analysis/engines/abstract/publication.py",
+    "pythonstan/analysis/engines/abstract/driver.py"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/publication.py": "4f22f0edef8e1052477e99b9ac7cd18a94253ab2eb26a0263bf0ca3dfa5c151f",
+    "pythonstan/analysis/engines/abstract/driver.py": "6c9ca5648e31aee0b38c010b37fc20086a1e79d71d150bfae320357dab27e63b",
+    "tests/regression/audit3/test_publication_resume2.py": "4ebd7622423b911393c24a691bf1f34318accab411d7a45e84150c1992c37f0e"
+  },
+  "fresh_tests": {
+    "new_author": 22,
+    "original_snapshot": 12,
+    "original_regions": 27,
+    "total_passed": 61,
+    "failed": 0,
+    "seconds": 1.21,
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/regression/audit3/test_publication_resume2.py",
+      "tests/regression/audit3/test_snapshot_publication.py",
+      "tests/refactor/composition/test_regions_oracle_relations.py"
+    ],
+    "raw_log": "artifacts/next/evidence/publication-resume2/phase-after.log"
+  },
+  "baseline_helper_probe": {
+    "source": "git show20a0d567:pythonstan/analysis/engines/abstract/publication.py",
+    "sha256": "9d55e30a8f9b0418e52bbd75fbd51e0bc8efe8aee10632d5e9fd50e65a363b61",
+    "method": "Bind only the unchanged _export_value interface to the exact Git preimage in a fresh Python process; current semantic types remain imports. This is a finite helper comparison, not whole-baseline qualification.",
+    "failed": 9,
+    "passed": 2,
+    "deselected": 9,
+    "qualification": "Three failed assertions require new explicit omission diagnostics where old shape already omitted. Remaining cases exercise nested shape, missing/extra fields, incomplete ref union, bool/int distinction and mixed scalar/reference. No nine-semantic-bug claim.",
+    "setup_note": "First baseline launch lacked repo sys.path and failed before tests; corrected before the reported11-case execution.",
+    "raw_log": "artifacts/next/evidence/publication-resume2/baseline-shape-final.log",
+    "test_binding": "Final same20-case test file; only11 preregistered legacy-compatible helper-interface controls selected. Nine additional production/API/length controls deselected."
+  },
+  "implementation": [
+    "Nested exact sequence DTO requires exact independent length including any length_value, bottom default, no missing/havoc/summarized/extra fields, full alternative agreement preserving bool/int and signed zero, finite recursion; references remain with explicit shape omission otherwise.",
+    "Actual shared Driver capture/prepare heap clones/export/value freeze/header traversals have admission callbacks before copies. Exported values and returns use registered exact identity-bound ownership receipts, adopted only after checked frozen header creation.",
+    "Publication fees occur before base statistics/oracle for value export; work_scope explicitly states header fees follow the captured work counter. Full ledger remains actual total.",
+    "Shared resource denial returns a fixed bounded open controller with facts omitted and first cause retained; it does not rewalk or copy the heap after denial.",
+    "Legacy direct Driver(None) explicitly retains standalone core-work scope. Actual Session API always passes the global ledger. This interface branch preserves old directcap10 requested fact and warning-work counters; it is not a cap/fixture special case."
+  ],
+  "quality": {
+    "owned_strong_diagnostics": 0,
+    "import_graph_diagnostics": 2278,
+    "ruff": 0,
+    "format": 0,
+    "whole_tree_clean": false,
+    "strong_log": "artifacts/next/evidence/publication-resume2/strong-phase-held.jsonl"
+  },
+  "limits": [
+    "Whole task acceptance and independent exact source binding remain root-owned.",
+    "The low-level shared Driver constructor with program=None still parses input under its caller preparation contract; actual public Session prepares its program with the global ledger.",
+    "Legacy direct Driver(None) setup/publication cost is not included in its core fuel, so it is excluded from all-stages request budget claims.",
+    "The fixed unavailable controller is bounded emergency metadata; no unbounded fact or source fallback is performed.",
+    "Public Native max_work2 old budget contract remains open; original assertions/caps/gold/debt unchanged.",
+    "No real credentials or model calls."
+  ],
+  "origin_followup": {
+    "before": "1failed20deselected, exact issued x1 facts replayed against separately prepared x2 origin",
+    "fix": "Receipt holds exact PreparedPublication object and frozen payloads; finalize validates both registry membership/payloadidentity and originidentity beforeadoption. No structural hash or recopy.",
+    "after": "Full60pass, originalassertions/caps unchanged",
+    "raw_before": "artifacts/next/evidence/publication-resume2/origin-before-distinct-values.log"
+  },
+  "peer_sem04_integration": {
+    "owner": "sem_resume2",
+    "reported_frozen_AS03_passed": 8,
+    "failed": 0,
+    "caps_and_manifest_unchanged": true,
+    "raw_path": "artifacts/next/sem04-resume2/frozen-as03-with-publication.json",
+    "scope": "Peer-run integration only; final independent source binding remainsroot-owned."
+  },
+  "additional_api_controls": {
+    "passed": 55,
+    "failed": 0,
+    "seconds": 13.13,
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "tests/refactor/api/test_recovery_controls.py",
+      "tests/api/test_common_control_recovery.py",
+      "tests/regression/audit3/test_w3_rebuild_result_independent.py"
+    ],
+    "raw_log": "artifacts/next/evidence/publication-resume2/api-phase-held.log",
+    "scope": "Re-executed after phase followup on held Driver6c9ca564 and publication4f22f0ed. Selected working-tree checks, not an immutable full-candidate qualification."
+  },
+  "phase_followup": {
+    "before": "1failed21deselected: sharedpublication exportattempt0 and inheritedcore attribution",
+    "fix": "Conditionalchecked export phase on explicit sharedledger, legacyNone NullContext preservesstandalonecorebudget contract",
+    "after": "61selectedpass, no cap/assertion changes",
+    "raw_before": "artifacts/next/evidence/publication-resume2/phase-before.log",
+    "base_capture_note": "Root already captured694b611 with priorDriver783b; this is a source followup requiring its own immutable rebind, not retroactive qualification."
+  },
+  "receipt_snapshot_semantics": "Export receipts own immutable fact payloads at the export factory call. Exact origin identity prevents replay against a different PreparedPublication; it does not establish that caller-supplied mutable Mapping aliases never changed. Finalization deliberately reuses the issued frozen facts. Producers must keep other PreparedPublication metadata stable between extraction and finalization; the private Driver never exposes its prepared object to the oracle. A same-origin external row mutation is not claimed to recompute issued facts."
+}

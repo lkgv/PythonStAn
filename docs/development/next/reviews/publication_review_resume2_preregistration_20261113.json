@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "sem_pta_review_resume2",
+  "test": "tests/regression/audit3/test_publication_review_resume2.py",
+  "scope": "Independent publication shape, receipt and actual shared-ledger admission/termination checks. No production or old test edits.",
+  "cases": [
+    "issued receipt rejects another prepared origin even if source values equal",
+    "issued receipt rejects equal-shape foreign payload identities; valid own receipt succeeds",
+    "same PreparedPublication with legitimately retained mutable mapping alias is mutated after export: diagnostic of snapshot-time versus current-origin contract, not automatically a Driver soundness bug",
+    "first denied preparation/export admission prevents HeapObject.copy/Value.export/freeze traversal",
+    "nested reference alternatives true versus int1, scalar-plus-ref, symbolic length interval, missing/default/havoc/summarized fields and cycles never get exact items",
+    "shape-equal nonsingleton references can retain exact shape when every alternative proves it",
+    "actual shared zero/cap10 and already-stopped large-heap snapshots return bounded typed controller, preserve first reason and never fullheap retry",
+    "legacy None intentionally legacy_core is not used as shared-ledger proof",
+    "every nested Store-backed heap copy must have a completed paid graph walk, including repeated copies; count copy transform calls versus admitted raw work",
+    "publication entered under core phase must attribute its graph work to export rather than core"
+  ],
+  "fixed_budgets": {
+    "shared_zero": 0,
+    "shared_small": 10,
+    "normal": 10000
+  },
+  "oracle": "Manually constructed concrete shapes and source-owned immutable receipts; independent expected types/presence. Admission hooks count actual calls, not candidateleq or posthoc claimed totals.",
+  "qualifier": "Finite checks only; same-origin mapping mutation contract will be reported as diagnostic unless a supported immutable-prepared contract is established; no whole-card or physical CPU proof. Preregistered before first new executions.",
+  "additional_case_before_execution": {
+    "id": "shared_one_tick_denies_mid_graph_before_copy",
+    "budget": 1,
+    "purpose": "Actual RunLedger structural admission reaches partial nested Store graph then denies before any HeapObject.copy; consumed global tick1 remainscharged. This adds coverage, does not replace0/10 cases."
+  }
+}

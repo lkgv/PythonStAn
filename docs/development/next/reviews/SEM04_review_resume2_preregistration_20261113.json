@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "sem_pta_review_resume2",
+  "test": "tests/regression/audit3/test_sem04_review_resume2.py",
+  "budget": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512
+  },
+  "original_ten_expected": [
+    21,
+    13,
+    212,
+    "ii:277",
+    "12:old",
+    60,
+    "k1v1k2v2:2",
+    26,
+    6,
+    3534
+  ],
+  "additional_direct_expected": [
+    3,
+    3434
+  ],
+  "exact_cases": "First8 require exact scalar and closed coverage; final4 require actual materialized normal value coverage.",
+  "local_stmt_cap": "callback residual and directtarget residual use original1; allothers default unchanged.",
+  "oracle": "CPython3.12 isolated subprocess scalar gold; publicquery wire membership interpreted independently ofcandidateorder. Full sources are fixed in testfile before concrete/analyzer execution.",
+  "remaining_profile_gates": "Originalcallback cap1/35callback2s remain assertions, typedresourceunavailability classified unqualified ratherthan semantic unsoundness. Extra directtests neverreplace orclose those gates.",
+  "production_changes": false
+}

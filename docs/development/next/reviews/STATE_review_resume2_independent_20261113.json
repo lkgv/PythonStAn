@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "bounded_named_source_review_passed; parent whole-candidate gates pending",
+  "base_commit": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "reviewer": "state_review_resume2 independent from state_resume2 production author",
+  "scope": "Store.apply graph ownership/footprint/resume and heap-alias membership-refinement invalidation. No production changes by reviewer.",
+  "preregistration": "docs/development/next/reviews/STATE_review_resume2_preregistration_20261113.json",
+  "tests_sha256": {
+    "tests/regression/audit3/test_state_review_resume2_effects.py": "f343d3c22c98adc052e881cdd2ca6d6732f59c6805b12bad585a74257a9b4e3f",
+    "tests/regression/audit3/test_state_review_resume2_runtime.py": "65678a0cdb058dce0ac2e5ec190292c2576a505a6b0d7caaec13154fd528abd3",
+    "tests/regression/audit3/test_state_review_resume2_guard.py": "b85f4a8c4d7844ef59ecaed67d2e04a3f5c4eb80a3643707a5b1d7861debfcc3"
+  },
+  "baseline": {
+    "method": "Fresh git archive of exact20a0 into separate temporary checkout; same exact test files copied after preregistration, no historical greens reused.",
+    "exact_old_effects_four": {
+      "passed": 1,
+      "failed": 3,
+      "test_sha256": "f343d3c22c98adc052e881cdd2ca6d6732f59c6805b12bad585a74257a9b4e3f",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "tests/regression/audit3/test_state_review_resume2_effects.py"
+      ]
+    },
+    "new_operational_seven": {
+      "passed": 2,
+      "failed": 5,
+      "test_sha256": "65678a0cdb058dce0ac2e5ec190292c2576a505a6b0d7caaec13154fd528abd3",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "tests/regression/audit3/test_state_review_resume2_runtime.py"
+      ]
+    },
+    "new_actual_branch_guards_two": {
+      "passed": 0,
+      "failed": 2,
+      "test_sha256": "b85f4a8c4d7844ef59ecaed67d2e04a3f5c4eb80a3643707a5b1d7861debfcc3",
+      "command": [
+        "/workspace/scratch/8d3426210943/quality-env/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        "tests/regression/audit3/test_state_review_resume2_guard.py"
+      ]
+    },
+    "total": {
+      "passed": 3,
+      "failed": 10
+    }
+  },
+  "current": {
+    "passed": 13,
+    "failed": 0,
+    "pytest_seconds": 0.24,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+      "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b",
+      "pythonstan/analysis/state/metadata.py": "22ff38cb897f3d7e41ad25530c716a5d53256f7cc0b7e176565c9360b21505ab",
+      "pythonstan/analysis/state/handles.py": "9b31959fe922ef650eca84de3c5cdb80113146262e30f7b963e946bbaae0e98e",
+      "pythonstan/analysis/state/flow.py": "d9e880daf25d98f9ef48e0d001bd81655132c08436be33835778ea6db7ec1aea",
+      "pythonstan/analysis/engines/abstract/continuations.py": "842b2b4298818789c7fb925a5891d8eb9931052de1dda7029dea7163ac8c1105",
+      "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743"
+    },
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_state_review_resume2_effects.py",
+      "tests/regression/audit3/test_state_review_resume2_runtime.py",
+      "tests/regression/audit3/test_state_review_resume2_guard.py"
+    ]
+  },
+  "meaningful_mutation_witnesses": [
+    "Two explicit written metadata owners retain same detached mutable data; write through one is observed by other.",
+    "New escaping owner current-poststate backedge is exact applied root, retaining caller-only cells and following laterwrites.",
+    "New edge to an unwritten owner preserves alias or explicit residual; no-write stale callee cannot erase caller precision.",
+    "Distinct capture roots share one detached private cells map; after private write8, both actual generator resumes use current global30 and yield38.",
+    "Shared active heap alone does not identify captured private cells with caller root or force a spurious guard; actual yield33.",
+    "Partial deep snapshot mutation with one owner effect forces both real consumers to normalTop/raise before stale entry is read, unrelated applied owner17 stays precise.",
+    "Forward shared-source-fields/distinct-caller and reverse distinct-written-source/shared-caller conflicts get explicit local owner guards rather than arbitrary last write.",
+    "Unequal immutable Frame metadata preserves new private8 and old private7 in actual resumes.",
+    "New named active private heap alias gives7 then11 after write, inputs untouched.",
+    "A cached old membership booleanFalse must still execute false branch after an alias insertsx; stale H guard previously pruned allnormalflows. Same object and separate objects/sharedfields variants now give exact11, disjoint guard retained."
+  ],
+  "compatibility": {
+    "old_four_assertions_changed": false,
+    "original_caps_or_gold_changed": false,
+    "new_variants_before_first_analyzer_execution": true,
+    "candidate_order_used_as_expected_oracle": false
+  },
+  "quality": {
+    "test_ruff": "All checks passed",
+    "test_format": "Formatted; unchanged original four copied verbatim",
+    "production_quality": "Author/parent owned, not inferred from review"
+  },
+  "raw_evidence": "gitignored artifacts/next/evidence/STATE-review-resume2",
+  "limits": [
+    "Only named source dependencies bound; other team files may change, so this is not a whole-tree freeze or acceptance.",
+    "Global STATE01/02, graph publication failure injection, all protocol/profile and complete soundness obligations remain open.",
+    "Applied-state local guards and unrelated-owner precision are checked. Existing Transfer.unknown runtime fallback can conservatively havoc broader heap/globals; precision after executing unknown residuals is not qualified.",
+    "No scope claim that a partial scalarTop is a full covering Value for references/relations; no new semantic unsoundness is inferred from a candidate leq check alone.",
+    "Fresh unsupported contradictory alias worlds may legitimately require both affected-owner residuals; stronger exact-private precision is not silently imposed or falsely declared repaired."
+  ]
+}

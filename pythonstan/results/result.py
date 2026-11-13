@@ -107,9 +107,16 @@ def _bounded_ledger(ledger: RunLedger) -> JsonObject:
     }
 
 
-def _terminal_frame(engine: str, status: str, reason: str, ledger: RunLedger) -> JsonObject:
+def _terminal_frame(
+    engine: str,
+    status: str,
+    reason: str,
+    ledger: RunLedger,
+    *,
+    known: Mapping[str, JsonValue | FrozenJsonValue] | None = None,
+) -> JsonObject:
     bounded_reason = reason[:64]
-    return {
+    frame: JsonObject = {
         "schema_version": 1,
         "actual_engine": engine,
         "solver_status": status,
@@ -149,6 +156,20 @@ def _terminal_frame(engine: str, status: str, reason: str, ledger: RunLedger) ->
         },
         "terminal_publication": {"truncated": True, "controller_only": True},
     }
+
+    # This fixed metadata is already known; it does not make omitted facts or
+    # proofs usable. Verified/requested proofs are conservatively unknown.
+    if known is not None:
+        digest = known.get("source_digest")
+        if (
+            type(digest) is str
+            and len(digest) == 64
+            and all(character in "0123456789abcdef" for character in digest)
+        ):
+            frame["source_digest"] = digest
+        if known.get("proof_status") == "not_requested":
+            frame["proof_status"] = "not_requested"
+    return frame
 
 
 @dataclass(frozen=True, eq=False)
@@ -524,7 +545,7 @@ class AnalysisResult:
             capacity.consume(amount)
             publication_used += amount
 
-        bounded = _terminal_frame(engine, status, first, resource_ledger)
+        bounded = _terminal_frame(engine, status, first, resource_ledger, known=partial)
         base: dict[str, object] = dict(bounded)
         if partial is not None:
             for key in ("values", "returns", "calls", "outcomes", "effects"):
@@ -549,7 +570,7 @@ class AnalysisResult:
                 result._snapshot = PublishedSnapshot.from_wire(base, visit=meter.visit)
         except (ResourceStop, TypeError, ValueError):
             result._snapshot = PublishedSnapshot.from_wire(
-                _terminal_frame(engine, status, first, resource_ledger)
+                _terminal_frame(engine, status, first, resource_ledger, known=partial)
             )
             result._controller_only = True
         result._queries = ()
@@ -561,7 +582,7 @@ class AnalysisResult:
                 result._queries, result._query_keys = result._register_queries(queries)
             except ResourceStop:
                 result._snapshot = PublishedSnapshot.from_wire(
-                    _terminal_frame(engine, status, first, resource_ledger)
+                    _terminal_frame(engine, status, first, resource_ledger, known=partial)
                 )
                 result._controller_only = True
                 result._queries, result._query_keys = (), frozenset()
@@ -627,7 +648,11 @@ class AnalysisResult:
             result = object.__new__(type(self))
             result._snapshot = PublishedSnapshot.from_wire(
                 _terminal_frame(
-                    self.actual_engine, self.solver_status, ledger.stop_reason or reason, ledger
+                    self.actual_engine,
+                    self.solver_status,
+                    ledger.stop_reason or reason,
+                    ledger,
+                    known=self._snapshot.document,
                 )
             )
             result._resource_ledger = ledger

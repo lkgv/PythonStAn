@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "sem_pta_review_resume2",
+  "status": "19_independent_publication_controls_passed_with_explicit_snapshot_time_precondition",
+  "test": "tests/regression/audit3/test_publication_review_resume2.py",
+  "preregistration": "docs/development/next/reviews/publication_review_resume2_preregistration_20261113.json",
+  "current": {
+    "passed": 19,
+    "failed": 0,
+    "seconds": 0.22,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/analysis/engines/abstract/publication.py": "4f22f0edef8e1052477e99b9ac7cd18a94253ab2eb26a0263bf0ca3dfa5c151f",
+      "pythonstan/analysis/engines/abstract/driver.py": "6c9ca5648e31aee0b38c010b37fc20086a1e79d71d150bfae320357dab27e63b",
+      "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+      "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b",
+      "pythonstan/analysis/contracts/engine.py": "cadbb56a6b7557b79053450ed112d4305ac7a8ff911d7fe8249de79af5c60316",
+      "pythonstan/analysis/contracts/wire.py": "40abef09308f7220ef7df773e25954af629a43a507d9f61decdcb608cb01c42b",
+      "pythonstan/analysis/contracts/resources.py": "7d9ba8f9b3894fc8b8423d05c171392aaf6e4d1c231ba8fdc80b02749fa879d4",
+      "tests/regression/audit3/test_publication_review_resume2.py": "3b1b119888ad1c058b71cad7e632ab7f533db991e06e44881031a92b357bf686",
+      "docs/development/next/reviews/publication_review_resume2_preregistration_20261113.json": "b87e1950d06784133cc1bdd17800c658ed13640373e03abd7110cfa3f0e87488"
+    },
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "tests/regression/audit3/test_publication_review_resume2.py"
+    ],
+    "stdout_sha256": "8e4b3699497ab4b7f7b6d603078754b8492b75fa505b7dd3e456c07790c9cd74"
+  },
+  "scope": [
+    "Registry receipt rejects equal-value otherPrepared object and identity-swapped frozenpayload; genuine sameorigin succeeds.",
+    "Denied first callback prevents HeapObject.copy/Value.export. Real shared ledger cap1 denies during nested Store graph prewalk before any HeapObject.copy and retains consumed1.",
+    "Exact shapes reject bool/int distinct alternatives, scalar-plus-ref, missing/default/havoc/summarized fields, uncertain symbolic length; cycles retain refs+explicit items omission. Equal proven nonsingleton tuple alternatives remain exact.",
+    "Actual shared Driver0/10 returns typed bounded unavailable controller, no raw ResourceStop. Already-stopped populated heap snapshot preserves firstcause and performs zero heapcopy retries/newwork. LegacyNone is not used as sharedledger proof.",
+    "Each observed full nested Store-backed heapcopy is preceded by its own completed charged walk, with admitted visits at least actual internal transformer nodework.",
+    "Graphwork entered under core is attributed to export after the separate Root-approved conditional phase fix."
+  ],
+  "copy_amplification_diagnostic": {
+    "copies": 6,
+    "admitted_raw": 425,
+    "internal_transform_work": 282,
+    "meaning": "Observed6copies for3owners across global/module heaps; not a mandatory copy count. Every actualcopy separately funded. Counted visitor measures graphwork; actual RunLedger denial covered separately. No oneprepass/Ncopy hole reproduced.",
+    "limits": "Finite3owner graph only, no full amortized complexity or physicalCPU proof."
+  },
+  "same_origin_mutable_alias_diagnostic": {
+    "construction": "Typed rows:dict[str,Value] retained by caller through PreparedPublication.values Mapping constructor; no cast or frozen-dataclass bypass.",
+    "steps": [
+      "Export issued snapshot withx7.",
+      "Caller mutates retained rows x8.",
+      "Finalize same PreparedPublication identity with issued exported payload."
+    ],
+    "observed": "Accepted, frozenpublishedx7 remains intact while prepared.valuesx8.",
+    "classification": "Snapshot-at-export behavior / producer immutability precondition, not an established Driver soundness flaw.",
+    "required_TCB_statement": "Receipt proves registry issuance and payload+origin identities. It does not prove deeply immutable/live stable Mapping content. The producer must not concurrently mutate PreparedPublication metadata between extraction and finalization; private Driver does not expose Prepared to oracle.statistics.",
+    "author_confirmation": "publication_resume2 acknowledged and will document snapshot-at-export facts/prepared-metadata-stability precondition; no production rewrite requested by reviewer."
+  },
+  "limits": [
+    "Finite named-source checks, not wholecard/core/release/soundness acceptance.",
+    "Current private Driver path tested; malicious private registry or monkeypatch access is not treated as an attacker model.",
+    "Full global gates remain Root-owned."
+  ],
+  "original_gold_caps_changed": false,
+  "production_changes_by_reviewer": false,
+  "ruff": 0,
+  "format_check_passed": true,
+  "raw_evidence": "gitignored artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2/publication-*"
+}

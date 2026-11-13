@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "phase": "preregistered_readonlyproduction",
+  "task": "N4-SEM-05",
+  "test": "tests/regression/audit3/test_sem05_resume2.py",
+  "test_sha256": "eda5dad86d46bdc3f5d56a9f534755193557405ec15c1d5f4918de69ad6cb3ec",
+  "exact_cases": 21,
+  "unsupported_protocol_cases": 2,
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512
+  },
+  "sequence": "CPython gold before analyzerbaseline, before any SEM05 production edit",
+  "scope": [
+    "BuiltinType and SourceClass ClassInfo leaves",
+    "Ordered lazy nested tuple fold with earlyTrue/Falsecont andreachableTypeError",
+    "Unknown/protocol residuals preserveeffects with Opencoverage",
+    "issubclass firstargvalidation occurs only if reached leaf; emptytupleFalse"
+  ],
+  "primary_references": [
+    "https://docs.python.org/3.12/library/functions.html#isinstance",
+    "https://docs.python.org/3.12/reference/datamodel.html#customizing-instance-and-subclass-checks"
+  ],
+  "frozen_AS06": "Original fixed cases unchanged; new21+2supplement them, no replacement",
+  "union": "Existing uniontype expression support must be audited; no closed nominalFalse for unsupported type expressions",
+  "assertion_correction": "Before any production edit, initial test used finite inclusion plus nonTop despite registering exact cases. Tightened to one exact tagged constant, no expected value/profile changes. First12fail/34pass log is diagnostic only; strict-initial.log is baseline."
+}

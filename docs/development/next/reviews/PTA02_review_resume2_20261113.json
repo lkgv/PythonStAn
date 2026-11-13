@@ -79,5 +79,13 @@
   ],
   "raw_evidence": "gitignored artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2/pta-*.txt and*.receipt.json",
   "ruff": 0,
-  "format_check_passed": true
+  "format_check_passed": true,
+  "historical_red_capsule": {
+    "path": "docs/development/next/reviews/PTA02_review_resume2_abstractkey_red_20261113.tar.gz",
+    "sha256": "96a05feb5eb5053a3040451266a093fc5872b73d49ebf38a35da7c5f0073acff",
+    "bytes": 11498,
+    "raw_logs_included": false,
+    "replay_verified": true,
+    "scope": "Historical one-word abstract-key rename bug; exact preimage SHA matched prior source-bind. No production file modified during replay."
+  }
 }

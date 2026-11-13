@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "base_remote": "79daa3f90134e93713d53e081468cc57f8230c4f",
+  "status": "captured_for_isolated_full_gates",
+  "source_sha256": {
+    "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+    "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b",
+    "pythonstan/analysis/engines/abstract/driver.py": "783b07edebcea0a0e67e27990e041602c3b8144e7c400858cfa9800453b71206",
+    "pythonstan/analysis/engines/abstract/publication.py": "4f22f0edef8e1052477e99b9ac7cd18a94253ab2eb26a0263bf0ca3dfa5c151f"
+  },
+  "tests": [
+    "tests/regression/audit3/test_state_review_resume2_effects.py",
+    "tests/regression/audit3/test_state_review_resume2_runtime.py",
+    "tests/regression/audit3/test_state_review_resume2_guard.py",
+    "tests/regression/audit3/test_state_review_resume2_protocols.py",
+    "tests/regression/audit3/test_publication_resume2.py",
+    "tests/regression/audit3/test_sem04_review_resume2.py"
+  ],
+  "scope": [
+    "STATE one-application graphmemo/capturedsnapshot roles/explicitdictionaryanchors/aliaspartitionresiduals andalias-awarecachedguard invalidation.",
+    "Recursiveexactnestedcontainer view with conservative shape_projection omissions, actualsharedDriver preadmittedcapture/heapcopy/export/checkedfreeze and origin-boundownedfrozenpayload receipt.",
+    "Actualsharedpublication denial returnsboundedtypedcontroller anddoesnotretryunpaidfullheap; expertlegacyDriver(None) retains explicit legacy_driver_core budgetcontract."
+  ],
+  "reported_evidence": "FreshSTATE13independent+101broader; publication60selected+55API controls. Isolatedsource gates pending, authorcounts not wholecardacceptance.",
+  "test_deduplication": "Omit author test_state_resume2_independent.py, whichduplicates reviewer original4 effects fixtures.",
+  "resource_coverage_gates": "Original reviewercallback max_stmt_visits1 and35callback max_seconds2 still fail requestednormalcoverage, explicitlytypedResourceStop/Open/unavailable. Testassertions/profiles retained; committedasactualunqualifiedgates. Added two directtarget variants pass anddoNOTreplaceoriginalgates.",
+  "positive_only_protocols": "Fouryield-from/throw/addr/tracecontrols also passimmutable20a0 baseline: regressiononly, notnewfix orlostfixturequalification.",
+  "precision_scope": "STATE unrelated17 precision ischecked inappliedstate; later Transfer.unknown conservativeglobalhavoc behavior isNOTclaimedlocallyprecise.",
+  "legacy_scope_exclusion": "Only explicitsharedledger actualpublicSession path qualifiesall-stagepublicationadmission. LegacydirectDriver(None) preservespriorcore-work behavior, markedlegacy_driver_core; notincludedinfullBUDGETclaim.",
+  "open_contracts": [
+    "Original public Native totalmax_work2 oldfreepreparation expectation remainsred/unchanged.",
+    "Newsharedpipeline mayhonestlyexhaust before expensivefacts; typedunavailable and firstcause mustremaintruthful.",
+    "STATEwholecards/fullcore/release/live/soundnessqualification notinferred."
+  ],
+  "real_OpenAI_key_reads": 0,
+  "real_model_calls": 0
+}

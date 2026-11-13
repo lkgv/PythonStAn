@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "task": "Additional STATE01 yield-from/throw protocol coverage; separate from held13apply/guard review",
+  "test": "tests/regression/audit3/test_state_review_resume2_protocols.py",
+  "test_sha256": "e5dc97a4dc6b48d3aec691cf40e72879d02040def86cb92d1808468d0c912022",
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 8,
+    "max_memory_mb": 1536,
+    "max_addr_set_size": [
+      1,
+      2
+    ],
+    "max_traces_per_block": 1
+  },
+  "expected": {
+    "next": [
+      3,
+      7
+    ],
+    "throw": [
+      13,
+      17
+    ]
+  },
+  "cap2_control": "Exact finite scalar constants equalbothCPythonbranches, not scalarTop; separate precision requirement.",
+  "gold_provenance": "Tiny isolatedCPython3.12 branch fixtures; fixed expectedbeforefirst analyzer run.",
+  "qualification": "Resource-limited cases remain unqualified; no budget/gold adjustments, no losthistoricalgeneratorfixture reconstruction claim."
+}

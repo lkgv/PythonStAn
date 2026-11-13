@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "read_only_design_and_preregistered_red_baseline; production_waits_root_approval",
+  "task": "N4-PTA-03",
+  "sources_sha256": {
+    "pythonstan/analysis/pointer/kcfa/context_selector.py": "cdf9a7ae372697f76b3c2189b5a8232dd91f05e54029a3eca07bbdabd582315e",
+    "pythonstan/analysis/pointer/kcfa/config.py": "8529445e6975f08555d3ace6962093d4a1c8467eb907d87ed99b2747fbce60e4",
+    "pythonstan/analysis/pointer/kcfa/analysis.py": "915ce8f8be4b64a9722fdf65eb2fead4c0a825c7bdf7a76da3694dcd43347603",
+    "pythonstan/analysis/pointer/kcfa/allocation.py": "64efe96186d89a5f1793519940639c489a64a2cb44207af843e8d310122cf2fd",
+    "pythonstan/analysis/pointer/kcfa/processor/normal_call.py": "c1d355de96e2df08bcc0cc527ef23906882e089835631ca2dd99e03f3c097309",
+    "pythonstan/config/catalog.py": "eb0167e37a987e4ba27c4071d17dbaf384aae7149b0c39c0f4d83f11e1d829bb",
+    "pythonstan/config/resolve.py": "7af4241548bd8c8b7c33d8ab26b5ea246f17b12afe7223b9973bcf13c1105b32",
+    "pythonstan/compat/native_worker.py": "8c7720f6325c9621497b0d58f92911b7205d0612da29acbc0a7a21d546c831e2"
+  },
+  "scope": {
+    "must_keep": [
+      "All19 existing ContextPolicy values and finite Context atoms",
+      "Ordered positional/keyword-source tokens and duplicates where semantically relevant",
+      "Independent AllocationPolicyRegistry authority",
+      "Monotone FI constraints and late replay/future field/cell/global havoc",
+      "No AI kill/strong-update transfer into Native inclusion kernel"
+    ],
+    "no_fake_completion": [
+      "Config echo/enumeration is not actual selective policy consumption.",
+      "Convergence is not source coverage.",
+      "Open Legacy prepass missing facts are never negative/exhaustive oracle evidence.",
+      "Existing Native type debt is not silently ignored or reset."
+    ]
+  },
+  "proposed_public_contract": {
+    "option": "andersen.method_context_policies",
+    "wire": [
+      {
+        "module": "subject",
+        "qualname": "subject.identity",
+        "policy": "0-cfa"
+      }
+    ],
+    "default": [],
+    "key": "Exact canonical source module plus fully-qualified IRFunc.get_qualname(); same identity across ordinary function, staticmethod, classmethod and instance method calls.",
+    "policy_domain": "All existing19 enum values via canonical parse_policy, no new context family.",
+    "rules": [
+      "No globs, executable callbacks, regular-expression selectors or runtime context/object values in the table.",
+      "Reject any duplicate (module,qualname), missing/extra fields, nonstrings and unregistered policies.",
+      "Normalize to sorted immutable rule DTOs; registry/caches are run-local and frozen before source solving.",
+      "Validate target names against finite source/IR inventory before source call edges/argument publication; unmatched targets must be explicit errors or a documented unavailable target state, never silently claimed applied.",
+      "Empty table exactly preserves old global method policy.",
+      "Nonempty table is available only to engine=native/native_then_ai; reject for ai_primary/hybrid isolated Native because that engine has no KCFA method call consumer.",
+      "Source-scope inventory/digest/copy work is admitted and charged through actual setup ledger; do not hide an unmetered new large table copy."
+    ],
+    "stats": [
+      "matched source-method rule ID/policy and call decisions count",
+      "actual selected contexts and selected-work-items, not inferred runtime speedup",
+      "requested/effective heap family/depth plus available-history limitation",
+      "unmatched/unsupported selector diagnostics"
+    ]
+  },
+  "actual_consumer_plan": [
+    {
+      "file": "pythonstan/config/catalog.py",
+      "change": "Register new additional option and strict array-of-exact-row schema, supported engine scope, menu/explain consumer. Preserve old31 legacy fields/count; do not insert new option into retired legacy denominator."
+    },
+    {
+      "file": "pythonstan/config/resolve.py",
+      "change": "Validate rows with canonical parser and explicit engine guard. Source target inventory validation happens once after metered preparation and before solving."
+    },
+    {
+      "file": "pythonstan/config/control_metadata.json",
+      "change": "Append audited new option metadata with actual Native function/method consumers; preserve old legacy31 accounting."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/config.py",
+      "change": "Add defaultempty option, strict typed from_dict/to_dict/validate roundtrip. Existing partial legacy dictionaries still receive defaults."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/method_policy.py (new proposed)",
+      "change": "Canonical finite immutable MethodRule parser and run-local table. Selector cache keyed only registered policy (at most19), never nested caller contexts/stores. Do not create new trusted semantic type universe."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/analysis.py +solver typed ports",
+      "change": "Construct one immutable method policy table from validated config; keep global context_selector for existing allocation authority. Provide source-method-aware lookup before call publications."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/processor/normal_call.py:379,458",
+      "change": "Resolve target IRFunc identity before _connect_call_values and _register_body; use table-selected call selector in both instance/class methods and plain/static functions. Preserve ordered_binding_token and protocol partitions."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/context_selector.py",
+      "change": "Project a caller context to the selected callee policy bound before append, preserving only already represented finite history. See definite transition reds below. Handle every same-family depth and supported cross-family projection without inventing forgotten ancestry."
+    },
+    {
+      "file": "pythonstan/analysis/pointer/kcfa/allocation.py",
+      "change": "Read-only unless proof says needed. Method selector lookup must not overwrite AllocationPolicyRegistry.selector; allocation continues to project available method history under independent heap options."
+    },
+    {
+      "file": "pythonstan/compat/native_worker.py +worker request codec",
+      "change": "Carry validated new option through native_options Config.from_dict; reject unsupported combination before user source solving. Preserve shared work/deadline/RSS accounting and worker profile status."
+    }
+  ],
+  "definite_existing_policy_transition_findings": {
+    "prereg": "docs/development/next/PTA03_resume2_preregistration.json",
+    "test": "tests/regression/audit3/test_pta03_transition_resume2.py",
+    "baseline": {
+      "failed": 2,
+      "passed": 1,
+      "seconds": 0.16,
+      "raw": "artifacts/next/evidence/PTA03_resume2/transitions-baseline.log"
+    },
+    "cases": [
+      "Requested callee2CFA from caller0CFA returns k0 and drops current callsite.",
+      "Requested callee1CFA from caller3CFA returns k3 and retains too much history.",
+      "Homogeneous2CFA positive control passes."
+    ],
+    "cause": "select_call_context reuses any same-family caller representation without setting the selected policy bound. Merely instantiating a new table-selected selector is insufficient.",
+    "repair": "Same-family contexts rebuilt with selected policy bounds before append; call-history projection uses only available actual call sites. Other-family unavailable object/type/param ancestry is forgotten, never synthesized. Preserve flat protocol/summary wrappers and existing finite atom constructors."
+  },
+  "heap_contract": {
+    "existing_semantics": "ContextSelector.select_alloc_context explicitly projects only history represented by method context. Heap depth is an independent upper bound, not a way to recover forgotten callers.",
+    "requirements": [
+      "Independent heap0 versus heap2 should change actual allocation IDs for a precise method factory with fixed method policy.",
+      "With selected method0 and heap2, report effective available history0; do not claim recovered precision.",
+      "Changing a method table must not silently mutate the global heap selector or canonical/alias allocation identity contracts.",
+      "Any unsupported family/route/source-target combination explicitly rejects before the affected source call, rather than silently ignoring a rule.",
+      "All19 method policies remain accepted where existing semantics provide finite projection; no strategies removed to hide failures."
+    ]
+  },
+  "routing_and_guards": {
+    "isolated_regions": "NativeRegionEngine validates complete selected statement before boundary copy/effects; all ast.Call rejected. RegionScheduler executes directly with no catch-and-AI-replay fallback.",
+    "public_native_worker": "Legacy whole-source worker has unconditional Open coverage; 19context and allocation controls consumed here, not by isolated region kernel.",
+    "native_then_ai": "Separate whole-source prepass then AI; NativeSnapshotOracle imports only positive scalar facts and permits_exclusion=False. Do not treat missing Open facts as proof.",
+    "guard_audit_record": "docs/development/next/PTA03_guard_audit_resume2.json",
+    "actual_open_profile_finding": "PureNative ident(*[17]) converges/Open and answers listref without scalar17 at fixed10000work/2s/512MB. This is an observed omission under Open coverage, not a falseClosed proof.",
+    "ir_gaps": [
+      "IR starred argument flag discarded by _translate_call; container variable becomes one positional argument.",
+      "CallConstraint.kwargs frozenset loses source order and collapses duplicate **mapping occurrences. Existing keyword binder emits residual but this does not repair ordered argument proof."
+    ],
+    "followup_design": "A separate guard/shape slice must preserve ordered expansion descriptors end-to-end, or reject unsupported source call shapes before parameter/call-edge publication with explicit residual/havoc preserving already evaluated prefix. Do not guard after _connect_call_values or replay an already executed prefix through AI."
+  },
+  "staged_implementation_request": [
+    {
+      "slice": "PTA03-A",
+      "scope": "Finite method policy table, selected-depth projection and actual function/method consumers, schema/worker roundtrip and independent heap controls.",
+      "exit": "At least two actual choices0/2 yield different context/work/precision on fixed program; unaffected method control; original19/heap controls retained; no full PTA03 closure."
+    },
+    {
+      "slice": "PTA03-B",
+      "scope": "Call-shape argument source/order/expansion guard, supported finite binder or explicit prepublication residual.",
+      "exit": "Starred17, duplicate kwargs, side-effect/exception prefixes and no replay independent controls. Do not quietly coalesce original source occurrences."
+    },
+    {
+      "slice": "PTA03-C",
+      "scope": "Late constraint/callee/field/builtin replay, fourqueue fairness, future effects and deliberate mutants.",
+      "exit": "Unused unknown return still preserves future field/cell/global effects; callbacks registered/replayed exactly as semantic contract, not one-time observed facts."
+    }
+  ],
+  "preregistered_future_A_acceptance": [
+    "Source identity(x) called at two sites: rule0 must join return may-values; rule2 must preserve per-call precision. Compare actual contexts/call edges/selected-work-items at same budget.",
+    "Only selected identity coarsens; separate stable function and default global behavior unchanged.",
+    "Instance/class/static/plain function call routes all resolve same canonical source rule target; receiver sources remain ordered tokens.",
+    "Duplicate rows, unknown policy, malformed module/FQN, unknown target, unsupported engine route rejected before affected user effects.",
+    "Function factory method2 with heap0/heap2 produces actual independent allocation identity differences and covering may-values.",
+    "All19 structural tests plus original recursive budgets1000/4000 and parameter-order/duplicates pass; selected different-depth/family transition tests add no nested contexts."
+  ],
+  "executed_existing_controls": {
+    "native_context_and_heap": {
+      "passed": 45,
+      "failed": 0,
+      "seconds": 8.21,
+      "command": "../quality-env/bin/python -m pytest -q tests/refactor/engines/test_native_context.py tests/refactor/engines/test_native_heap_policy.py",
+      "raw": "artifacts/next/evidence/PTA03_resume2/context-heap-original.log"
+    },
+    "late_havoc_services": {
+      "passed": 31,
+      "failed": 0,
+      "seconds": 2.06,
+      "audit_record": "docs/development/next/PTA03_guard_audit_resume2.json"
+    },
+    "limits": "Existing45 includes19 structural cases and selected original recursive probes; it is not 19per-policy end-to-end semantic qualification. No table implementation/probe exists yet."
+  },
+  "quality_and_review": "No production code changed. New tests preserve old frozen caps/gold/debt. Strict frontier/import contracts apply to each later modified unit; legacy Native debt stays explicit, not blanket ignored.",
+  "approval_request": "Root may authorize staged production leases after reviewing this concrete plan; until then existing region_engine/state_adapter remain HOLD.",
+  "real_api_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

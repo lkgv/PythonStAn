@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "reviewer": "sem_pta_review_resume2",
+  "test": "tests/regression/audit3/test_sem04_review_resume2.py",
+  "preregistration": "docs/development/next/reviews/SEM04_review_resume2_preregistration_20261113.json",
+  "status": "10public_pass_2_normal_value_coverage_gates_unqualified_by_typed_resources",
+  "cpython": {
+    "passed": 12,
+    "failed": 0,
+    "raw": "sem-cpython.txt"
+  },
+  "public_current": {
+    "passed": 10,
+    "failed": 2,
+    "seconds": 3.2,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743",
+      "pythonstan/analysis/semantics/comprehensions.py": "85ea7183ac1bc200414bae9143eca4d2e7532f24578f8b609646b7e3ed81a191",
+      "pythonstan/analysis/semantics/containers.py": "10b7d71e5256959466ca8de52314b25fc07f2fb72a4bc7cbc7aeff318fd257b1",
+      "pythonstan/analysis/semantics/names.py": "ced2f5410e347ecb75c8378b2968e35b076d2d5b6b0483d4dc5b74ea774f5276",
+      "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+      "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b",
+      "pythonstan/analysis/engines/abstract/driver.py": "783b07edebcea0a0e67e27990e041602c3b8144e7c400858cfa9800453b71206",
+      "pythonstan/analysis/engines/abstract/publication.py": "e4d1bc0baa2e6b00d12e2f6bc491de7177168f2cf123b16bc050efcc6a903b08",
+      "tests/regression/audit3/test_sem04_review_resume2.py": "cadb4838323546f8b2a53743221133f75e1f0ccdaca0f5da95d59a531a6db729"
+    },
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "-q",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "tests/regression/audit3/test_sem04_review_resume2.py",
+      "-k",
+      "public_comprehension"
+    ],
+    "stdout_sha256": "0431d69bc52a401e06094547bca37a57d9472d086a43fd8be93bca4a256d7d52"
+  },
+  "exact_closed_cases": [
+    "class_outer_iterable_global_filter21",
+    "closure_target_shadow13",
+    "attribute_target_binding212",
+    "subscript_target_index_effects_ii:277",
+    "second_iteration_exception_prefix_12:old",
+    "false_filter_latest_state60",
+    "dict_key_value_order_overwrite_k1v1k2v2:2",
+    "class_later_global_iterable26"
+  ],
+  "additional_coverage_cases": [
+    "direct_target_max_stmt_visits1 residual covers3, coverageOpen",
+    "direct_target35positions covers3434"
+  ],
+  "remaining": [
+    {
+      "id": "callback_residual_value_coverage",
+      "expected": 6,
+      "answer_status": "unavailable",
+      "solver_status": "budget_exhausted",
+      "coverage_status": "open",
+      "obligations": [
+        {
+          "code": "budget:max_stmt_visits",
+          "status": "open"
+        }
+      ]
+    },
+    {
+      "id": "callback_over_thirty_two_value_coverage",
+      "expected": 3534,
+      "answer_status": "unavailable",
+      "solver_status": "budget_exhausted",
+      "coverage_status": "open",
+      "obligations": [
+        {
+          "kind": "time_budget",
+          "code": "budget:max_seconds",
+          "reason": "max_seconds"
+        }
+      ]
+    }
+  ],
+  "fixture_history": [
+    "First public test run supplied max_stmt_visits under unsupported solver_options, causing2 configuration errors. This was a reviewer fixture setup error and is not counted as a production red.",
+    "Corrected only the config path to abstract.max_stmt_visits, retaining original integer1, sources,expected values and10000work/2s/512MB profile.",
+    "One first callback35 run and final callback35 both budget_exhausted/unavailable; normalvaluecoverage remainsunqualified, not a soundness counterexample."
+  ],
+  "unchanged_assertions_gold_caps": true,
+  "no_production_edits": true,
+  "limits": [
+    "Named-source binding only; no fullsource proof/cardclosure.",
+    "The two added direct-target cases do notreplace/close original callback resource gates.",
+    "Default-unlimited runs or profilecapraises not used.",
+    "Global tests/frozenAS03/quality/publishing remain Root-owned."
+  ],
+  "ruff_owned": 0,
+  "format_check_passed": true,
+  "raw_evidence": "gitignored artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2"
+}

@@ -136,6 +136,15 @@ class ContextSelector:
         """Get empty context."""
         return self._empty_context
 
+    @staticmethod
+    def _available_calls(context: object) -> tuple[CallContextSite, ...]:
+        # Registered call-bearing contexts may also hold source IRStatement
+        # sites. The external metadata projection intentionally only exposes
+        # CallSite records, so retain these already typed histories directly.
+        if isinstance(context, (CallStringContext, HybridContext)):
+            return context.call_sites
+        return native_call_history(context)
+
     def select_call_context[InputT](
         self,
         call_site: CallContextSite,
@@ -164,20 +173,30 @@ class ContextSelector:
             if summarized:
                 selected = make_native_summary(selected)
             return apply_native_protocol_partition(selected, partition)
+        if isinstance(base, SummaryContext):
+            while isinstance(base, SummaryContext):
+                if base.inner is None:
+                    raise ValueError("Summary context requires an available base context")
+                base = base.inner
+            return make_native_summary(
+                self.select_call_context(call_site, base, callee_obj, params)
+            )
         if self.policy == ContextPolicy.INSENSITIVE:
             return self.empty_context()
 
         if self.policy in (ContextPolicy.CALL_1, ContextPolicy.CALL_2, ContextPolicy.CALL_3):
-            if isinstance(caller_ctx, CallStringContext):
-                return caller_ctx.append(call_site)
             empty = self._empty_context
             if not isinstance(empty, CallStringContext):
                 raise ValueError("Call policy requires its matching empty context")
-            return empty.append(call_site)
+            # The callee's policy owns the bound. A differently selected caller
+            # may retain less history, but cannot dictate the callee's depth.
+            calls = self._available_calls(caller_ctx)
+            projected = CallStringContext(calls[-empty.k :] if empty.k else (), empty.k)
+            return projected.append(call_site)
 
         if self.policy in (ContextPolicy.OBJ_1, ContextPolicy.OBJ_2, ContextPolicy.OBJ_3):
             object_context = (
-                caller_ctx
+                ObjectContext(caller_ctx.alloc_sites, self._get_depth())
                 if isinstance(caller_ctx, ObjectContext)
                 else ObjectContext((), self._get_depth())
             )
@@ -187,7 +206,7 @@ class ContextSelector:
 
         if self.policy in (ContextPolicy.TYPE_1, ContextPolicy.TYPE_2, ContextPolicy.TYPE_3):
             type_context = (
-                caller_ctx
+                TypeContext(caller_ctx.types, self._get_depth())
                 if isinstance(caller_ctx, TypeContext)
                 else TypeContext((), self._get_depth())
             )
@@ -203,7 +222,7 @@ class ContextSelector:
             ContextPolicy.RECEIVER_3,
         ):
             receiver_context = (
-                caller_ctx
+                ReceiverContext(caller_ctx.receivers, self._get_depth())
                 if isinstance(caller_ctx, ReceiverContext)
                 else ReceiverContext((), self._get_depth())
             )
@@ -213,7 +232,7 @@ class ContextSelector:
 
         if self.policy in (ContextPolicy.PARAM_1, ContextPolicy.PARAM_2, ContextPolicy.PARAM_3):
             parameter_context = (
-                caller_ctx
+                ParamContext(caller_ctx.params, self._get_depth())
                 if isinstance(caller_ctx, ParamContext)
                 else ParamContext((), self._get_depth())
             )
@@ -228,9 +247,16 @@ class ContextSelector:
             ContextPolicy.HYBRID_CALL1_OBJ2,
         ):
             hybrid_context = (
-                caller_ctx
+                HybridContext(
+                    caller_ctx.call_sites,
+                    caller_ctx.alloc_sites,
+                    self._get_call_k(),
+                    self._get_obj_depth(),
+                )
                 if isinstance(caller_ctx, HybridContext)
-                else HybridContext((), (), self._get_call_k(), self._get_obj_depth())
+                else HybridContext(
+                    self._available_calls(caller_ctx), (), self._get_call_k(), self._get_obj_depth()
+                )
             )
             if callee_obj:
                 return hybrid_context.append(call_site, callee_obj)

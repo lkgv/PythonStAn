@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "task": "N4-SEM-05",
+  "status": "coherent_source_and_tests_FIRMHOLD_for_root_capture",
+  "scope": [
+    "pythonstan/analysis/engines/abstract/transfer.py",
+    "pythonstan/analysis/semantics/classinfo.py",
+    "pythonstan/models/typeclasses.py"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/engines/abstract/transfer.py": "0baef89c6595e02d330d5e20f68d267317ea092bb7a772026456859c142fb04d",
+    "pythonstan/analysis/semantics/classinfo.py": "735da0f100eae083343845dbb5b564cf0c9a7a85c46de7d16dee14d5b7d26f4a",
+    "pythonstan/models/typeclasses.py": "48b504969878e16c72a39dc1d120a42aa97e5b6b4b3f33451bf013b7016d4e34"
+  },
+  "tests": [
+    "tests/regression/audit3/test_sem05_resume2.py",
+    "tests/regression/audit3/test_sem05_capabilities_resume2.py",
+    "tests/regression/audit3/test_sem05_nominal_heap_resume2.py"
+  ],
+  "preregs": [
+    "docs/development/next/SEM05_RESUME2_preregistration_20261113.json",
+    "docs/development/next/SEM05_RESUME2_capability_preregistration_20261113.json",
+    "docs/development/next/SEM05_RESUME2_nominal_heap_preregistration_20261113.json"
+  ],
+  "fresh_evidence": {
+    "original_author23cases": {
+      "CPython": 23,
+      "initial_analyzer_passed": 4,
+      "initial_analyzer_failed": 19,
+      "after_cp_and_analyzer_passed": 46
+    },
+    "capability_controls": {
+      "before": {
+        "passed": 6,
+        "failed": 0
+      },
+      "after": {
+        "passed": 6,
+        "failed": 0
+      },
+      "credit": "Positive controls only. No claimed attributes.py fix: existing unsupported builtin-base guard was already Open."
+    },
+    "nominal_heap_and_summary": {
+      "before_failed": 3,
+      "after_passed": 3,
+      "meaning": "Structural kind doesnoterase nominal class_ids; nonsingleton abstract class ID doesnotprove concrete typeidentity. Context0 make.C factory mustcover concreteFalse."
+    },
+    "held_final_focused": {
+      "passed": 55,
+      "failed": 0,
+      "seconds": 1.96,
+      "command": [
+        "../quality-env/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/regression/audit3/test_sem05_resume2.py",
+        "tests/regression/audit3/test_sem05_capabilities_resume2.py",
+        "tests/regression/audit3/test_sem05_nominal_heap_resume2.py"
+      ]
+    },
+    "frozen_AS06": {
+      "passed": 6,
+      "total": 6,
+      "source_note": "Final generic nominal/summary identity fixes present; subsequent only recursion-guard bound madeexplicit. Root may rebind unchangedsix on isolatedcapture."
+    },
+    "broader_semantics": {
+      "passed": 316,
+      "failed": 0,
+      "seconds": 34.32,
+      "command": [
+        "../quality-env/bin/python",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/refactor/semantics",
+        "tests/regression/audit3/test_iteration_rebuild_20261113.py",
+        "tests/regression/audit3/test_sem04_resume2.py"
+      ],
+      "source_note": "Recorded before subsequent final explicit48 inheritance-depth guard; not represented as exactcurrent whole-tree qualification."
+    },
+    "quality": {
+      "strong_owned_modules": [
+        "pythonstan/analysis/semantics/classinfo.py",
+        "pythonstan/models/typeclasses.py"
+      ],
+      "strong_owned_diagnostics": 0,
+      "import_graph_diagnostics": 2278,
+      "whole_tree_clean": false,
+      "ruff_owned": 0,
+      "format_owned": 0
+    }
+  },
+  "implementation": [
+    "Typed BuiltinType/SourceClass/lazy TupleClassInfo/Unknown/Invalid classifier with all Value facets retained.",
+    "Ordered tuple fold reads/classifies each item only on remainingFalse stores; True exits and exceptions preserve prefix. Emptytuple returnsFalse before issubclass subjectvalidation.",
+    "Frozen nominal builtin parent catalog includes bool-int and exception inheritance; builtin names are types only when declared, not every callable.",
+    "Nominal class_ids remain authoritative alongside structural kinds; summary class identities degrade explicitly ratherthanprovingoneabstractaddress isoneconcreteclass.",
+    "Negative source-instance matches with custom __class__/__getattribute__/__getattr__ use actual conservative effectful Open residual; exact known nominalmatch bypasses sourcehook. Metaclass/duck ClassInfo specialprotocol capability likewise Open.",
+    "Unknown typed sorts/heap shapes, cycles/deep hierarchies and unsupported type unions get actual residual, no fabricatedFalse or unreachableTypeError.",
+    "No attributes.py mutation; existing valid-but-unmodeled builtin-base capability guard verifiedaspositive."
+  ],
+  "limits": [
+    "Builtin union expression operators remain outside finite profile; classinfo query propagates their existing Open residual. No fullUnion operation support claimed.",
+    "Unknown hooks are conservatively overapproximated, not executed or certified.",
+    "Structural containers with sourceclass IDs are tested as admitted typed-heap consumers, not claiming full C(list)/C(int) constructors.",
+    "Known nonsingleton class identity can force Open/heap effects conservatively; precision is not claimed across collapsed class allocation identities.",
+    "Independent final review, fullcandidate gates and cardclosure remain root-owned."
+  ],
+  "red_source_capsule": {
+    "path": "docs/development/next/reviews/SEM05_RESUME2_nominal_red_source_20261113.tar.gz",
+    "sha256": "9530a052bd2b569411098abaa7566a3ab6cf26b9a522bda9878247ca2c7d21e3",
+    "contents": "Exact pre-fix source/test/prereg and sanitized summary, no raw logs/receipts or keys"
+  },
+  "raw_evidence": "gitignored artifacts/next/sem05-resume2",
+  "frozen_manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "references": [
+    "https://docs.python.org/3.12/library/functions.html#isinstance",
+    "https://docs.python.org/3.12/reference/datamodel.html#customizing-instance-and-subclass-checks"
+  ],
+  "caps_and_frozen_gold_unchanged": true,
+  "real_model_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

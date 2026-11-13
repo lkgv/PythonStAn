@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "task": "N4-QUERY-01",
+  "status": "read_only_design_and_preregistered_baseline_complete_no_production_lease_yet",
+  "scope": "Query/procedure semantic facts, separate from optional debug observations and proof certificates",
+  "baseline": {
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/results/result.py": "bbf73fc9ccf1d163d79f56631f73473f9b308ac473162e88688993779c03a969",
+      "pythonstan/results/queries.py": "796dcac4334444ac3f4e68275f921f078ad7f3ffa1a60bf85b52bb74d2f54a98",
+      "pythonstan/results/projection.py": "367b3a283ced6017bdd1647329380852ce6ead6833ec049264c226faf19b3e3a",
+      "pythonstan/analysis/engines/abstract/driver.py": "6c9ca5648e31aee0b38c010b37fc20086a1e79d71d150bfae320357dab27e63b",
+      "pythonstan/analysis/engines/abstract/publication.py": "4f22f0edef8e1052477e99b9ac7cd18a94253ab2eb26a0263bf0ca3dfa5c151f",
+      "pythonstan/analysis/composition/guarded_dispatch.py": "042a26cd3ba94bcdc1cab5e1c62e5bba79a36da89506068471617c25ead7ec42",
+      "pythonstan/analysis/composition/summary_context.py": "c1169f7ad18225e7753d95536736eb4f430da3ee0e92badbdab4900d25f7193f",
+      "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+      "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b"
+    },
+    "resources": {
+      "max_work": 10000,
+      "max_seconds": 2,
+      "max_memory_mb": 512,
+      "external_seconds": 15
+    },
+    "results": {
+      "regular_called": {
+        "solver": "converged",
+        "coverage": "closed_under_profile",
+        "single": {
+          "f": {
+            "status": "answered",
+            "normal_exit": true,
+            "bottom": false,
+            "exceptions": [],
+            "body_executed_at_creation": null
+          }
+        },
+        "returns_scopes": [
+          "subject.f"
+        ],
+        "outcome_scopes": [
+          "subject",
+          "subject.f"
+        ]
+      },
+      "declared_unreached": {
+        "solver": "converged",
+        "coverage": "closed_under_profile",
+        "single": {
+          "f": {
+            "status": "unavailable",
+            "normal_exit": null,
+            "bottom": null,
+            "exceptions": null,
+            "body_executed_at_creation": null
+          }
+        },
+        "returns_scopes": [],
+        "outcome_scopes": [
+          "subject"
+        ]
+      },
+      "raise_only": {
+        "solver": "converged",
+        "coverage": "closed_under_profile",
+        "single": {
+          "f": {
+            "status": "answered",
+            "normal_exit": false,
+            "bottom": true,
+            "exceptions": [
+              "ValueError"
+            ],
+            "body_executed_at_creation": null
+          }
+        },
+        "returns_scopes": [
+          "subject.f"
+        ],
+        "outcome_scopes": [
+          "subject",
+          "subject.f"
+        ]
+      },
+      "lazy_created": {
+        "solver": "converged",
+        "coverage": "closed_under_profile",
+        "single": {
+          "f": {
+            "status": "answered",
+            "normal_exit": false,
+            "bottom": true,
+            "exceptions": [],
+            "body_executed_at_creation": false
+          }
+        },
+        "returns_scopes": [
+          "subject.f"
+        ],
+        "outcome_scopes": [
+          "subject",
+          "subject.f"
+        ]
+      },
+      "regular_native": {
+        "solver": "converged",
+        "coverage": "open",
+        "single": {
+          "f": {
+            "status": "unavailable",
+            "normal_exit": null,
+            "bottom": null,
+            "exceptions": null,
+            "body_executed_at_creation": null
+          }
+        },
+        "returns_scopes": [],
+        "outcome_scopes": []
+      },
+      "frozen_lv_function_exit": {
+        "passed": false,
+        "solver": "converged",
+        "coverage": "closed_under_profile",
+        "single": {
+          "identity": "unavailable",
+          "box": "unavailable",
+          "dispatch": "unavailable"
+        },
+        "returns_scopes": [],
+        "outcome_scopes": [
+          "subject"
+        ]
+      }
+    },
+    "raw": "gitignored artifacts/next/query_resume2/baseline.json",
+    "raw_sha256": "5a80c975b19dba2447f6fda4a86b0f6f0e55cb4e217c82d713def45cccd038f9",
+    "prereg": "docs/development/next/rebuild/QUERY_RESUME2_preregistration_20261113.json"
+  },
+  "concrete_causes": [
+    {
+      "path": "pythonstan/analysis/engines/abstract/driver.py::request_function",
+      "cause": "Accepted summary application returns before creating/requesting a Unit. This is legitimate execution and must not be repaired with a fabricated Unit."
+    },
+    {
+      "path": "pythonstan/analysis/engines/abstract/publication.py::prepare_publication",
+      "cause": "All procedure returns/outcomes are currently derived from source.units (plus special lazy creation bottom metadata); summary-only procedures have no semantic observation source."
+    },
+    {
+      "path": "pythonstan/results/result.py::_retain_query",
+      "cause": "function_exit looks up module.symbol in retained returns; it cannot distinguish unmaterialized procedure scope, unsupported producer facts, unreachable declarations, or omitted projection. Bulk empty dict is answered with global coverage."
+    },
+    {
+      "path": "pythonstan/analysis/composition/guarded_dispatch.py::try_apply",
+      "cause": "Bridge records calls/table reads/box writes and returns flows; it publishes no handler/dispatcher exit records. Handler parameter source reads required by frozenLV02 are also absent, so return-map repair alone does not close fullgold."
+    },
+    {
+      "path": "pythonstan/results/schema.py",
+      "cause": "Compatibility reexports only; actual query parser/retention are queries.py/result.py. A schema-only patch cannot solve this defect."
+    }
+  ],
+  "proposed_model": {
+    "fact_key": [
+      "producer_kind(unit/native/checked_summary)",
+      "producer_id(realUnitId or actual summary call identity, never fake Unit)",
+      "scenario",
+      "procedure qualifiedname",
+      "context/source call site",
+      "source/policy/model identity"
+    ],
+    "observation_head": [
+      "producer generation/revision",
+      "identity epoch",
+      "versioned dependencies",
+      "materialization",
+      "completion coverage",
+      "proof provenance if any"
+    ],
+    "payload": "Actual owned tuple of Flow poststates, return/raise/suspend completion facts and typed binding/heap access facts. Retain graphs internally; do not prematurely flatten fresh box/alias information to JSON.",
+    "scope_states": [
+      "not_requested",
+      "declared_not_reached_under_complete_entry_contract",
+      "materialized_complete",
+      "materialized_partial",
+      "lazy_body_not_executed",
+      "producer_capability_unavailable",
+      "invalidated_dependency",
+      "projection_excluded",
+      "projection_truncated"
+    ],
+    "wire_compatibility": "Keep existing QueryAnswer status keys; use per-query coverage (not automatically global coverage) and an explicit retained query ledger for reasons/materialization/producer/dependency scope. Exact shape of optional ledger export needs root decision.",
+    "bulk_semantics": "An empty payload is answered/closed only when ledger proves that the requested complete scope is genuinely empty. Missing/unsupported summary facts cannot become a complete empty result.",
+    "raise_only": "A complete reached raise-only scope can answer Bottom normal-return with normal_exitFalse and exception metadata. This differs from a body never executed.",
+    "generic_contract": "contracts/procedure_facts.py contains identity/scope DTOs and a generic finite FactSink[Payload] protocol; concrete Flow/Store observation ownership lives in analysis/observations, not in contracts and not in debug ObserverPort."
+  },
+  "required_transactions": [
+    "Replace a complete producer generation, not an append-only bag of stale facts. A unit visit can change observations even when its final value is equal; observation generation must not depend solely on _outcomes_equal.",
+    "Stage checked-summary fact batches during provider execution and publish only after the whole accepted application and final admission succeed. Discard a None/failed application batch. Existing immediate call/access side effects are a separate atomicity concern, not proof that a new fact batch may partially commit.",
+    "An interrupted or changed-entry producer cannot expose its previous exact value as covering the new scope. Retain diagnostics only, or mark per-scope partial/unavailable with explicit missing coverage.",
+    "Prepare epoch remapping together with HostStateBoundary using existing graph-admitted Flow tuples (no new arbitrary state metadata record). Prepare metadata/dependency invalidation separately, final checkpoint then assignment-only host+facts publication. Failed preparation leaves both unchanged.",
+    "Checked-summary proof/freshness observations must be invalidated on retired allocation identity or changed source/policy/model/dependency; remapping an ObjectId is not a new closed freshness proof.",
+    "Copy/parse/aggregate/materialize/project all facts under the same RunLedger. At zero budget, a fixed unavailable controller must not enumerate unbounded requested queries/functions."
+  ],
+  "minimal_file_leases": [
+    {
+      "path": "pythonstan/analysis/contracts/procedure_facts.py",
+      "action": "new generic FactSink and pure DTOs; no solver/provider imports"
+    },
+    {
+      "path": "pythonstan/analysis/observations/procedures.py",
+      "action": "new owned procedure store, producer generation replacement and staged epoch preparation"
+    },
+    {
+      "path": "pythonstan/analysis/observations/query_ledger.py",
+      "action": "new requested/materialized/covered/unavailable scope ledger"
+    },
+    {
+      "path": "pythonstan/analysis/engines/abstract/driver.py",
+      "action": "narrow constructor/_solve/request_function/summary_context/reabstract ports; snapshot source input only after publication owner releases"
+    },
+    {
+      "path": "pythonstan/analysis/composition/summary_context.py",
+      "action": "optional finite staged semantic facts callback; old debug observation remains separate"
+    },
+    {
+      "path": "pythonstan/analysis/composition/guarded_dispatch.py",
+      "action": "prepare real handler/dispatcher exit and typed source access batch from accepted finite source contract; do not publish before whole application succeeds"
+    },
+    {
+      "path": "pythonstan/analysis/engines/abstract/publication.py",
+      "action": "read actual observation store instead of requiring Unit; integrate with held paid ownership receipts under publication owner coordination"
+    },
+    {
+      "path": "pythonstan/results/result.py",
+      "action": "_retain_query consults materialization/query scope and per-query coverage; preserve paid read/ownership guards"
+    },
+    {
+      "path": "pythonstan/results/projection.py",
+      "action": "carry selectors/truncation separately from producer coverage; never infer missing fact from discarded output"
+    },
+    {
+      "path": "pythonstan/results/queries.py",
+      "action": "read-only unless root chooses an explicit new ledger view; current parser already supports function_exit"
+    },
+    {
+      "path": "pythonstan/analysis/composition/native_snapshot.py",
+      "action": "capability adapter only: import actual native procedure facts if present, otherwise explicit unavailable; no synthetic return records"
+    }
+  ],
+  "recommended_order": [
+    "Q0 pure store/ledger contracts and prereg revision/epoch/empty-scope tests, with no runtime behavior change.",
+    "Q1 ordinary Unit producers and shared publication/query retention. Keep regular17, raise-only, lazy/unreached scope controls and observation disabled parity.",
+    "Q2 accepted L2 staged procedure observations plus checked finite source effects. Preserve frozenlv_function_exit completegold; this may require a narrow LLM01 atomic batch prerequisite, not an empty return-map patch.",
+    "Q3 Native adapter capability statuses and retained-only producer facts, then partial budgets/projections and transaction rollback tests.",
+    "Q4 immutable source-bound original52+LV6, query controls, fullquality and dependency-negative guards; no card closure by count."
+  ],
+  "independent_acceptance_preregistered": [
+    "Actual regular f17 single versus bulk returns/outcomes with debug off/on and single-query-only request.",
+    "L2 exactfrozen identity original, box retained, dispatcher union with identical box ObjectId scopes and real effects from verified source semantics.",
+    "Declared uncalled versus unknown producer capability versus lazy body never executed, while raise-only and genuinely empty scope remain distinct.",
+    "Two producer generations with different return values replace the stale generation; an equal final module result must not hide changed function facts.",
+    "TypedObjectId/CellId/ReferenceKey remap of procedure snapshots preserves alias coverage and source labels; failed preparation does not publish a new ledger epoch.",
+    "Summary prepare that records one candidate then returnsNone/raises/budget-stops publishes no partial procedure batch.",
+    "Selectors and truncation change projection scope only; disabled debug events do not remove solver/semantic facts.",
+    "Cap0/lowcap, malformed/huge query/fact inputs, and stale dependency cases give bounded unavailable without fake closed empty scopes."
+  ],
+  "open_decisions": [
+    "Root lease coordination with currently held paid publication/driver edits.",
+    "Whether the optional query ledger is retained internal wire metadata, a new explicit view, or a typed accessor; do not silently expand fixed QueryAnswer equality fixtures.",
+    "Full L2 handler effect completeness/atomicity and fresh allocation identity are cross-card prerequisites; do not falsely label QUERY01 complete while frozenLV02 still fails."
+  ],
+  "no_production_edits": true,
+  "real_api_calls": 0,
+  "real_credentials_read": 0,
+  "git_writes": false
+}

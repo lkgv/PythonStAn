@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "scope": "Independent STATE apply review resumed after rollback",
+  "original_exact_test": "/workspace/scratch/8d3426210943/PythonStAn-resume/tests/regression/audit3/test_w3_rebuild_effects_independent.py",
+  "new_exact_copy": "tests/regression/audit3/test_state_review_resume2_effects.py",
+  "test_sha256": "f343d3c22c98adc052e881cdd2ca6d6732f59c6805b12bad585a74257a9b4e3f",
+  "assertions_changed": false,
+  "base_commit": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "original_preregistration": {
+    "schema_version": 1,
+    "date": "2026-11-13",
+    "status": "new_effects_contract_probes_before_first_pytest_run",
+    "test": "tests/regression/audit3/test_w3_rebuild_effects_independent.py",
+    "scope": "Store.apply graph copy/ownership/footprint contracts, beyond the first STATE alias/quotient checkpoint.",
+    "known_author_probe": "Author manually observed two touched metadata owners lose shared list identity before this independent set.",
+    "obligations": [
+      "Shared mutated metadata between two explicitlywrittenowners remains shared and detachedfromcallee/caller inputs",
+      "New escaping heapobject backedge references appliedcallerroot, not detachedcalleecopy",
+      "New edge to untouchedexistingowner retainsalias or explicit conservativehavoc; cannot silently assert distinctness",
+      "No-write application preservescallerlocals/precision/aliases despite stalecalleeunwrittenstate"
+    ],
+    "qualification": "Not lostold52cases; fullSTATE02 remainsopen if failures persist."
+  },
+  "new_cases_before_first_run": [
+    "distinct captured private snapshots, one shared private cells map, current global lookup via actual resume",
+    "same-data new named heap owner aliases captured mutable node and later writes remain observable",
+    "contradictory alias footprint guards affected runtime consumers explicitly while unrelated constant stays exact",
+    "both source-to-caller and caller-to-source owner/field alias partition conflicts",
+    "unequal immutable Frame source/caller retain each private binding rather than replacing primitive record"
+  ],
+  "qualification": "Original four assertions frozen. New variants get separate prereg details before execution; no full card closure.",
+  "runtime_preregistered": {
+    "test": "tests/regression/audit3/test_state_review_resume2_runtime.py",
+    "sha256": "65678a0cdb058dce0ac2e5ec190292c2576a505a6b0d7caaec13154fd528abd3",
+    "first_run_not_yet_started": true,
+    "expected": [
+      "shared heap-only capture yields33 no havoc",
+      "distinct captures sharing cells both yield38 after owned private write",
+      "partial deep mutation both owners explicitnormalTop+raise; unrelated17 precise",
+      "source-shared fields to distinct caller maps guards both",
+      "distinct written source owners to shared caller guards both",
+      "new escaping unequalFrame uses8, oldframe7",
+      "new named active private heap alias reads7 then11 afterwrite"
+    ]
+  },
+  "guard_preregistered": {
+    "test": "tests/regression/audit3/test_state_review_resume2_guard.py",
+    "test_sha256": "00b22dca463b76019d276204ed45c2c784568f58a171e0bc269424f9289aa549",
+    "expected": "Old cached boolean False remains false; a write through another named heap alias invalidates stale membership refinement, so actual If false branch reaches exact11.",
+    "no_candidate_order_oracle": true,
+    "first_run_not_yet_started": true
+  },
+  "guard_shared_fields_additional_preregistration": {
+    "test_sha256": "b85f4a8c4d7844ef59ecaed67d2e04a3f5c4eb80a3643707a5b1d7861debfcc3",
+    "existing_first_test_body_unchanged": true,
+    "expected": "Two different named HeapObjects sharing mutable fields invalidate matching old membership guard; unrelated exact owner guard is preserved. Actual If falsebranch gives11.",
+    "first_run_not_yet_started": true
+  }
+}

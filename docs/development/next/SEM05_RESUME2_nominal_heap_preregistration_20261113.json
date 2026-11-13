@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "test": "tests/regression/audit3/test_sem05_nominal_heap_resume2.py",
+  "test_sha256": "337ad9c301299b98336a4a3a618de059c76555a9b5da1cf4fe0b419fb322e18e",
+  "scope": "Typed Store structural list/dict kind may coexist with authoritative nominal class_ids; actual Transfer.builtin musthonorSourceClassidentity independently of kind. This tests the finite admitted heap contract, not claiming full C(list)/C(dict) constructor support.",
+  "CPython_gold": true,
+  "sequence": "Freeze before first directconsumer runs and before generic-class_ids refinement",
+  "expected_cases": 3,
+  "summary_identity_case": "Self-review diagnostic was first observed falseClosed(True) before formalassertionfixture; CPythonFalse addedbefore any sourcefix. Sameoriginal10000/2s/512 andexplicitcontext0, no capchange."
+}

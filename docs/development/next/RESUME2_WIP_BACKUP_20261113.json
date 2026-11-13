@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "unqualified_working_source_backup_for_outage_recovery",
+  "base_verified_code": "79daa3f90134e93713d53e081468cc57f8230c4f",
+  "canonical_head_at_capture": "694b611156b04bdc81ff42fe9a2fe4819fccbea6",
+  "scope": "Exact captured working sources, tests and reviewed records including later unverified changes. Not a release or whole-candidate qualification.",
+  "important_open": [
+    "Node2paidpublication metadata/cost regressions underrepair; initial694b fullgates1043stagepass4fail,4817auditpass3fail.",
+    "Two SEM04 callback coverage gates typedresourceunavailable under unchangedprofile remainunqualified.",
+    "Original Native publicmax_work2 contractstillred.",
+    "SEM05andPTA03A0 freshowncontrols passbutimmutablewholecandidate/independentgatespending."
+  ],
+  "durability": "This backup saves file contents, not just hashes. Later edits after capture are not included. Newuntrackedarchivesexcludeduntilseparatesanitization; source+tests included.",
+  "git_policy": "Temporary index preserves canonicalHEAD/index and all author workingfiles. Branch checkpoint only; dev-cocktail-analysis not advanced by this backup.",
+  "real_model_calls": 0,
+  "real_OpenAI_key_reads": 0
+}

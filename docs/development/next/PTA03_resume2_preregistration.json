@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "scope": "Read-only design baseline; no production changes authorized yet",
+  "test_file": "tests/regression/audit3/test_pta03_transition_resume2.py",
+  "before_new_analyzer_tests": true,
+  "cases": [
+    {"id":"callee_2cfa_from_caller_0cfa", "expected":"Selected callee context has k2 and current callsite; available history only, no forgotten ancestry invented"},
+    {"id":"callee_1cfa_from_caller_3cfa", "expected":"Selected callee context has k1 and only most recent callsite"},
+    {"id":"homogeneous_2cfa_control", "expected":"Original homogeneous two-call context retained"}
+  ],
+  "planned_method_table": "andersen.method_context_policies: finite exact (module,qualname,policy) rows; no glob/script callbacks",
+  "planned_table_execution": "Not run before root approval; public option currently absent. Tests will require real call-context/precision/work differences, not echoing configuration.",
+  "frozen_baseline": "Existing tests/refactor/engines/test_native_context.py and test_native_heap_policy.py; original budgets/assertions preserved",
+  "original_context_recursion_budgets": [1000,4000],
+  "new_tests_use": "Existing finite ContextSelector APIs only; no global work cap increase and no new semantic expectations inferred from candidate order"
+}

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "scope": "Four additional public yield-from/throw correlated generator controls at unchanged existing profile; separate from the held13apply/guard checks.",
+  "test": "tests/regression/audit3/test_state_review_resume2_protocols.py",
+  "test_sha256": "e5dc97a4dc6b48d3aec691cf40e72879d02040def86cb92d1808468d0c912022",
+  "preregistration": "docs/development/next/reviews/STATE_review_resume2_protocol_preregistration_20261113.json",
+  "expected": {
+    "next": [
+      3,
+      7
+    ],
+    "throw": [
+      13,
+      17
+    ]
+  },
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 8,
+    "max_memory_mb": 1536,
+    "max_addr_set_size": [
+      1,
+      2
+    ],
+    "max_traces_per_block": 1
+  },
+  "baseline": {
+    "commit": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+    "passed": 4,
+    "failed": 0,
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_state_review_resume2_protocols.py"
+    ],
+    "seconds": 2.412
+  },
+  "current": {
+    "passed": 4,
+    "failed": 0,
+    "command": [
+      "/workspace/scratch/8d3426210943/quality-env/bin/python",
+      "-m",
+      "pytest",
+      "--import-mode=importlib",
+      "-p",
+      "no:cacheprovider",
+      "-q",
+      "tests/regression/audit3/test_state_review_resume2_protocols.py"
+    ],
+    "seconds": 2.357,
+    "source_stable": true,
+    "source_sha256": {
+      "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+      "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b",
+      "pythonstan/analysis/engines/abstract/driver.py": "783b07edebcea0a0e67e27990e041602c3b8144e7c400858cfa9800453b71206",
+      "pythonstan/analysis/engines/abstract/publication.py": "4f22f0edef8e1052477e99b9ac7cd18a94253ab2eb26a0263bf0ca3dfa5c151f",
+      "pythonstan/analysis/engines/abstract/continuations.py": "842b2b4298818789c7fb925a5891d8eb9931052de1dda7029dea7163ac8c1105",
+      "pythonstan/analysis/engines/abstract/transfer.py": "07034b0beff0d1b8e1ba6e275475931e0e715740db367d42ae851def12e5f743",
+      "pythonstan/analysis/semantics/names.py": "ced2f5410e347ecb75c8378b2968e35b076d2d5b6b0483d4dc5b74ea774f5276",
+      "pythonstan/analysis/semantics/containers.py": "10b7d71e5256959466ca8de52314b25fc07f2fb72a4bc7cbc7aeff318fd257b1",
+      "pythonstan/session.py": "37953523a83715c55095aa7ed038a9d04386e242ee78de12b7b19386535c3823",
+      "pythonstan/results/result.py": "bbf73fc9ccf1d163d79f56631f73473f9b308ac473162e88688993779c03a969"
+    }
+  },
+  "qualification": "Positive current-source regression evidence, not newly repaired bugs and not restoration of lost exact fixture sources. Current source dependencies include parallel names/container/publication ports, so parent must rebind in isolated selected checkpoint before attributing to that tree. WholeSTATE01/02/profile/atomicity/soundness gates remain open.",
+  "raw_evidence": "gitignored artifacts/next/evidence/STATE-review-resume2/*protocols*",
+  "quality": "Ruff andformat check passed"
+}

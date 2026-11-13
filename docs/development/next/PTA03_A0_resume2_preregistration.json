@@ -1,0 +1,8 @@
+{
+ "schema_version":1,
+ "scope":"Approved A0 only, no method policy field/config/consumer port yet",
+ "before_new_test_execution":true,
+ "test":"tests/regression/audit3/test_pta03_a0_resume2.py",
+ "cases":"All19 selected method bounds with broad same-family caller; all19 flat summary and protocol+summary wrappers; preserve only available cross-family call history; reject empty summary base",
+ "constraints":"Original45context/heap and31replay/havoc/service controls andoriginalbudgets unchanged; existing3transition tests fixed; finite token constructors unchanged"
+}

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "task": "N4-QUERY-01",
+  "status": "preregistered_before_new_baseline_execution",
+  "scope": "Read-only design/baseline, no implementation or gold changes",
+  "resources": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512,
+    "external_seconds": 15
+  },
+  "cases": [
+    {
+      "id": "regular_called",
+      "source": "def f():\n    return 17\nresult=f()\n",
+      "symbols": [
+        "f"
+      ],
+      "llm": false,
+      "independent_expected": {
+        "normal_return": 17,
+        "single_equals_bulk": true
+      }
+    },
+    {
+      "id": "declared_unreached",
+      "source": "def f():\n    return 17\nresult=0\n",
+      "symbols": [
+        "f"
+      ],
+      "llm": false,
+      "independent_expected": {
+        "body_executed": false,
+        "must_distinguish_unreachable_under_entry_from_missing_projection": true
+      }
+    },
+    {
+      "id": "raise_only",
+      "source": "def f():\n    raise ValueError()\ntry:\n    f()\nexcept ValueError:\n    result=0\n",
+      "symbols": [
+        "f"
+      ],
+      "llm": false,
+      "independent_expected": {
+        "normal_exit": false,
+        "exceptions": [
+          "ValueError"
+        ],
+        "materialized": true
+      }
+    },
+    {
+      "id": "lazy_created",
+      "source": "def f():\n    yield 17\ng=f()\nresult=0\n",
+      "symbols": [
+        "f"
+      ],
+      "llm": false,
+      "independent_expected": {
+        "body_executed": false,
+        "created_lazy": true,
+        "normal_return_not_materialized": true
+      }
+    },
+    {
+      "id": "regular_native",
+      "source": "def f():\n    return 17\nresult=f()\n",
+      "symbols": [
+        "f"
+      ],
+      "llm": false,
+      "engine": "native",
+      "independent_expected": {
+        "normal_return": 17,
+        "fact_capability_must_be_explicit": true
+      }
+    }
+  ],
+  "frozen_case": "semantic_manifest.json lv_function_exit exactsource/expected/resources unchanged",
+  "later_required_controls": [
+    "observation on/off semantic facts equality",
+    "request ValueQuery-only versus returns/outcomes views equality",
+    "output selector/truncation distinct from missing fact scope",
+    "budget terminal no false empty answered/closed",
+    "producer revision replacement invalidates stale returns",
+    "address epoch remap atomic failed preparation leaves old facts"
+  ],
+  "no_production_edits": true
+}

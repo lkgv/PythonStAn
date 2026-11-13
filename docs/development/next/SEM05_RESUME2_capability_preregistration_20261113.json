@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "test": "tests/regression/audit3/test_sem05_capabilities_resume2.py",
+  "sha256": "2f408954224caaa10d69ce3782dd6abc20339bd9aeb6d4bdd78fd46c74fdb378",
+  "before_fix": "Current first coherentClassInfo 46green has no valid unsupported builtin-base guard and assumes nonstandard typedTopSortobject invalid/negative. Preregister supplemental capability controls before these follow-up edits.",
+  "profile": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512
+  },
+  "contracts": [
+    "C(int)/C(list) actualvaliddefinitions mustnotfalseTypeError; unsupported model gets actualeffectful Open residual.",
+    "Typed object subject/classinfo can represent valid integer/class; unknown sort mustnotclosedFalse/TypeError."
+  ],
+  "observed_baseline": {
+    "passed": 6,
+    "failed": 0,
+    "diagnosis": "Hypothesis not reproduced: existing attributes.define_class already marks unsupported known builtin bases dynamic/Open; public typed-object input normalization already yields broad unknown. No attributes.py edit needed. These are positive capability controls, no red/green credit."
+  }
+}

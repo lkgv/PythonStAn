@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "base_commit": "20a0d567d27fd1d0711f48f8050301b3764aad93",
+  "status": "coherent_source_hold_fresh_component_evidence_pending_root_immutable_gate",
+  "scope": [
+    "pythonstan/analysis/state/store.py",
+    "pythonstan/analysis/state/transform.py"
+  ],
+  "source_sha256": {
+    "pythonstan/analysis/state/store.py": "e7b28dfea453b30d1f621487a10e497e798237c9c9087d018bcac1762327ee5e",
+    "pythonstan/analysis/state/transform.py": "7b933e03347530066b86bedd4770c0b58f72ea4323fb011fbce9d98a6d14cd3b"
+  },
+  "reconstruction": "Rebuilt from published source plus read-only surviving old ApplicationTransport scaffold; latest lost V4 source hashes were not recovered and no historical greens are reused.",
+  "implementation": [
+    "One detached caller graph memo serves each entire Store.apply; bind only exact active poststate root and its member maps to the applied state.",
+    "Preserve initial explicit dictionary anchors in canonical PayloadTransformer._mapped_dict; copying a distinct captured Store cannot clear an already rebound active cells/heap map.",
+    "Bind existing named heap owners, fields and missing maps before copying. Align only unwritten metadata mutable locations to their current caller owners; immutable unequal records keep their own primitive values.",
+    "Keep graph sharing among written metadata, new escaping owners and untouched current components. New escaping full graphs participate in alias/version checks.",
+    "Check both directions of owner/field/missing alias partitions whenever relevant metadata/slot/havoc footprints exist. Contradictory borrowed mutable component versions guard all affected named owners explicitly.",
+    "Generator captures of the exact poststate or its cells require a local residual before private reads; a distinct private cells snapshot may share the active heap without being guarded merely for that sharing.",
+    "Local residual records Havoc and an application_graph_alias_ambiguity obligation; unaffected current components stay precise.",
+    "Invalidate membership guards across shared HeapObject/fields/missing owners when any alias is written; actual Transfer If false branch no longer vanishes."
+  ],
+  "fresh_evidence": {
+    "preserved_independent_four": {
+      "initial": "3 failed,1 passed",
+      "current": "4 passed",
+      "source": "Exact copied old tests with assertions unchanged",
+      "test": "tests/regression/audit3/test_state_resume2_independent.py",
+      "raw_before": "artifacts/next/state_resume2/independent-before.log"
+    },
+    "independent_reviewer": "13/13 passed source-stably on the exact held hashes (original4 + operational7 + guard2); reviewer owns prereg/receipts. Baseline10red3green. No sum with repeated original4 is implied.",
+    "broad": {
+      "passed": 101,
+      "seconds": 8.23,
+      "raw": "artifacts/next/state_resume2/broad-first.log",
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m pytest -q --import-mode=importlib -p no:cacheprovider tests/regression/audit3/test_state_resume2_independent.py tests/regression/audit3/test_runtime_effects.py tests/regression/audit3/test_runtime_flow.py tests/regression/audit3/test_graph_transform_contracts.py tests/regression/audit3/test_heap_metadata.py tests/regression/audit3/test_state_observation_purity.py tests/regression/audit3/test_state_widening_independent_20261113.py tests/regression/audit3/test_suspension_alternatives.py tests/regression/audit3/test_heap_join_ownership_independent_20261113.py tests/regression/audit3/test_state_rebuild_identity_aliases.py tests/regression/audit3/test_state_rebuild_reentry.py"
+    },
+    "strict": {
+      "owned_diagnostics": 0,
+      "import_graph_diagnostics": 2278,
+      "whole_tree_clean": false,
+      "raw": "artifacts/next/state_resume2/strong-held.jsonl",
+      "command": "/workspace/scratch/8d3426210943/quality-env/bin/python -m mypy --no-incremental --output=json --disallow-any-expr pythonstan/analysis/state/store.py pythonstan/analysis/state/transform.py"
+    },
+    "ruff": "0 diagnostics; format check clean for both owned source modules and exact copied4 test"
+  },
+  "publication_dedup": "test_state_resume2_independent.py duplicates reviewer test_state_review_resume2_effects.py; include only one and do not count both sets as independent.",
+  "limitations": [
+    "Fresh bounded component evidence is not full STATE01/STATE02 closure or a proof for arbitrary graphs.",
+    "Effect footprints denote final poststate locations. Omitted deep writes conflicting with current alias alignment require local explicit owner residuals; no exact old-private precision is promised for contradictory graphs.",
+    "Old lost generator fixtures have not been represented as recovered or rerun.",
+    "Budget metering of full graph discovery/copy and global publication remains separate work; this component does not claim physical CPU preemption.",
+    "No real API calls or credential reads; no git changes performed by this author."
+  ],
+  "real_api_calls": 0,
+  "real_credentials_read": 0
+}

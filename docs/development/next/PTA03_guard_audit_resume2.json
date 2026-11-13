@@ -1,0 +1,211 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "status": "read_only_audit_complete_with_confirmed_open_profile_star_omission",
+  "scope": "PTA03 call guard, replay and routing audit; no production or frozen tests modified",
+  "source_sha256": {
+    "pythonstan/analysis/pointer/kcfa/ir_translator.py": "fee7a409c21a2ba23723235532f7acaf473b77eb58d0dc0f79b7fc10e2639229",
+    "pythonstan/analysis/pointer/kcfa/processor/normal_call.py": "c1d355de96e2df08bcc0cc527ef23906882e089835631ca2dd99e03f3c097309",
+    "pythonstan/analysis/pointer/kcfa/processor/keyword_expansion.py": "945052dd4e5f66caab67f18f588b6a7cff43f9f5f97c617ae1fdc2bad020a634",
+    "pythonstan/analysis/pointer/kcfa/solver.py": "8cef4466cbc0cf9733db8b6886918f0556725a411045a8cdfd8f364fca28f2e6",
+    "pythonstan/analysis/pointer/kcfa/state.py": "6a94a63bd963fca47de02720a760dadc3c235a70c17130fa698eccd4fda522aa",
+    "pythonstan/analysis/pointer/kcfa/unknown_effects.py": "e9a48078adaba52e2b704e33ea8857dbb51e49b08983f01ac02cf2dad8ffda2d",
+    "pythonstan/compat/native_worker.py": "8c7720f6325c9621497b0d58f92911b7205d0612da29acbc0a7a21d546c831e2",
+    "pythonstan/analysis/composition/region_scheduler.py": "23059e19289ef0eb30e47ccd914dd152865b16e2245fa63d28812b5f3fdbc512",
+    "pythonstan/analysis/composition/region_engine.py": "7c39adf5b187c5704e88383fc8dec1f7a35e4c6207f9454d68a70abf7f080c1a"
+  },
+  "guard_symbol": "No exact guard_normal_call symbol exists in current pythonstan; audited actual translators/processors/schedulers instead.",
+  "routing": [
+    {
+      "path": "pythonstan/analysis/composition/region_engine.py",
+      "line": 84,
+      "finding": "validate_native_statement rejects unsupported expression families including all ast.Call; execute calls validator before boundary encode/roundtrip and semantic effects."
+    },
+    {
+      "path": "pythonstan/analysis/composition/region_scheduler.py",
+      "line": 58,
+      "finding": "Isolated Native executes directly; there is no catch-and-AI-replay fallback in RegionScheduler.execute. Runtime ConfigurationError is rejection, not permission to replay an executed prefix."
+    },
+    {
+      "path": "pythonstan/compat/native_worker.py",
+      "line": 334,
+      "finding": "Pure Legacy Native worker initializes coverage_status open with unconditional legacy_source_coverage obligation; constraint convergence is not closed source coverage."
+    },
+    {
+      "path": "pythonstan/session.py",
+      "line": 182,
+      "finding": "native_then_ai runs separate whole-source Legacy prepass before AI and installs NativeSnapshotOracle. This is distinct from isolated Native regions; missing open prepass facts must not be consumed as negative/exhaustive evidence."
+    }
+  ],
+  "confirmed_discovery": {
+    "executed_before_preregistration": true,
+    "kind": "Direct finite IR translator observation, not a public falseClosed proof",
+    "rows": [
+      {
+        "source": "result=f(*items)",
+        "IRCall_args": [
+          [
+            "items",
+            true
+          ]
+        ],
+        "CallConstraint_args": [
+          "items"
+        ],
+        "residual_constraints": 0,
+        "finding": "ir_translator._translate_call loop ignores starred bool; CallConstraint has no expansion descriptor."
+      },
+      {
+        "source": "result=f(a=x, **mapping, b=y)",
+        "IRCall_keywords": [
+          [
+            "a",
+            "x"
+          ],
+          [
+            null,
+            "mapping"
+          ],
+          [
+            "b",
+            "y"
+          ]
+        ],
+        "CallConstraint_keywords": "frozenset; order unavailable",
+        "residual_constraints": 0
+      },
+      {
+        "source": "result=f(**mapping, **mapping)",
+        "IRCall_keywords": [
+          [
+            null,
+            "mapping"
+          ],
+          [
+            null,
+            "mapping"
+          ]
+        ],
+        "CallConstraint_keywords": [
+          [
+            "**",
+            "mapping"
+          ]
+        ],
+        "residual_constraints": 0,
+        "finding": "Identical expansion occurrences collapse. Later keyword binder publishes an explicit open residual; this observation alone is not a source soundness claim."
+      }
+    ],
+    "source_locations": [
+      "pythonstan/ir/ir_statements.py:852",
+      "pythonstan/analysis/pointer/kcfa/ir_translator.py:776",
+      "pythonstan/analysis/pointer/kcfa/constraints.py:493",
+      "pythonstan/analysis/pointer/kcfa/processor/normal_call.py:585"
+    ]
+  },
+  "preadmission_boundary": {
+    "normal_call_connect": "normal_call.py:490 connects closure/arguments/return slots before _register_body; a new unsupported-call guard must not be placed after these effects and followed by AI replay.",
+    "keyword_callbacks": "_match_parameters installs custom mapping subscriptions at585; KeywordExpansions._project at155 adds keys call, delegate iterator and per-key __getitem__ may-flows. Residual explicitly lists key validity/order/exceptions/callbacks. Preserving may-flows is not a complete keyword binding proof.",
+    "proposed_policy": "Validate finite call-shape capability before source call edge/body/parameter facts. If shape unsupported, preserve prior argument-evaluation effects through explicit residual/havoc; do not silently pretend arguments were unstarred or erase prefix after rejecting."
+  },
+  "late_replay_hooks": [
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "line": 332,
+      "contract": "_register_dynamic_constraint subscribes future facts and replays current facts"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "line": 345,
+      "contract": "_register_builtin_dependencies and replay queue retain persistent models even if AI intrinsic contributes current may-values"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "line": 1824,
+      "contract": "_mark_unknown_call applies state havoc even when target is None; unknown return consumption is irrelevant to side effects"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/solver.py",
+      "line": 1884,
+      "contract": "_finalize_unknowns_at_fixpoint marks required unresolved calls; selected optional internal helpers are exempt"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/unknown_effects.py",
+      "line": 37,
+      "contract": "Install current heap/globals/captured cells and future subscriptions; state field_created/variable_created/captures_created hooks at784/920/956"
+    },
+    {
+      "path": "pythonstan/analysis/pointer/kcfa/scheduler.py",
+      "line": 11,
+      "contract": "Four queue kinds static/constraint_replay/builtin_replay/points_to; fair is cyclic FIFO, legacy priority LIFO; scheduler does not establish source semantic order"
+    }
+  ],
+  "public_probe_preregistered_before_execution": {
+    "source": "def ident(x):\n    return x\nresult=ident(*[17])\n",
+    "independent_concrete_expected": 17,
+    "configuration": {
+      "engine": "native",
+      "resources": {
+        "max_work": 10000,
+        "max_seconds": 2,
+        "max_memory_mb": 512
+      },
+      "andersen": {
+        "enable_synthetic_method_contexts": false
+      }
+    },
+    "queries": [
+      "ValueQuery(subject,result)"
+    ],
+    "classification": "If 17 is absent, record observed open-coverage omission, not closed soundness failure. Typed resource exhaustion is unqualified. A correct result does not validate general star expansion."
+  },
+  "future_preregister_candidates": [
+    "Isolated native ast.Call guard rejects before adapter.encode/oracle publication, original store/input work unchanged; AI counter proves no replay.",
+    "Native regular function star tuple/list source outputs versus separately computed CPython expected; late iterable elements must not be mistaken for positional operand object.",
+    "Custom **mapping keys iterator/getitem mutate independent log: argument evaluation prefix and mapping protocol remain explicit open unless represented; reject before new source body facts if unsupported.",
+    "Duplicate explicit keyword, identical repeated **operand, invalid non-string key: no false normal-only closed binding; effects before exception covered.",
+    "Late callee/field/load/store/builtin constraints replay prior and future values; purposeful mutation dropping subscription is rejected.",
+    "Opaque call with unused return still havocs later-created fields/globals/captured parameter-backed cells; track_unknowns false only suppresses diagnostics."
+  ],
+  "executed_existing_controls": {
+    "command": "../quality-env/bin/python -m pytest -q tests/pointer/kcfa/test_incremental_constraints.py tests/refactor/engines/test_native_unknown_effects.py tests/refactor/engines/test_native_services.py",
+    "raw": "artifacts/next/evidence/PTA03_guard_audit_resume2/existing-controls.log",
+    "status": "completed",
+    "passed": 31,
+    "seconds": 2.06,
+    "raw_sha256": "3fd932dd76d666746e7d424e5aefd3f7d12b242b4f1cc427d46d5f8be0a029d7"
+  },
+  "real_model_calls": 0,
+  "real_credentials_read": 0,
+  "no_production_edits": true,
+  "no_git_writes": true,
+  "executed_public_probe": {
+    "independent_cpython_result": 17,
+    "elapsed": 0.24836201099969912,
+    "solver_status": "converged",
+    "coverage_status": "open",
+    "answer_status": "answered",
+    "constants": [],
+    "types": [
+      "list"
+    ],
+    "top": false,
+    "classification": "Observed open-profile value omission: scalar17 absent, listref returned. This is not a false-closed coverage claim, not resource exhaustion, and does not qualify arbitrary star semantics.",
+    "raw": "artifacts/next/evidence/PTA03_guard_audit_resume2/public-star.json"
+  },
+  "source_stable_after_existing_and_public_probes": true,
+  "native_then_ai_admission_readonly": {
+    "path": "pythonstan/analysis/composition/native_snapshot.py",
+    "sha256": "3978cac6ebc043750d766c37311a02edd701d8f570a1ee976e9d4a47c05f25b1",
+    "observed_source_contract": "Only positive scalar constants are seeded into incremental cell facts; foreign object references are counted/skipped. Statistics explicitly coverage partial and permits_exclusion false. Parent HYB audit should retain this distinction; no new exclusion capability is justified by method-policy changes.",
+    "qualification": "Static inspection only, not an additional public Native_then_ai run."
+  },
+  "recommendations_for_parent_plan": [
+    "Do not combine isolated statement Native guard and whole-source legacy Native call profile into a single unsupported-call rule.",
+    "A finite per-method policy resolver must run without user callbacks and must preserve argument-position descriptors, keyword names and protocol semantic_partition.",
+    "Guard starred positional shape before _connect_call_values/_match_parameters if unsupported; a late guard after callee parameter/return publication cannot justify AI replay.",
+    "Existing starred omission requires either real expansion protocol or explicit conservative residual/havoc; preserving the IR starred flag is prerequisite, not a complete semantic repair.",
+    "Do not claim kwargs frozenset preserves expansion ordering or duplicate occurrence multiplicity. Existing keyword residuals describe that limitation rather than prove keyword binding.",
+    "Keep all19 registered context policies and separately owned heap selector; this audit provides no basis for retiring policies or hiding legacy typing debt."
+  ]
+}
