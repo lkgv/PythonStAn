@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "date": "2026-11-13",
+  "repository": "lkgv/PythonStAn",
+  "branch": "dev-cocktail-analysis",
+  "published_commit": "e645c586d70f0df2bed7095b4677f3189122f8f0",
+  "published_tree": "94479529dd2fe5260216b11cb859d863745584dd",
+  "equivalent_local_commit": "1706568f0fb71d8d0badaf448141342bb3016f64",
+  "remote_head_verified": true,
+  "expected_parent": "fed9659b42f4f8c0c4a8f6c581bee654d6f3b604",
+  "force": false,
+  "source_snapshot_sha256": "1ee6e173f285301f4e13722557b9a8f73df9145d56ebe5f4e51339d734bd4035",
+  "authorization": "User-authored push instructions retrieved for2026-11-12T02:02:18Z and authorization2026-11-12T12:52:41Z; destination owner matches authenticated GitHub user; exact tree and no secret-pattern matches verified. Automatic upload review initially rejected; after authorization/ownership checks the same action succeeded. No alternate transport bypass used.",
+  "payload": "Reviewed source/synthetic tests/configuration/static evidence only; no raw logs, private inputs or credentials.",
+  "release_qualified": false,
+  "real_llm_requests": 0
+}

@@ -3641,18 +3641,19 @@
   "checkpoint_note": "W2:1047stage+4374controls pass;quality0new0modified.31/36 domainNative,34/52 semantic,2/6offlineLLMeffect.5card scopes verified;STATE/core/release/live open.",
   "publication": {
     "last_verified_code_checkpoint": {
-      "commit": "dc1a814364f4f82c15bd8173d3a2e5ba69cacafb",
-      "tree": "f90cbe73abe5d2c3fa7ea47677b27b050bf9811a",
-      "type_01_verified": true,
-      "original_stage_passed": 1001,
-      "audit3_controls_passed": 4171,
-      "quality_passed": true
+      "commit": "e645c586d70f0df2bed7095b4677f3189122f8f0",
+      "tree": "94479529dd2fe5260216b11cb859d863745584dd",
+      "equivalent_local_commit": "1706568f0fb71d8d0badaf448141342bb3016f64",
+      "stage_passed": 1047,
+      "audit3_controls_passed": 4374,
+      "quality_passed": true,
+      "record": "docs/development/next/W2_CHECKPOINT_20261113.json"
     },
     "unpublished_workspace_handoff": "docs/development/next/ENVIRONMENT_INTERRUPTION_W2_20261112.json",
     "prepared_checkpoint": {
       "source_snapshot_digest": "1ee6e173f285301f4e13722557b9a8f73df9145d56ebe5f4e51339d734bd4035",
       "record": "docs/development/next/W2_CHECKPOINT_20261113.json",
-      "state": "ready_for_nonforce_expected_sha_publication"
+      "state": "published_and_remote_head_verified"
     }
   }
 }
