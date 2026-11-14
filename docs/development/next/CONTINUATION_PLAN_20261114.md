@@ -186,3 +186,11 @@ Native 可独立推进的阶段合同、方法顺序、兼容消费者和未运�
 `17ab3946` 四组真实 CI 保持 mandatory36/36、stage1048/1048、audit5282pass/2fail、semantic49/52、LV3/6，原失败 ID 集合不变。质量仅发现函数间少一空行的新增格式诊断，本次补齐后再按实际提交复核；Ruff/mypy 无新增。完整 source/stability 身份仍单列，不把格式候选当已通过。
 
 同source、原caps的后续 profiler 中，两种请求仍触发max_seconds。受控前缀里的_record为181,593calls/self0.041s、Store.copy为1431calls/cumulative0.921s；它们与上一host/前缀不同，不能据此声称端到端性能提升或SEM04已解决。正式下一步转向callee readiness/continuation与bulk graph-copy，保留已确认的max_stmt_visits/2s义务，禁止以调高预算或重置guard消红。
+
+## 最新有界验收与下一开发入口
+
+最新代码验收为 `05eee85d`：[冻结检查](https://github.com/lkgv/PythonStAn/actions/runs/43594775267)、[质量](https://github.com/lkgv/PythonStAn/actions/runs/43594775337)。格式已修复，质量零新增诊断；mandatory36/36、stage1048/1048、audit5282pass/2旧fail、semantic49/52、LV3/6。60项有界独立控制均通过，四组source前后稳定。完整receipt保存在continuation_validation_20261114.json的latest_qualified_bounded_checkpoint，历史cbc3等记录不覆盖。
+
+下一AI实施入口已细化为 [COLD_CALL_CONTINUATION_SLICE_20261114.md](COLD_CALL_CONTINUATION_SLICE_20261114.md)。现CallResumeContext只管generator异常所有权，不能借用为普通调用等待。首片只做driver-owned、真实计费的leaf-call等待，复用AssignResume/ContinuationEngine.marker恢复已求值调用，避免重放prefix；caller/callee输入代、summary revision、source/policy/epoch与owned graph roots均是前置合同。它不引入Python可观察suspend/exception，也不重置statementguard。新三例仍not_run，不能代替原两例comprehension验收。
+
+与其并行的Native入口仍为NATIVE_CALL_PHASE_SLICE_20261114.md；递归输入/出口关联、LV完整事实与原父卡依赖维持开放。重要节点已逐次推送指定分支，未改main，未调用真实LLM或外发客户源码。

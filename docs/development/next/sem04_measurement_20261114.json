@@ -164,9 +164,10 @@
     "Repeated module/call replay and graph copies are static suspects; no measured ranking yet"
   ],
   "next_step": {
-    "kind": "qualify formatting followup then plan readiness/continuation and bulk-copy changes",
-    "status": "pending CI",
-    "limits": "Preserve statement guard, original wall/work/cost caps, phase effects, ownership and graph identity"
+    "kind": "cold source-call analysis continuation",
+    "contract": "COLD_CALL_CONTINUATION_SLICE_20261114.md",
+    "implementation": "not_run",
+    "limits": "Leaf-call precursor does not replace original comprehension targets or permit guard/cap changes"
   },
   "controlled_profile": {
     "commit": "0e403264087acd080da17ac7ec245a5cd19d885b",
@@ -277,6 +278,48 @@
       "added_diagnostics": 1,
       "only_new_diagnostic": "transform.py:238 format/unformatted",
       "followup": "Restore missing module-function blank line; formatting-only followup pending CI"
+    },
+    "formatting_followup": {
+      "commit": "05eee85d0447473d19b22f389415923b2690b316",
+      "quality_passed": true,
+      "correctness_gate_counts": {
+        "mandatory": {
+          "passed": 36,
+          "total": 36
+        },
+        "stage": {
+          "passed": 1048,
+          "total": 1048
+        },
+        "audit": {
+          "passed": 5282,
+          "failed": 2,
+          "failed_selectors": [
+            "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_residual_value_coverage]",
+            "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_over_thirty_two_value_coverage]"
+          ]
+        },
+        "semantic": {
+          "passed": 49,
+          "total": 52,
+          "failed": [
+            "recursion_sum_default",
+            "recursion_sum_context0",
+            "recursion_heap"
+          ]
+        },
+        "LV": {
+          "passed": 3,
+          "total": 6,
+          "failed": [
+            "lv_multi_call",
+            "lv_three_call_variant",
+            "lv_dominated_policy"
+          ]
+        }
+      },
+      "source_stable_all_groups": true,
+      "validation_record": "continuation_validation_20261114.json"
     }
   }
 }

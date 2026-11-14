@@ -222,5 +222,103 @@
     "failed_ids_unchanged": true,
     "quality_status": "one added formatting diagnostic; followup pending",
     "profile_record": "sem04_measurement_20261114.json"
+  },
+  "latest_qualified_bounded_checkpoint": {
+    "source_commit": "05eee85d0447473d19b22f389415923b2690b316",
+    "source_tree": "cd31976f925aed679995f9c35b40aa6ccc5fe809",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594775267",
+    "quality": {
+      "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594775337",
+      "passed": true,
+      "added_diagnostics": 0,
+      "diagnostic_counts": {
+        "format": 94,
+        "ruff": 2956,
+        "mypy": 2757
+      },
+      "negative_controls_passed": 25,
+      "whole_tree_mypy_clean": false
+    },
+    "gates": {
+      "mandatory": {
+        "passed": 36,
+        "total": 36
+      },
+      "stage": {
+        "passed": 1048,
+        "total": 1048
+      },
+      "audit": {
+        "passed": 5282,
+        "failed": 2,
+        "failed_selectors": [
+          "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_residual_value_coverage]",
+          "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_over_thirty_two_value_coverage]"
+        ]
+      },
+      "semantic": {
+        "passed": 49,
+        "total": 52,
+        "failed": [
+          "recursion_sum_default",
+          "recursion_sum_context0",
+          "recursion_heap"
+        ]
+      },
+      "LV": {
+        "passed": 3,
+        "total": 6,
+        "failed": [
+          "lv_multi_call",
+          "lv_three_call_variant",
+          "lv_dominated_policy"
+        ]
+      }
+    },
+    "gate_receipts": {
+      "mandatory": {
+        "phase": "complete",
+        "gate": "mandatory",
+        "commit": "05eee85d0447473d19b22f389415923b2690b316",
+        "exit_code": 0,
+        "elapsed_seconds": 4.556710760000001,
+        "source_before": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_after": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_stable": true
+      },
+      "stage": {
+        "phase": "complete",
+        "gate": "stage",
+        "commit": "05eee85d0447473d19b22f389415923b2690b316",
+        "exit_code": 0,
+        "elapsed_seconds": 83.33698349699999,
+        "source_before": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_after": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_stable": true
+      },
+      "audit": {
+        "phase": "complete",
+        "gate": "audit",
+        "commit": "05eee85d0447473d19b22f389415923b2690b316",
+        "exit_code": 1,
+        "elapsed_seconds": 82.41682744899998,
+        "source_before": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_after": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_stable": true
+      },
+      "semantic": {
+        "phase": "complete",
+        "gate": "semantic",
+        "commit": "05eee85d0447473d19b22f389415923b2690b316",
+        "exit_code": 1,
+        "elapsed_seconds": 22.131819844999995,
+        "source_before": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_after": "c40f9dd423d4faef597f5bc170e3ba31c3ad6a2f5bc3ebc3b9c83991a3b81b33",
+        "source_stable": true
+      }
+    },
+    "source_stable_all_groups": true,
+    "all60independent_bounded_controls_pass": true,
+    "scope": "Bounded frame/writeback/input-precision and sealed-schema lookup checks only; original residual obligations and parent cards remain open"
   }
 }
