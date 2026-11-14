@@ -270,6 +270,7 @@ def test_nested_store_graph_copy_is_repeatedly_admitted(monkeypatch: pytest.Monk
     assert all(not credits for credits in funded.values())
     diagnostic = {"copies": copies, "admitted_raw": raw, "internal_transform_work": transform_work}
     target = Path("artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2/publication-copy-counts.json")
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(diagnostic, indent=2) + "\n")
 
 

@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "id": "mapping_key_is_not_subject_attribute",
+      "source": "proxy={'__bases__':(int,)}\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='correct-typeerror'\n",
+      "mode": "exact",
+      "expected": "correct-typeerror"
+    },
+    {
+      "id": "mapping_key_is_not_classinfo_attribute",
+      "source": "proxy={'__bases__':(int,)}\ntry:\n result=isinstance(1,proxy)\nexcept TypeError:\n result='correct-typeerror'\n",
+      "mode": "exact",
+      "expected": "correct-typeerror"
+    },
+    {
+      "id": "bound_method_delegates_function_bases",
+      "source": "class C:\n def method(self): pass\nC.method.__bases__=(int,)\nproxy=C().method\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='wrong-typeerror'\n",
+      "mode": "cover",
+      "expected": true
+    },
+    {
+      "id": "staticmethod_does_not_implicitly_copy_bases",
+      "source": "def function(): pass\nfunction.__bases__=(int,)\nproxy=staticmethod(function)\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='typeerror'\n",
+      "mode": "cover",
+      "expected": "typeerror"
+    }
+  ]
+}

@@ -31,6 +31,7 @@ from pythonstan.analysis.contracts.json_data import (
 )
 from pythonstan.analysis.contracts.wire import freeze_snapshot
 from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.observations.procedures import ObservationView
 from pythonstan.analysis.state.flow import (
     BreakFlow,
     ContinueFlow,
@@ -109,6 +110,34 @@ class PublicationUnit:
 
 
 @dataclass(frozen=True, slots=True)
+class PublicationProcedure:
+    """Actual procedure observations, independent of solver Unit statistics."""
+
+    module: str
+    qualname: str
+    context: ContextId
+    revision: int
+    outcomes: tuple[Flow, ...]
+    is_module: Literal[False] = False
+    scenario: None = None
+
+    @classmethod
+    def capture(
+        cls, record: ObservationView, *, visit: Visitor | None = None
+    ) -> PublicationProcedure:
+        if visit is not None:
+            visit(1 + len(record.payload.outcomes))
+        scope = record.head.producer.scope
+        return cls(
+            scope.module,
+            scope.qualname,
+            scope.context,
+            record.head.version.revision,
+            record.payload.outcomes,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class FunctionPublication:
     qualname: str
     is_generator: bool
@@ -129,6 +158,8 @@ class PublicationInput:
     writes: tuple[AccessFact, ...]
     events: tuple[PrefixEvent, ...]
     exceptions: tuple[str, ...]
+    procedures: tuple[PublicationProcedure, ...] | None = None
+    procedure_queries: JsonObject | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,7 +168,9 @@ class ValueOutcome:
     value: Value
     exception: str | None
 
-    def to_json(self, unit: PublicationUnit, kinds: Mapping[ObjectId, str]) -> JsonObject:
+    def to_json(
+        self, unit: PublicationUnit | PublicationProcedure, kinds: Mapping[ObjectId, str]
+    ) -> JsonObject:
         return {
             "kind": self.kind,
             "value": self.value.export(kinds),
@@ -152,7 +185,9 @@ class ValueOutcome:
 class NoValueOutcome:
     kind: Literal["normal", "break", "continue"]
 
-    def to_json(self, unit: PublicationUnit, kinds: Mapping[ObjectId, str]) -> JsonObject:
+    def to_json(
+        self, unit: PublicationUnit | PublicationProcedure, kinds: Mapping[ObjectId, str]
+    ) -> JsonObject:
         return {
             "kind": self.kind,
             "value": None,
@@ -235,6 +270,7 @@ class PreparedPublication:
     exceptions: tuple[str, ...]
     open_obligations: tuple[PublicationWarning, ...]
     heap_scope: Literal["semantic_snapshot", "export_view"] = "semantic_snapshot"
+    procedure_queries: JsonObject | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -465,7 +501,12 @@ def prepare_publication(
     procedure_heaps: dict[str, MutableHeap] = {}
     module_exit_rows: dict[str, list[JsonValue]] = {}
     procedure_exits: dict[str, ProcedureExit] = {}
-    for unit in source.units:
+    scopes: tuple[PublicationUnit | PublicationProcedure, ...] = source.units
+    if source.procedures is not None:
+        if visit is not None:
+            visit(len(source.units) + len(source.procedures))
+        scopes = (*tuple(unit for unit in source.units if unit.is_module), *source.procedures)
+    for unit in scopes:
         if visit is not None:
             visit(1)
         if not unit.is_module:
@@ -592,6 +633,7 @@ def prepare_publication(
         exceptions=source.exceptions,
         open_obligations=tuple(warnings),
         heap_scope="export_view" if export_view else "semantic_snapshot",
+        procedure_queries=source.procedure_queries,
     )
 
 
@@ -878,7 +920,9 @@ def finalize_publication(
         ),
         "diagnostics": (),
         "stats": stats,
-        "provenance": {},
+        "provenance": {}
+        if prepared.procedure_queries is None
+        else {"procedure_queries": prepared.procedure_queries},
     }
     frozen = freeze_snapshot(header, visit=visit)
     if not isinstance(frozen, Mapping):

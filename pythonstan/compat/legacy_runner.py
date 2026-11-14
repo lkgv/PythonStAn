@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 import sys
@@ -10,7 +11,11 @@ import time
 from collections.abc import Iterator, Mapping
 from typing import TYPE_CHECKING, BinaryIO
 
-from pythonstan.analysis.contracts.cost_model import COST_MODEL_DIGEST, COST_MODEL_VERSION
+from pythonstan.analysis.contracts.cost_model import (
+    COST_MODEL_DIGEST,
+    COST_MODEL_VERSION,
+    visit_json_text,
+)
 from pythonstan.analysis.contracts.identity import SourceModule
 from pythonstan.analysis.contracts.json_data import (
     JsonObject,
@@ -24,6 +29,7 @@ from pythonstan.analysis.contracts.json_data import (
     validate_json_object,
 )
 from pythonstan.config.model import EffectiveConfig
+from pythonstan.frontend.private_names import source_declared_name
 from pythonstan.inputs import SourceSnapshot
 
 if TYPE_CHECKING:
@@ -73,6 +79,96 @@ def _array_field(document: JsonObject, key: str) -> list[JsonValue]:
     return require_array(document.setdefault(key, []))
 
 
+class _UnmatchedMethodPolicy(ValueError):
+    pass
+
+
+def _method_inventory(
+    snapshot: SourceSnapshot, options: JsonObject, ledger: RunLedger | None
+) -> list[JsonValue] | None:
+    """Check global targets once; keep scenario-local IR inventories out of this port."""
+    from pythonstan.analysis.pointer.kcfa.context_selector import parse_method_context_policies
+
+    rules = parse_method_context_policies(
+        require_object(options["andersen"]).get("method_context_policies", [])
+    )
+    if not rules:
+        return None
+    available: set[tuple[str, str]] = set()
+    inventory: list[JsonValue] = []
+    for source in snapshot.modules:
+        cached = snapshot.parsed_trees.get(source.module)
+        if cached is not None and cached[0] == source.digest:
+            tree = cached[1]
+        else:
+            if ledger is not None:
+                with ledger.structural_meter("native_method_inventory_parse") as parse_meter:
+                    visit_json_text(source.source, parse_meter.visit)
+            tree = ast.parse(
+                source.source, source.filename, type_comments=True, feature_version=(3, 12)
+            )
+            if ledger is not None:
+                ledger.checkpoint(force=True)
+        names: set[str] = set()
+        pending: list[tuple[ast.AST, str]] = [(tree, source.module)]
+        meter = None if ledger is None else ledger.structural_meter("native_method_inventory")
+        try:
+            while pending:
+                if meter is not None:
+                    meter.visit()
+                node, scope = pending.pop()
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    # Native builds a fresh raw-source AST. A cached frontend AST
+                    # can already have compiler-private identifiers lowered.
+                    scope += "." + (source_declared_name(node) or node.name)
+                    if not isinstance(node, ast.ClassDef):
+                        names.add(scope)
+                        available.add((source.module, scope))
+                pending.extend((child, scope) for child in ast.iter_child_nodes(node))
+        finally:
+            if meter is not None:
+                meter.close()
+        inventory.append(
+            {
+                "module": source.module,
+                "digest": source.digest,
+                "qualnames": list[JsonValue](sorted(names)),
+            }
+        )
+    if ledger is not None:
+        with ledger.structural_meter("native_method_inventory") as meter:
+            for rule in rules:
+                meter.visit()
+                if (rule.module, rule.qualname) not in available:
+                    raise _UnmatchedMethodPolicy("Unmatched source method policy targets")
+    elif any((rule.module, rule.qualname) not in available for rule in rules):
+        raise _UnmatchedMethodPolicy("Unmatched source method policy targets")
+    return inventory
+
+
+def _method_policy_failure(options: JsonObject, ledger: RunLedger | None) -> JsonObject:
+    stats: JsonObject = {"global_work_used": 0, "native_work": 0, "scenarios": 0}
+    if ledger is not None:
+        stats["resource_ledger"] = ledger.snapshot()
+    return {
+        "engine": options["engine"],
+        "solver_status": "failed",
+        "method_policy_validation": "rejected",
+        "coverage_status": "open",
+        "values": {},
+        "calls": [],
+        "returns": {},
+        "effects": {},
+        "outcomes": {},
+        "obligations": [
+            {"kind": "invalid_method_policy", "reason": "Unmatched source method policy targets"}
+        ],
+        "diagnostics": ["Unmatched source method policy targets"],
+        "stats": stats,
+        "phase_trace": [{"phase": "native_setup", "status": "invalid_method_policy"}],
+    }
+
+
 def _run_legacy_unshared(
     snapshot: SourceSnapshot,
     config: EffectiveConfig | Mapping[str, JsonValue],
@@ -96,6 +192,12 @@ def _run_legacy_unshared(
         "scenarios": scenarios,
         "config": options,
     }
+    try:
+        inventory = _method_inventory(snapshot, options, None)
+    except _UnmatchedMethodPolicy:
+        return _method_policy_failure(options, None)
+    if inventory is not None:
+        payload["method_inventory"] = inventory
     resources = require_object(options["resources"])
     seconds = require_number(resources["max_seconds"])
     max_work = require_int(resources["max_work"])
@@ -308,6 +410,10 @@ def _run_legacy_shared(
     try:
         with ledger.phase("native_setup"):
             ledger.checkpoint(force=True)
+            try:
+                inventory = _method_inventory(snapshot, options, ledger)
+            except _UnmatchedMethodPolicy:
+                return _method_policy_failure(options, ledger)
             payload: JsonObject = {
                 "modules": [_source_module_wire(source) for source in snapshot.modules],
                 "scenarios": [
@@ -322,6 +428,8 @@ def _run_legacy_shared(
                 "config": options,
                 "cost_model": {"version": COST_MODEL_VERSION, "digest": COST_MODEL_DIGEST},
             }
+            if inventory is not None:
+                payload["method_inventory"] = inventory
             ledger.charge_json(payload, "native_setup")
             resources = require_object(options["resources"])
             available = ledger.remaining_work

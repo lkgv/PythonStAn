@@ -443,6 +443,7 @@ class _RetainedAnswer:
     payload: FrozenJsonValue
     path: tuple[str, ...] | None = None
     proof_status: str = "not_requested"
+    coverage_status: str | None = None
 
 
 def _resolved_queries(queries: Sequence[QueryInput]) -> tuple[QuerySpec, ...]:
@@ -795,7 +796,7 @@ class AnalysisResult:
                         retained.status,
                         retained.payload,
                         approximation,
-                        self.coverage_status,
+                        retained.coverage_status or self.coverage_status,
                         retained.proof_status,
                         owner=self._snapshot,
                         path=retained.path,
@@ -808,7 +809,7 @@ class AnalysisResult:
                     retained.status,
                     retained.payload,
                     approximation,
-                    self.coverage_status,
+                    retained.coverage_status or self.coverage_status,
                     retained.proof_status,
                     visit=visit,
                     copy=self._copy_json,
@@ -821,13 +822,72 @@ class AnalysisResult:
                 return self._fallback(error.reason)._query_resolved(query)
             raise
 
+    def _procedure_query_scope(
+        self, query: QuerySpec, *, inspect: Visitor | None
+    ) -> tuple[str, str, bool] | None:
+        if isinstance(query, ValueQuery) and query.point == "function_exit":
+            view, module, qualname = "returns", query.module, query.module + "." + query.symbol
+        elif isinstance(query, ViewQuery) and query.kind in {"returns", "outcomes"}:
+            view, module, qualname = query.kind, None, None
+        else:
+            return None
+        provenance = self._snapshot.document.get("provenance")
+        if not isinstance(provenance, Mapping):
+            return None
+        metadata = provenance.get("procedure_queries")
+        if not isinstance(metadata, Mapping) or metadata.get("version") != 1:
+            return None
+        rows = metadata.get("queries")
+        if not isinstance(rows, tuple):
+            return "unavailable", "open", False
+        for row in rows:
+            if inspect is not None:
+                inspect(1)
+            if not isinstance(row, Mapping):
+                continue
+            if (
+                row.get("view") == view
+                and row.get("module") == module
+                and row.get("qualname") == qualname
+            ):
+                status = row.get("status")
+                coverage = row.get("coverage_status")
+                return (
+                    status if isinstance(status, str) else "unavailable",
+                    "closed_under_profile" if coverage == "closed_under_profile" else "open",
+                    row.get("has_positive_facts") is True,
+                )
+        # A complete bulk producer catalog cannot authorize an unknown symbol.
+        return "unavailable", "open", False
+
     def _retain_query(self, query: QuerySpec, *, inspect: Visitor | None = None) -> _RetainedAnswer:
         requested = query.kind == "summary" or resolved_query_key(query) in self._query_keys
         if isinstance(query, ValueQuery):
             view = ViewQuery("values" if query.point == "module_exit" else "returns")
             requested = requested or resolved_query_key(view) in self._query_keys
+        scope = self._procedure_query_scope(query, inspect=inspect)
         if not requested:
-            return _RetainedAnswer("not_requested", None)
+            procedure = (
+                isinstance(query, ValueQuery)
+                and query.point == "function_exit"
+                or isinstance(query, ViewQuery)
+                and query.kind in {"returns", "outcomes"}
+            )
+            return _RetainedAnswer(
+                "not_requested", None, coverage_status="open" if procedure else None
+            )
+        coverage = None if scope is None else scope[1]
+        if scope is not None and scope[0] != "answered":
+            if isinstance(query, ViewQuery) and query.kind in {"returns", "outcomes"}:
+                partial = self._snapshot.document.get(query.kind)
+                if isinstance(partial, Mapping):
+                    return _RetainedAnswer(
+                        "answered" if scope[2] else "unavailable",
+                        partial,
+                        (query.kind,),
+                        coverage_status="open",
+                    )
+            return _RetainedAnswer("unavailable", None, coverage_status="open")
         data = self._snapshot.document
         payload: FrozenJsonValue
         path: tuple[str, ...] | None = None
@@ -847,7 +907,9 @@ class AnalysisResult:
                 and payload.get("bottom")
                 and self.solver_status != "converged"
             ):
-                return _RetainedAnswer("unavailable", None)
+                return _RetainedAnswer(
+                    "unavailable", None, coverage_status="open" if scope is not None else None
+                )
         elif isinstance(query, PropertyQuery):
             proof = _frozen_object(data.get("proof", {}))
             queries = _frozen_object(proof.get("queries", {}))
@@ -884,7 +946,7 @@ class AnalysisResult:
                 proof_status = self.proof_status
             if payload is None:
                 return _RetainedAnswer("unavailable", None, proof_status=proof_status)
-        return _RetainedAnswer("answered", payload, path, proof_status)
+        return _RetainedAnswer("answered", payload, path, proof_status, coverage)
 
     def _relations(self, *, inspect: Visitor | None = None) -> list[FrozenJsonValue]:
         data = self._snapshot.document
@@ -958,7 +1020,12 @@ class AnalysisResult:
             "approximation": "flow_insensitive_may"
             if self.actual_engine == "native"
             else "flow_sensitive_may",
-            "coverage_status": self.coverage_status,
+            "coverage_status": (
+                "open"
+                if retained.coverage_status is not None
+                and (projected.status is not None or projected.truncated)
+                else retained.coverage_status or self.coverage_status
+            ),
             "proof_status": "unknown"
             if proof and projected.status is not None
             else retained.proof_status,

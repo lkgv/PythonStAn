@@ -3462,32 +3462,11 @@ class Transfer:
         if name in {"isinstance", "issubclass"}:
             if keywords or len(args) != 2:
                 return [self.error(store, "TypeError")]
-            affected = [store.heap.get(ref) for value in args for ref in value.refs]
-            affected.extend(
-                store.heap.get(cls) for obj in tuple(affected) if obj for cls in obj.class_ids
+            from pythonstan.analysis.semantics.classinfo import ClassRelations
+
+            return ClassRelations(self).check(
+                args[0], args[1], store, frame, node, subclass=name == "issubclass"
             )
-            if args[1].top or args[1].top_sorts or any(obj and obj.havoc for obj in affected):
-                return [
-                    replace_flow(out, value=Value(bools=frozenset((False, True))))
-                    if out.kind == "normal"
-                    else out
-                    for out in self.unknown(store, node, "havoc_class_relation_query")
-                ]
-            truths = set()
-            for ref in args[0].refs:
-                obj = store.heap.get(ref)
-                classes = obj.class_ids if obj and name == "isinstance" else frozenset((ref,))
-                for cls in args[1].refs:
-                    truths.add(
-                        cls in classes
-                        or any(
-                            cls in store.heap.get(c, HeapObject("class")).metadata.lookup("mro", ())
-                            for c in classes
-                        )
-                    )
-            if args[0].top or not truths:
-                truths.update((False, True))
-            return [NormalExprFlow(StateHandle.capture(store), Value(bools=frozenset(truths)))]
         if name == "type":
             if len(args) == 1:
                 if args[0].top or any(

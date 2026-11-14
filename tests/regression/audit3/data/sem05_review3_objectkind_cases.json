@@ -1,0 +1,22 @@
+{
+  "cases": [
+    {
+      "id": "module_owned_bases",
+      "files": {
+        "proxy.py": "marker=1\n",
+        "main.py": "import proxy\nproxy.__bases__=(int,)\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='wrong-typeerror'\n"
+      },
+      "expected": true
+    },
+    {
+      "id": "staticmethod_owned_bases",
+      "source": "def function(): pass\nproxy=staticmethod(function)\nproxy.__bases__=(int,)\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='wrong-typeerror'\n",
+      "expected": true
+    },
+    {
+      "id": "classmethod_owned_bases",
+      "source": "def function(): pass\nproxy=classmethod(function)\nproxy.__bases__=(int,)\ntry:\n result=issubclass(proxy,int)\nexcept TypeError:\n result='wrong-typeerror'\n",
+      "expected": true
+    }
+  ]
+}

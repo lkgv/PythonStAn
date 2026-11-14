@@ -10,7 +10,13 @@ from pythonstan.ir.ir_statements import IRAssign, IRFunc
 
 from .. import debug_boundary
 from ..allocation import canonical_constant
-from ..constraints import AllocConstraint, CallConstraint, LoadConstraint, MappingCopyConstraint
+from ..constraints import (
+    AllocConstraint,
+    CallConstraint,
+    LoadConstraint,
+    MappingCopyConstraint,
+    ResidualEffectConstraint,
+)
 from ..context import Ctx, NativeContext, Scope, ordered_binding_token
 from ..context_selector import ContextSelector
 from ..heap_model import attr, elem, key
@@ -174,6 +180,44 @@ class NormalCallProcessor(Processor):
         call: CallConstraint,
         builtin_obj: AbstractObject,
     ) -> bool:
+        if isinstance(builtin_obj, BuiltinInstanceObject):
+            if builtin_obj.builtin_type == "classmethod":
+                # A raw classmethod is a descriptor, not an arbitrary callable.
+                # Ordinary class lookup also contributes its bound-method path.
+                callee = solver.state.get_variable(scope, context, call.callee)
+                solver._record_non_callable_evidence(scope, callee, call, builtin_obj)
+                solver.add_constraint(
+                    scope,
+                    context,
+                    ResidualEffectConstraint(
+                        str(call.call_site),
+                        "classmethod object is not callable; TypeError remains an exceptional exit",
+                        ("may_raise",),
+                    ),
+                )
+                return True
+            if builtin_obj.builtin_type == "staticmethod":
+                # In the Python 3.12 profile a raw staticmethod is callable.
+                # Persistent constraints preserve targets discovered later.
+                wrapped = solver.variable_factory.make_variable(
+                    f"$staticmethod_call@{call.call_site.site_id}", VariableKind.TEMPORARY
+                )
+                solver.add_constraint(
+                    scope, context, LoadConstraint(call.callee, attr("func"), wrapped)
+                )
+                solver.add_constraint(
+                    scope,
+                    context,
+                    CallConstraint(
+                        wrapped,
+                        call.args,
+                        call.kwargs,
+                        call.target,
+                        call.call_site,
+                        semantic_partition=call.semantic_partition,
+                    ),
+                )
+                return True
         solver._register_builtin_dependencies(scope, context, call, builtin_obj)
         ai_handled = solver._try_ai_intrinsic(scope, context, call, builtin_obj)
         # AI contributes may-facts; the persistent builtin constraints remain
@@ -376,7 +420,10 @@ class NormalCallProcessor(Processor):
         args.insert(0, self_var)
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
 
-        call_context = require_context_selector(solver, "select_call_context").select_call_context(
+        selected_policy = require_context_selector(solver, "select_call_context").for_method(
+            method_obj.container_scope.module.stmt.get_qualname(), func_ir.get_qualname()
+        )
+        call_context = selected_policy.select_call_context(
             call.call_site, context, holder_obj, params=ordered_binding_token(args, kwargs)
         )
         if call.semantic_partition is not None:
@@ -455,7 +502,10 @@ class NormalCallProcessor(Processor):
         args = [solver.state.get_variable(scope, context, arg) for arg in call.args]
         kwargs = {k: solver.state.get_variable(scope, context, arg) for k, arg in call.kwargs}
 
-        call_context = require_context_selector(solver, "select_call_context").select_call_context(
+        selected_policy = require_context_selector(solver, "select_call_context").for_method(
+            func_obj.container_scope.module.stmt.get_qualname(), func_ir.get_qualname()
+        )
+        call_context = selected_policy.select_call_context(
             call.call_site,
             context,
             None,  # No receiver ffor regular functions

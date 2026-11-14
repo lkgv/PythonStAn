@@ -26,6 +26,7 @@ from pythonstan.analysis.contracts.identity import (
     ObjectId,
     PolicyId,
     ProgramPointId,
+    SemanticIdentity,
     StateRevision,
     UnitId,
 )
@@ -52,6 +53,11 @@ from pythonstan.analysis.contracts.private_slots import (
 from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger
 from pythonstan.analysis.domains.reabstract import IdentitySubstitution
 from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.observations.driver_bridge import (
+    DriverProcedureBridge,
+    SummaryProcedureExit,
+    procedure_requests,
+)
 from pythonstan.analysis.policies.region import EffectiveRegionPolicy, RegionExecutionContext
 from pythonstan.analysis.state.aliases import alias_partitions_agree
 from pythonstan.frontend.source import (
@@ -94,6 +100,7 @@ from pythonstan.analysis.state.transform import GraphPayload, walk_graph
 from .publication import (
     FunctionPublication,
     PublicationInput,
+    PublicationProcedure,
     PublicationRuntime,
     PublicationUnit,
     export_publication_values,
@@ -216,6 +223,7 @@ class InterproceduralDriver:
         self.region_scheduler: RegionScheduler | None = None
         self.summary_provider: GuardedDispatchProvider | None = None
         self._summary_host_marker = object()
+        self.procedure_bridge: DriverProcedureBridge | None = None
         from .transfer import Transfer
 
         self.transfer = Transfer(self, self.default_execution)
@@ -297,13 +305,22 @@ class InterproceduralDriver:
         )
 
     def _summary_context(
-        self, execution: RegionExecutionContext | None = None
+        self,
+        execution: RegionExecutionContext | None = None,
+        *,
+        procedure_exits: Callable[[tuple[SummaryProcedureExit, ...]], None] | None = None,
+        procedure_calls: Callable[[str], None] | None = None,
     ) -> SummaryApplicationContext:
         """Expose only the real checked-summary capabilities for this host."""
         from pythonstan.analysis.composition.summary_context import (
             SummaryApplicationContext,
             SummaryHostId,
         )
+
+        def record_call(caller: str, callee: str, point: ProgramPointId) -> None:
+            self.calls.add((caller, callee, point))
+            if procedure_calls is not None:
+                procedure_calls(callee)
 
         return SummaryApplicationContext(
             host_token=SummaryHostId(self._summary_host_marker),
@@ -317,10 +334,13 @@ class InterproceduralDriver:
             point=self.point,
             remaining_work=lambda: self.resource_ledger.remaining_work,
             charge=self.charge,
-            record_call=lambda caller, callee, point: self.calls.add((caller, callee, point)),
+            record_call=record_call,
             record_read=lambda owner, key, point: self.reads.add((owner, key, point)),
             record_write=lambda owner, key, point: self.writes.add((owner, key, point)),
             record_exception=self.exceptions.add,
+            record_binding_read=lambda owner, name, point: self.reads.add((owner, name, point)),
+            record_procedure_exits=procedure_exits,
+            context_depth=(execution or self.default_execution).context_depth,
         )
 
     @property
@@ -464,6 +484,11 @@ class InterproceduralDriver:
                             )
 
                 walk_graph(payload, on_store=mark)
+            observation_prepared = None
+            if self.procedure_bridge is not None:
+                observation_prepared = self.procedure_bridge.store.prepare_epoch(
+                    transform, epoch, units=payload.units
+                )
             oracle_prepared = None
             provider_prepared = None
             if self.incremental_oracle is not None:
@@ -502,6 +527,8 @@ class InterproceduralDriver:
             # objects. External service commit hooks have the same contract.
             if oracle_prepared is not None:
                 oracle_prepared.validate()
+            if observation_prepared is not None:
+                observation_prepared.validate()
             if (
                 operations.arena.epoch != source_epoch
                 or operations.arena.aliases != source_aliases
@@ -516,6 +543,10 @@ class InterproceduralDriver:
             self.writes = writes
             self.queue = queue
             self.queued = queued
+            if observation_prepared is not None:
+                observation_prepared.commit()
+                if self.procedure_bridge is not None:
+                    self.procedure_bridge.epoch_committed()
             if oracle_prepared is not None:
                 oracle_prepared.commit()
             if provider_prepared is not None and self.summary_provider is not None:
@@ -590,6 +621,8 @@ class InterproceduralDriver:
 
     def enqueue(self, key: UnitId, reason: str) -> None:
         if key not in self.queued:
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.pending(self.units[key])
             self.queue.append(key)
             self.queued.add(key)
             self.emit("work_enqueue", unit=key, reason=reason)
@@ -694,6 +727,8 @@ class InterproceduralDriver:
         if key not in self.units:
             self.units[key] = Unit(key, frame, body, entry, is_module=is_module)
             self.unit_scenarios[key] = self.scenario
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.register(self.units[key], self.scenario)
             self.enqueue(key, "new_entry")
         else:
             unit = self.units[key]
@@ -762,6 +797,8 @@ class InterproceduralDriver:
             info.node.args, CallArguments(tuple(args), tuple(keywords)), defaults, kw_defaults
         )
         if bound.errors:
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.unsupported(info)
             self.exceptions.add("TypeError")
             return [
                 RaiseFlow(
@@ -770,9 +807,19 @@ class InterproceduralDriver:
                 )
             ]
         if self.summary_provider is not None:
+            accepted_exits: list[SummaryProcedureExit] = []
+            accepted_calls: list[str] = []
             try:
                 application = self.summary_provider.try_apply(
-                    self._summary_context(execution),
+                    self._summary_context(
+                        execution,
+                        procedure_exits=accepted_exits.extend
+                        if self.procedure_bridge is not None
+                        else None,
+                        procedure_calls=accepted_calls.append
+                        if self.procedure_bridge is not None
+                        else None,
+                    ),
                     identifier,
                     args,
                     keywords,
@@ -786,6 +833,16 @@ class InterproceduralDriver:
                 application = None
                 self.open("summary_provider_failure", store, site)
             if application is not None:
+                if self.procedure_bridge is not None:
+                    self.resource_ledger.charge_work(
+                        len(accepted_exits) + len(accepted_calls) + 1,
+                        "procedure_summary_capability",
+                    )
+                    observed = {record.qualname for record in accepted_exits}
+                    for qualname in (info.qualname, *accepted_calls):
+                        if qualname not in observed:
+                            self.procedure_bridge.unsupported_scope(info.module, qualname)
+                    self.procedure_bridge.accepted(accepted_exits)
                 self.calls.add((caller_frame.qualname, info.qualname, self.point(site)))
                 self.increment_stat("checked_summary_applications", 1)
                 self.emit(
@@ -826,6 +883,8 @@ class InterproceduralDriver:
             execution=execution,
         )
         if info.is_generator or info.is_async:
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.lazy(info)
             # A lazy frame owns local bindings, not a creation-time copy of all
             # globals or every older generator. Referenced objects stay in the
             # returned caller heap and are read live when execution resumes.
@@ -1177,6 +1236,27 @@ class InterproceduralDriver:
         ordered_entries = sorted(enumerate(entries), key=demand_priority)
         try:
             self._check_limits(force=True)
+            if self._shared_resource_ledger:
+                queries = self.options.get("queries", [])
+                requested = procedure_requests(queries)
+                if requested:
+                    self.resource_ledger.charge_work(
+                        len(queries) if isinstance(queries, list) else 1,
+                        "procedure_request_select",
+                    )
+                    self.procedure_bridge = DriverProcedureBridge(
+                        SemanticIdentity(
+                            self.source_digest,
+                            self.source_digest,
+                            self.model_digest,
+                            self.policy_digest,
+                            self.semantic_profile,
+                            state_version=str(self.ops.arena.epoch),
+                        ),
+                        self.ops.arena.epoch,
+                        self.resource_ledger,
+                        requested,
+                    )
             if self.incremental_oracle is not None:
                 self.incremental_oracle.bind(self)
             if self.summary_provider is not None:
@@ -1246,6 +1326,8 @@ class InterproceduralDriver:
             unit = self.units[key]
             self.current = key
             self.scenario = self.unit_scenarios[key]
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.begin(unit)
             unit.visits += 1
             self.increment_stat("unit_evaluations", 1)
             self._activation_occurrences.clear()
@@ -1306,6 +1388,8 @@ class InterproceduralDriver:
                         epoch=execution.ops.arena.epoch,
                     ):
                         self.enqueue(consumer, "callee_exit_growth")
+            if self.procedure_bridge is not None:
+                self.procedure_bridge.finish(unit, pending=key in self.queued)
             self.current = None
 
     def input_value(
@@ -1389,6 +1473,23 @@ class InterproceduralDriver:
                 self.exceptions,
             ):
                 visit(len(rows))
+        procedure_facts = None
+        procedure_queries = None
+        if self.procedure_bridge is not None:
+            observations, procedure_queries = self.procedure_bridge.finalize(
+                self.functions,
+                producer_catalog_complete=(
+                    self.solver_status == "converged"
+                    and not self.queue
+                    and self.current is None
+                    and not self.obligations
+                ),
+            )
+            procedure_facts = tuple(
+                PublicationProcedure.capture(record, visit=visit)
+                for record in observations
+                if record.head.producer.scope.kind == "procedure"
+            )
         source = PublicationInput(
             units=tuple(
                 PublicationUnit.capture(unit, self.unit_scenarios.get(unit.key), visit=visit)
@@ -1404,6 +1505,8 @@ class InterproceduralDriver:
             writes=tuple(self.writes),
             events=tuple(self.events),
             exceptions=tuple(self.exceptions),
+            procedures=procedure_facts,
+            procedure_queries=procedure_queries,
         )
         prepared = prepare_publication(
             source, self.ops, visit=visit, export_view=self._shared_resource_ledger

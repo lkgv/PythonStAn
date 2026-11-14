@@ -1,0 +1,67 @@
+{
+  "cases": [
+    {
+      "id": "maybe_absent_subject_bases",
+      "source": "class Proxy: pass\np=Proxy()\nif flag:\n p.__bases__=(int,)\ntry:\n result=issubclass(p,int)\nexcept TypeError:\n result='missing'\n",
+      "exact": false,
+      "worlds": [
+        "missing",
+        true
+      ]
+    },
+    {
+      "id": "maybe_invalid_subject_bases",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(int,) if flag else [int]\ntry:\n result=issubclass(p,int)\nexcept TypeError:\n result='invalid'\n",
+      "exact": false,
+      "worlds": [
+        "invalid",
+        true
+      ]
+    },
+    {
+      "id": "mixed_inner_base_scalar_class",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(int if flag else 42,)\nresult=issubclass(p,int)\n",
+      "exact": false,
+      "worlds": [
+        false,
+        true
+      ]
+    },
+    {
+      "id": "maybe_absent_target_bases",
+      "source": "class Proxy: pass\np=Proxy()\nif flag:\n p.__bases__=(int,)\ntry:\n result=issubclass(bool,p)\nexcept TypeError:\n result='missing'\n",
+      "exact": false,
+      "worlds": [
+        "missing",
+        false
+      ]
+    },
+    {
+      "id": "lazy_match_skips_duck_validation",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(int,) if flag else None\nresult=isinstance(1,(int,p))\n",
+      "exact": true,
+      "worlds": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "owned_special_instancecheck_ignored",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=()\np.__instancecheck__=lambda value: True\nresult=isinstance(1,p)\n",
+      "exact": false,
+      "worlds": [
+        false,
+        false
+      ]
+    },
+    {
+      "id": "owned_special_subclasscheck_ignored",
+      "source": "def proxy(): pass\nproxy.__bases__=()\nproxy.__subclasscheck__=lambda value: True\nresult=issubclass(int,proxy)\n",
+      "exact": false,
+      "worlds": [
+        false,
+        false
+      ]
+    }
+  ]
+}

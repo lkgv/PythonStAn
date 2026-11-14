@@ -361,6 +361,12 @@ def _validate_controls(data: JsonObject, provenance: Mapping[str, str]) -> None:
     policy = _get(data, "andersen.heap_context_policy")
     if policy is not None and policy not in CATALOG["andersen.context_policy"].choices:
         raise ConfigurationError("Unsupported heap_context_policy")
+    from pythonstan.analysis.pointer.kcfa.context_selector import parse_method_context_policies
+
+    try:
+        parse_method_context_policies(_get(data, "andersen.method_context_policies"))
+    except (TypeError, ValueError) as error:
+        raise ConfigurationError(str(error)) from error
     from .llm_provider import ProviderOptions
 
     llm = require_object(data["llm"])
@@ -397,7 +403,11 @@ def _active_controls(
             raise ConfigurationError(
                 f"{key} has no active public consumer for {engine}; use inputs.entries/source_roots for input contracts"
             )
-    for key in ("andersen.heap_context_policy", "andersen.heap_context_depth"):
+    for key in (
+        "andersen.heap_context_policy",
+        "andersen.heap_context_depth",
+        "andersen.method_context_policies",
+    ):
         if engine not in ("native", "native_then_ai") and _get(data, key) != _get(builtin, key):
             raise ConfigurationError(f"{key} is supported by native/native_then_ai only")
     for key, descriptor in CATALOG.items():

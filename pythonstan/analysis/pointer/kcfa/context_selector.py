@@ -5,8 +5,19 @@ This module implements context selection for various context-sensitive policies.
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import Iterable
+from dataclasses import dataclass
 from enum import Enum
 from typing import override
+
+from pythonstan.analysis.contracts.json_data import (
+    JsonObject,
+    JsonValue,
+    require_array,
+    require_object,
+    require_string,
+)
 
 from .context import (
     AbstractContext,
@@ -60,6 +71,60 @@ class ContextPolicy(Enum):
     HYBRID_CALL1_OBJ2 = "1c2o"
 
 
+@dataclass(frozen=True)
+class MethodContextRule:
+    module: str
+    qualname: str
+    policy: ContextPolicy
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.module) is not str
+            or not self.module
+            or not all(part.isidentifier() for part in self.module.split("."))
+            or type(self.qualname) is not str
+            or not self.qualname.startswith(self.module + ".")
+            or self.qualname.endswith(".")
+            or any(character in self.qualname for character in "*?[]")
+            or not isinstance(self.policy, ContextPolicy)
+        ):
+            raise ValueError(
+                "Method policies require exact source module/FQN and a registered policy"
+            )
+
+    def to_dict(self) -> JsonObject:
+        return {"module": self.module, "qualname": self.qualname, "policy": self.policy.value}
+
+
+def parse_method_context_policies(
+    value: JsonValue | tuple[MethodContextRule, ...],
+) -> tuple[MethodContextRule, ...]:
+    rules: list[MethodContextRule] = []
+    if isinstance(value, tuple):
+        for compiled in value:
+            if not isinstance(compiled, MethodContextRule):
+                raise ValueError("Compiled method policy rows must be immutable rules")
+            rules.append(compiled)
+    else:
+        for raw in require_array(value):
+            row = require_object(raw)
+            if row.keys() != {"module", "qualname", "policy"}:
+                raise ValueError("Method policy row fields must be exactly module/qualname/policy")
+            rules.append(
+                MethodContextRule(
+                    require_string(row["module"]),
+                    require_string(row["qualname"]),
+                    parse_policy(require_string(row["policy"])),
+                )
+            )
+    by_target: dict[tuple[str, str], MethodContextRule] = {
+        (rule.module, rule.qualname): rule for rule in rules
+    }
+    if len(by_target) != len(rules):
+        raise ValueError("Duplicate method policy target")
+    return tuple(by_target[key] for key in sorted(by_target))
+
+
 class ContextSelector:
     """Selects contexts based on policy."""
 
@@ -68,6 +133,8 @@ class ContextSelector:
         policy: ContextPolicy = ContextPolicy.CALL_2,
         heap_context_policy: ContextPolicy | str | None = None,
         heap_context_depth: int | None = None,
+        *,
+        method_context_policies: JsonValue | tuple[MethodContextRule, ...] = (),
     ) -> None:
         """Initialize context selector.
 
@@ -76,6 +143,12 @@ class ContextSelector:
         """
         self.policy = policy
         self._empty_context = self._create_empty_context()
+        self.method_context_policies = parse_method_context_policies(method_context_policies)
+        self._method_rules = {
+            (rule.module, rule.qualname): rule.policy for rule in self.method_context_policies
+        }
+        self._method_selectors: dict[ContextPolicy, ContextSelector] = {}
+        self._method_decisions: Counter[tuple[str, str, str]] = Counter()
         if heap_context_depth is not None and (
             type(heap_context_depth) is not int or not 0 <= heap_context_depth <= 3
         ):
@@ -89,6 +162,32 @@ class ContextSelector:
         if heap_policy is not None and not isinstance(heap_policy, ContextPolicy):
             raise ValueError("heap_context_policy must be a registered context policy")
         self._heap_selector = ContextSelector(heap_policy) if heap_policy is not None else None
+
+    def for_method(self, module: str, qualname: str) -> ContextSelector:
+        """Choose only call sensitivity; the global allocation authority stays intact."""
+        selected = self._method_rules.get((module, qualname), self.policy)
+        self._method_decisions[(module, qualname, selected.value)] += 1
+        if selected == self.policy:
+            return self
+        if selected not in self._method_selectors:
+            self._method_selectors[selected] = ContextSelector(selected)
+        return self._method_selectors[selected]
+
+    def validate_method_targets(self, available: Iterable[tuple[str, str]]) -> None:
+        if not self._method_rules:
+            return
+        missing = self._method_rules.keys() - set[tuple[str, str]](available)
+        if missing:
+            raise ValueError(f"Unmatched source method policy targets: {sorted(missing)}")
+
+    def method_statistics(self) -> JsonObject:
+        return {
+            "rules": [rule.to_dict() for rule in self.method_context_policies],
+            "decisions": {
+                f"{module}:{qualname}:{policy}": count
+                for (module, qualname, policy), count in sorted(self._method_decisions.items())
+            },
+        }
 
     def _create_empty_context(self) -> NativeBaseContext:
         """Create empty context for policy."""
@@ -136,6 +235,18 @@ class ContextSelector:
         """Get empty context."""
         return self._empty_context
 
+    @staticmethod
+    def _available_calls(context: object) -> tuple[CallContextSite, ...]:
+        # Registered call-bearing contexts may also hold source IRStatement
+        # sites. The external metadata projection intentionally only exposes
+        # CallSite records, so retain these already typed histories directly.
+        if isinstance(context, (CallStringContext, HybridContext)):
+            return context.call_sites
+        # Custom context extensions keep the established method fallback:
+        # their externally projected history is a heap capability, not an
+        # additional registered method-context family.
+        return ()
+
     def select_call_context[InputT](
         self,
         call_site: CallContextSite,
@@ -164,20 +275,30 @@ class ContextSelector:
             if summarized:
                 selected = make_native_summary(selected)
             return apply_native_protocol_partition(selected, partition)
+        if isinstance(base, SummaryContext):
+            while isinstance(base, SummaryContext):
+                if base.inner is None:
+                    raise ValueError("Summary context requires an available base context")
+                base = base.inner
+            return make_native_summary(
+                self.select_call_context(call_site, base, callee_obj, params)
+            )
         if self.policy == ContextPolicy.INSENSITIVE:
             return self.empty_context()
 
         if self.policy in (ContextPolicy.CALL_1, ContextPolicy.CALL_2, ContextPolicy.CALL_3):
-            if isinstance(caller_ctx, CallStringContext):
-                return caller_ctx.append(call_site)
             empty = self._empty_context
             if not isinstance(empty, CallStringContext):
                 raise ValueError("Call policy requires its matching empty context")
-            return empty.append(call_site)
+            # The callee's policy owns the bound. A differently selected caller
+            # may retain less history, but cannot dictate the callee's depth.
+            calls = self._available_calls(caller_ctx)
+            projected = CallStringContext(calls[-empty.k :] if empty.k else (), empty.k)
+            return projected.append(call_site)
 
         if self.policy in (ContextPolicy.OBJ_1, ContextPolicy.OBJ_2, ContextPolicy.OBJ_3):
             object_context = (
-                caller_ctx
+                ObjectContext(caller_ctx.alloc_sites, self._get_depth())
                 if isinstance(caller_ctx, ObjectContext)
                 else ObjectContext((), self._get_depth())
             )
@@ -187,7 +308,7 @@ class ContextSelector:
 
         if self.policy in (ContextPolicy.TYPE_1, ContextPolicy.TYPE_2, ContextPolicy.TYPE_3):
             type_context = (
-                caller_ctx
+                TypeContext(caller_ctx.types, self._get_depth())
                 if isinstance(caller_ctx, TypeContext)
                 else TypeContext((), self._get_depth())
             )
@@ -203,7 +324,7 @@ class ContextSelector:
             ContextPolicy.RECEIVER_3,
         ):
             receiver_context = (
-                caller_ctx
+                ReceiverContext(caller_ctx.receivers, self._get_depth())
                 if isinstance(caller_ctx, ReceiverContext)
                 else ReceiverContext((), self._get_depth())
             )
@@ -213,7 +334,7 @@ class ContextSelector:
 
         if self.policy in (ContextPolicy.PARAM_1, ContextPolicy.PARAM_2, ContextPolicy.PARAM_3):
             parameter_context = (
-                caller_ctx
+                ParamContext(caller_ctx.params, self._get_depth())
                 if isinstance(caller_ctx, ParamContext)
                 else ParamContext((), self._get_depth())
             )
@@ -228,9 +349,16 @@ class ContextSelector:
             ContextPolicy.HYBRID_CALL1_OBJ2,
         ):
             hybrid_context = (
-                caller_ctx
+                HybridContext(
+                    caller_ctx.call_sites,
+                    caller_ctx.alloc_sites,
+                    self._get_call_k(),
+                    self._get_obj_depth(),
+                )
                 if isinstance(caller_ctx, HybridContext)
-                else HybridContext((), (), self._get_call_k(), self._get_obj_depth())
+                else HybridContext(
+                    self._available_calls(caller_ctx), (), self._get_call_k(), self._get_obj_depth()
+                )
             )
             if callee_obj:
                 return hybrid_context.append(call_site, callee_obj)
@@ -262,12 +390,33 @@ class ContextSelector:
         empty = selector.empty_context()
         projected: NativeContext
         if isinstance(base, type(empty)) and is_native_context(base):
-            projected = base
+            if isinstance(base, CallStringContext) and isinstance(empty, CallStringContext):
+                projected = CallStringContext(
+                    base.call_sites[-empty.k :] if empty.k else (), empty.k
+                )
+            elif isinstance(base, ObjectContext) and isinstance(empty, ObjectContext):
+                projected = ObjectContext(base.alloc_sites, empty.depth)
+            elif isinstance(base, TypeContext) and isinstance(empty, TypeContext):
+                projected = TypeContext(base.types, empty.depth)
+            elif isinstance(base, ReceiverContext) and isinstance(empty, ReceiverContext):
+                projected = ReceiverContext(base.receivers, empty.depth)
+            elif isinstance(base, ParamContext) and isinstance(empty, ParamContext):
+                projected = ParamContext(base.params, empty.depth)
+            elif isinstance(base, HybridContext) and isinstance(empty, HybridContext):
+                projected = HybridContext(
+                    base.call_sites, base.alloc_sites, empty.call_k, empty.obj_depth
+                )
+            else:
+                raise ValueError("Heap policy requires its matching registered context family")
         else:
             # Switching to call strings retains only actual call sites present
             # in the finite method context. Other unavailable history is forgotten.
             if isinstance(empty, CallStringContext):
-                calls = native_call_history(base)
+                calls = (
+                    self._available_calls(base)
+                    if isinstance(base, (CallStringContext, HybridContext))
+                    else native_call_history(base)
+                )
                 projected = CallStringContext(calls[-empty.k :] if empty.k else (), empty.k)
             else:
                 projected = empty

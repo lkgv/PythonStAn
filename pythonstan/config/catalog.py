@@ -336,6 +336,13 @@ def _legacy_options() -> list[OptionDescriptor]:
 def _additional_options() -> tuple[OptionDescriptor, ...]:
     return (
         _descriptor(
+            "andersen.method_context_policies",
+            [],
+            "analysis.pointer.kcfa.context_selector.ContextSelector.for_method",
+            engines=("native", "native_then_ai"),
+            note="Exact source module/FQN rules choose method sensitivity; allocation policy remains independent.",
+        ),
+        _descriptor(
             "andersen.heap_context_policy",
             None,
             "analysis.pointer.kcfa.context_selector.ContextSelector.select_alloc_context",
@@ -519,6 +526,17 @@ def _schema_value(option: OptionDescriptor) -> JsonObject:
         "abstract.plan_scopes",
     }:
         value["type"] = ["null", "array"]
+    if option.path == "andersen.method_context_policies":
+        value["items"] = {
+            "type": "object",
+            "properties": {
+                "module": {"type": "string", "minLength": 1},
+                "qualname": {"type": "string", "minLength": 1},
+                "policy": {"type": "string", "enum": list(CONTEXT_POLICIES)},
+            },
+            "required": ["module", "qualname", "policy"],
+            "additionalProperties": False,
+        }
     if option.choices:
         value["enum"] = list(option.choices)
     if option.minimum is not None:

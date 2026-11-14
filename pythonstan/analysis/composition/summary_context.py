@@ -10,6 +10,7 @@ from typing import Literal, NewType, Protocol
 
 from pythonstan.analysis.contracts import SourceModule
 from pythonstan.analysis.contracts.identity import IdentityEpoch, ObjectId, ProgramPointId
+from pythonstan.analysis.observations.driver_bridge import SummaryProcedureExit
 from pythonstan.analysis.state.store import FunctionInfo
 
 SummaryHostId = NewType("SummaryHostId", object)
@@ -37,6 +38,9 @@ class SummaryApplicationContext:
     record_read: Callable[[ObjectId, str, ProgramPointId], None]
     record_write: Callable[[ObjectId, str, ProgramPointId], None]
     record_exception: Callable[[str], None]
+    record_binding_read: Callable[[str, str, ProgramPointId], None] | None = None
+    record_procedure_exits: Callable[[tuple[SummaryProcedureExit, ...]], None] | None = None
+    context_depth: int = 0
 
     def __post_init__(self) -> None:
         # Read-only live views avoid copying the host registry on every call.

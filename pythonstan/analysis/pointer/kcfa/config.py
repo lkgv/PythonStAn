@@ -14,6 +14,8 @@ from typing import override
 from pythonstan.analysis.contracts.budgets import validate_budget_options
 from pythonstan.analysis.contracts.json_data import JsonObject, JsonValue, validate_json_object
 
+from .context_selector import MethodContextRule, parse_method_context_policies
+
 __all__ = ["Config"]
 
 
@@ -91,6 +93,7 @@ class Config:
     """
 
     context_policy: str = "2-cfa"
+    method_context_policies: tuple[MethodContextRule, ...] = ()
     heap_context_policy: str | None = None
     heap_context_depth: int | None = None
     max_iterations: int = 10000
@@ -160,6 +163,9 @@ class Config:
         )
         return cls(
             context_policy=_string(document["context_policy"], "context_policy"),
+            method_context_policies=parse_method_context_policies(
+                document["method_context_policies"]
+            ),
             heap_context_policy=_optional_string(
                 document["heap_context_policy"], "heap_context_policy"
             ),
@@ -217,6 +223,7 @@ class Config:
     def to_dict(self) -> JsonObject:
         return {
             "context_policy": self.context_policy,
+            "method_context_policies": [rule.to_dict() for rule in self.method_context_policies],
             "heap_context_policy": self.heap_context_policy,
             "heap_context_depth": self.heap_context_depth,
             "max_iterations": self.max_iterations,
@@ -259,6 +266,11 @@ class Config:
         """Validate configuration."""
         from .context_selector import parse_policy
 
+        object.__setattr__(
+            self,
+            "method_context_policies",
+            parse_method_context_policies(self.method_context_policies),
+        )
         object.__setattr__(self, "ai_budget", validate_budget_options(self.ai_budget))
         object.__setattr__(self, "entry_points", deepcopy(self.entry_points))
         object.__setattr__(self, "library_paths", deepcopy(self.library_paths))

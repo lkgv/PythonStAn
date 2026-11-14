@@ -12,7 +12,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, override
 
 from pythonstan.analysis.analysis import AnalysisConfig, AnalysisDriver
-from pythonstan.analysis.contracts.json_data import JsonObject
+from pythonstan.analysis.contracts.json_data import (
+    JsonObject,
+    require_array,
+    require_string,
+    validate_json,
+)
 from pythonstan.analysis.pointer.kcfa.object import AllocKind, AllocSite
 from pythonstan.analysis.pointer.kcfa.points_to_set import reset_object_table
 from pythonstan.ir import IRScope
@@ -32,6 +37,7 @@ from .unknown_tracker import UnknownKind
 
 if TYPE_CHECKING:
     from pythonstan.ir import IRFunc, IRModule, IRScope
+    from pythonstan.world.scope_manager import ModuleGraph
 
     from .constraints import Constraint
     from .context import NativeContext, Scope
@@ -106,6 +112,7 @@ class PointerAnalysis(AnalysisDriver):
         if not hasattr(self.config, "options"):
             print(f"Analysis config {self.config} has no options")
         self.kcfa_config = Config.from_dict(self.config.options)
+        self._captured_method_targets: frozenset[tuple[str, str]] | None = None
         self._setup_logging()
         self.results: object = None
         self.world = World()
@@ -140,6 +147,7 @@ class PointerAnalysis(AnalysisDriver):
             policy=policy,
             heap_context_policy=self.kcfa_config.heap_context_policy,
             heap_context_depth=self.kcfa_config.heap_context_depth,
+            method_context_policies=self.kcfa_config.method_context_policies,
         )
         self.translator = IRTranslator(self.kcfa_config)
         self.class_hierarchy = ClassHierarchyManager()
@@ -176,6 +184,7 @@ class PointerAnalysis(AnalysisDriver):
         Returns:
             AnalysisResult containing points-to information and call graph
         """
+        self._validate_method_policy_targets()
         # Capture the actual entry identity for passive queries after World reset.
         from pythonstan.ir import IRModule
 
@@ -195,9 +204,16 @@ class PointerAnalysis(AnalysisDriver):
         from .context import Scope
         from .object import ModuleObject
 
-        options = getattr(self.config, "options", {}) or {}
+        options = self.config.options
         test_root = options.get("test_root") or options.get("test_dir")
-        test_files = options.get("test_files")
+        if test_root is not None and not isinstance(test_root, str):
+            raise ValueError("test_root/test_dir must be text or None")
+        raw_test_files = options.get("test_files")
+        test_files = (
+            None
+            if raw_test_files is None
+            else [require_string(item) for item in require_array(validate_json(raw_test_files))]
+        )
 
         test_funcs = self._collect_test_functions(test_root, test_files)
         entry_names = self.kcfa_config.entry_points
@@ -227,12 +243,17 @@ class PointerAnalysis(AnalysisDriver):
             self.solver._diagnostics.phase = "module_translation_started"
             self.solver._diagnostics.last_action = "translate_module_scopes"
 
-        module_graph = getattr(self.world.scope_manager, "module_graph", None)
+        module_graph: ModuleGraph | None
+        try:
+            module_graph = self.world.scope_manager.module_graph
+        except AttributeError:
+            module_graph = None
         entry_module = (
             entry_scope if isinstance(entry_scope, IRModule) else self.world.get_entry_module()
         )
-        modules = set(module_graph.get_modules()) if module_graph is not None else set()
-        modules.add(entry_module)
+        modules = set(module_graph.get_modules()) if module_graph is not None else set[IRModule]()
+        if isinstance(entry_module, IRModule):
+            modules.add(entry_module)
         entry_module_scope: Scope | None = None
         fallback_scope: Scope | None = None
 
@@ -350,6 +371,22 @@ class PointerAnalysis(AnalysisDriver):
 
         logger.info("Analysis complete")
         return result
+
+    def _validate_method_policy_targets(self) -> None:
+        if not self.kcfa_config.method_context_policies:
+            return
+        if self._captured_method_targets is not None:
+            self.context_selector.validate_method_targets(self._captured_method_targets)
+            return
+        from pythonstan.ir import IRFunc
+
+        available: set[tuple[str, str]] = set()
+        for source in self.world.scope_manager.scopes:
+            if isinstance(source, IRFunc):
+                module = self._get_module_for_scope(source)
+                if module is not None:
+                    available.add((module.get_qualname(), source.get_qualname()))
+        self.context_selector.validate_method_targets(available)
 
     def _initialize_module_metadata(self, module_scope: Scope, context: NativeContext) -> None:
         """Seed import metadata; project clients explicitly declare script mode."""
@@ -885,7 +922,8 @@ class PointerAnalysis(AnalysisDriver):
     def _setup_logging(self) -> None:
         """Setup logging configuration."""
         logging.basicConfig(
-            level=getattr(logging, self.kcfa_config.log_level), format="%(levelname)s: %(message)s"
+            level=logging.getLevelNamesMapping()[self.kcfa_config.log_level],
+            format="%(levelname)s: %(message)s",
         )
 
 

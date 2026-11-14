@@ -28,7 +28,7 @@ from pythonstan.analysis.composition.summary_context import (
     SummaryHostId as SummaryHostId,
 )
 from pythonstan.analysis.contracts import SourceModule, stable_digest
-from pythonstan.analysis.contracts.identity import IdentityEpoch, ObjectId
+from pythonstan.analysis.contracts.identity import ContextId, IdentityEpoch, ObjectId
 from pythonstan.analysis.contracts.identity import ProgramPointId as ProgramPointId
 from pythonstan.analysis.contracts.json_data import (
     FrozenJsonObject,
@@ -42,12 +42,14 @@ from pythonstan.analysis.contracts.json_data import (
 from pythonstan.analysis.contracts.resources import RunLedger
 from pythonstan.analysis.domains.relations import PartitionToken
 from pythonstan.analysis.domains.values import Value
+from pythonstan.analysis.observations.driver_bridge import SummaryProcedureExit
 from pythonstan.analysis.state.effects import HeapWrite
 from pythonstan.analysis.state.flow import (
     ExceptionValue,
     Flow,
     NormalExprFlow,
     RaiseFlow,
+    ReturnFlow,
 )
 from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.analysis.state.metadata import ContainerMeta, Metadata
@@ -658,6 +660,41 @@ class GuardedDispatchProvider:
         finally:
             self._stats["application_seconds"] += time.monotonic() - started
 
+    def _binding_reads(
+        self,
+        context: SummaryApplicationContext,
+        node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda,
+        *,
+        missing_lookup: bool = False,
+    ) -> tuple[tuple[str, ProgramPointId], ...]:
+        """Read only executed source expressions in the checked finite body."""
+        reads: list[tuple[str, ProgramPointId]] = []
+
+        def expression(current: ast.AST) -> bool:
+            self._stats["runtime_validation_work"] += 1
+            self._charge(context, 1)
+            if isinstance(current, ast.Name):
+                if isinstance(current.ctx, ast.Load):
+                    reads.append((current.id, context.point(current)))
+                return True
+            if isinstance(current, ast.Subscript):
+                return (
+                    expression(current.value) and expression(current.slice) and not missing_lookup
+                )
+            if isinstance(current, ast.Call):
+                return expression(current.func) and all(expression(arg) for arg in current.args)
+            return all(expression(child) for child in ast.iter_child_nodes(current))
+
+        body = (node.body,) if isinstance(node, ast.Lambda) else node.body
+        for statement in body:
+            if isinstance(statement, (ast.Assign, ast.Return)) and statement.value is not None:
+                completed = expression(statement.value)
+            else:
+                completed = expression(statement)
+            if not completed:
+                break
+        return tuple(reads)
+
     def _try_apply(
         self,
         context: SummaryApplicationContext,
@@ -753,10 +790,21 @@ class GuardedDispatchProvider:
             return None
         self._stats["applications"] += 1
         result: list[Flow] = []
+        procedure_exits: list[SummaryProcedureExit] = []
+        binding_reads: set[tuple[str, str, ProgramPointId]] = set()
+        dispatch_points: tuple[ProgramPointId, ...] = (*frame.context, point)
+        dispatch_context = ContextId(
+            dispatch_points[-context.context_depth :] if context.context_depth else ()
+        )
         dispatch_call = next(node for node in ast.walk(info.node) if isinstance(node, ast.Call))
         handler_site = context.point(dispatch_call)
         for outcome in application.outcomes:
             current = store.copy()
+            if context.record_binding_read is not None:
+                for name, read_point in self._binding_reads(
+                    context, info.node, missing_lookup=outcome["kind"] == "raise"
+                ):
+                    binding_reads.add((info.qualname, name, read_point))
             if outcome["kind"] == "raise":
                 context.record_exception("KeyError")
                 result.append(
@@ -812,6 +860,40 @@ class GuardedDispatchProvider:
             )
             value = replace(value, relations=value.relations | frozenset((token,)))
             result.append(NormalExprFlow(StateHandle.capture(current), value))
+            handler_info = context.functions[handler_identifier]
+            if context.record_binding_read is not None:
+                for name, read_point in self._binding_reads(context, handler_info.node):
+                    binding_reads.add((handler_info.qualname, name, read_point))
+            if context.record_procedure_exits is not None:
+                handler_points: tuple[ProgramPointId, ...] = (*dispatch_context, handler_site)
+                handler_context = ContextId(
+                    handler_points[-context.context_depth :] if context.context_depth else ()
+                )
+                procedure_exits.append(
+                    SummaryProcedureExit(
+                        info.module,
+                        handler_info.qualname,
+                        handler_context,
+                        handler_site,
+                        (ReturnFlow(StateHandle.capture(current), value),),
+                    )
+                )
+        if context.record_procedure_exits is not None:
+            dispatcher_exits: list[Flow] = []
+            for flow in result:
+                if isinstance(flow, NormalExprFlow):
+                    dispatcher_exits.append(ReturnFlow(flow.state, flow.value))
+                else:
+                    dispatcher_exits.append(flow)
+            procedure_exits.append(
+                SummaryProcedureExit(
+                    info.module,
+                    info.qualname,
+                    dispatch_context,
+                    point,
+                    tuple(dispatcher_exits),
+                )
+            )
         self._records[point] = {
             **self._records[point],
             "status": application.proof_status,
@@ -823,6 +905,11 @@ class GuardedDispatchProvider:
             "checked_property": "key-handler-return/fresh-slot relation at the declared source call",
             "evidence": [certificate.proof_digest, evidence.proof_digest],
         }
+        if context.record_binding_read is not None:
+            for owner, name, read_point in binding_reads:
+                context.record_binding_read(owner, name, read_point)
+        if context.record_procedure_exits is not None:
+            context.record_procedure_exits(tuple(procedure_exits))
         return result
 
 

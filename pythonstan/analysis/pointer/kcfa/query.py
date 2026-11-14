@@ -253,7 +253,7 @@ class SolverQuery(ISolverQuery):
     ) -> list[FunctionObject]:
         objs: list[FunctionObject] = []
         for obj in self._state._heap.objects.values():
-            if getattr(obj.alloc_site, "stmt", None) != func:
+            if obj.alloc_site.stmt != func:
                 continue
             if not isinstance(obj, (FunctionObject, MethodObject)):
                 continue
@@ -396,7 +396,7 @@ class SolverQuery(ISolverQuery):
         scope: IRScope,
         context: NativeContext | None = None,
     ) -> PointsToSet:
-        ir = self._state.scope_manager.get_ir(scope, "ir")
+        ir = self._state.scope_manager.get_statement_ir(scope)
         if not ir:
             return PointsToSet.empty()
         callee_name = call_stmt.get_func_name()
@@ -424,7 +424,9 @@ class SolverQuery(ISolverQuery):
     ) -> bool:
         pts1 = self.points_to_at(var1, scope, context)
         pts2 = self.points_to_at(var2, scope, context)
-        if any(obj.kind == AllocKind.UNKNOWN for obj in (*pts1, *pts2)):
+        if any(obj.kind == AllocKind.UNKNOWN for obj in pts1) or any(
+            obj.kind == AllocKind.UNKNOWN for obj in pts2
+        ):
             return True
         return not pts1.intersection(pts2).is_empty()
 
@@ -443,7 +445,9 @@ class SolverQuery(ISolverQuery):
             pts2 = self.points_to_at(var2, scope, context)
         else:
             pts2 = self.field_of_objects(self.points_to_at(var2, scope, context), attr2)
-        if any(obj.kind == AllocKind.UNKNOWN for obj in (*pts1, *pts2)):
+        if any(obj.kind == AllocKind.UNKNOWN for obj in pts1) or any(
+            obj.kind == AllocKind.UNKNOWN for obj in pts2
+        ):
             return True
         return not pts1.intersection(pts2).is_empty()
 
@@ -688,6 +692,9 @@ class SolverQuery(ISolverQuery):
                 **bootstrap_stats,
                 **nested,
                 "allocation_policy_decisions": allocations,
+                "method_context_policy": self._solver.context_selector.method_statistics()
+                if self._solver is not None and self._solver.context_selector is not None
+                else {"rules": [], "decisions": {}},
                 "heap_context_policy": (
                     self._solver.config.heap_context_policy if self._solver is not None else None
                 ),

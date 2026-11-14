@@ -1,0 +1,164 @@
+{
+  "cases": [
+    {
+      "id": "owned_bases_chain",
+      "source": "class Proxy: pass\np=Proxy()\nq=Proxy()\nq.__bases__=(int,)\np.__bases__=(q,)\nresult=issubclass(p,int)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "owned_bases_branch",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(str,int)\nresult=issubclass(p,int)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "instance_self_identity",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=()\nresult=issubclass(p,p)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "distinct_ducks_equal_bases",
+      "source": "class Proxy: pass\np=Proxy()\nq=Proxy()\np.__bases__=(int,)\nq.__bases__=(int,)\nresult=issubclass(p,q)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": null
+    },
+    {
+      "id": "instance_against_duck_classinfo",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(int,)\nresult=isinstance(1,p)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": null
+    },
+    {
+      "id": "source_class_as_duck_base",
+      "source": "class C: pass\nclass Proxy: pass\np=Proxy()\np.__bases__=(C,)\nresult=issubclass(p,C)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "empty_target_skips_invalid_subject_bases",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=[int]\nresult=issubclass(p,())\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": null
+    },
+    {
+      "id": "duck_match_skips_invalid_target_tail",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(int,)\nresult=issubclass(p,(int,42))\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "duck_nonmatch_reaches_invalid_target_tail",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(str,)\ntry:\n result=issubclass(p,(int,42))\nexcept TypeError:\n result='caught-type'\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": "caught-type",
+      "expected_log": null
+    },
+    {
+      "id": "non_tuple_subject_bases",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=[int]\ntry:\n result=issubclass(p,int)\nexcept TypeError:\n result='caught-type'\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": "caught-type",
+      "expected_log": null
+    },
+    {
+      "id": "invalid_inner_base_is_nonmatch",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(42,)\ntry:\n result=issubclass(p,int)\nexcept TypeError:\n result='caught-type'\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": null
+    },
+    {
+      "id": "invalid_inner_base_then_match",
+      "source": "class Proxy: pass\np=Proxy()\np.__bases__=(42,int)\ntry:\n result=issubclass(p,int)\nexcept TypeError:\n result='caught-type'\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": null
+    },
+    {
+      "id": "bases_descriptor_effect",
+      "source": "log=''\nclass Proxy:\n @property\n def __bases__(self):\n  global log\n  log+='b'\n  return (int,)\np=Proxy()\nresult=issubclass(p,int)\n",
+      "mode": "open",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": "bb"
+    },
+    {
+      "id": "getattribute_overrides_owned_bases",
+      "source": "log=''\nclass Proxy:\n def __getattribute__(self,name):\n  global log\n  if name=='__bases__':\n   log+='g'\n   return (str,)\n  return object.__getattribute__(self,name)\np=Proxy()\np.__bases__=(int,)\nresult=issubclass(p,int)\n",
+      "mode": "open",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": "gg"
+    },
+    {
+      "id": "bases_descriptor_valueerror",
+      "source": "class Proxy:\n @property\n def __bases__(self):\n  raise ValueError\np=Proxy()\ntry:\n result=issubclass(p,int)\nexcept ValueError:\n result='caught-value'\n",
+      "mode": "open",
+      "context_zero": false,
+      "expected": "caught-value",
+      "expected_log": null
+    },
+    {
+      "id": "target_duck_descriptor_effect",
+      "source": "log=''\nclass Proxy:\n @property\n def __bases__(self):\n  global log\n  log+='b'\n  return (int,)\np=Proxy()\nresult=issubclass(bool,p)\n",
+      "mode": "open",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": "b"
+    },
+    {
+      "id": "special_instancecheck_preempts_bases",
+      "source": "log=''\nclass Proxy:\n def __instancecheck__(self,value):\n  global log\n  log+='i'\n  return True\np=Proxy()\np.__bases__=()\nresult=isinstance(1,p)\n",
+      "mode": "open",
+      "context_zero": false,
+      "expected": true,
+      "expected_log": "i"
+    },
+    {
+      "id": "function_bases_update_not_stale",
+      "source": "def proxy(): pass\nproxy.__bases__=(int,)\na=issubclass(proxy,int)\nproxy.__bases__=(str,)\nb=issubclass(proxy,int)\nresult=('T' if a else 'F')+('T' if b else 'F')\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": "TF",
+      "expected_log": null
+    },
+    {
+      "id": "context_zero_distinct_duck_identity",
+      "source": "class Proxy: pass\ndef make():\n p=Proxy()\n p.__bases__=(int,)\n return p\na=make()\nb=make()\nresult=issubclass(a,b)\n",
+      "mode": "cover",
+      "context_zero": true,
+      "expected": false,
+      "expected_log": null
+    },
+    {
+      "id": "repeated_bases_dag",
+      "source": "class Proxy: pass\np=Proxy()\nq=Proxy()\nq.__bases__=(int,)\np.__bases__=(q,q)\nresult=issubclass(p,str)\n",
+      "mode": "exact",
+      "context_zero": false,
+      "expected": false,
+      "expected_log": null
+    }
+  ]
+}

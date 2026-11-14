@@ -2431,5 +2431,18 @@
       "new_ai_status": "supported_subset",
       "meaning": "Oldsolver optionprojection; peroption newcapabilities arelisted separately"
     }
+  ],
+  "native_method_options": [
+    {
+      "path": "andersen.method_context_policies",
+      "default": [],
+      "applies_to_engines": [
+        "native",
+        "native_then_ai"
+      ],
+      "actual_consumer": "pythonstan.analysis.pointer.kcfa.context_selector.ContextSelector.for_method -> NormalCallProcessor function/method call contexts",
+      "legacy_status": "new_supported",
+      "meaning": "Finite exactsource module/FQN policyrows selectcall sensitivity; globalallocation selector retains independentheap contract; no effect onisolatedNative regions."
+    }
   ]
 }

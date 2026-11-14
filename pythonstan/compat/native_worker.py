@@ -38,6 +38,7 @@ from pythonstan.analysis.contracts.wire import thaw_snapshot, value_snapshot
 
 if TYPE_CHECKING:
     from pythonstan.analysis.pointer.kcfa.object import AbstractObject
+    from pythonstan.compat.native_services import CapturedMethodInventory
 
 type ProgressPublisher = Callable[[JsonObject], None]
 
@@ -108,13 +109,26 @@ class WorkerRequest:
     native_options: JsonObject
     input_bindings: JsonObject
     value_symbols: Mapping[str, tuple[str, ...]]
+    method_inventory: CapturedMethodInventory | None
 
     @classmethod
     def from_header(cls, header: WorkerHeader) -> WorkerRequest:
+        from pythonstan.analysis.pointer.kcfa.context_selector import parse_method_context_policies
+        from pythonstan.compat.native_services import CapturedMethodInventory
+
         modules: dict[str, SourceModule] = {}
         for row in require_array(header.document["modules"]):
             source = _source_module(row)
             modules[source.module] = source
+        for rule in parse_method_context_policies(
+            require_object(header.config["andersen"]).get("method_context_policies", [])
+        ):
+            if rule.module not in modules:
+                raise ValueError("Method policy module is outside the captured source inventory")
+        inventory = header.document.get("method_inventory")
+        method_inventory = (
+            None if inventory is None else CapturedMethodInventory.from_wire(inventory, modules)
+        )
         scenarios: list[EntryScenario] = []
         for row in require_array(header.document["scenarios"]):
             scenario = require_object(row)
@@ -142,6 +156,7 @@ class WorkerRequest:
             require_object(header.config["andersen"]),
             require_object(require_object(header.config["inputs"])["bindings"]),
             {module: tuple(symbols) for module, symbols in value_symbols.items()},
+            method_inventory,
         )
 
 
@@ -411,6 +426,7 @@ def main(payload: object, publish: ProgressPublisher | None = None) -> JsonObjec
                 max_work=remaining_work,
                 source_metadata=source_metadata,
                 input_bindings=request.input_bindings,
+                method_inventory=request.method_inventory,
             )
             pipeline.run()
             native_result = pipeline.analysis_manager.get_results("pta")
@@ -450,6 +466,17 @@ def main(payload: object, publish: ProgressPublisher | None = None) -> JsonObjec
                 "input_publications",
             ):
                 _increment(metrics, name, stats.get(name, 0))
+            if "method_context_policy" in stats:
+                observed_policy = require_object(stats["method_context_policy"])
+                policy = _object_field(metrics, "method_context_policy")
+                rules = require_array(observed_policy["rules"])
+                if "rules" in policy and policy["rules"] != rules:
+                    raise ValueError("Native scenarios disagree on the frozen method policy table")
+                policy["rules"] = rules
+                decisions = _object_field(policy, "decisions")
+                for decision, count in require_object(observed_policy["decisions"]).items():
+                    _increment(decisions, decision, count)
+                _increment(policy, "observed_scenarios", 1)
             events = query.get_unknown_effect_events()
             effects = _object_field(aggregate, "effects")
             for key, kind in (

@@ -193,6 +193,8 @@ class AnalysisSession:
             self._last_partial = native_phase
             if self.resource_ledger.stop_reason is not None:
                 return native_phase, native_phase
+            if native_phase.get("method_policy_validation") == "rejected":
+                return native_phase, native_phase
             stats = require_object(native_phase.get("stats", {}))
             native_work = require_int(
                 stats.get("total_work", stats.get("global_work_used", stats.get("native_work", 0)))

@@ -3,12 +3,56 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from pythonstan.analysis.contracts.json_data import JsonValue
+from pythonstan.analysis.contracts.identity import SourceModule
+from pythonstan.analysis.contracts.json_data import (
+    JsonValue,
+    require_array,
+    require_object,
+    require_string,
+)
 
 if TYPE_CHECKING:
     from pythonstan.world.analysis_manager import AnalysisManager
+
+
+@dataclass(frozen=True, slots=True)
+class CapturedMethodInventory:
+    """Parent-derived named functions bound to the exact captured source identities."""
+
+    sources: tuple[tuple[str, str, tuple[str, ...]], ...]
+
+    @classmethod
+    def from_wire(
+        cls, value: JsonValue, modules: Mapping[str, SourceModule]
+    ) -> CapturedMethodInventory:
+        sources: dict[str, tuple[str, tuple[str, ...]]] = {}
+        for item in require_array(value):
+            row = require_object(item)
+            if row.keys() != {"module", "digest", "qualnames"}:
+                raise ValueError("Captured method inventory fields must be module/digest/qualnames")
+            name, digest = require_string(row["module"]), require_string(row["digest"])
+            if name in sources or name not in modules or modules[name].digest != digest:
+                raise ValueError("Captured method inventory disagrees with source identity")
+            names = tuple(require_string(item) for item in require_array(row["qualnames"]))
+            if len(set(names)) != len(names) or any(
+                not qualname.startswith(name + ".") or qualname.endswith(".") for qualname in names
+            ):
+                raise ValueError(
+                    "Captured method inventory requires exact named function identities"
+                )
+            sources[name] = digest, names
+        if sources.keys() != modules.keys():
+            raise ValueError("Captured method inventory disagrees with source identity")
+        return cls(tuple((name, *sources[name]) for name in sorted(sources)))
+
+    @property
+    def targets(self) -> frozenset[tuple[str, str]]:
+        return frozenset(
+            (module, qualname) for module, _digest, names in self.sources for qualname in names
+        )
 
 
 def configure_native_services(
@@ -17,6 +61,7 @@ def configure_native_services(
     max_work: int | None = None,
     source_metadata: dict[str, dict[str, str]] | None = None,
     input_bindings: Mapping[str, JsonValue] | None = None,
+    method_inventory: CapturedMethodInventory | None = None,
 ) -> tuple[str, ...]:
     from pythonstan.analysis.pointer.kcfa.analysis import PointerAnalysis
 
@@ -36,6 +81,11 @@ def configure_native_services(
         if not isinstance(analyzer, PointerAnalysis):
             continue
         solver = analyzer.solver
+        if method_inventory is not None:
+            if solver._work_iteration_started or solver.work_ledger.used:
+                raise ValueError("Captured method inventory must be fixed before execution")
+            analyzer.context_selector.validate_method_targets(method_inventory.targets)
+            analyzer._captured_method_targets = method_inventory.targets
         if metadata is not None:
             if solver._work_iteration_started or solver.work_ledger.used:
                 raise ValueError("Source metadata must be fixed before execution")
