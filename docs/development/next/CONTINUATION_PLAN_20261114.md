@@ -100,3 +100,11 @@ G8 分阶段条件状态独立报告，不能无条件阻断 G9 核心交付；�
 重要节点及时推送；持续工作期间至多间隔一小时检查并推送已审查的变更，无变更不制造空提交。只推源码、合成测试、公共配置及工程文档；原始日志、私有输入、内部审查记录、凭据和不透明归档保留在公开提交之外。
 
 每次先读取实际远端 HEAD，用 expected-sha 非强制更新 `dev-cocktail-analysis`，main 保持不动。回读 commit/tree；所有未运行检查保留 not_run。不得将本计划提交当作生产修复、重新验收或项目完成。
+
+## R0 的远端执行恢复
+
+本地环境仍不可用，但原质量工作流已对计划提交 `f7e835b` 成功运行（[run 43580412078](https://github.com/lkgv/PythonStAn/actions/runs/43580412078)）。据此添加 `continuation-baseline.yml`，在 GitHub CI 直接运行 mandatory、原 stage、audit 和完整 semantic/LV 四组冻结检查。
+
+该工作流沿用已锁定工具、Python 3.12 与既有 checkout/setup 步骤。四组各有独立退出状态，fail-fast 关闭以保留完整分母，不使用 continue-on-error、xfail 或已知失败豁免。20 分钟仅是外层任务看门狗，不修改分析器的任何资源 profile。它不读取模型凭据或执行 live 请求。
+
+每组打印实际 commit、命令、Python、源码 digest、完整原始输出、exit code、耗时和前后源码稳定性；semantic 输出完整结构化回执。新四组结果在执行前仍为 pending/not_run，原质量成功不代替这四组验收。远端 CI 的通过/失败必须在该提交身份下单独记录；它也不表示本地交互式环境已恢复。

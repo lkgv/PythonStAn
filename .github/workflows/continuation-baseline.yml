@@ -1,0 +1,115 @@
+name: Frozen continuation baseline
+
+on:
+  push:
+    branches: [dev-cocktail-analysis]
+    paths:
+      - ".github/workflows/continuation-baseline.yml"
+      - "pythonstan/**"
+      - "pythonstan_inspector/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: Frozen baseline (${{ matrix.gate }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        gate: [mandatory, stage, audit, semantic]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install locked tools
+        run: |
+          python -m pip install poetry==2.2.0
+          poetry install --with dev --no-root --no-interaction
+          poetry check --lock
+      - name: Run unchanged frozen checks
+        env:
+          FROZEN_BASELINE_GATE: ${{ matrix.gate }}
+        run: |
+          poetry run python - <<'PY'
+          from __future__ import annotations
+          
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import sys
+          import time
+          
+          
+          def source_digest() -> str:
+              digest = hashlib.sha256()
+              for folder in ("pythonstan", "pythonstan_inspector", "tests"):
+                  for path in sorted(Path(folder).rglob("*.py")):
+                      digest.update(path.as_posix().encode())
+                      digest.update(path.read_bytes())
+              return digest.hexdigest()
+          
+          
+          def main() -> None:
+              gate = os.environ["FROZEN_BASELINE_GATE"]
+              pytest = [sys.executable, "-m", "pytest", "--import-mode=importlib",
+                        "-p", "no:cacheprovider", "-q"]
+              audit = sorted(
+                  str(path) for path in Path("tests/regression/audit3").glob("test*.py")
+                  if path.name not in {"test_domain_mandatory.py", "test_native_mandatory.py"}
+              )
+              commands: dict[str, list[str]] = {
+                  "mandatory": [*pytest, "tests/regression/audit3/test_domain_mandatory.py",
+                                "tests/regression/audit3/test_native_mandatory.py"],
+                  "audit": [*pytest, *audit],
+                  "stage": [
+                      *pytest, "tests/refactor/contracts", "tests/refactor/api", "tests/api",
+                      "tests/refactor/domains", "tests/refactor/semantics", "tests/refactor/engines",
+                      "tests/refactor/composition", "tests/refactor/llm", "tests/refactor/verification",
+                      "tests/refactor/observation", "tests/certified/test_checker.py",
+                      "tests/certified/test_checker_exceptions.py",
+                      "tests/certified/test_checker_adversarial_ai.py", "tests/refactor/benchmark",
+                  ],
+                  "semantic": [sys.executable, "-m", "tests.regression.audit3.semantic_oracle",
+                               "--check", "analyzer", "--output", "artifacts/continuation/semantic.json"],
+              }
+              command = commands[gate]
+              before = source_digest()
+              print(json.dumps({
+                  "phase": "start", "gate": gate, "commit": os.environ["GITHUB_SHA"],
+                  "python": sys.version, "executable": sys.executable,
+                  "source_digest": before, "command": command,
+                  "solver_profile_override": False, "historical_results_reused": False,
+              }), flush=True)
+              started = time.monotonic()
+              result = subprocess.run(command, check=False)
+              after = source_digest()
+              print(json.dumps({
+                  "phase": "complete", "gate": gate, "commit": os.environ["GITHUB_SHA"],
+                  "exit_code": result.returncode, "elapsed_seconds": time.monotonic() - started,
+                  "source_before": before, "source_after": after, "source_stable": before == after,
+              }), flush=True)
+              if gate == "semantic":
+                  output = Path("artifacts/continuation/semantic.json")
+                  if output.exists():
+                      print("SEMANTIC_RECEIPT_JSON_START", flush=True)
+                      print(output.read_text(), flush=True)
+                      print("SEMANTIC_RECEIPT_JSON_END", flush=True)
+              raise SystemExit(result.returncode if before == after else 2)
+          
+          
+          if __name__ == "__main__":
+              main()
+          
+          PY

@@ -7,9 +7,9 @@
   "target_branch": "dev-cocktail-analysis",
   "base_task_board": "task_board.json",
   "does_not_override_card_statuses": true,
-  "runtime_status": "unavailable",
+  "runtime_status": "local_unavailable_remote_ci_available",
   "production_changes": [],
-  "new_runtime_checks": "not_run",
+  "new_runtime_checks": "remote_baseline_pending; no semantic test claimed passed",
   "normative_inputs": [
     "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
     "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",
@@ -63,9 +63,9 @@
         "N4-QUAL-01"
       ],
       "depends_on": [],
-      "status": "blocked_external",
+      "status": "running",
       "implementation_state": "planned_not_implemented",
-      "execution_validation": "not_run",
+      "execution_validation": "remote_ci_pending",
       "write_scope": [
         "pyproject.toml",
         "poetry.lock",
@@ -626,5 +626,19 @@
       ],
       "sequencing": "Smoke需要EVAL02已独立验收，不额外等待EVAL03；held-out需要EVAL03，真实切片再需其数据与收益前置。"
     }
-  ]
+  ],
+  "remote_ci_recovery": {
+    "workflow": ".github/workflows/continuation-baseline.yml",
+    "quality_verified_commit": "f7e835b306eec4a44aea52ba07af5b7f7462d646",
+    "quality_run_id": 43580412078,
+    "baseline_groups": [
+      "mandatory",
+      "stage",
+      "audit",
+      "semantic"
+    ],
+    "baseline_result": "not_run_until_workflow_executes",
+    "unchanged_solver_caps": true,
+    "no_live_api_or_secrets": true
+  }
 }
