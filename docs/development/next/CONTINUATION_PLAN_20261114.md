@@ -164,3 +164,11 @@ Store.join 的可选 typed value_merge 复用原 cells、heap slots/default 与�
 A-FRAME 的 13×2 public/concrete、2×2 growth、21 local-boundary、9 input-widen checks 共 60 项全部通过。Native 两层 quota/cap2 控制均通过。这里只确认已实现的窄修复；完整 frame projection、persistent cell cardinality、递归输入/出口关联、三项旧 recursion 与 LV 义务、原父卡和最终交付仍未关闭。
 
 下一步先保原 SEM04 两例的 source/query/gold/caps，在既有失败快照中输出完整 obligations、resource ledger 与可空 work statistics，分清 max_stmt_visits、总 work 与 wall stop。缺失统计记 null，不能当成 0。已有严格语句 guard 按全 run 累计，不能用重置计数改变合同；后续求解/复制/导出优化必须守住原 target 和完整成本。测量诊断待其自身提交 CI，不引用本次 cbc3 的成功作为新执行证据。
+
+## SEM04 原限额停止原因与后续实施入口
+
+`7a7a4d71` 的完整诊断已确认：residual callback 在 unit_evaluations=3 时触发 budget:max_stmt_visits，全局 work 没有拒绝；35 callback 触发 budget:max_seconds。后者 terminal frame 的详细热点字段为 null，不能说是零成本，也不能从剩余配额的保守 reservation 推断 max_work 停止。两例 source/query/gold/caps 保持，四组检查计数与质量状态保持。选取的工程测量字段见 [sem04_measurement_20261114.json](sem04_measurement_20261114.json)。
+
+独立 `sem04-profile.yml` 仅运行开发 utility：AST 校验原35callback字面量，然后在原10k/2s/512MB/default-context 下分别运行无插桩请求与 cProfile 请求。报告角色明确为 controlled_instrumentation / qualifier=false；同进程预热、profiler 开销和有界前缀均不能用来宣称性能提升。它不改变正式冻结 workflow 的失败判据。
+
+Native 可独立推进的阶段合同、方法顺序、兼容消费者和未运行的 CPython 控制已登记在 [NATIVE_CALL_PHASE_SLICE_20261114.md](NATIVE_CALL_PHASE_SLICE_20261114.md)。先冻结 callable/positional/star/keyword 阶段，再迁移 IR 和有限参数 builder；调用目标解析与 body activation 事实不能混为一谈。该准备不关闭 B-PLAN 或任何父卡。

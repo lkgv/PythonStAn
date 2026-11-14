@@ -1,0 +1,32 @@
+name: SEM04 diagnostic profile (not qualification)
+
+on:
+  push:
+    branches: [dev-cocktail-analysis]
+    paths:
+      - .github/workflows/sem04-profile.yml
+      - scripts/development/profile_sem04_callbacks.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install locked tools
+        run: |
+          python -m pip install poetry==2.2.0
+          poetry install --with dev --no-root --no-interaction
+      - name: Record uninstrumented and controlled profile runs
+        env:
+          PYTHONPATH: .
+        run: poetry run python scripts/development/profile_sem04_callbacks.py

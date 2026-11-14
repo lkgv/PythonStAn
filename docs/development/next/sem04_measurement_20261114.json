@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "measured_commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+  "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43592715735",
+  "audit_job_url": "https://github.com/lkgv/PythonStAn/actions/runs/43592715735/job/132440659666",
+  "source_profile": {
+    "max_work": 10000,
+    "max_seconds": 2,
+    "max_memory_mb": 512,
+    "first_case_max_stmt_visits": 1,
+    "second_case_context": "original default"
+  },
+  "findings": [
+    {
+      "case": "callback_residual_value_coverage",
+      "status": "budget_exhausted",
+      "coverage": "open",
+      "answer_status": "unavailable",
+      "expected": 6,
+      "obligation_codes": [
+        "budget:max_stmt_visits"
+      ],
+      "ledger_stop_reason": null,
+      "ledger_scope": "normal owner snapshot",
+      "reported_work": {
+        "limit": 10000,
+        "used": 399,
+        "reserved": 128,
+        "remaining": 9473
+      },
+      "published_statistics": {
+        "ast_work": 19,
+        "elapsed_seconds": 0.016615865999995094,
+        "entry_growth": null,
+        "pending_units": 1,
+        "total_work": 399,
+        "trace_merges": null,
+        "unit_evaluations": 3,
+        "work_by_kind": {
+          "abstract_configuration_copy": 51,
+          "ast_work": 19,
+          "comprehension_iteration": 1,
+          "comprehension_source_expansion": 3,
+          "configuration_digest": 51,
+          "configuration_resolution": 52,
+          "execution_configuration_copy": 51,
+          "frontend_index": 5,
+          "publication_export": 26,
+          "publication_query_projection": 3,
+          "scenario_priority_configuration": 1,
+          "scenario_priority_sort": 1,
+          "source_imports": 6,
+          "source_inventory": 1,
+          "source_snapshot": 2
+        },
+        "work_scope": "shared_ledger_before_checked_publication_header"
+      },
+      "classification": "global-run per-statement guard; source callback summary readiness/replay obligation remains"
+    },
+    {
+      "case": "callback_over_thirty_two_value_coverage",
+      "status": "budget_exhausted",
+      "coverage": "open",
+      "answer_status": "unavailable",
+      "expected": 3534,
+      "obligation_codes": [
+        "budget:max_seconds"
+      ],
+      "ledger_stop_reason": "max_seconds",
+      "ledger_scope": "before_checked_terminal_freeze",
+      "reported_work": {
+        "limit": 10000,
+        "used": 2361,
+        "reserved": 7639,
+        "remaining": 0
+      },
+      "published_statistics": {
+        "ast_work": null,
+        "elapsed_seconds": null,
+        "entry_growth": null,
+        "pending_units": null,
+        "total_work": 2361,
+        "trace_merges": null,
+        "unit_evaluations": null,
+        "work_by_kind": null,
+        "work_scope": null
+      },
+      "classification": "owner wall cap reached; terminal frame omits detailed hotspots; no inference that missing counters are zero"
+    }
+  ],
+  "unchanged": [
+    "original case source/query/gold/caps/assertions",
+    "production solver code"
+  ],
+  "gates": {
+    "mandatory": {
+      "passed": 36,
+      "total": 36
+    },
+    "stage": {
+      "passed": 1048,
+      "total": 1048
+    },
+    "audit": {
+      "passed": 5282,
+      "failed": 2
+    },
+    "semantic": {
+      "passed": 49,
+      "total": 52
+    },
+    "LV": {
+      "passed": 3,
+      "total": 6
+    },
+    "quality": "passed"
+  },
+  "receipts": {
+    "mandatory": {
+      "phase": "complete",
+      "gate": "mandatory",
+      "commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+      "exit_code": 0,
+      "elapsed_seconds": 6.5097866760000045,
+      "source_before": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_after": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_stable": true
+    },
+    "stage": {
+      "phase": "complete",
+      "gate": "stage",
+      "commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+      "exit_code": 0,
+      "elapsed_seconds": 123.22722214499998,
+      "source_before": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_after": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_stable": true
+    },
+    "audit": {
+      "phase": "complete",
+      "gate": "audit",
+      "commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+      "exit_code": 1,
+      "elapsed_seconds": 136.07880471500002,
+      "source_before": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_after": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_stable": true
+    },
+    "semantic": {
+      "phase": "complete",
+      "gate": "semantic",
+      "commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+      "exit_code": 1,
+      "elapsed_seconds": 31.350773613,
+      "source_before": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_after": "89a2416e2efcd27c297bc0246b307612baaf2d618599cd9084b86d44be6901be",
+      "source_stable": true
+    }
+  },
+  "causal_limits": [
+    "First case has no global work denial; its local guard is carried in obligations even though ledger.stop_reason is null",
+    "Second stop cause is max_seconds; its remaining0 includes conservative terminal reservations, so it does not establish a work-quota denial",
+    "Detailed missing statistics are null, not measured zeros",
+    "Repeated module/call replay and graph copies are static suspects; no measured ranking yet"
+  ],
+  "next_step": {
+    "kind": "controlled cProfile diagnostic",
+    "qualification": false,
+    "status": "not_run",
+    "source": "Exact original 35-callback synthetic fixture; utility must verify source identity without executing test module",
+    "caps": "Original10k/2s/512MB and default context unchanged",
+    "interpretation": "Baseline and instrumented runs separately labeled; same-process warm-up and profiler overhead prevent performance-gain claims"
+  }
+}

@@ -245,7 +245,7 @@
       ],
       "status": "pending_dependencies",
       "implementation_state": "planned_not_implemented",
-      "execution_validation": "not_run",
+      "execution_validation": "static implementation route prepared; new controls and production change not_run",
       "write_scope": [
         "pythonstan/analysis/semantics/callplan.py",
         "pythonstan/analysis/transform/three_address.py",
@@ -258,7 +258,8 @@
         "starred/deferred、named group、重复**operand、rename/copy/loads完整保留",
         "旧helper调用经单一薄适配进入同一消费者；不能新增闲置合同",
         "本切片只声明生产链信息完整，不声明旧effects顺序已修"
-      ]
+      ],
+      "prepared_contract": "NATIVE_CALL_PHASE_SLICE_20261114.md"
     },
     {
       "id": "B-ORDER",
@@ -323,8 +324,8 @@
         "R0"
       ],
       "status": "running",
-      "implementation_state": "two_old_failures_reproduced_diagnostic_detail_prepared",
-      "execution_validation": "cbc3 both old failures retained; diagnostic-only next commit pending CI",
+      "implementation_state": "original_stop_causes_measured_controlled_profile_prepared",
+      "execution_validation": "7a7a original guard case max_stmt_visits;35callback max_seconds; all other gate failure sets unchanged",
       "write_scope": [
         "pythonstan/analysis/engines/abstract/transfer.py",
         "pythonstan/analysis/engines/abstract/driver.py",
@@ -335,6 +336,10 @@
         "原callback_residual_value_coverage与callback_over_thirty_two_value_coverage断言/caps不动",
         "不能以unavailable/Open替代规定normal-value target，也不能移出计费遍历",
         "保存normal/raise/prefix/alias与顺序scope；同质量完整成本比较"
+      ],
+      "next_steps": [
+        "Run bounded diagnostic profiler with original35callback fixture/caps and explicit non-qualifier role",
+        "Separate callee readiness/replay from copy/export cost before selecting production optimization"
       ]
     },
     {
@@ -686,5 +691,7 @@
     "result_record": "continuation_baseline_20261114.json"
   },
   "latest_validated_commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
-  "latest_validation_record": "continuation_validation_20261114.json"
+  "latest_validation_record": "continuation_validation_20261114.json",
+  "latest_diagnostic_commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
+  "next_measurement_record": "sem04_measurement_20261114.json"
 }
