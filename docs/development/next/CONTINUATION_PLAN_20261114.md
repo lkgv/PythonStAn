@@ -180,3 +180,9 @@ Native 可独立推进的阶段合同、方法顺序、兼容消费者和未运�
 窄候选只将固定46类 schema tuple 提升为保强引用的模块常量，用 frozenset of integer type identities 识别 exact type，避免逐node重建tuple/线性类比较，也不对未知type调用hash。原顺序与成员逐一保持；不新增动态注册或可变缓存，不改_fields、graph admission、clone/alias/root逻辑、预算或计费。任意未支持 custom metaclass 的相等回调行为不在等价声明内；依据仍是已有sealed exact-type合同。复用原graph roundtrip/未知子类/成本负例及完整四组CI，不为静态表增加实现镜像测试。候选实际运行仍 pending。
 
 0e403 的质量首次因镜像安装授权错误在检查前失败；仅重试该job后 attempt2通过，不改lockfile或质量判据。该基础设施重试不代表生产测试新失败。
+
+## Schema lookup 候选的实际复核
+
+`17ab3946` 四组真实 CI 保持 mandatory36/36、stage1048/1048、audit5282pass/2fail、semantic49/52、LV3/6，原失败 ID 集合不变。质量仅发现函数间少一空行的新增格式诊断，本次补齐后再按实际提交复核；Ruff/mypy 无新增。完整 source/stability 身份仍单列，不把格式候选当已通过。
+
+同source、原caps的后续 profiler 中，两种请求仍触发max_seconds。受控前缀里的_record为181,593calls/self0.041s、Store.copy为1431calls/cumulative0.921s；它们与上一host/前缀不同，不能据此声称端到端性能提升或SEM04已解决。正式下一步转向callee readiness/continuation与bulk graph-copy，保留已确认的max_stmt_visits/2s义务，禁止以调高预算或重置guard消红。

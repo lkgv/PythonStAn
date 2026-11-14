@@ -235,6 +235,7 @@ def _record(value: object) -> TypeGuard[GraphRecord]:
     """Recognize the sealed exact-type schema without rebuilding it per node."""
     return id(type(value)) in _GRAPH_RECORD_TYPE_IDS
 
+
 def _dictionary(value: object) -> TypeGuard[dict[object, object]]:
     return type(value) is dict
 

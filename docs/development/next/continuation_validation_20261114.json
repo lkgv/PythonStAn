@@ -173,5 +173,54 @@
     "status": "Diagnostic-only assertion detail prepared; actual next-commit results not_run",
     "method": "Add existing failed public snapshot ledger and nullable work statistics to failure detail; no production instrumentation or query/profile change"
   },
-  "qualification": "All new bounded controls pass; audit2, semantic3 andLV3 pre-existing obligations remain open"
+  "qualification": "All new bounded controls pass; audit2, semantic3 andLV3 pre-existing obligations remain open",
+  "subsequent_schema_lookup_checkpoint": {
+    "source_commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594370214",
+    "gate_receipts": {
+      "mandatory": {
+        "phase": "complete",
+        "gate": "mandatory",
+        "commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+        "exit_code": 0,
+        "elapsed_seconds": 3.388797173999997,
+        "source_before": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_after": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_stable": true
+      },
+      "stage": {
+        "phase": "complete",
+        "gate": "stage",
+        "commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+        "exit_code": 0,
+        "elapsed_seconds": 76.906366774,
+        "source_before": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_after": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_stable": true
+      },
+      "audit": {
+        "phase": "complete",
+        "gate": "audit",
+        "commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+        "exit_code": 1,
+        "elapsed_seconds": 132.748603172,
+        "source_before": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_after": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_stable": true
+      },
+      "semantic": {
+        "phase": "complete",
+        "gate": "semantic",
+        "commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+        "exit_code": 1,
+        "elapsed_seconds": 27.32772844499999,
+        "source_before": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_after": "3127d8c72e7c87e63c8d364c25c19551a2d05f17b110a6cf836aa0cb7d3ad5b8",
+        "source_stable": true
+      }
+    },
+    "failed_ids_unchanged": true,
+    "quality_status": "one added formatting diagnostic; followup pending",
+    "profile_record": "sem04_measurement_20261114.json"
+  }
 }

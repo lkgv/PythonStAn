@@ -164,10 +164,9 @@
     "Repeated module/call replay and graph copies are static suspects; no measured ranking yet"
   ],
   "next_step": {
-    "kind": "sealed graph-record schema recognition optimization",
-    "status": "candidate_pending_CI",
-    "changes": "Hoist unchanged46-class whitelist with strong references and immutable integer identity membership; preserve graph node admission, fields, cloning, aliases, resource limits and costing",
-    "limits": "No claim this resolves35callback acceptance or that arbitrary unsupported custom-metaclass behavior is unchanged"
+    "kind": "qualify formatting followup then plan readiness/continuation and bulk-copy changes",
+    "status": "pending CI",
+    "limits": "Preserve statement guard, original wall/work/cost caps, phase effects, ownership and graph identity"
   },
   "controlled_profile": {
     "commit": "0e403264087acd080da17ac7ec245a5cd19d885b",
@@ -218,5 +217,66 @@
       }
     },
     "interpretation": "A capped instrumented prefix, with sequential cache warming. Cumulative rows overlap and must not be summed; these are not full-run cost or measured performance gains."
+  },
+  "schema_lookup_followup": {
+    "commit": "17ab3946ca18f922c26020fdad20083fabcfc6af",
+    "profile_run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594370174",
+    "qualification": false,
+    "source_sha256": "b44d82a9e8315db2bb3046eb79a0ffe8068dc80a78e5f55b46ace718ab09c933",
+    "samples": [
+      {
+        "role": "uninstrumented_baseline",
+        "answer_status": "unavailable",
+        "solver_status": "budget_exhausted",
+        "stop_reason": "max_seconds",
+        "sample_wall_seconds": 2.0025485869999997
+      },
+      {
+        "role": "controlled_instrumentation",
+        "answer_status": "unavailable",
+        "solver_status": "budget_exhausted",
+        "stop_reason": "max_seconds",
+        "sample_wall_seconds": 2.0053701499999974
+      }
+    ],
+    "selected_overlapping_profile_rows": [
+      {
+        "calls": "1580",
+        "self_seconds": 0.003,
+        "cumulative_seconds": 1.023,
+        "function": "transform.py:1605(detached_payload)"
+      },
+      {
+        "calls": "1431",
+        "self_seconds": 0.002,
+        "cumulative_seconds": 0.921,
+        "function": "store.py:234(copy)"
+      }
+    ],
+    "record_self_row": {
+      "calls": "181593",
+      "self_seconds": 0.041,
+      "cumulative_seconds": 0.054,
+      "function": "transform.py:234(_record)"
+    },
+    "interpretation": "Both original caps still stop at max_seconds; different capped prefixes and CI hosts prevent end-to-end gain claims. No SEM04 acceptance closure.",
+    "correctness": {
+      "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594370214",
+      "mandatory": 36,
+      "stage": 1048,
+      "audit_passed": 5282,
+      "audit_failed": 2,
+      "semantic": "49/52",
+      "LV": "3/6",
+      "known_failed_set_unchanged": true,
+      "source_stable_all_groups": true
+    },
+    "quality": {
+      "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43594370268",
+      "passed": false,
+      "added_diagnostics": 1,
+      "only_new_diagnostic": "transform.py:238 format/unformatted",
+      "followup": "Restore missing module-function blank line; formatting-only followup pending CI"
+    }
   }
 }

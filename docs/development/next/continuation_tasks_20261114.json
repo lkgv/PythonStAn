@@ -324,8 +324,8 @@
         "R0"
       ],
       "status": "running",
-      "implementation_state": "stop_causes_and_controlled_profile_measured_fixed_schema_dispatch_candidate",
-      "execution_validation": "7a7 original failures classified;0e403 baseline/profile bothwallcapped; schema-only candidate pending fullCI",
+      "implementation_state": "sealed_schema_lookup_implemented_both_original_targets_still_open",
+      "execution_validation": "17ab all correctness failure sets unchanged;profile remainswallcapped;formatting-only followup pendingCI",
       "write_scope": [
         "pythonstan/analysis/engines/abstract/transfer.py",
         "pythonstan/analysis/engines/abstract/driver.py",
@@ -338,9 +338,9 @@
         "保存normal/raise/prefix/alias与顺序scope；同质量完整成本比较"
       ],
       "next_steps": [
-        "Qualify schema lookup candidate with unchanged graph/cost guards",
-        "Reprofile the same capped35callback fixture, keeping timing role separate from acceptance",
-        "Then design readiness/continuation and bulk-copy work without resetting guard or raising caps"
+        "Complete formatting followup qualification",
+        "Design explicit readiness/continuation for cold source callbacks without changing guard",
+        "Measure graph-copy reductions with same quality and original owner caps"
       ]
     },
     {
@@ -695,5 +695,6 @@
   "latest_validation_record": "continuation_validation_20261114.json",
   "latest_diagnostic_commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
   "next_measurement_record": "sem04_measurement_20261114.json",
-  "latest_profile_commit": "0e403264087acd080da17ac7ec245a5cd19d885b"
+  "latest_profile_commit": "0e403264087acd080da17ac7ec245a5cd19d885b",
+  "latest_correctness_checkpoint": "17ab3946ca18f922c26020fdad20083fabcfc6af"
 }
