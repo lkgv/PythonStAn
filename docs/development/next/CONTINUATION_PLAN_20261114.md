@@ -6,7 +6,7 @@
 
 本计划对照了《PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt》全文、Inspector v2 增补，以及该提交的源码、任务板、gate 和客户查询协议。它细化后续执行，不替代原 43 卡或原 46 卡验收，也不以旧任务板状态推断当前实现完成度。
 
-当前执行环境不可用。本次完成的是远端源码与需求核对、任务拆分和文档结构校验；生产代码未修改，运行测试全部为 `not_run`。旧的未推送诊断材料不可假定仍可读取，需从冻结输入重建。
+当前本地执行环境不可用。首次恢复先完成远端源码与需求核对，随后已通过 GitHub CI 重建四组冻结基线并重验质量门；新登记见证在其提交执行前仍为 `not_run`。生产代码未修改。旧的未推送诊断材料不可假定仍可读取，需从冻结输入重建。
 
 基线提交消息记录的历史结果为 audit 5222 pass / 2 fail、stage 1046 pass / 1 fail、mandatory 36/36、semantic 49/52、LV 3/6，以及质量零新增/零修改诊断。它们不是本次重新执行的结果，也不表示全仓严格类型、整体 soundness 或发布验收完成。旧质量摘要和任务板中的更早结果同样只作为历史。
 
@@ -21,7 +21,7 @@ R0 恢复可执行环境后，先核对实际 HEAD/tree、dirty diff、模块加
 - 质量全扫描、strict frontier、依赖和负例；
 - 每个待修项的独立红例、正控制和实际成本记录。
 
-当前所有这些执行检查均未运行。历史测试数量不是新的通过门。普通语义 witness 的原资源与正式 cohort 的资源分别保持，不能混用：例如冻结递归见证的 10000 work / 2 s / 512 MB 与原 cohort S 的 10000 / 8 s / 1536 MiB / outer 15 s 属于不同协议。
+首次登记时这些检查为 not_run；现已完成的远端基线见 continuation_baseline_20261114.json，其余未取得当期回执的检查仍为 not_run。历史测试数量不是新的通过门。普通语义 witness 的原资源与正式 cohort 的资源分别保持，不能混用：例如冻结递归见证的 10000 work / 2 s / 512 MB 与原 cohort S 的 10000 / 8 s / 1536 MiB / outer 15 s 属于不同协议。
 
 STATE01/02、SEM03 等未整卡 verified 时，可在 owner 冻结的 `interface_ready` 合同上做有界开发；最终验收不能跳过硬依赖。作者与独立 reviewer 分工，所有共享生产文件先分配 lease。
 
@@ -108,3 +108,13 @@ G8 分阶段条件状态独立报告，不能无条件阻断 G9 核心交付；�
 该工作流沿用已锁定工具、Python 3.12 与既有 checkout/setup 步骤。四组各有独立退出状态，fail-fast 关闭以保留完整分母，不使用 continue-on-error、xfail 或已知失败豁免。20 分钟仅是外层任务看门狗，不修改分析器的任何资源 profile。它不读取模型凭据或执行 live 请求。
 
 每组打印实际 commit、命令、Python、源码 digest、完整原始输出、exit code、耗时和前后源码稳定性；semantic 输出完整结构化回执。新四组结果在执行前仍为 pending/not_run，原质量成功不代替这四组验收。远端 CI 的通过/失败必须在该提交身份下单独记录；它也不表示本地交互式环境已恢复。
+
+## 当前 CI 基线与首批 A-FRAME 见证登记
+
+四组冻结基线已在 `a956fc7d` 实际完成，质量工作流成功，源码前后指纹一致。完整计数、失败 selector、环境和公开 job 链接见 [continuation_baseline_20261114.json](continuation_baseline_20261114.json)。已知失败保持原样，不作为新测试豁免。
+
+新增独立测试 `test_call_frame_continuation_independent.py` 登记五个有限 CPython gold：递归调用后重读 local（17）、同时保留 global 写回（40）、非递归 private control（17）、global writeback（23）、escaping 参数 cell（17）。所有测试先有独立 concrete 控制，再检查公开 module_exit 的有限非 Top tagged-int 包含，不要求精确集合相等。
+
+只有 module_exit 被请求，不启用 returns/outcomes procedure bridge。false 分支保留 return 0，避免 base summary 直接提供预期值而掩盖 continuation 症状。五例均固定 context_depth=0 与 10000 work / 2 s / 512 MB。原 52-case manifest、gold、预算和生产代码保持。
+
+此登记尚未给出新五例的 PASS/RED 结论，须等待该测试提交自己的 CI。即使结果通过，也不证明采用了帧隔离机制；帧输入/写回结构判据、递归 escaping cell、完整 effects 与关联义务仍独立保留。

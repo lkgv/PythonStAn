@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "scope": "Fresh remote CI baseline; no production repair or release qualification",
+  "commit": "a956fc7d69e817a09de38a1b6240c2f91b8f5b48",
+  "tree": "c9b7d2d51adbe003f0297712266638312c527dd6",
+  "production_source_equivalent_to": "df5bed989f062e4e785f5732aec7369da0760e67",
+  "runtime": {
+    "location": "GitHub hosted Ubuntu runner",
+    "python": "3.12.16",
+    "poetry": "2.2.0",
+    "dependencies": "poetry.lock; poetry check --lock",
+    "local_interactive_environment": "unavailable",
+    "performance_comparability": "Do not compare these times directly with prior local performance samples"
+  },
+  "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43581187292",
+  "quality": {
+    "conclusion": "success",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43581187172",
+    "scope": "Existing quality and negative-control workflow; not whole-tree clean"
+  },
+  "results": {
+    "mandatory": {
+      "passed": 36,
+      "failed": 0
+    },
+    "stage": {
+      "passed": 1046,
+      "failed": 1,
+      "failed_ids": [
+        "tests/refactor/engines/test_native_restored_boundaries.py::test_input_budget_denial_never_publishes_uncharged_remaining_values"
+      ]
+    },
+    "audit": {
+      "passed": 5222,
+      "failed": 2,
+      "failed_ids": [
+        "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_residual_value_coverage]",
+        "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_over_thirty_two_value_coverage]"
+      ]
+    },
+    "semantic": {
+      "passed": 49,
+      "total": 52,
+      "failed": [
+        "recursion_sum_default",
+        "recursion_sum_context0",
+        "recursion_heap"
+      ]
+    },
+    "LV": {
+      "passed": 3,
+      "total": 6,
+      "failed": [
+        "lv_multi_call",
+        "lv_three_call_variant",
+        "lv_dominated_policy"
+      ]
+    }
+  },
+  "manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "receipts": {
+    "mandatory": {
+      "phase": "complete",
+      "gate": "mandatory",
+      "commit": "a956fc7d69e817a09de38a1b6240c2f91b8f5b48",
+      "exit_code": 0,
+      "elapsed_seconds": 4.954876580000004,
+      "source_before": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_after": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_stable": true
+    },
+    "stage": {
+      "phase": "complete",
+      "gate": "stage",
+      "commit": "a956fc7d69e817a09de38a1b6240c2f91b8f5b48",
+      "exit_code": 1,
+      "elapsed_seconds": 89.241052756,
+      "source_before": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_after": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_stable": true
+    },
+    "audit": {
+      "phase": "complete",
+      "gate": "audit",
+      "commit": "a956fc7d69e817a09de38a1b6240c2f91b8f5b48",
+      "exit_code": 1,
+      "elapsed_seconds": 99.094254795,
+      "source_before": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_after": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_stable": true
+    },
+    "semantic": {
+      "phase": "complete",
+      "gate": "semantic",
+      "commit": "a956fc7d69e817a09de38a1b6240c2f91b8f5b48",
+      "exit_code": 1,
+      "elapsed_seconds": 27.260969909999986,
+      "source_before": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_after": "1f3e00ae50f6dc40a3bd49eaa9fe0ae99ef6b5dd97f5f90332a9ad50f190731d",
+      "source_stable": true
+    }
+  },
+  "qualification": "All four groups completed with real exits and identical before/after Python-source fingerprints. Existing failures preserved; not overall green.",
+  "raw_evidence": "Linked public job logs and full semantic receipt; raw logs not committed",
+  "budgets_gold_assertions_unchanged": true,
+  "no_live_model_requests": true
+}

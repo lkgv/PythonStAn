@@ -7,9 +7,9 @@
   "target_branch": "dev-cocktail-analysis",
   "base_task_board": "task_board.json",
   "does_not_override_card_statuses": true,
-  "runtime_status": "local_unavailable_remote_ci_available",
+  "runtime_status": "local_unavailable_remote_ci_baseline_completed",
   "production_changes": [],
-  "new_runtime_checks": "remote_baseline_pending; no semantic test claimed passed",
+  "new_runtime_checks": "baseline actually executed at a956fc7d; newly registered call-frame witnesses not_run",
   "normative_inputs": [
     "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
     "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",
@@ -63,9 +63,9 @@
         "N4-QUAL-01"
       ],
       "depends_on": [],
-      "status": "running",
+      "status": "review",
       "implementation_state": "planned_not_implemented",
-      "execution_validation": "remote_ci_pending",
+      "execution_validation": "fresh_remote_baseline_completed_with_known_failures",
       "write_scope": [
         "pyproject.toml",
         "poetry.lock",
@@ -106,7 +106,19 @@
         "N4-SEM-03",
         "N4-STATE-01",
         "N4-STATE-02"
-      ]
+      ],
+      "registered_witnesses": {
+        "path": "tests/regression/audit3/test_call_frame_continuation_independent.py",
+        "concrete_expected": [
+          17,
+          40,
+          17,
+          23,
+          17
+        ],
+        "execution": "not_run_before_this_registration",
+        "purpose": "Public symptoms and controls, not proof of frame mechanism"
+      }
     },
     {
       "id": "A-CORRELATION-DESIGN",
@@ -122,7 +134,7 @@
       "execution_validation": "not_run",
       "write_scope": [
         "pythonstan/analysis/engines/abstract/driver.py",
-        "tests/regression/audit3/domain_manifest.json"
+        "tests/regression/audit3/semantic_manifest.json"
       ],
       "objective": "独立审查同key合并入口后全量复用出口的输入/输出关联；比较有限输入分区与guarded/relational summaries。",
       "acceptance": [
@@ -637,8 +649,9 @@
       "audit",
       "semantic"
     ],
-    "baseline_result": "not_run_until_workflow_executes",
+    "baseline_result": "completed_with_failures_preserved",
     "unchanged_solver_caps": true,
-    "no_live_api_or_secrets": true
+    "no_live_api_or_secrets": true,
+    "result_record": "continuation_baseline_20261114.json"
   }
 }
