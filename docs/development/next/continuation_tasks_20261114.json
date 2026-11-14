@@ -8,8 +8,12 @@
   "base_task_board": "task_board.json",
   "does_not_override_card_statuses": true,
   "runtime_status": "local_unavailable_remote_ci_baseline_completed",
-  "production_changes": [],
-  "new_runtime_checks": "Full baseline a956 and RED42 and direct repair646 actual CI recorded; latest provenance repair pending CI",
+  "production_changes": [
+    "pythonstan/analysis/domains/values.py",
+    "pythonstan/analysis/state/store.py",
+    "pythonstan/analysis/engines/abstract/driver.py"
+  ],
+  "new_runtime_checks": "766a223 quality pass/public21of22/lowlevel21of21;3091 completewire classifies wrapper as interval precision loss covering19; bounded input-widen and Native two-layer tests pending CI",
   "normative_inputs": [
     "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
     "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",

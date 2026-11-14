@@ -415,6 +415,23 @@ class ValueOperations:
             strings=self.string.widen(a.strings, b.strings),
         )
 
+    def widen_input(self, a: Value, b: Value) -> Value:
+        """Retain bounded finite integer inputs before interval widening.
+
+        This input policy leaves the ordinary widening contract unchanged.
+        Strict finite growth can add at most max_consts members before the
+        original interval widening takes over; intervals never become finite.
+        """
+        joined = self.join(a, b)
+        integers = joined.ints
+        if not integers.is_enumerable() or len(integers.consts) > self.integer.max_consts:
+            integers = self.integer.widen(a.ints, b.ints)
+        return replace(
+            joined,
+            ints=integers,
+            strings=self.string.widen(a.strings, b.strings),
+        )
+
     def facets(self, value: Value) -> tuple[ValueFacet, ...]:
         """Split a union without enumerating or dropping any component.
 

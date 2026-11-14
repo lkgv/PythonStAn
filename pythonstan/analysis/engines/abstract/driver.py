@@ -52,7 +52,7 @@ from pythonstan.analysis.contracts.private_slots import (
 )
 from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger
 from pythonstan.analysis.domains.reabstract import IdentitySubstitution
-from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.domains.values import Value, ValueOperations, admit_value
 from pythonstan.analysis.observations.driver_bridge import (
     DriverProcedureBridge,
     SummaryProcedureExit,
@@ -733,9 +733,20 @@ class InterproceduralDriver:
         else:
             unit = self.units[key]
             if not entry.leq(unit.entry, operations):
-                expanded = unit.entry.join(
-                    entry, operations, widen=unit.visits > execution.integer("widen_delay", 2)
-                )
+                if unit.visits > execution.integer("widen_delay", 2):
+                    with self.resource_ledger.structural_meter(
+                        "entry_widen_work",
+                        charge=lambda amount: self.charge(amount, "entry_widen_work"),
+                    ) as meter:
+                        expanded = unit.entry.join(
+                            entry,
+                            operations,
+                            value_merge=lambda old, new: self._widen_entry_value(
+                                old, new, operations, meter.visit
+                            ),
+                        )
+                else:
+                    expanded = unit.entry.join(entry, operations)
                 unit.entry = expanded
                 self.enqueue(key, "entry_growth")
                 self.increment_stat("entry_growth", 1)
@@ -751,6 +762,20 @@ class InterproceduralDriver:
             self.emit(
                 "call_dependency", caller=caller, callee=key, revision=self.units[key].revision
             )
+
+    def _widen_entry_value(
+        self,
+        old: Value,
+        new: Value,
+        operations: ValueOperations,
+        visit: Callable[[int], None],
+    ) -> Value:
+        """Admit a complete bounded input merge before publishing its value."""
+        admit_value(old, visit)
+        admit_value(new, visit)
+        merged = operations.widen_input(old, new)
+        admit_value(merged, visit)
+        return merged
 
     def _call_local_writeback_cells(
         self, frame: Frame, operations: ValueOperations

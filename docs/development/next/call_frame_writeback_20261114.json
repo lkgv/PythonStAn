@@ -42,10 +42,10 @@
     "Only actual weak-only value expansion invalidates that cell guard; strong/heap/havoc effects retain previous guard rules",
     "Charge weak-set copy, effect classification, selected inserts/final scan, provenance emission and both join inputs/output under existing factor8"
   ],
-  "candidate_runtime_result": "typed provenance repair pending CI",
+  "candidate_runtime_result": "766a223 quality passed; public 21/22 and lowlevel21/21; wrapper classified by3091 full publicwire as finite-precision loss, not missing19",
   "extra_validation": {
-    "public_cases": 11,
-    "public_checks": 22,
+    "public_cases": 13,
+    "public_checks": 26,
     "lowlevel_checks": 21,
     "scope": [
       "escaping cell36",
@@ -148,5 +148,47 @@
       2
     ],
     "note": "New low-level success budget admits added provenance work; explicit 1/2-tick denial tests prevent free bookkeeping. All existing public/frozen profiles unchanged."
+  },
+  "provenance_ci": {
+    "commit": "766a2234f479fa4282f42ade8fada205412cf22d",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43589536433",
+    "quality": "passed",
+    "audit": {
+      "passed": 5264,
+      "failed": 3
+    },
+    "public": {
+      "passed": 21,
+      "total": 22
+    },
+    "lowlevel": {
+      "passed": 21,
+      "total": 21
+    },
+    "source_fingerprint": "620108e1a26eff29ad084d48e6b2b584aa276fac8aa10d0e98445cca38c97a74",
+    "source_stable": true
+  },
+  "wrapper_diagnosis": {
+    "commit": "3091bc36bd978b913bab6069abd61b5f6f8f86a3",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43591254562",
+    "job_url": "https://github.com/lkgv/PythonStAn/actions/runs/43591254562/job/132436257726",
+    "actual_integer_interval": {
+      "lower": 17,
+      "upper": null,
+      "parity": "odd"
+    },
+    "actual_tagged_constants": [],
+    "status": "answered_closed_converged",
+    "concrete19_covered": true,
+    "classification": "finite_precision_failure",
+    "does_not_change_original_finite_gate": true
+  },
+  "input_widen_candidate": {
+    "runtime_result": "pending CI",
+    "policy": "Only unit input merge preserves finite integer union up to existing max_consts; default integer/value widening unchanged; interval or overflow uses original widening",
+    "cost": "Paid input and output facet admission; assign unit entry only after complete detached merge",
+    "termination_scope": "Integer projection only; other facets retain original assumptions",
+    "public_finite_cases": 13,
+    "growth_cases": 2
   }
 }

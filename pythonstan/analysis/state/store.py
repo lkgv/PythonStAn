@@ -395,7 +395,14 @@ class Store:
         self.invalidate_guards(objid)
         self.record_write(HeapWrite(objid, key))
 
-    def join(self, other: Store, ops: ValueOperations, *, widen: bool = False) -> Store:
+    def join(
+        self,
+        other: Store,
+        ops: ValueOperations,
+        *,
+        widen: bool = False,
+        value_merge: Callable[[Value, Value], Value] | None = None,
+    ) -> Store:
         self = self.current_view(ops)
         other = other.current_view(ops)
         from .aliases import store_alias_conflicts
@@ -407,7 +414,7 @@ class Store:
         PayloadTransformer(memo=memo).store_contribution(self, into=result)
         for owner in self.heap.keys() & other.heap.keys():
             memo[id(other.heap[owner])] = result.heap[owner]
-        join = ops.widen if widen else ops.join
+        join = (ops.widen if widen else ops.join) if value_merge is None else value_merge
         for cell in self.cells.keys() | other.cells.keys():
             a = self.effective_cell(cell)
             b = other.effective_cell(cell)

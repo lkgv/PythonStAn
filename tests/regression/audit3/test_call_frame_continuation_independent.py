@@ -162,6 +162,30 @@ CASES: tuple[Case, ...] = (
         "result = b()\n",
         19,
     ),
+    Case(
+        "finite_two_wrappers_late19",
+        "def leaf(value):\n"
+        "    return value\n"
+        "def inner(value):\n"
+        "    return leaf(value)\n"
+        "def outer(value):\n"
+        "    return inner(value)\n"
+        "a = outer(17)\n"
+        "result = outer(19)\n",
+        19,
+    ),
+    Case(
+        "shared_callee_two_callers",
+        "def shared(value):\n"
+        "    return value\n"
+        "def left():\n"
+        "    return shared(17)\n"
+        "def right():\n"
+        "    return shared(19)\n"
+        "a = left()\n"
+        "result = right()\n",
+        19,
+    ),
 )
 
 

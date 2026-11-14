@@ -54,12 +54,69 @@ def test_actual_latin1_file_retains_original_decoded_snapshot(tmp_path):
     assert answer.value['constants']==['café'] and not answer.value['top'],answer
 
 
-def test_input_budget_denial_never_publishes_uncharged_remaining_values():
-    result,answer=get(Source('result=seed',module='subject'),symbol='seed',inputs={'bindings':{'subject.seed':{'constants':[1,2,3]}}},resources={'max_work':2})
-    data=result.raw_snapshot()
-    assert result.solver_status=='budget_exhausted'
-    assert data['stats']['global_work_used']==2 and data['stats']['input_publications']==2
-    assert answer.value['constants']==[1,2]
+def test_input_budget_denial_never_publishes_uncharged_remaining_values() -> None:
+    """Two Native worker ticks admit two inputs within the component quota."""
+    from pythonstan.analysis.contracts.json_data import require_object
+    from pythonstan.compat.legacy_runner import run_legacy
+    from pythonstan.config import resolve_config
+    from pythonstan.inputs import snapshot_target
+
+    target = Source("result=seed", module="subject")
+    config = resolve_config(
+        target,
+        {
+            "engine": "native",
+            "inputs": {"bindings": {"subject.seed": {"constants": [1, 2, 3]}}},
+            "resources": {"max_work": 2},
+        },
+    )
+    snapshot = snapshot_target(target, config)
+    data = run_legacy(snapshot, config)
+    stats = require_object(data["stats"])
+    values = require_object(data["values"])
+    subject = require_object(values["subject"])
+    seed = require_object(subject["seed"])
+    assert data["solver_status"] == "budget_exhausted"
+    assert stats["global_work_used"] == 2 and stats["input_publications"] == 2
+    assert seed["constants"] == [1, 2]
+
+
+def test_public_two_tick_request_denies_before_native_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same public request cap also covers setup and terminal publication."""
+    from pythonstan.analysis.contracts.json_data import require_object, require_int
+    from pythonstan.compat import legacy_runner
+
+    dispatches: list[bool] = []
+
+    def unexpected_dispatch(*args: object, **kwargs: object) -> None:
+        dispatches.append(True)
+        raise AssertionError("Native dispatch occurred before request admission")
+
+    monkeypatch.setattr(legacy_runner, "run_legacy", unexpected_dispatch)
+    query = ValueQuery("subject", "seed")
+    result = analyze(
+        Source("result=seed", module="subject"),
+        config={
+            "engine": "native",
+            "inputs": {"bindings": {"subject.seed": {"constants": [1, 2, 3]}}},
+            "resources": {"max_work": 2},
+        },
+        queries=[query, "stats"],
+    )
+    answer = result.query(query)
+    data = result.raw_snapshot()
+    assert not dispatches
+    assert result.solver_status == "budget_exhausted"
+    assert answer.status == "unavailable" and answer.value is None
+    assert answer.coverage_status == "open"
+    assert require_object(data["stats"])["input_publications"] == 0
+    ledger = require_object(data["resource_ledger"])
+    assert ledger["stop_reason"] == "max_work"
+    work = require_object(ledger["work"])
+    assert work["limit"] == 2
+    assert require_int(work["used"]) + require_int(work["reserved"]) <= 2
 
 
 def test_injected_source_is_captured_before_tac_and_inherited_by_nested_scopes(tmp_path):

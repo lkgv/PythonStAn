@@ -133,7 +133,7 @@ G8 分阶段条件状态独立报告，不能无条件阻断 G9 核心交付；�
 
 ## 跨 wrapper 的 typed contribution provenance
 
-首版 `6460bc` 的新 22 项 public 检查中 21 项通过、13 项低层全部通过，原 17/40 已转绿；wrapped parameter closure 仍 Closed 漏 19。原 stage、mandatory、semantic/LV 计数保持，质量仅多出 driver 第 1020 行一处格式诊断，现同步按 formatter 修正。
+首版 `6460bc` 的新 22 项 public 检查中 21 项通过、13 项低层全部通过，原 17/40 已转绿；wrapped parameter closure 仍未通过有限常量验收；`3091bc36` 的完整公开答案后来确认它为 `[17,+∞)` odd，覆盖 19，不能将此项称作漏值。原 stage、mandatory、semantic/LV 计数保持，质量仅多出 driver 第 1020 行一处格式诊断，现同步按 formatter 修正。
 
 本版给既有 CellWrite 增加默认 false 的 weak 字段，不增加 Effect union 变体或持久 Store 字段。标志代表跨边界保守 cell 贡献，不能解释成新 Python 赋值、有序重放或永久 cell cardinality。direct 命中的既存 local 即 Value 同 identity 也记录标志；copy/remap/signature 保留它，wrapper 沿原 effects 继续传播。
 
@@ -146,3 +146,13 @@ apply 先登记有效弱 cell，再统一用原 caller 值与 callee 最终 effe
 ### Wrapped closure diagnosis checkpoint
 
 At `766a223`, all 21 low-level weak-writeback checks pass and quality is green. The wrapped parameter closure still fails the unchanged finite-constant public gate. Its complete exported value must be inspected before classifying this as missing semantic coverage: an integer interval can cover 19 without listing it in `tagged_constants`. The diagnostic change prints the complete existing public answer on failure; it changes no source, expected value, profile, solver limit, or analysis execution.
+
+## 有界整数输入 widening 与 Native 预算层级
+
+`766a223` 实际质量通过；21 个 low-level 检查全部通过，public 为 21/22。`3091bc36` 只补全断言诊断，确认 wrapper 输出 `[17,+∞)` odd，Closed 且 converged，覆盖具体值 19。这项是有限精度退化；首批递归 17/40 的漏值结论与其独立。
+
+新候选只为 unit input merge 使用 `widen_input`：joined integer 精确集合不超过既有 max_consts 时保留有限 union；超过容量或已是 interval 时仍调用原 integer.widen。string 与其他 facets 保留原策略，默认 Value/Int widening 合同不变。有限整数严格增长至多 K 次，随后进入不再恢复 finite 的区间阶段；这只是整数投影的终止论证，不是全引擎的新收敛定理。不能仅因调用图无环就取消 widening：两次共享 global inc 会产生非递归摘要输入反馈。
+
+Store.join 的可选 typed value_merge 复用原 cells、heap slots/default 与同形 nested/cyclic metadata 路径。driver 的 input widening 每个 Value 先准入两输入，再计算，再准入输出；成功后才更新 unit.entry。既有 cost factor、阈值、资源 profile 与冻结 manifest/gold 保持。新增有限多层 wrapper、共享 callee、递归/无环增长、cap/interval/metadata/计费拒绝独立控制；候选运行状态仍 pending CI。
+
+旧 Native max_work=2 stage 失败经源码核对，公共完整请求在 setup/terminal 准入即耗尽，尚未进入 Native。测试分别覆盖真实独立 Native worker quota=2 的原 `[1,2]`/publication=2 gold，以及公共 cap=2 的早拒绝、未 dispatch、unavailable/open 和总 consumed+reserved≤2。两层均保留数值 2；生产 Native 与成本合同不改，不能把 worker quota 误作完整请求 fuel。实际两层结果仍待本候选 CI。
