@@ -1,0 +1,630 @@
+{
+  "schema_version": 1,
+  "plan_version": "continuation-20261114",
+  "baseline_commit": "df5bed989f062e4e785f5732aec7369da0760e67",
+  "baseline_tree": "ee7e09e3ecefabf5c612bd45f4f70103c1d95bc8",
+  "target_repository": "lkgv/PythonStAn",
+  "target_branch": "dev-cocktail-analysis",
+  "base_task_board": "task_board.json",
+  "does_not_override_card_statuses": true,
+  "runtime_status": "unavailable",
+  "production_changes": [],
+  "new_runtime_checks": "not_run",
+  "normative_inputs": [
+    "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
+    "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",
+    "gate_manifest.json",
+    "query_manifest.json",
+    "client_queries/legacy_compatibility.json",
+    "client_queries/protocol.json"
+  ],
+  "authority_rule": "Original 43-card obligations/DAG remain authoritative. This overlay refines scheduling and recovery only. interface_ready permits bounded development, never final verification or release without original prerequisites.",
+  "historical_checkpoint_results": {
+    "provenance": "Public df5bed9 commit message; historical evidence, not rerun",
+    "audit": {
+      "passed": 5222,
+      "failed": 2
+    },
+    "stage": {
+      "passed": 1046,
+      "failed": 1
+    },
+    "mandatory": {
+      "passed": 36,
+      "total": 36
+    },
+    "semantic": {
+      "passed": 49,
+      "total": 52
+    },
+    "LV": {
+      "passed": 3,
+      "total": 6,
+      "LV02": "historically passed"
+    },
+    "quality": "historical zero added/modified diagnostics; old debt retained; not whole-tree clean"
+  },
+  "execution_rules": [
+    "No whole-card verification from test totals or static inspection",
+    "Original gold/assertions/resource caps/cost model retained; no hidden skips/xfails or free work",
+    "Owner and independent reviewer required; acquire nonoverlapping source leases",
+    "AI/SEM04 share Driver/Transfer and require serialized production edits; Native IR lane can run in parallel",
+    "Default analysis remains network/LLM/Inspector independent",
+    "New source, synthetic tests, public configuration and reviewed engineering docs may be pushed to target branch at milestones and at least hourly during active work; no empty commits when nothing changed",
+    "Never publish credentials, private input, internal review records, raw logs or opaque recovery archives; never push a local private checkpoint wholesale",
+    "Use fresh remote-head compare-and-swap; main unchanged; record real remote commit/tree after push"
+  ],
+  "tasks": [
+    {
+      "id": "R0",
+      "parent_cards": [
+        "N4-BOOT-01",
+        "N4-BOOT-02",
+        "N4-QUAL-01"
+      ],
+      "depends_on": [],
+      "status": "blocked_external",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pyproject.toml",
+        "poetry.lock",
+        "docs/development/next/gate_manifest.json",
+        "tests/regression/audit3"
+      ],
+      "objective": "恢复执行环境；从当前远端核对HEAD/tree/dirty与加载路径；按Poetry lock恢复工具；重建冻结输入与独立基线。",
+      "acceptance": [
+        "记录实际身份与完整退出码，历史结果单列；所有原assertions/gold/caps保持",
+        "mandatory、完整冻结semantic/LV、原stage/audit及质量负例重新执行",
+        "STATE/SEM03等前置卡逐项核验；未整卡通过时只冻结interface_ready开发合同，不能提前verified"
+      ]
+    },
+    {
+      "id": "A-FRAME",
+      "parent_cards": [
+        "N4-AI-01",
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/state/store.py"
+      ],
+      "objective": "区分caller私有帧与global/closure/escaping cells，限制合法callee写回；保留重入continuation。",
+      "acceptance": [
+        "先证实clear_effects/Store.apply的实际污染，再修具体生产链",
+        "递归同UnitId的local CellId碰撞、返回逃逸closure、global/nonlocal/default/generator/finally均有独立对照",
+        "不得删除全部locals或只按当前read-set裁剪；未知alias扩大footprint或显式覆盖回退"
+      ],
+      "verification_requires_original_cards": [
+        "N4-SEM-03",
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ]
+    },
+    {
+      "id": "A-CORRELATION-DESIGN",
+      "parent_cards": [
+        "N4-AI-01",
+        "N4-AI-02"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "tests/regression/audit3/domain_manifest.json"
+      ],
+      "objective": "独立审查同key合并入口后全量复用出口的输入/输出关联；比较有限输入分区与guarded/relational summaries。",
+      "acceptance": [
+        "sum、heap、context0分别定位，隔离污染与关联丢失不混为一因",
+        "设计须处理同n不同共享heap入口、重复调用、分区溢出、未知alias与完整completion/effects",
+        "不得完整Store/hash入CallKey、无限value specialization或未经证明按poststate筛出口"
+      ]
+    },
+    {
+      "id": "A-CORRELATION-IMPL",
+      "parent_cards": [
+        "N4-AI-01",
+        "N4-AI-02",
+        "N4-QUERY-01"
+      ],
+      "depends_on": [
+        "A-FRAME",
+        "A-CORRELATION-DESIGN"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/state/store.py",
+        "pythonstan/analysis/observations/driver_bridge.py"
+      ],
+      "objective": "实施被审查通过的最小有限方案；复用Unit.entry/outcomes与现有producer，不新增平行摘要库存。",
+      "acceptance": [
+        "明确entry增长与本次evaluated-entry版本，重入增长后的旧产物不可续签coverage",
+        "entry/exit/completion/effect/coverage/policy/epoch/footprint变化唤醒依赖；值相同也不能漏coverage进展",
+        "冻结sum=10、heap=5、context0、互递归及Q1 scope/epoch/单点bulk控制在原profile验收"
+      ],
+      "verification_requires_original_cards": [
+        "N4-SEM-03",
+        "N4-STATE-01",
+        "N4-STATE-02"
+      ]
+    },
+    {
+      "id": "A-FIXPOINT",
+      "parent_cards": [
+        "N4-AI-02"
+      ],
+      "depends_on": [
+        "A-CORRELATION-IMPL",
+        "C-SEM04"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/transfer.py"
+      ],
+      "objective": "建立有限SCC/WTO或等价调度、loop-header/iterator方程、widen位置与受检narrowing。",
+      "acceptance": [
+        "明确终止与post-fixpoint条件；异常、挂起、清理和不终止前缀均保留",
+        "有限精确展开超界后覆盖迭代，不能省略尾元素",
+        "narrowing贡献替换与消费者失效有证据，不靠追加或加budget"
+      ],
+      "verification_requires_original_cards": [
+        "N4-AI-01",
+        "N4-DOM-01",
+        "N4-SEM-04",
+        "N4-SEM-05"
+      ]
+    },
+    {
+      "id": "B-PLAN",
+      "parent_cards": [
+        "N4-SEM-01",
+        "N4-SEM-03",
+        "N4-PTA-03"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/semantics/callplan.py",
+        "pythonstan/analysis/transform/three_address.py",
+        "pythonstan/ir/ir_statements.py",
+        "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+        "pythonstan/analysis/pointer/kcfa/constraints.py"
+      ],
+      "objective": "复用semantics/callplan.py，令typed ordered plan贯穿TAC、IRCall、Native translator与真实调用消费者。",
+      "acceptance": [
+        "starred/deferred、named group、重复**operand、rename/copy/loads完整保留",
+        "旧helper调用经单一薄适配进入同一消费者；不能新增闲置合同",
+        "本切片只声明生产链信息完整，不声明旧effects顺序已修"
+      ]
+    },
+    {
+      "id": "B-ORDER",
+      "parent_cards": [
+        "N4-SEM-01",
+        "N4-SEM-03",
+        "N4-PTA-03"
+      ],
+      "depends_on": [
+        "B-PLAN"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/transform/three_address.py",
+        "pythonstan/ir/ir_statements.py",
+        "pythonstan/analysis/pointer/kcfa/ir_translator.py",
+        "pythonstan/analysis/pointer/kcfa/processor/normal_call.py"
+      ],
+      "objective": "在表达式块、star展开、keyword group/mapping merge、binding、invoke之间加入单调阶段屏障。",
+      "acceptance": [
+        "先重建并冻结CPython3.12独立矩阵；旧14项仅历史，不宣称已恢复或新PASS",
+        "sole-star延迟、keyword-before-star、duplicate/nonstr及custom协议中途raise的前缀正确",
+        "exact形状需完整覆盖证书；may keys/fields不能推must arity/order/absence",
+        "确定失败只停止该调用分支后缀；mixed/unknown保留正常/异常/callback/effects并Open；无非单调kill"
+      ]
+    },
+    {
+      "id": "B-REPLAY",
+      "parent_cards": [
+        "N4-PTA-03"
+      ],
+      "depends_on": [
+        "B-ORDER"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/pointer/kcfa/solver.py",
+        "pythonstan/analysis/pointer/kcfa/constraints.py",
+        "pythonstan/analysis/pointer/kcfa/processor/normal_call.py",
+        "pythonstan/analysis/pointer/kcfa/keyword_expansion.py"
+      ],
+      "objective": "阶段工作接入现有constraint_replay及四队列；覆盖old-fact replay和future subscriptions。",
+      "acceptance": [
+        "operand/callee/field在plan前后到达均覆盖；重复replay不无限造stage/context/allocation",
+        "unknown返回未使用时，未来field/global/captured-cell仍havoc并保留callback/exception",
+        "每阶段/replay预计费、耗尽pending/Open；19context/独立heap及原参数来源保持",
+        "有限mutants逐一击中顺序、star、frozenset、may-shape、replay、future-effect与budget回归"
+      ]
+    },
+    {
+      "id": "C-SEM04",
+      "parent_cards": [
+        "N4-SEM-04",
+        "N4-PERF-01",
+        "N4-BUDGET-01"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/transfer.py",
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/engines/abstract/publication.py"
+      ],
+      "objective": "在原callback资源覆盖见证下分阶段测量comprehension求解/状态复制/查询导出成本，再做不改变质量的优化。",
+      "acceptance": [
+        "原callback_residual_value_coverage与callback_over_thirty_two_value_coverage断言/caps不动",
+        "不能以unavailable/Open替代规定normal-value target，也不能移出计费遍历",
+        "保存normal/raise/prefix/alias与顺序scope；同质量完整成本比较"
+      ]
+    },
+    {
+      "id": "C-COST-CONTRACT",
+      "parent_cards": [
+        "N4-BUDGET-01"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/contracts/resources.py",
+        "pythonstan/compat/native_worker.py",
+        "pythonstan/session.py",
+        "tests/refactor/engines/test_native_restored_boundaries.py"
+      ],
+      "objective": "重建Native max_work=2既有合同冲突及最小成本见证；统一公开shared fuel/兼容语义，保持旧失败可见。",
+      "acceptance": [
+        "setup/input/solver/export/freeze成本和停止状态可解释，无免费路径",
+        "不调cost factor/caps或修改旧gold消红；不把backend迭代数静默改称全局fuel",
+        "若合同确实不相容，明确保留contract_decision_open，并以完整规范/消费者迁移单独评审"
+      ]
+    },
+    {
+      "id": "D-FACTS",
+      "parent_cards": [
+        "N4-QUERY-01",
+        "N4-RESULT-01",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/observations",
+        "pythonstan/analysis/composition",
+        "pythonstan/analysis/verification",
+        "pythonstan/results"
+      ],
+      "objective": "沿现有Q0/Q1生产事实合同补多调用点完整性、摘要应用原子性、依赖缓存失效与L1目标query择优。",
+      "acceptance": [
+        "LV02通过不代替LV multi_call/three_call/dominated_policy；保留原完整query向量",
+        "prepare失败不发布state/facts/epoch，已耗work不可撤销；fallback只用剩余额度",
+        "单点/bulk、unknown/lazy/empty/raise-only/partial/truncated/not_requested彼此区分",
+        "L1必须同目标query质量/完整成本比较，不因更多pair而自动胜出"
+      ],
+      "verification_requires_original_cards": [
+        "N4-QUERY-01",
+        "N4-RESULT-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-SEM-01",
+        "N4-PTA-01"
+      ],
+      "sequencing": "LLM02只在LLM01后验收；本阶段使用离线候选，不调用真实模型"
+    },
+    {
+      "id": "D-HYB",
+      "parent_cards": [
+        "N4-HYB-01"
+      ],
+      "depends_on": [
+        "R0"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/composition",
+        "pythonstan/analysis/engines/abstract"
+      ],
+      "objective": "完成有限on-demand callable-constraint profile，独立source约束生成及arg/param、return/result、late-callee replay。",
+      "acceptance": [
+        "有实际AI消费与唤醒证据；D无Native预跑、E无隐式whole-source prepass",
+        "Partial只增加may事实；不以队列空或observe_call记录当完整Native",
+        "所有setup/oracle/bridge成本入共享账"
+      ],
+      "verification_requires_original_cards": [
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-CTRL-01",
+        "N4-QUERY-01"
+      ]
+    },
+    {
+      "id": "D-INCREMENTAL",
+      "parent_cards": [
+        "N4-AI-03",
+        "N4-PERF-01"
+      ],
+      "depends_on": [
+        "A-FIXPOINT"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/engines/abstract/driver.py"
+      ],
+      "objective": "一个真实statement/basic-block或call-return程序点增量路径，其他控制流保留原函数重算。",
+      "acceptance": [
+        "read-set/callee/heap/closure/guard变化正确唤醒，版本与domain/policy/epoch进依赖",
+        "同结果质量下对照全函数重算的完整成本；不能把全函数重算永久称为程序点增量"
+      ],
+      "verification_requires_original_cards": [
+        "N4-AI-02"
+      ]
+    },
+    {
+      "id": "E-QUALITY",
+      "parent_cards": [
+        "N4-CTRL-02",
+        "N4-ARCH-01",
+        "N4-OBS-01",
+        "N4-TYPE-02"
+      ],
+      "depends_on": [
+        "A-FIXPOINT",
+        "B-REPLAY",
+        "D-FACTS",
+        "D-HYB",
+        "D-INCREMENTAL"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "docs/development/next/quality_frontier.json",
+        "pyproject.toml",
+        ".github/workflows/quality.yml",
+        "pythonstan",
+        "pythonstan_inspector"
+      ],
+      "objective": "收敛控制消费者、canonical服务、Inspector纯观察与strict frontier；质量负例及实际类型消费者齐备。",
+      "acceptance": [
+        "保留Ruff/mypy/Import Linter锁与旧债；frontier模块零诊断，0new不冒充全仓clean",
+        "不借目录迁移/Any/ignore/pYi绕扫描；原退休路径与依赖负例保持",
+        "机械迁移、格式化、语义修改、性能优化分别审查"
+      ]
+    },
+    {
+      "id": "E-AUDIT",
+      "parent_cards": [
+        "N4-AUDIT-01"
+      ],
+      "depends_on": [
+        "E-QUALITY",
+        "D-FACTS",
+        "C-COST-CONTRACT"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pythonstan/analysis/verification",
+        "tests/refactor/verification"
+      ],
+      "objective": "非作者审计有限TCB、坏oracle/恶意候选/transport/secret/budget及所有语义开放义务。",
+      "verification_requires_original_cards": [
+        "N4-BOOT-02",
+        "N4-SEM-01",
+        "N4-SEM-02",
+        "N4-SEM-03",
+        "N4-SEM-04",
+        "N4-SEM-05",
+        "N4-DOM-01",
+        "N4-STATE-01",
+        "N4-STATE-02",
+        "N4-PTA-01",
+        "N4-PTA-02",
+        "N4-LLM-01",
+        "N4-LLM-02",
+        "N4-LLM-03",
+        "N4-LLM-04",
+        "N4-RESULT-01",
+        "N4-QUERY-01",
+        "N4-BUDGET-01",
+        "N4-TYPE-02"
+      ],
+      "acceptance": [
+        "不能用同一solver重跑/测试数/schema当soundness证明",
+        "无未解释closed漏行为或状态崩溃；原mandatory profile不缩小；关键实现保留非作者审查"
+      ]
+    },
+    {
+      "id": "E-WHEEL",
+      "parent_cards": [
+        "N4-REL-01"
+      ],
+      "depends_on": [
+        "E-QUALITY"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "pyproject.toml",
+        "pythonstan",
+        "tests/refactor"
+      ],
+      "objective": "冻结唯一候选wheel/source identity并在checkout外运行安装消费者。",
+      "verification_requires_original_cards": [
+        "N4-TYPE-02",
+        "N4-ARCH-01",
+        "N4-CTRL-02",
+        "N4-HYB-01",
+        "N4-AI-03",
+        "N4-PERF-01",
+        "N4-OBS-01"
+      ],
+      "acceptance": [
+        "API三种输入、query/output/default/config/error真实安装验证",
+        "退休成员、py.typed/re-export/metadata负例有效；源码不能通过PYTHONPATH遮蔽wheel",
+        "后续生产变化使受影响identity证据失效"
+      ]
+    },
+    {
+      "id": "E-RELEASE-EVAL",
+      "parent_cards": [
+        "N4-REL-01",
+        "N4-EVAL-02",
+        "N4-EVAL-03",
+        "N4-REL-02",
+        "N4-DOC-01"
+      ],
+      "depends_on": [
+        "E-WHEEL",
+        "E-AUDIT"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "docs/development/next/query_manifest.json",
+        "docs/development/next/client_queries/legacy_compatibility.json",
+        "docs/development/next/client_queries/protocol.json",
+        "docs/development/next/gate_manifest.json"
+      ],
+      "objective": "冻结唯一source/wheel，安装目录外消费者与原正式评估，再独立最终复核。",
+      "acceptance": [
+        "保留18×5=90行及完整失败分母；Inspector14项目不能替代",
+        "6真实query与指定完整项目invoke_command_names:q1保持同inventory/entry/input/query/model",
+        "同候选身份、完整成本、可比性与重复协议；core/scale/live/benefit分开，改生产后相关证据失效"
+      ]
+    },
+    {
+      "id": "F-SMOKE",
+      "parent_cards": [
+        "N4-LIVE-01"
+      ],
+      "depends_on": [
+        "E-WHEEL",
+        "E-AUDIT"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "docs/development/next/query_manifest.json"
+      ],
+      "objective": "原offline/TCB/wheel/runner门通过后才执行最多2条合成live smoke；不要求先完成LIVE02/03。",
+      "verification_requires_original_cards": [
+        "N4-AUDIT-01",
+        "N4-REL-01",
+        "N4-EVAL-02"
+      ],
+      "acceptance": [
+        "所有原stage/global预算、模型/费用核验与停止条件保持；token/key只由环境提供",
+        "当前六客户case allow_external_llm=false，公开源码不等于外发授权",
+        "G8条件状态独立于G9核心验收；blocked/stopped/负面收益均不能伪称通过"
+      ],
+      "sequencing": "Smoke需要EVAL02已独立验收，不额外等待EVAL03；held-out需要EVAL03，真实切片再需其数据与收益前置。"
+    },
+    {
+      "id": "F-HELDOUT",
+      "parent_cards": [
+        "N4-LIVE-02"
+      ],
+      "depends_on": [
+        "F-SMOKE",
+        "E-RELEASE-EVAL"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "docs/development/next/query_manifest.json"
+      ],
+      "objective": "冻结12个held-out case及全部arm分母，按原24次stage预算实施pilot。",
+      "verification_requires_original_cards": [
+        "N4-LIVE-01",
+        "N4-EVAL-03"
+      ],
+      "acceptance": [
+        "所有原stage/global预算、模型/费用核验与停止条件保持；token/key只由环境提供",
+        "当前六客户case allow_external_llm=false，公开源码不等于外发授权",
+        "G8条件状态独立于G9核心验收；blocked/stopped/负面收益均不能伪称通过"
+      ],
+      "sequencing": "Smoke需要EVAL02已独立验收，不额外等待EVAL03；held-out需要EVAL03，真实切片再需其数据与收益前置。"
+    },
+    {
+      "id": "F-REAL",
+      "parent_cards": [
+        "N4-LIVE-03"
+      ],
+      "depends_on": [
+        "F-HELDOUT"
+      ],
+      "status": "pending_dependencies",
+      "implementation_state": "planned_not_implemented",
+      "execution_validation": "not_run",
+      "write_scope": [
+        "docs/development/next/query_manifest.json"
+      ],
+      "objective": "仅对明确允许外发且满足收益前置的6个真实切片按原预算执行。",
+      "verification_requires_original_cards": [
+        "N4-LIVE-02"
+      ],
+      "acceptance": [
+        "所有原stage/global预算、模型/费用核验与停止条件保持；token/key只由环境提供",
+        "当前六客户case allow_external_llm=false，公开源码不等于外发授权",
+        "G8条件状态独立于G9核心验收；blocked/stopped/负面收益均不能伪称通过"
+      ],
+      "sequencing": "Smoke需要EVAL02已独立验收，不额外等待EVAL03；held-out需要EVAL03，真实切片再需其数据与收益前置。"
+    }
+  ]
+}
