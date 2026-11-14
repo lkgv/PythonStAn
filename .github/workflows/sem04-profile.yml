@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/sem04-profile.yml
       - scripts/development/profile_sem04_callbacks.py
+      - pythonstan/analysis/state/transform.py
   workflow_dispatch:
 
 permissions:

@@ -324,8 +324,8 @@
         "R0"
       ],
       "status": "running",
-      "implementation_state": "original_stop_causes_measured_controlled_profile_prepared",
-      "execution_validation": "7a7a original guard case max_stmt_visits;35callback max_seconds; all other gate failure sets unchanged",
+      "implementation_state": "stop_causes_and_controlled_profile_measured_fixed_schema_dispatch_candidate",
+      "execution_validation": "7a7 original failures classified;0e403 baseline/profile bothwallcapped; schema-only candidate pending fullCI",
       "write_scope": [
         "pythonstan/analysis/engines/abstract/transfer.py",
         "pythonstan/analysis/engines/abstract/driver.py",
@@ -338,8 +338,9 @@
         "保存normal/raise/prefix/alias与顺序scope；同质量完整成本比较"
       ],
       "next_steps": [
-        "Run bounded diagnostic profiler with original35callback fixture/caps and explicit non-qualifier role",
-        "Separate callee readiness/replay from copy/export cost before selecting production optimization"
+        "Qualify schema lookup candidate with unchanged graph/cost guards",
+        "Reprofile the same capped35callback fixture, keeping timing role separate from acceptance",
+        "Then design readiness/continuation and bulk-copy work without resetting guard or raising caps"
       ]
     },
     {
@@ -693,5 +694,6 @@
   "latest_validated_commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
   "latest_validation_record": "continuation_validation_20261114.json",
   "latest_diagnostic_commit": "7a7a4d719c1b7dd98c2b107100c410fe96f24468",
-  "next_measurement_record": "sem04_measurement_20261114.json"
+  "next_measurement_record": "sem04_measurement_20261114.json",
+  "latest_profile_commit": "0e403264087acd080da17ac7ec245a5cd19d885b"
 }

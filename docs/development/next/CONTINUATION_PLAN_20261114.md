@@ -172,3 +172,11 @@ A-FRAME 的 13×2 public/concrete、2×2 growth、21 local-boundary、9 input-wi
 独立 `sem04-profile.yml` 仅运行开发 utility：AST 校验原35callback字面量，然后在原10k/2s/512MB/default-context 下分别运行无插桩请求与 cProfile 请求。报告角色明确为 controlled_instrumentation / qualifier=false；同进程预热、profiler 开销和有界前缀均不能用来宣称性能提升。它不改变正式冻结 workflow 的失败判据。
 
 Native 可独立推进的阶段合同、方法顺序、兼容消费者和未运行的 CPython 控制已登记在 [NATIVE_CALL_PHASE_SLICE_20261114.md](NATIVE_CALL_PHASE_SLICE_20261114.md)。先冻结 callable/positional/star/keyword 阶段，再迁移 IR 和有限参数 builder；调用目标解析与 body activation 事实不能混为一谈。该准备不关闭 B-PLAN 或任何父卡。
+
+## SEM04 首次受控剖面与窄优化候选
+
+`0e403264` 的独立 profiler 工作流已实际完成：[run43593702256](https://github.com/lkgv/PythonStAn/actions/runs/43593702256)。原35callback source SHA 为 b44d82a9e8315db2bb3046eb79a0ffe8068dc80a78e5f55b46ace718ab09c933。无插桩与 profiler 请求均在原2s wall cap 停止。profile 有界前缀记录 3,890,573 次调用；Store.copy 820次累计0.952s、detached_payload897次累计1.046s，两者重叠，不能相加。固定_record识别101,772次，self0.151s。采样顺序、profiling干扰与前缀范围保留，不能据此宣称同质量性能提升。
+
+窄候选只将固定46类 schema tuple 提升为保强引用的模块常量，用 frozenset of integer type identities 识别 exact type，避免逐node重建tuple/线性类比较，也不对未知type调用hash。原顺序与成员逐一保持；不新增动态注册或可变缓存，不改_fields、graph admission、clone/alias/root逻辑、预算或计费。任意未支持 custom metaclass 的相等回调行为不在等价声明内；依据仍是已有sealed exact-type合同。复用原graph roundtrip/未知子类/成本负例及完整四组CI，不为静态表增加实现镜像测试。候选实际运行仍 pending。
+
+0e403 的质量首次因镜像安装授权错误在检查前失败；仅重试该job后 attempt2通过，不改lockfile或质量判据。该基础设施重试不代表生产测试新失败。

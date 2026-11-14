@@ -164,11 +164,59 @@
     "Repeated module/call replay and graph copies are static suspects; no measured ranking yet"
   ],
   "next_step": {
-    "kind": "controlled cProfile diagnostic",
+    "kind": "sealed graph-record schema recognition optimization",
+    "status": "candidate_pending_CI",
+    "changes": "Hoist unchanged46-class whitelist with strong references and immutable integer identity membership; preserve graph node admission, fields, cloning, aliases, resource limits and costing",
+    "limits": "No claim this resolves35callback acceptance or that arbitrary unsupported custom-metaclass behavior is unchanged"
+  },
+  "controlled_profile": {
+    "commit": "0e403264087acd080da17ac7ec245a5cd19d885b",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43593702256",
+    "source_sha256": "b44d82a9e8315db2bb3046eb79a0ffe8068dc80a78e5f55b46ace718ab09c933",
     "qualification": false,
-    "status": "not_run",
-    "source": "Exact original 35-callback synthetic fixture; utility must verify source identity without executing test module",
-    "caps": "Original10k/2s/512MB and default context unchanged",
-    "interpretation": "Baseline and instrumented runs separately labeled; same-process warm-up and profiler overhead prevent performance-gain claims"
+    "sampling_order": "baseline_then_profile_same_process",
+    "samples": [
+      {
+        "role": "uninstrumented_baseline",
+        "answer_status": "unavailable",
+        "solver_status": "budget_exhausted",
+        "stop_reason": "max_seconds",
+        "sample_wall_seconds": 2.003871406000002
+      },
+      {
+        "role": "controlled_instrumentation",
+        "answer_status": "unavailable",
+        "solver_status": "budget_exhausted",
+        "stop_reason": "max_seconds",
+        "sample_wall_seconds": 2.013397979000004
+      }
+    ],
+    "profiled_prefix": {
+      "total_calls": 3890573,
+      "primitive_calls": 3681181,
+      "reported_profile_seconds": 1.959,
+      "overlapping_cumulative_rows": [
+        {
+          "operation": "detached_payload",
+          "calls": 897,
+          "cumulative_seconds": 1.046
+        },
+        {
+          "operation": "Store.copy",
+          "calls": 820,
+          "cumulative_seconds": 0.952
+        },
+        {
+          "operation": "comprehension evaluate",
+          "calls": 13,
+          "cumulative_seconds": 1.701
+        }
+      ],
+      "record_dispatch": {
+        "calls": 101772,
+        "self_seconds": 0.151
+      }
+    },
+    "interpretation": "A capped instrumented prefix, with sequential cache warming. Cumulative rows overlap and must not be summed; these are not full-run cost or measured performance gains."
   }
 }
