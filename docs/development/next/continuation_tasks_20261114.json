@@ -10,10 +10,13 @@
   "runtime_status": "local_unavailable_remote_ci_baseline_completed",
   "production_changes": [
     "pythonstan/analysis/domains/values.py",
+    "pythonstan/analysis/engines/abstract/publication.py",
     "pythonstan/analysis/state/store.py",
-    "pythonstan/analysis/engines/abstract/driver.py"
+    "pythonstan/analysis/engines/abstract/driver.py",
+    "pythonstan/analysis/state/effects.py",
+    "pythonstan/analysis/state/transform.py"
   ],
-  "new_runtime_checks": "766a223 quality pass/public21of22/lowlevel21of21;3091 completewire classifies wrapper as interval precision loss covering19; bounded input-widen and Native two-layer tests pending CI",
+  "new_runtime_checks": "cbc3 actualCI: mandatory36/36 stage1048/1048 audit5282pass2oldfail semantic49/52 LV3/6 qualityzeroAdded; all60independent bounded controls pass",
   "normative_inputs": [
     "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
     "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",
@@ -68,8 +71,8 @@
       ],
       "depends_on": [],
       "status": "review",
-      "implementation_state": "planned_not_implemented",
-      "execution_validation": "fresh_remote_baseline_completed_with_known_failures",
+      "implementation_state": "remote_ci_baseline_and_qualification_active_local_unavailable",
+      "execution_validation": "a956 baseline and cbc3 complete checks recorded with exact identities and all residual failures",
       "write_scope": [
         "pyproject.toml",
         "poetry.lock",
@@ -93,9 +96,9 @@
       "depends_on": [
         "R0"
       ],
-      "status": "running",
-      "implementation_state": "typed_contribution_provenance_pending_ci",
-      "execution_validation": "17/40 and other direct controls green at6460bc; wrapper19 red; provenance candidate pending",
+      "status": "review",
+      "implementation_state": "bounded_local_writeback_provenance_and_input_widening_implemented",
+      "execution_validation": "cbc3 all60 bounded checks pass; not complete frame projection or original-card verification",
       "write_scope": [
         "pythonstan/analysis/domains/values.py",
         "pythonstan/analysis/engines/abstract/publication.py",
@@ -125,7 +128,13 @@
           17
         ],
         "execution": "not_run_before_this_registration",
-        "purpose": "Public symptoms and controls, not proof of frame mechanism"
+        "purpose": "Public symptoms and controls, not proof of frame mechanism",
+        "latest_validation": {
+          "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+          "source_cases": 13,
+          "public_and_concrete_checks": 26,
+          "status": "all_passed"
+        }
       },
       "known_limits": [
         "Complete call-entry projection and activation separation remain open",
@@ -216,7 +225,13 @@
         "N4-DOM-01",
         "N4-SEM-04",
         "N4-SEM-05"
-      ]
+      ],
+      "bounded_precursor": {
+        "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+        "status": "integer_input_widening_checked",
+        "does_not_satisfy_parent_card": true,
+        "details": "Default widening unchanged; bounded finite integer inputs preserve cap then original interval widening; full SCC/association/loop/narrowing obligations remain"
+      }
     },
     {
       "id": "B-PLAN",
@@ -307,9 +322,9 @@
       "depends_on": [
         "R0"
       ],
-      "status": "pending_dependencies",
-      "implementation_state": "planned_not_implemented",
-      "execution_validation": "not_run",
+      "status": "running",
+      "implementation_state": "two_old_failures_reproduced_diagnostic_detail_prepared",
+      "execution_validation": "cbc3 both old failures retained; diagnostic-only next commit pending CI",
       "write_scope": [
         "pythonstan/analysis/engines/abstract/transfer.py",
         "pythonstan/analysis/engines/abstract/driver.py",
@@ -330,9 +345,9 @@
       "depends_on": [
         "R0"
       ],
-      "status": "pending_dependencies",
-      "implementation_state": "planned_not_implemented",
-      "execution_validation": "not_run",
+      "status": "review",
+      "implementation_state": "native_worker_vs_complete_request_budget2_contract_separated",
+      "execution_validation": "cbc3 both actual worker quota2 original exact[1,2]/publications2 and public cap2 pre-dispatch denial passed",
       "write_scope": [
         "pythonstan/analysis/contracts/resources.py",
         "pythonstan/compat/native_worker.py",
@@ -344,7 +359,8 @@
         "setup/input/solver/export/freeze成本和停止状态可解释，无免费路径",
         "不调cost factor/caps或修改旧gold消红；不把backend迭代数静默改称全局fuel",
         "若合同确实不相容，明确保留contract_decision_open，并以完整规范/消费者迁移单独评审"
-      ]
+      ],
+      "remaining": "Full setup/input/solver/export/freeze cost audit and original BUDGET01 card remain open"
     },
     {
       "id": "D-FACTS",
@@ -668,5 +684,7 @@
     "unchanged_solver_caps": true,
     "no_live_api_or_secrets": true,
     "result_record": "continuation_baseline_20261114.json"
-  }
+  },
+  "latest_validated_commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+  "latest_validation_record": "continuation_validation_20261114.json"
 }

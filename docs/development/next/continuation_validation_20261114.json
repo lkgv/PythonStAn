@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "source_commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+  "source_tree": "f068a958c9cd1ead0bae9a084600ee0b6cd8583a",
+  "target_branch": "dev-cocktail-analysis",
+  "runtime": "GitHub Actions; local execution remains unavailable",
+  "python": "3.12.16",
+  "python_executable": "/home/runner/.cache/pypoetry/virtualenvs/pythonstan-T_dKkmCO-py3.12/bin/python",
+  "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093197",
+  "quality": {
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093274",
+    "passed": true,
+    "added_diagnostics": 0,
+    "diagnostic_counts": {
+      "format": 94,
+      "ruff": 2956,
+      "mypy": 2757
+    },
+    "whole_tree_mypy_clean": false,
+    "negative_controls_passed": 25
+  },
+  "gates": {
+    "mandatory": {
+      "passed": 36,
+      "total": 36,
+      "exit_code": 0
+    },
+    "stage": {
+      "passed": 1048,
+      "total": 1048,
+      "exit_code": 0,
+      "native_two_layer_controls": "Both real worker quota2 exact[1,2] and whole-request cap2 early-denial passed"
+    },
+    "audit": {
+      "passed": 5282,
+      "failed": 2,
+      "exit_code": 1,
+      "failed_selectors": [
+        "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_residual_value_coverage]",
+        "tests/regression/audit3/test_sem04_review_resume2.py::test_public_comprehension_value[callback_over_thirty_two_value_coverage]"
+      ]
+    },
+    "semantic": {
+      "passed": 49,
+      "total": 52,
+      "failed": [
+        "recursion_sum_default",
+        "recursion_sum_context0",
+        "recursion_heap"
+      ]
+    },
+    "LV": {
+      "passed": 3,
+      "total": 6,
+      "failed": [
+        "lv_multi_call",
+        "lv_three_call_variant",
+        "lv_dominated_policy"
+      ]
+    }
+  },
+  "frozen_manifest_sha256": "16771ac12bb1267a032fb004c98b47680ee938fcf95a5f639eac5549f159e66b",
+  "gate_receipts": {
+    "mandatory": {
+      "phase": "complete",
+      "gate": "mandatory",
+      "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+      "exit_code": 0,
+      "elapsed_seconds": 3.8965060230000006,
+      "source_before": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_after": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_stable": true
+    },
+    "stage": {
+      "phase": "complete",
+      "gate": "stage",
+      "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+      "exit_code": 0,
+      "elapsed_seconds": 148.143661064,
+      "source_before": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_after": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_stable": true
+    },
+    "audit": {
+      "phase": "complete",
+      "gate": "audit",
+      "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+      "exit_code": 1,
+      "elapsed_seconds": 134.789312681,
+      "source_before": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_after": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_stable": true
+    },
+    "semantic": {
+      "phase": "complete",
+      "gate": "semantic",
+      "commit": "cbc3f6de91b3afbf584ab7d25ff47f494e6161c3",
+      "exit_code": 1,
+      "elapsed_seconds": 25.849319890999993,
+      "source_before": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_after": "07c7ec05c010d5338fed05db179caeb40688bea2117edfe303ff7d5152596441",
+      "source_stable": true
+    }
+  },
+  "jobs": [
+    {
+      "gate": "Frozen baseline (semantic)",
+      "id": 132438784235,
+      "conclusion": "failure",
+      "url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093197/job/132438784235"
+    },
+    {
+      "gate": "Frozen baseline (audit)",
+      "id": 132438784395,
+      "conclusion": "failure",
+      "url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093197/job/132438784395"
+    },
+    {
+      "gate": "Frozen baseline (stage)",
+      "id": 132438784413,
+      "conclusion": "success",
+      "url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093197/job/132438784413"
+    },
+    {
+      "gate": "Frozen baseline (mandatory)",
+      "id": 132438784420,
+      "conclusion": "success",
+      "url": "https://github.com/lkgv/PythonStAn/actions/runs/43592093197/job/132438784420"
+    }
+  ],
+  "source_stable_all_groups": true,
+  "independent_controls": {
+    "call_frame_source_cases": {
+      "passed": 26,
+      "total": 26,
+      "includes_concrete": 13,
+      "includes_public": 13
+    },
+    "growth_source_cases": {
+      "passed": 4,
+      "total": 4,
+      "includes_concrete": 2,
+      "includes_public": 2
+    },
+    "call_local_boundaries": {
+      "passed": 21,
+      "total": 21
+    },
+    "input_widen_boundaries": {
+      "passed": 9,
+      "total": 9
+    },
+    "scope": "These60checks cover the bounded changes; they are not parent-card, whole-analyzer soundness or release qualification"
+  },
+  "changes": [
+    "Recursion17/40 local-writeback symptoms corrected",
+    "Weak contribution metadata survives copy/remap/nested application with paid bookkeeping",
+    "Wrapped finite integer input precision corrected without changing default widening",
+    "Native budget2 golden assertions separated into actual worker quota and complete request scope"
+  ],
+  "unchanged": [
+    "Original52-case manifest/gold/resource profiles",
+    "Original finite public wrapper assertions",
+    "Cost model factor8/digest",
+    "Original parent-card DAG/statuses",
+    "main branch"
+  ],
+  "next_measurement": {
+    "cases": [
+      "callback_residual_value_coverage",
+      "callback_over_thirty_two_value_coverage"
+    ],
+    "status": "Diagnostic-only assertion detail prepared; actual next-commit results not_run",
+    "method": "Add existing failed public snapshot ledger and nullable work statistics to failure detail; no production instrumentation or query/profile change"
+  },
+  "qualification": "All new bounded controls pass; audit2, semantic3 andLV3 pre-existing obligations remain open"
+}

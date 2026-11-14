@@ -156,3 +156,11 @@ At `766a223`, all 21 low-level weak-writeback checks pass and quality is green. 
 Store.join 的可选 typed value_merge 复用原 cells、heap slots/default 与同形 nested/cyclic metadata 路径。driver 的 input widening 每个 Value 先准入两输入，再计算，再准入输出；成功后才更新 unit.entry。既有 cost factor、阈值、资源 profile 与冻结 manifest/gold 保持。新增有限多层 wrapper、共享 callee、递归/无环增长、cap/interval/metadata/计费拒绝独立控制；候选运行状态仍 pending CI。
 
 旧 Native max_work=2 stage 失败经源码核对，公共完整请求在 setup/terminal 准入即耗尽，尚未进入 Native。测试分别覆盖真实独立 Native worker quota=2 的原 `[1,2]`/publication=2 gold，以及公共 cap=2 的早拒绝、未 dispatch、unavailable/open 和总 consumed+reserved≤2。两层均保留数值 2；生产 Native 与成本合同不改，不能把 worker quota 误作完整请求 fuel。实际两层结果仍待本候选 CI。
+
+## 有界修复的实际 CI 验收（cbc3f6de）
+
+[完整运行](https://github.com/lkgv/PythonStAn/actions/runs/43592093197) 与 [质量检查](https://github.com/lkgv/PythonStAn/actions/runs/43592093274) 已完成。mandatory 36/36、stage 1048/1048；audit 5282 pass / 2 原 SEM04 fail；冻结 semantic 49/52、LV 3/6，失败 ID 集合保持。质量零新增诊断，旧债 format94/ruff2956/mypy2757 不代表全树 clean。四组源码前后指纹一致。逐组 receipt、环境与公开链接见 [continuation_validation_20261114.json](continuation_validation_20261114.json)。
+
+A-FRAME 的 13×2 public/concrete、2×2 growth、21 local-boundary、9 input-widen checks 共 60 项全部通过。Native 两层 quota/cap2 控制均通过。这里只确认已实现的窄修复；完整 frame projection、persistent cell cardinality、递归输入/出口关联、三项旧 recursion 与 LV 义务、原父卡和最终交付仍未关闭。
+
+下一步先保原 SEM04 两例的 source/query/gold/caps，在既有失败快照中输出完整 obligations、resource ledger 与可空 work statistics，分清 max_stmt_visits、总 work 与 wall stop。缺失统计记 null，不能当成 0。已有严格语句 guard 按全 run 累计，不能用重置计数改变合同；后续求解/复制/导出优化必须守住原 target 和完整成本。测量诊断待其自身提交 CI，不引用本次 cbc3 的成功作为新执行证据。

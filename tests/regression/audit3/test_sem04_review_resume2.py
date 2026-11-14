@@ -115,6 +115,22 @@ def run_case(case: Case) -> JsonObject:
         partial = result.raw_snapshot()
         row["obligations"] = partial.get("obligations", [])
         row["phase_trace"] = partial.get("phase_trace", [])
+        row["resource_ledger"] = partial.get("resource_ledger")
+        stats = require_object(partial.get("stats", {}))
+        row["work_statistics"] = {
+            name: stats.get(name)
+            for name in (
+                "work_by_kind",
+                "unit_evaluations",
+                "ast_work",
+                "entry_growth",
+                "trace_merges",
+                "total_work",
+                "elapsed_seconds",
+                "pending_units",
+                "work_scope",
+            )
+        }
     root = Path("artifacts/next/evidence/SEM_PTA_REVIEW_RESUME2")
     root.mkdir(parents=True, exist_ok=True)
     (root / ("sem-" + case.identity + ".json")).write_text(json.dumps(row, indent=2) + "\n")
@@ -129,10 +145,10 @@ def test_independent_cpython_gold(case: Case) -> None:
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.identity)
 def test_public_comprehension_value(case: Case) -> None:
     row = run_case(case)
-    assert row["answer_status"] == "answered", row
+    assert row["answer_status"] == "answered", json.dumps(row, sort_keys=True)
     value = require_object(row["value"])
-    assert wire_contains(value, case.expected), row
+    assert wire_contains(value, case.expected), json.dumps(row, sort_keys=True)
     if case.exact:
-        assert not value.get("top") and not value.get("top_sorts"), row
-        assert value["constants"] == [case.expected], row
-        assert row["coverage_status"] == "closed_under_profile", row
+        assert not value.get("top") and not value.get("top_sorts"), json.dumps(row, sort_keys=True)
+        assert value["constants"] == [case.expected], json.dumps(row, sort_keys=True)
+        assert row["coverage_status"] == "closed_under_profile", json.dumps(row, sort_keys=True)

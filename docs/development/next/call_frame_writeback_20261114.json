@@ -42,7 +42,7 @@
     "Only actual weak-only value expansion invalidates that cell guard; strong/heap/havoc effects retain previous guard rules",
     "Charge weak-set copy, effect classification, selected inserts/final scan, provenance emission and both join inputs/output under existing factor8"
   ],
-  "candidate_runtime_result": "766a223 quality passed; public 21/22 and lowlevel21/21; wrapper classified by3091 full publicwire as finite-precision loss, not missing19",
+  "candidate_runtime_result": "cbc3f6de bounded repair passed all60independent checks; main residual obligations remain open",
   "extra_validation": {
     "public_cases": 13,
     "public_checks": 26,
@@ -184,11 +184,12 @@
     "does_not_change_original_finite_gate": true
   },
   "input_widen_candidate": {
-    "runtime_result": "pending CI",
+    "runtime_result": "cbc3f6de actualCI: public26/26; growth4/4; input boundaries9/9; local boundaries21/21; quality pass",
     "policy": "Only unit input merge preserves finite integer union up to existing max_consts; default integer/value widening unchanged; interval or overflow uses original widening",
     "cost": "Paid input and output facet admission; assign unit entry only after complete detached merge",
     "termination_scope": "Integer projection only; other facets retain original assumptions",
     "public_finite_cases": 13,
     "growth_cases": 2
-  }
+  },
+  "validation_record": "continuation_validation_20261114.json"
 }
