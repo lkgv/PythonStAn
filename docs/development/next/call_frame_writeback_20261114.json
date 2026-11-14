@@ -34,18 +34,19 @@
     }
   },
   "candidate_behavior": [
-    "Frame.binding scope is the authority; resolve cell identity in current epoch",
-    "Keep old caller and incoming selected local values by weak join; preserve unbound and references",
-    "Merge direct parameter contributions without inventing Python CellWrite effects; invalidate changed cell guards",
-    "Default low-level application, new cell imports and heap/metadata transport unchanged",
-    "Shared value-facet admission is reused by publication and local joins; admit inputs and output, no cost-factor or profile changes",
-    "Identical immutable values require no join admission or new guard invalidation"
+    "CellWrite.weak defaults false; it records conservative call-local contribution provenance, not a new source assignment or persistent cell cardinality",
+    "Use current-epoch local binding keys plus inherited weak contributions; retain strong and weak atoms in existing effect sets",
+    "Finalize each selected existing cell once using original caller and final callee effective value, independent of strong/weak/Havoc set order",
+    "Record direct weak contribution even when immutable Value identity is unchanged, so a wrapper cannot drop it",
+    "Preserve weak flag through effect remap/copy and graph signature projection; do not reinterpret namespace write_cell(weak=...)",
+    "Only actual weak-only value expansion invalidates that cell guard; strong/heap/havoc effects retain previous guard rules",
+    "Charge weak-set copy, effect classification, selected inserts/final scan, provenance emission and both join inputs/output under existing factor8"
   ],
-  "candidate_runtime_result": "not_run_until_this_candidate_executes",
+  "candidate_runtime_result": "typed provenance repair pending CI",
   "extra_validation": {
     "public_cases": 11,
     "public_checks": 22,
-    "lowlevel_checks": 13,
+    "lowlevel_checks": 21,
     "scope": [
       "escaping cell36",
       "nonlocal19",
@@ -56,14 +57,20 @@
       "guard invalidation",
       "root backedge ownership",
       "unbound preservation",
-      "raw13/ticks2 charge and budget1 denial"
+      "raw13/ticks2 charge and budget1 denial",
+      "same-identity contribution through another boundary",
+      "strong+weak+Havoc order independence",
+      "isolated weak keys do not materialize cells",
+      "copy/remap/signature and ascending effect sets"
     ]
   },
   "production_files": [
     "pythonstan/analysis/domains/values.py",
     "pythonstan/analysis/engines/abstract/publication.py",
     "pythonstan/analysis/state/store.py",
-    "pythonstan/analysis/engines/abstract/driver.py"
+    "pythonstan/analysis/engines/abstract/driver.py",
+    "pythonstan/analysis/state/effects.py",
+    "pythonstan/analysis/state/transform.py"
   ],
   "unchanged": [
     "frozen52case manifest",
@@ -72,10 +79,74 @@
     "main branch"
   ],
   "limitations": [
-    "Direct ordinary-call cell contributions only; full frame input projection not implemented",
-    "Indirect parameter-only contribution propagation lacks a separate effect provenance contract; finite wrapper probe is not a proof",
-    "Normal disjoint globals/nonlocals keep strong effects; arbitrary local/global canonical quotient can be more conservative",
-    "Recursive entry/exit correlation, SCC/iterator/narrowing and full parent-card obligations remain open"
+    "Complete call-entry projection and activation separation remain open",
+    "Weak mode is cross-boundary contribution provenance, not persistent cell-cardinality metadata across clear_effects",
+    "Multiple captured activations followed by nonlocal setters need separate cardinality/ownership analysis",
+    "Arbitrary cross-scope cell quotient can weaken precision; normal disjoint global/nonlocal controls remain mandatory",
+    "Recursive entry/exit association, SCC/iteration/narrowing, original parent cards and release remain open"
   ],
-  "qualification": "Not full A-FRAME, parent-card, soundness or release qualification"
+  "qualification": "Not full A-FRAME, parent-card, soundness or release qualification",
+  "initial_candidate_behavior": [
+    "Frame.binding scope is the authority; resolve cell identity in current epoch",
+    "Keep old caller and incoming selected local values by weak join; preserve unbound and references",
+    "Merge direct parameter contributions without inventing Python CellWrite effects; invalidate changed cell guards",
+    "Default low-level application, new cell imports and heap/metadata transport unchanged",
+    "Shared value-facet admission is reused by publication and local joins; admit inputs and output, no cost-factor or profile changes",
+    "Identical immutable values require no join admission or new guard invalidation"
+  ],
+  "initial_repair_ci": {
+    "commit": "6460bc3723fd9b6b35705ec5931e3ffc86f82ff0",
+    "run_url": "https://github.com/lkgv/PythonStAn/actions/runs/43585769787",
+    "audit": {
+      "passed": 5256,
+      "failed": 3
+    },
+    "public_checks": {
+      "passed": 21,
+      "total": 22,
+      "remaining_failure": "wrapped_parameter_closure_control"
+    },
+    "lowlevel_checks": {
+      "passed": 13,
+      "total": 13
+    },
+    "stage": {
+      "passed": 1046,
+      "failed": 1
+    },
+    "mandatory": {
+      "passed": 36,
+      "total": 36
+    },
+    "semantic": {
+      "passed": 49,
+      "total": 52
+    },
+    "LV": {
+      "passed": 3,
+      "total": 6
+    },
+    "quality": {
+      "added_format_diagnostics": 1,
+      "ruff_count": 2956,
+      "mypy_count": 2757,
+      "remaining_issue": "driver.py:1020 format/unformatted"
+    },
+    "source_fingerprint": "44b688b8a315d062ecc2d0dda6099a512363b6084310a407e00516fb15223f5d",
+    "source_stable_all_groups": true
+  },
+  "cost_contract": {
+    "factor": 8,
+    "unchanged_value_facet_raw": 13,
+    "new_bookkeeping_inclusive_raw": {
+      "direct_unwritten": 17,
+      "direct_written": 19
+    },
+    "complete_scalar_contribution_ticks": 3,
+    "denial_controls": [
+      1,
+      2
+    ],
+    "note": "New low-level success budget admits added provenance work; explicit 1/2-tick denial tests prevent free bookkeeping. All existing public/frozen profiles unchanged."
+  }
 }

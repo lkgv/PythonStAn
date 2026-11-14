@@ -1017,9 +1017,7 @@ class InterproceduralDriver:
                 "call_local_cell_merge_work",
                 charge=lambda amount: self.charge(amount, "call_local_cell_merge_work"),
             ) as meter:
-                applied = store.apply(
-                    outcome, operations, weak_cells=weak_cells, visit=meter.visit
-                )
+                applied = store.apply(outcome, operations, weak_cells=weak_cells, visit=meter.visit)
             kind = "normal" if outcome.kind == "return" else outcome.kind
             returned_flows.append(
                 make_completion(

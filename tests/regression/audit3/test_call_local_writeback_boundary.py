@@ -9,11 +9,12 @@ from pythonstan.analysis.contracts.identity import CellId, ContextId, FrameId, O
 from pythonstan.analysis.contracts.resources import ResourceStop, RunLedger
 from pythonstan.analysis.domains.values import Value, ValueOperations
 from pythonstan.analysis.engines.abstract.driver import InterproceduralDriver
-from pythonstan.analysis.state.effects import CellWrite
+from pythonstan.analysis.state.effects import CellWrite, Havoc, remap_effect
 from pythonstan.analysis.state.flow import NormalStmtFlow
 from pythonstan.analysis.state.guards import MembershipGuard
 from pythonstan.analysis.state.handles import StateHandle
 from pythonstan.analysis.state.store import Frame, HeapObject, Store
+from pythonstan.analysis.state.transform import payload_signature
 
 
 def constants(value: Value) -> set[object]:
@@ -67,7 +68,7 @@ def test_parameter_contribution_without_cell_write() -> None:
     applied = caller.apply(outcome, ops, weak_cells=frozenset({cell}))
 
     assert constants(applied.cells[cell]) == {17, 19}
-    assert not applied.writes
+    assert applied.writes == {CellWrite(cell, weak=True)}
     assert constants(caller.apply(outcome, ops).cells[cell]) == {17}
 
 
@@ -204,18 +205,19 @@ def test_identical_immutable_value_keeps_guard_without_facet_visit() -> None:
     caller = Store(cells={cell: value}, guards={cell: guard})
     callee = Store(cells={cell: value})
 
-    def reject_visit(_amount: int) -> None:
-        raise AssertionError("An identical immutable Value requires no join admission")
+    visits: list[int] = []
 
     applied = caller.apply(
         NormalStmtFlow(StateHandle.capture(callee)),
         ValueOperations(),
         weak_cells=frozenset({cell}),
-        visit=reject_visit,
+        visit=visits.append,
     )
 
     assert applied.cells[cell] is value
     assert applied.guards[cell] == guard
+    assert sum(visits) == 4
+    assert CellWrite(cell, weak=True) in applied.writes
 
 
 @pytest.mark.parametrize("written", [False, True])
@@ -226,7 +228,7 @@ def test_join_admits_inputs_and_output_once(written: bool) -> None:
         cells={cell: Value.constant(19)},
         writes={CellWrite(cell)} if written else set(),
     )
-    ledger = RunLedger(2, 0, 0, memory_reader=lambda: 0)
+    ledger = RunLedger(3, 0, 0, memory_reader=lambda: 0)
 
     with ledger.structural_meter("independent_local_join") as meter:
         applied = caller.apply(
@@ -237,19 +239,22 @@ def test_join_admits_inputs_and_output_once(written: bool) -> None:
         )
 
     assert constants(applied.cells[cell]) == {17, 19}
-    assert ledger.raw_structural["independent_local_join"] == 13
-    assert ledger.work.used == structural_ticks(13) == 2
+    # Value facets still cost 13; explicit provenance/index bookkeeping is additional.
+    expected_raw = 19 if written else 17
+    assert ledger.raw_structural["independent_local_join"] == expected_raw
+    assert ledger.work.used == structural_ticks(expected_raw) == 3
 
 
 @pytest.mark.parametrize("written", [False, True])
-def test_output_admission_denial_does_not_publish_changed_roots(written: bool) -> None:
+@pytest.mark.parametrize("budget", [1, 2])
+def test_contribution_admission_denial_preserves_roots(written: bool, budget: int) -> None:
     cell = CellId("selected")
     caller = Store(cells={cell: Value.constant(17)})
     callee = Store(
         cells={cell: Value.constant(19)},
         writes={CellWrite(cell)} if written else set(),
     )
-    ledger = RunLedger(1, 0, 0, memory_reader=lambda: 0)
+    ledger = RunLedger(budget, 0, 0, memory_reader=lambda: 0)
 
     with pytest.raises(ResourceStop), ledger.structural_meter("independent_local_join") as meter:
         caller.apply(
@@ -259,6 +264,99 @@ def test_output_admission_denial_does_not_publish_changed_roots(written: bool) -
             visit=meter.visit,
         )
 
-    assert ledger.work.used == 1
+    assert ledger.work.used == budget
     assert constants(caller.cells[cell]) == {17}
     assert constants(callee.cells[cell]) == {19}
+
+
+def test_identical_contribution_crosses_the_next_call_boundary() -> None:
+    cell = CellId("captured")
+    shared = Value.constant(17)
+    middle_pre = Store(cells={cell: shared})
+    inner_post = Store(cells={cell: shared})
+    middle = middle_pre.apply(
+        NormalStmtFlow(StateHandle.capture(inner_post)),
+        ValueOperations(),
+        weak_cells=frozenset({cell}),
+    )
+    assert middle.cells[cell] is shared
+    assert middle.writes == {CellWrite(cell, weak=True)}
+
+    outer = Store(cells={cell: Value.constant(19)})
+    result = outer.apply(NormalStmtFlow(StateHandle.capture(middle)), ValueOperations())
+
+    assert constants(result.cells[cell]) == {17, 19}
+    assert CellWrite(cell, weak=True) in result.writes
+    assert constants(outer.cells[cell]) == {19}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_strong_weak_and_havoc_same_cell_have_one_final_join(reverse: bool) -> None:
+    cell = CellId("selected")
+    writes = [CellWrite(cell), CellWrite(cell, weak=True), Havoc(cells=frozenset({cell}))]
+    if reverse:
+        writes.reverse()
+    caller = Store(cells={cell: Value.constant(17)})
+    callee = Store(cells={cell: Value.constant(19)}, writes=set(writes))
+
+    result = caller.apply(NormalStmtFlow(StateHandle.capture(callee)), ValueOperations())
+
+    assert constants(result.cells[cell]) == {17, 19}
+    assert set(writes) <= result.writes
+    assert constants(caller.cells[cell]) == {17}
+    assert constants(callee.cells[cell]) == {19}
+
+
+def test_isolated_weak_keys_do_not_materialize_cells_or_unbound() -> None:
+    cell, absent = CellId("retained"), CellId("absent")
+    caller = Store(cells={cell: Value.constant(17)})
+    result = caller.apply(
+        NormalStmtFlow(StateHandle.capture(Store())),
+        ValueOperations(),
+        weak_cells=frozenset({cell, absent}),
+    )
+
+    assert constants(result.cells[cell]) == {17}
+    assert not result.cells[cell].unbound
+    assert absent not in result.cells
+    assert not result.writes
+
+    created = Store().apply(
+        NormalStmtFlow(StateHandle.capture(Store(cells={cell: Value.constant(19)}))),
+        ValueOperations(),
+        weak_cells=frozenset({cell}),
+    )
+    assert constants(created.cells[cell]) == {19}
+    assert not created.cells[cell].unbound
+    assert not created.writes
+
+
+def test_weak_provenance_survives_copy_remap_and_signature() -> None:
+    old, canonical = CellId("old-cell"), CellId("canonical-cell")
+    weak = CellWrite(old, weak=True)
+    strong = CellWrite(old)
+    source = Store(cells={old: Value.constant(17)}, writes={weak})
+
+    assert source.copy().writes == {weak}
+    assert remap_effect(weak, {}, {old: canonical}) == CellWrite(canonical, weak=True)
+    assert payload_signature(weak) != payload_signature(strong)
+
+    ops = ValueOperations()
+    ops.arena.publish({}, cell_aliases={old: canonical})
+    mapped = source.current_view(ops)
+    assert mapped.writes == {CellWrite(canonical, weak=True)}
+    assert source.writes == {weak}
+
+
+def test_strong_and_weak_atoms_remain_in_ascending_effect_sets() -> None:
+    cell = CellId("selected")
+    strong, weak = CellWrite(cell), CellWrite(cell, weak=True)
+    left = Store(cells={cell: Value.constant(17)}, writes={strong})
+    right = Store(cells={cell: Value.constant(19)}, writes={weak})
+    ops = ValueOperations()
+
+    joined = left.join(right, ops)
+
+    assert joined.writes == {strong, weak}
+    assert left.leq(joined, ops)
+    assert right.leq(joined, ops)

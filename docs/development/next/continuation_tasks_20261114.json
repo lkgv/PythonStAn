@@ -9,7 +9,7 @@
   "does_not_override_card_statuses": true,
   "runtime_status": "local_unavailable_remote_ci_baseline_completed",
   "production_changes": [],
-  "new_runtime_checks": "baseline actually executed at a956fc7d; newly registered call-frame witnesses not_run",
+  "new_runtime_checks": "Full baseline a956 and RED42 and direct repair646 actual CI recorded; latest provenance repair pending CI",
   "normative_inputs": [
     "PythonStAn_Next_Development_Agent_Prompt_v2_ZH.txt (v2,2026-11-11)",
     "PythonStAn_Inspector_Enhancement_Prompt_v2.txt (incremental diagnostics scope)",
@@ -90,13 +90,15 @@
         "R0"
       ],
       "status": "running",
-      "implementation_state": "direct_call_contribution_patch_pending_ci",
-      "execution_validation": "red_confirmed_at_42a04dde; repair_candidate_pending",
+      "implementation_state": "typed_contribution_provenance_pending_ci",
+      "execution_validation": "17/40 and other direct controls green at6460bc; wrapper19 red; provenance candidate pending",
       "write_scope": [
         "pythonstan/analysis/domains/values.py",
         "pythonstan/analysis/engines/abstract/publication.py",
         "pythonstan/analysis/state/store.py",
-        "pythonstan/analysis/engines/abstract/driver.py"
+        "pythonstan/analysis/engines/abstract/driver.py",
+        "pythonstan/analysis/state/effects.py",
+        "pythonstan/analysis/state/transform.py"
       ],
       "objective": "区分caller私有帧与global/closure/escaping cells，限制合法callee写回；保留重入continuation。",
       "acceptance": [
@@ -122,10 +124,11 @@
         "purpose": "Public symptoms and controls, not proof of frame mechanism"
       },
       "known_limits": [
-        "Direct ordinary-call cell contributions only; full frame input projection not implemented",
-        "Indirect parameter-only contribution propagation lacks a separate effect provenance contract; finite wrapper probe is not a proof",
-        "Normal disjoint globals/nonlocals keep strong effects; arbitrary local/global canonical quotient can be more conservative",
-        "Recursive entry/exit correlation, SCC/iterator/narrowing and full parent-card obligations remain open"
+        "Complete call-entry projection and activation separation remain open",
+        "Weak mode is cross-boundary contribution provenance, not persistent cell-cardinality metadata across clear_effects",
+        "Multiple captured activations followed by nonlocal setters need separate cardinality/ownership analysis",
+        "Arbitrary cross-scope cell quotient can weaken precision; normal disjoint global/nonlocal controls remain mandatory",
+        "Recursive entry/exit association, SCC/iteration/narrowing, original parent cards and release remain open"
       ]
     },
     {

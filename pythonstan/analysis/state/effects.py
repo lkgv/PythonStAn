@@ -30,6 +30,7 @@ class MetadataAspect(Enum):
 @dataclass(frozen=True, slots=True)
 class CellWrite:
     cell: CellId
+    weak: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,8 +82,8 @@ def remap_effect(
     cell_aliases: Mapping[CellId, CellId],
 ) -> WriteEffect:
     match effect:
-        case CellWrite(cell):
-            return CellWrite(resolve_mapping(cell, cell_aliases))
+        case CellWrite(cell, weak):
+            return CellWrite(resolve_mapping(cell, cell_aliases), weak)
         case HeapWrite(owner, key):
             return HeapWrite(
                 resolve_mapping(owner, object_aliases), remap_field_key(key, object_aliases)

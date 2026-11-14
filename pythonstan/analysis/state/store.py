@@ -606,6 +606,11 @@ class Store:
 
         transport = ApplicationTransport(self, callee)
         result = transport.result
+        if visit is not None:
+            visit(len(weak_cells))
+        effective_weak_cells = set(weak_cells)
+        selected_cells: set[CellId] = set()
+        has_strong_effects = False
         metadata_owners = {
             effect.owner
             for effect in callee.writes
@@ -615,6 +620,17 @@ class Store:
             effect.owner for effect in callee.writes if isinstance(effect, (HeapWrite, HeapDelete))
         }
         for effect in callee.writes:
+            if visit is not None:
+                visit(1)
+            if isinstance(effect, CellWrite):
+                if effect.weak:
+                    if visit is not None:
+                        visit(1)
+                    effective_weak_cells.add(effect.cell)
+                else:
+                    has_strong_effects = True
+            else:
+                has_strong_effects = True
             if isinstance(effect, Havoc):
                 metadata_owners.update(effect.objects)
                 slot_owners.update(effect.objects)
@@ -631,7 +647,7 @@ class Store:
                 payload = obj.metadata if owner in existing else obj
                 if transport.needs_residual(payload) or transport.captured_poststate_ambiguity(obj):
                     transport.uncertain_owners.add(owner)
-        if callee.writes or callee.havoc_namespaces or callee.havoc_imports:
+        if has_strong_effects or callee.havoc_namespaces or callee.havoc_imports:
             result.invalidate_guards()
         for objid, obj in callee.heap.items():
             if objid not in result.heap:
@@ -646,18 +662,19 @@ class Store:
         for cell, value in callee.cells.items():
             if cell not in result.cells:
                 result.cells[cell] = value
-            elif cell in weak_cells and CellWrite(cell) not in callee.writes:
-                old = self.cells[cell]
-                if old is not value:
-                    result.cells[cell] = join_local(old, value)
-                    result.guards.pop(cell, None)
+            elif cell in effective_weak_cells:
+                if visit is not None:
+                    visit(1)
+                selected_cells.add(cell)
         for effect in callee.writes:
             match effect:
                 case CellWrite(cell):
-                    value = callee.cells.get(cell, Value(unbound=True))
-                    if cell in weak_cells and cell in self.cells:
-                        value = join_local(self.cells[cell], value)
-                    result.cells[cell] = value
+                    if cell in effective_weak_cells and cell in self.cells:
+                        if visit is not None:
+                            visit(1)
+                        selected_cells.add(cell)
+                    else:
+                        result.cells[cell] = callee.cells.get(cell, Value(unbound=True))
                 case HeapWrite() | HeapDelete() | HeapDefaultWrite() | MetadataUpdate():
                     result._apply_heap_footprint(effect, callee, ops, transport)
                 case Havoc(objects, cells, namespaces, imports):
@@ -665,11 +682,28 @@ class Store:
                         if owner in result.heap:
                             result.heap[owner].havoc = True
                     for cell in cells:
-                        result.cells[cell] = callee.effective_cell(cell)
+                        if cell in effective_weak_cells and cell in self.cells:
+                            if visit is not None:
+                                visit(1)
+                            selected_cells.add(cell)
+                        else:
+                            result.cells[cell] = callee.effective_cell(cell)
                     result.havoc_namespaces |= namespaces
                     result.havoc_imports |= imports
                 case _:
                     assert_never(effect)
+        if visit is not None:
+            visit(len(selected_cells))
+        for cell in selected_cells:
+            old = self.cells[cell]
+            value = callee.effective_cell(cell)
+            if old is not value:
+                result.cells[cell] = join_local(old, value)
+                result.guards.pop(cell, None)
+            if cell in weak_cells:
+                if visit is not None:
+                    visit(1)
+                result.writes.add(CellWrite(cell, weak=True))
         if transport.uncertain_owners:
             for owner in transport.uncertain_owners:
                 if owner in result.heap:

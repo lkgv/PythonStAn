@@ -123,10 +123,22 @@ G8 分阶段条件状态独立报告，不能无条件阻断 G9 核心交付；�
 
 `42a04dde` 的实际 CI 已确认前两个递归见证：分析器 converged 且 query Closed，却在有限常量中漏掉 CPython 的 17/40；五项 concrete 控制和三项普通 public 控制通过。该提交 audit 为 5230 pass / 4 fail，其中另外两个失败仍是原 SEM04 资源覆盖项。基线与此次结果身份分开保存。
 
-本候选只修复直接普通调用边界的 local contribution：按实际 Frame.binding scope 选择并解析当前 epoch；对 caller 已有的选定 cell 弱合并旧值和 callee 值，保留未重赋参数、unbound 与引用集合。无写 contribution 扩张时去掉该 cell 的旧 guard。新 cell 导入、heap/metadata ApplicationTransport 和 effects 保持原规则；默认 apply 调用保持原行为。
+首版 6460bc 只修复直接普通调用边界的 local contribution：按实际 Frame.binding scope 选择并解析当前 epoch；对 caller 已有的选定 cell 弱合并旧值和 callee 值，保留未重赋参数、unbound 与引用集合。无写 contribution 扩张时去掉该 cell 的旧 guard。新 cell 导入、heap/metadata ApplicationTransport 和 effects 保持原规则；默认 apply 调用保持原行为。
 
 局部选择扫描及 Value 合并均真实计费。publication 的原 facet admission 下沉到 domains.values，保留 publication 薄包装；新 join 先 admit 两输入，再 join，再 admit 结果后赋入新状态。old is new 时不扫描 Value 或新增 guard 失效。legacy/public 两条普通调用路径均计费，既有因子与资源 profile 不改。Store.apply 仍保持单个图事务，以保留共享 memo/root/alias 顺序；它的长度增加不是复制另一套图转换器。
 
 新增 low-level 成本与所有权边界、escaping closure 36、nonlocal 19、reference 17、heap/reference 46、直接/间接 parameter closure 19 等独立变体。所有新候选结果仍等待本提交 CI，原独立期望不变；不以 Top、Open、提高 budget 或改 manifest 消红。
 
 范围与未解决义务见 [call_frame_writeback_20261114.json](call_frame_writeback_20261114.json)：完整 frame projection、间接无写 contribution 的一般 provenance、输入→出口关联与原 AI01/02 卡仍开放；正常 disjoint globals/nonlocals 与任意跨 scope cell quotient 的精度不能混为一谈。
+
+## 跨 wrapper 的 typed contribution provenance
+
+首版 `6460bc` 的新 22 项 public 检查中 21 项通过、13 项低层全部通过，原 17/40 已转绿；wrapped parameter closure 仍 Closed 漏 19。原 stage、mandatory、semantic/LV 计数保持，质量仅多出 driver 第 1020 行一处格式诊断，现同步按 formatter 修正。
+
+本版给既有 CellWrite 增加默认 false 的 weak 字段，不增加 Effect union 变体或持久 Store 字段。标志代表跨边界保守 cell 贡献，不能解释成新 Python 赋值、有序重放或永久 cell cardinality。direct 命中的既存 local 即 Value 同 identity 也记录标志；copy/remap/signature 保留它，wrapper 沿原 effects 继续传播。
+
+apply 先登记有效弱 cell，再统一用原 caller 值与 callee 最终 effective 值合并一次。同 key 强/弱/Havoc 的集合顺序不改变结果；新 cell 与孤立 weak key 不凭空增加 unbound。强弱 atoms 可共存，现有集合包含 order 保持。weak-only 相同值不损失 guard，值变只去对应 guard；真正强写、heap 与 Havoc 保持原规则。namespace 原 write_cell(weak=...) 的意义不变。
+
+新 provenance bookkeeping 全部付费：标量合并的 Value facets 仍为 13 raw，加显式元数据后无写/有写分别 17/19 raw、均 3 ticks。新增完整操作成本测试和 1/2-tick 拒绝控制，原用户 profile、gold、52-case manifest、factor 与 digest 不变。预算不足不发布修改后的输入根。
+
+待该候选实际 CI 后记录最终红绿与质量结果。持久 summary cell 的后续 nonlocal setter、多 activation 身份分离、完整帧投影及输入/出口关联仍独立开放；有限 wrapper 通过也不豁免这些义务。

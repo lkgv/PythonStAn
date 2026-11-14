@@ -563,7 +563,7 @@ def _fields(value: GraphRecord) -> tuple[tuple[str, GraphPayload], ...]:
             ("payload", value.payload),
         )
     if isinstance(value, CellWrite):
-        return (("cell", value.cell),)
+        return (("cell", value.cell), ("weak", value.weak))
     if isinstance(value, HeapWrite):
         return (
             ("owner", value.owner),
