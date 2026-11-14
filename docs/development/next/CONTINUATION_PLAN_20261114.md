@@ -142,3 +142,7 @@ apply 先登记有效弱 cell，再统一用原 caller 值与 callee 最终 effe
 新 provenance bookkeeping 全部付费：标量合并的 Value facets 仍为 13 raw，加显式元数据后无写/有写分别 17/19 raw、均 3 ticks。新增完整操作成本测试和 1/2-tick 拒绝控制，原用户 profile、gold、52-case manifest、factor 与 digest 不变。预算不足不发布修改后的输入根。
 
 待该候选实际 CI 后记录最终红绿与质量结果。持久 summary cell 的后续 nonlocal setter、多 activation 身份分离、完整帧投影及输入/出口关联仍独立开放；有限 wrapper 通过也不豁免这些义务。
+
+### Wrapped closure diagnosis checkpoint
+
+At `766a223`, all 21 low-level weak-writeback checks pass and quality is green. The wrapped parameter closure still fails the unchanged finite-constant public gate. Its complete exported value must be inspected before classifying this as missing semantic coverage: an integer interval can cover 19 without listing it in `tagged_constants`. The diagnostic change prints the complete existing public answer on failure; it changes no source, expected value, profile, solver limit, or analysis execution.

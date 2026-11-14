@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import pytest
@@ -199,4 +200,4 @@ def test_public_continuation_keeps_finite_concrete_return(case: Case) -> None:
     constants = [require_object(row) for row in require_array(value["tagged_constants"])]
     assert any(
         row.get("type") == "int" and row.get("value") == case.expected for row in constants
-    ), public
+    ), json.dumps(public, sort_keys=True)
