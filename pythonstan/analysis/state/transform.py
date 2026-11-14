@@ -857,6 +857,7 @@ class PayloadTransformer:
         self.scalar = scalar
         self.epoch = epoch
         self.memo = {} if memo is None else memo
+        self._memo_anchors = frozenset(self.memo)
         self.charge = charge
         self.work = 0
         self.preparation_work = 0
@@ -1096,7 +1097,7 @@ class PayloadTransformer:
             if not _graph_map(existing):
                 raise TypeError("Memoized graph node changed dictionary shape")
             result = existing
-        if identity in self._dict_active:
+        if identity in self._dict_active or identity in self._memo_anchors:
             return result
         result.clear()
         if role == "guards":
@@ -1364,6 +1365,192 @@ def walk_graph(
 
     visit(payload)
     return work
+
+
+def _application_dictionary(value: GraphPayload) -> TypeGuard[dict[FieldKey, GraphPayload]]:
+    # GraphPayload already restricts dictionary keys and values to admitted roles.
+    return type(value) is dict
+
+
+def _application_sequence(value: GraphPayload) -> TypeGuard[Sequence[GraphPayload]]:
+    return type(value) in (tuple, list)
+
+
+def _application_children(value: GraphPayload) -> tuple[GraphPayload, ...]:
+    if isinstance(value, Metadata):
+        return tuple(field.value for field in value.transformation_entries().values())
+    if _record(value):
+        return tuple(item for _, item in _fields(value))
+    if _application_dictionary(value):
+        return tuple(value.values())
+    if _application_sequence(value):
+        return tuple(value)
+    return ()
+
+
+def _application_mutable(value: GraphPayload) -> bool:
+    return type(value) in (dict, list, set) or isinstance(
+        value, (Metadata, Store, HeapObject, Unit, FunctionInfo, BoundaryState, BoundaryObject)
+    )
+
+
+class ApplicationTransport:
+    """One detached application, with explicit active-root and footprint roles.
+
+    Unwritten components retain the current caller's mutable owners. A written
+    component intersecting inconsistent caller/poststate versions cannot prove
+    an alias-closed footprint; all affected named owners receive local guards.
+    Immutable records with different values are never rebound to caller records.
+    """
+
+    def __init__(self, caller: Store, poststate: Store) -> None:
+        self.memo: PayloadMemo = {}
+        self.result = detached_payload(caller, self.memo)
+        self.poststate = poststate
+        self.uncertain_owners: set[ObjectId] = set()
+        self.ambiguous: set[int] = set()
+        self._mismatched: set[int] = set()
+        self._owners: dict[int, set[ObjectId]] = {}
+        self._authority = set(self.memo)
+        self._aligned: set[tuple[int, int, ObjectId]] = set()
+        self._heap_bindings: list[tuple[ObjectId, HeapObject, HeapObject]] = []
+        self._transform: PayloadTransformer | None = None
+        self._bind(poststate, self.result)
+        self._bind(poststate.cells, self.result.cells)
+        self._bind(poststate.heap, self.result.heap)
+        self._bind(poststate.initialized, self.result.initialized)
+        self._bind(poststate.writes, self.result.writes)
+        self._bind(poststate.guards, self.result.guards)
+
+    def _bind(self, source: GraphPayload, target: GraphPayload) -> bool:
+        identity = id(source)
+        if identity in self.memo and self.memo[identity] is not target:
+            self.ambiguous.add(identity)
+            return False
+        self.memo[identity] = target
+        self._authority.add(identity)
+        return True
+
+    def bind_heap_owner(self, owner: ObjectId, source: HeapObject, target: HeapObject) -> None:
+        self._heap_bindings.append((owner, source, target))
+        self._bind(source, target)
+        self._bind(source.fields, target.fields)
+        self._bind(source.maybe_missing, target.maybe_missing)
+
+    def guard_owner_alias_conflicts(
+        self, metadata_writers: set[ObjectId], slot_writers: set[ObjectId]
+    ) -> None:
+        # Both directions matter: source sharing may be split by caller owners,
+        # or two written source owners may collapse onto one caller object.
+        for role in ("owner", "fields", "missing"):
+            forward: dict[int, dict[int, set[ObjectId]]] = {}
+            reverse: dict[int, dict[int, set[ObjectId]]] = {}
+            for owner, source, target in self._heap_bindings:
+                a = (
+                    source
+                    if role == "owner"
+                    else source.fields
+                    if role == "fields"
+                    else source.maybe_missing
+                )
+                b = (
+                    target
+                    if role == "owner"
+                    else target.fields
+                    if role == "fields"
+                    else target.maybe_missing
+                )
+                forward.setdefault(id(a), {}).setdefault(id(b), set()).add(owner)
+                reverse.setdefault(id(b), {}).setdefault(id(a), set()).add(owner)
+            writers = metadata_writers if role == "owner" else slot_writers
+            for groups in (forward, reverse):
+                for alternatives in groups.values():
+                    if len(alternatives) < 2:
+                        continue
+                    affected: set[ObjectId] = set()
+                    for owners in alternatives.values():
+                        affected.update(owners)
+                    if affected & writers:
+                        self.uncertain_owners.update(affected)
+
+    def align_unchanged(self, source: GraphPayload, target: GraphPayload, owner: ObjectId) -> None:
+        if (
+            type(source) is not type(target)
+            or source is None
+            or isinstance(
+                source, (Value, str, bytes, int, float, complex, bool, Enum, ast.AST, ReferenceKey)
+            )
+        ):
+            return
+        identity = id(source)
+        self._owners.setdefault(identity, set()).add(owner)
+        pair = identity, id(target), owner
+        if pair in self._aligned:
+            return
+        self._aligned.add(pair)
+        equal = semantic_payload_equal(source, target)
+        if _application_mutable(source) or equal:
+            if not self._bind(source, target):
+                return
+            if _application_mutable(source) and not equal:
+                self._mismatched.add(identity)
+        if isinstance(source, Metadata) and isinstance(target, Metadata):
+            first, second = source.transformation_entries(), target.transformation_entries()
+            for name in first.keys() & second.keys():
+                if type(first[name]) is type(second[name]):
+                    self.align_unchanged(first[name].value, second[name].value, owner)
+        elif _record(source) and _record(target):
+            for (_, a), (_, b) in zip(_fields(source), _fields(target), strict=True):
+                self.align_unchanged(a, b, owner)
+        elif _application_dictionary(source) and _application_dictionary(target):
+            for key in source.keys() & target.keys():
+                self.align_unchanged(source[key], target[key], owner)
+        elif _application_sequence(source) and _application_sequence(target):
+            for a, b in zip(source, target, strict=False):
+                self.align_unchanged(a, b, owner)
+
+    def needs_residual(self, payload: GraphPayload) -> bool:
+        seen: set[int] = set()
+
+        def visit(node: GraphPayload) -> bool:
+            identity = id(node)
+            if identity in self.ambiguous or identity in self._mismatched:
+                self.uncertain_owners.update(self._owners.get(identity, ()))
+                return True
+            if identity in self._authority or identity in seen:
+                return False
+            seen.add(identity)
+            # Do not short-circuit: every affected owner must be attributed.
+            outcomes = [visit(child) for child in _application_children(node)]
+            return any(outcomes)
+
+        return visit(payload)
+
+    def captured_poststate_ambiguity(self, obj: HeapObject) -> bool:
+        record = obj.metadata.record
+        if not isinstance(record, GeneratorMeta):
+            return False
+        pending = [record]
+        seen: set[int] = set()
+        while pending:
+            current = pending.pop()
+            if id(current) in seen:
+                continue
+            seen.add(id(current))
+            if current.entry is not None:
+                captured = current.entry.read()
+                # Shared heap alone is a valid live-heap/private-cell view.
+                if captured is self.poststate or captured.cells is self.poststate.cells:
+                    return True
+            pending.extend(current.alternatives)
+        return False
+
+    def visit[T: GraphPayload](self, payload: T) -> T:
+        # All projection/unchanged bindings precede first copying. Canonical
+        # transformer dictionary anchors must include this complete authority.
+        if self._transform is None:
+            self._transform = PayloadTransformer(memo=self.memo)
+        return self._transform.visit(payload)
 
 
 def _objects(value: object) -> dict[object, object]:

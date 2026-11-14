@@ -12,7 +12,8 @@ from __future__ import annotations
 import ast
 import time
 from collections import defaultdict, deque
-from collections.abc import Hashable, Iterable, KeysView, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterable, KeysView, Mapping, Sequence
+from contextlib import nullcontext
 from dataclasses import replace
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -95,6 +96,7 @@ from .publication import (
     PublicationInput,
     PublicationRuntime,
     PublicationUnit,
+    export_publication_values,
     finalize_publication,
     module_value_requests,
     prepare_publication,
@@ -138,6 +140,7 @@ class InterproceduralDriver:
         self.options = runtime.options
         self.abstract = runtime.abstract
         self.resources = runtime.resources
+        self._shared_resource_ledger = resource_ledger is not None
         self.resource_ledger: RunLedger = (
             RunLedger(runtime.max_work, runtime.max_seconds, runtime.max_memory_mb)
             if resource_ledger is None
@@ -1333,9 +1336,62 @@ class InterproceduralDriver:
         return Value.constant(checked)
 
     def snapshot(self, elapsed: float) -> EngineSnapshot:
+        try:
+            return self._publication_snapshot(elapsed)
+        except BudgetStop as error:
+            # A fixed controller has no source, heap, or unbounded diagnostic
+            # traversal. Fact publication remains unavailable after admission
+            # fails; retrying a full snapshot would spend denied work.
+            self.solver_status = "budget_exhausted"
+            reason = (self.resource_ledger.stop_reason or error.reason)[:64]
+            return EngineSnapshot(
+                engine="hybrid" if self.oracle is not None else "ai_primary",
+                solver_status="budget_exhausted",
+                coverage_status="open",
+                profile=self.semantic_profile,
+                stats={
+                    "work": self.work,
+                    "total_work": self.resource_ledger.work.used,
+                    "root_scenarios": len(self.root_keys),
+                    "pending_units": len(self.queue),
+                    "memory_checks": self.resource_ledger.memory_checks,
+                    "memory_samples": self.resource_ledger.memory_samples,
+                    "resident_memory_bytes": self.resource_ledger.memory_used,
+                    "peak_sampled_resident_bytes": self.resource_ledger.peak_memory,
+                    "work_scope": "shared_ledger_bounded_controller",
+                },
+                obligations=({"code": "budget:" + reason, "status": "open"},),
+                diagnostics=({"code": "publication_unavailable", "facts_omitted": True},),
+            )
+
+    def _publication_snapshot(self, elapsed: float) -> EngineSnapshot:
+        phase = (
+            self.resource_ledger.phase("export") if self._shared_resource_ledger else nullcontext()
+        )
+        with phase, self.resource_ledger.structural_meter("publication_export") as meter:
+            visit = meter.visit if self._shared_resource_ledger else None
+            return self._publish_snapshot(elapsed, visit)
+
+    def _publish_snapshot(
+        self, elapsed: float, visit: Callable[[int], None] | None
+    ) -> EngineSnapshot:
+        if visit is not None:
+            self.resource_ledger.charge_json(
+                self.options.get("queries", []), "publication_query_projection"
+            )
+            visit(1 + len(self.units) + len(self.functions))
+            for rows in (
+                self.root_keys,
+                self.calls,
+                self.reads,
+                self.writes,
+                self.events,
+                self.exceptions,
+            ):
+                visit(len(rows))
         source = PublicationInput(
             units=tuple(
-                PublicationUnit.capture(unit, self.unit_scenarios.get(unit.key))
+                PublicationUnit.capture(unit, self.unit_scenarios.get(unit.key), visit=visit)
                 for unit in self.units.values()
             ),
             functions={
@@ -1349,7 +1405,10 @@ class InterproceduralDriver:
             events=tuple(self.events),
             exceptions=tuple(self.exceptions),
         )
-        prepared = prepare_publication(source, self.ops)
+        prepared = prepare_publication(
+            source, self.ops, visit=visit, export_view=self._shared_resource_ledger
+        )
+        exported = export_publication_values(prepared, visit=visit)
         for warning in prepared.open_obligations:
             self.open(warning)
         runtime = PublicationRuntime(
@@ -1364,7 +1423,11 @@ class InterproceduralDriver:
         )
         self.stats.update(publication_statistics(prepared, runtime))
         self.stats["work_by_kind"] = self.resource_ledger.work.snapshot()["by_kind"]
-        self.stats["work_scope"] = "shared_ledger_at_driver_publication"
+        self.stats["work_scope"] = (
+            "shared_ledger_before_checked_publication_header"
+            if self._shared_resource_ledger
+            else "legacy_driver_core"
+        )
         oracle_statistics = self.oracle.statistics() if self.oracle is not None else None
         runtime = replace(
             runtime,
@@ -1373,6 +1436,8 @@ class InterproceduralDriver:
             phase_trace=tuple(self.phase_trace),
             oracle_statistics=oracle_statistics,
         )
-        published = finalize_publication(prepared, runtime, published_statistics=self.stats)
+        published = finalize_publication(
+            prepared, runtime, published_statistics=self.stats, visit=visit, exported=exported
+        )
         self.stats.update(published.stats)
         return published.snapshot

@@ -15,6 +15,7 @@ from weakref import WeakSet
 from pythonstan.analysis.contracts.cost_model import (
     COST_MODEL_DIGEST,
     COST_MODEL_VERSION,
+    structural_ticks,
     visit_json_text,
 )
 from pythonstan.analysis.contracts.json_data import (
@@ -107,9 +108,16 @@ def _bounded_ledger(ledger: RunLedger) -> JsonObject:
     }
 
 
-def _terminal_frame(engine: str, status: str, reason: str, ledger: RunLedger) -> JsonObject:
+def _terminal_frame(
+    engine: str,
+    status: str,
+    reason: str,
+    ledger: RunLedger,
+    *,
+    known: Mapping[str, JsonValue | FrozenJsonValue] | None = None,
+) -> JsonObject:
     bounded_reason = reason[:64]
-    return {
+    frame: JsonObject = {
         "schema_version": 1,
         "actual_engine": engine,
         "solver_status": status,
@@ -150,10 +158,25 @@ def _terminal_frame(engine: str, status: str, reason: str, ledger: RunLedger) ->
         "terminal_publication": {"truncated": True, "controller_only": True},
     }
 
+    # This fixed metadata is already known; it does not make omitted facts or
+    # proofs usable. Verified/requested proofs are conservatively unknown.
+    if known is not None:
+        digest = known.get("source_digest")
+        if (
+            type(digest) is str
+            and len(digest) == 64
+            and all(character in "0123456789abcdef" for character in digest)
+        ):
+            frame["source_digest"] = digest
+        if known.get("proof_status") == "not_requested":
+            frame["proof_status"] = "not_requested"
+    return frame
+
 
 @dataclass(frozen=True, eq=False)
 class _PublicationOwnership:
     document: FrozenJsonObject
+    raw_copy_visits: int | None = None
 
 
 _ISSUED_OWNERSHIP: WeakSet[_PublicationOwnership] = WeakSet()
@@ -172,8 +195,21 @@ class PublishedSnapshot:
 
     @classmethod
     def from_wire(cls, data: object, *, visit: Visitor | None = None) -> PublishedSnapshot:
-        document = _frozen_object(freeze_snapshot(data, visit=visit))
-        receipt = _PublicationOwnership(document)
+        raw_copy_visits: int | None = None
+        if visit is None:
+            document = _frozen_object(freeze_snapshot(data))
+        else:
+            raw_count = 0
+            charge = visit
+
+            def counted(amount: int) -> None:
+                nonlocal raw_count
+                charge(amount)
+                raw_count += amount
+
+            document = _frozen_object(freeze_snapshot(data, visit=counted))
+            raw_copy_visits = raw_count
+        receipt = _PublicationOwnership(document, raw_copy_visits)
         result = cls(
             document,
             _frozen_string(document["solver_status"]),
@@ -184,6 +220,17 @@ class PublishedSnapshot:
         )
         _ISSUED_OWNERSHIP.add(receipt)
         return result
+
+    def _raw_copy_ticks(self) -> int | None:
+        receipt = self._ownership
+        if (
+            type(receipt) is not _PublicationOwnership
+            or receipt not in _ISSUED_OWNERSHIP
+            or receipt.document is not self.document
+            or receipt.raw_copy_visits is None
+        ):
+            return None
+        return structural_ticks(receipt.raw_copy_visits)
 
     def _owns(self, payload: FrozenJsonValue, path: tuple[str, ...]) -> bool:
         receipt = self._ownership
@@ -524,7 +571,7 @@ class AnalysisResult:
             capacity.consume(amount)
             publication_used += amount
 
-        bounded = _terminal_frame(engine, status, first, resource_ledger)
+        bounded = _terminal_frame(engine, status, first, resource_ledger, known=partial)
         base: dict[str, object] = dict(bounded)
         if partial is not None:
             for key in ("values", "returns", "calls", "outcomes", "effects"):
@@ -549,7 +596,7 @@ class AnalysisResult:
                 result._snapshot = PublishedSnapshot.from_wire(base, visit=meter.visit)
         except (ResourceStop, TypeError, ValueError):
             result._snapshot = PublishedSnapshot.from_wire(
-                _terminal_frame(engine, status, first, resource_ledger)
+                _terminal_frame(engine, status, first, resource_ledger, known=partial)
             )
             result._controller_only = True
         result._queries = ()
@@ -561,7 +608,7 @@ class AnalysisResult:
                 result._queries, result._query_keys = result._register_queries(queries)
             except ResourceStop:
                 result._snapshot = PublishedSnapshot.from_wire(
-                    _terminal_frame(engine, status, first, resource_ledger)
+                    _terminal_frame(engine, status, first, resource_ledger, known=partial)
                 )
                 result._controller_only = True
                 result._queries, result._query_keys = (), frozenset()
@@ -627,7 +674,11 @@ class AnalysisResult:
             result = object.__new__(type(self))
             result._snapshot = PublishedSnapshot.from_wire(
                 _terminal_frame(
-                    self.actual_engine, self.solver_status, ledger.stop_reason or reason, ledger
+                    self.actual_engine,
+                    self.solver_status,
+                    ledger.stop_reason or reason,
+                    ledger,
+                    known=self._snapshot.document,
                 )
             )
             result._resource_ledger = ledger
@@ -874,6 +925,16 @@ class AnalysisResult:
         if self._cached_terminal is not None:
             return self._cached_terminal.raw_snapshot()
         try:
+            ledger = self._resource_ledger
+            if ledger is not None and not self._controller_only and self._terminal_capacity is None:
+                with ledger.read_phase("export"):
+                    ledger.charge_work(1, "result_raw_preflight")
+                    ticks = self._snapshot._raw_copy_ticks()
+                    if ticks is not None and ticks > ledger.remaining_work:
+                        # Exact size was counted during this immutable document's
+                        # already-paid freeze. Do not perform a full read that
+                        # cannot finish, or set a global stop while fuel remains.
+                        return self._fallback("raw_snapshot_capacity").raw_snapshot()
             return require_object(self._copy_json(self._snapshot.document))
         except ResourceStop as error:
             if error.reason == "terminal_capacity" or (

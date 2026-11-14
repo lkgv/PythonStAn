@@ -35,6 +35,7 @@ from pythonstan.analysis.state.metadata import GeneratorMeta, Metadata
 
 if TYPE_CHECKING:
     from pythonstan.analysis.policies.region import RegionExecutionContext
+    from pythonstan.analysis.state.transform import ApplicationTransport
 
 
 def _merge_events(
@@ -310,7 +311,19 @@ class Store:
         if owner is None:
             self.guards.clear()
         else:
-            self.guards = {key: fact for key, fact in self.guards.items() if fact.owner != owner}
+            selected = self.heap.get(owner)
+            affected = {owner}
+            if selected is not None:
+                affected.update(
+                    identity
+                    for identity, obj in self.heap.items()
+                    if obj is selected
+                    or obj.fields is selected.fields
+                    or obj.maybe_missing is selected.maybe_missing
+                )
+            self.guards = {
+                key: fact for key, fact in self.guards.items() if fact.owner not in affected
+            }
 
     def clear_effects(self) -> Store:
         result = self.copy()
@@ -540,6 +553,7 @@ class Store:
         effect: HeapWrite | HeapDelete | HeapDefaultWrite | MetadataUpdate,
         source_store: Store,
         ops: ValueOperations,
+        transport: ApplicationTransport,
     ) -> None:
         """Materialize the callee poststate, including joined delete/write paths."""
         owner = effect.owner
@@ -547,9 +561,7 @@ class Store:
             return
         source = source_store.heap[owner]
         target = self.heap[owner]
-        from .transform import detached_payload
-
-        target.metadata = detached_payload(source.metadata)
+        target.metadata = transport.visit(source.metadata)
         match effect:
             case HeapDefaultWrite():
                 target.default = ops.join(target.default, source.default)
@@ -573,12 +585,40 @@ class Store:
         """Apply only callee writes; preserve caller frame and untouched slots."""
         self = self.current_view(ops)
         callee = outcome.store.current_view(ops)
-        result = self.copy()
+        from .transform import ApplicationTransport
+
+        transport = ApplicationTransport(self, callee)
+        result = transport.result
+        metadata_owners = {
+            effect.owner
+            for effect in callee.writes
+            if isinstance(effect, (HeapWrite, HeapDelete, HeapDefaultWrite, MetadataUpdate))
+        }
+        slot_owners = {
+            effect.owner for effect in callee.writes if isinstance(effect, (HeapWrite, HeapDelete))
+        }
+        for effect in callee.writes:
+            if isinstance(effect, Havoc):
+                metadata_owners.update(effect.objects)
+                slot_owners.update(effect.objects)
+        existing = self.heap.keys() & callee.heap.keys()
+        for owner in existing:
+            transport.bind_heap_owner(owner, callee.heap[owner], result.heap[owner])
+        transport.guard_owner_alias_conflicts(metadata_owners, slot_owners)
+        for owner in existing - metadata_owners:
+            transport.align_unchanged(
+                callee.heap[owner].metadata, result.heap[owner].metadata, owner
+            )
+        for owner, obj in callee.heap.items():
+            if owner not in existing or owner in metadata_owners:
+                payload = obj.metadata if owner in existing else obj
+                if transport.needs_residual(payload) or transport.captured_poststate_ambiguity(obj):
+                    transport.uncertain_owners.add(owner)
         if callee.writes or callee.havoc_namespaces or callee.havoc_imports:
             result.invalidate_guards()
         for objid, obj in callee.heap.items():
             if objid not in result.heap:
-                result.heap[objid] = obj.copy()
+                result.heap[objid] = transport.visit(obj)
             else:
                 # Cardinality and unknown-object covers are abstraction facts,
                 # not source writes: losing either can enable an invalid strong
@@ -594,7 +634,7 @@ class Store:
                 case CellWrite(cell):
                     result.cells[cell] = callee.cells.get(cell, Value(unbound=True))
                 case HeapWrite() | HeapDelete() | HeapDefaultWrite() | MetadataUpdate():
-                    result._apply_heap_footprint(effect, callee, ops)
+                    result._apply_heap_footprint(effect, callee, ops, transport)
                 case Havoc(objects, cells, namespaces, imports):
                     for owner in objects:
                         if owner in result.heap:
@@ -605,6 +645,13 @@ class Store:
                     result.havoc_imports |= imports
                 case _:
                     assert_never(effect)
+        if transport.uncertain_owners:
+            for owner in transport.uncertain_owners:
+                if owner in result.heap:
+                    result.heap[owner].havoc = True
+                    result.heap[owner].singleton = False
+            result.writes.add(Havoc(objects=frozenset(transport.uncertain_owners)))
+            result.obligations |= frozenset({"application_graph_alias_ambiguity"})
         result.writes |= callee.writes
         result.initialized.update(callee.initialized)
         result.havoc_imports |= callee.havoc_imports
