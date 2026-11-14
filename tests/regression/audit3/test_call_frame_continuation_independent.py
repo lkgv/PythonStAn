@@ -79,6 +79,88 @@ CASES: tuple[Case, ...] = (
         "result = saved()\n",
         17,
     ),
+    Case(
+        "recursive_escaping_cell_control",
+        "saved = None\n"
+        "def f(flag):\n"
+        "    global saved\n"
+        "    x = 17\n"
+        "    if flag:\n"
+        "        f(False)\n"
+        "        return x + saved()\n"
+        "    x = 19\n"
+        "    def read():\n"
+        "        return x\n"
+        "    saved = read\n"
+        "    return 0\n"
+        "result = f(True)\n",
+        36,
+    ),
+    Case(
+        "nonlocal_writeback_control",
+        "def outer():\n"
+        "    x = 17\n"
+        "    def setx():\n"
+        "        nonlocal x\n"
+        "        x = 19\n"
+        "    setx()\n"
+        "    return x\n"
+        "result = outer()\n",
+        19,
+    ),
+    Case(
+        "recursive_reference_alias_control",
+        "left = [17]\n"
+        "right = [19]\n"
+        "def f(flag):\n"
+        "    local = left\n"
+        "    if flag:\n"
+        "        f(False)\n"
+        "        return local[0]\n"
+        "    local = right\n"
+        "    return 0\n"
+        "result = f(True)\n",
+        17,
+    ),
+    Case(
+        "recursive_reference_heap_write_control",
+        "left = [17]\n"
+        "right = [19]\n"
+        "def f(flag):\n"
+        "    local = left\n"
+        "    if flag:\n"
+        "        f(False)\n"
+        "        return local[0] + left[0]\n"
+        "    local = right\n"
+        "    left[0] = 23\n"
+        "    return 0\n"
+        "result = f(True)\n",
+        46,
+    ),
+    Case(
+        "repeated_parameter_closure_control",
+        "def make(value):\n"
+        "    def read():\n"
+        "        return value\n"
+        "    return read\n"
+        "a = make(17)\n"
+        "b = make(19)\n"
+        "result = b()\n",
+        19,
+    ),
+    Case(
+        "wrapped_parameter_closure_control",
+        "def make(value):\n"
+        "    def read():\n"
+        "        return value\n"
+        "    return read\n"
+        "def wrap(value):\n"
+        "    return make(value)\n"
+        "a = wrap(17)\n"
+        "b = wrap(19)\n"
+        "result = b()\n",
+        19,
+    ),
 )
 
 

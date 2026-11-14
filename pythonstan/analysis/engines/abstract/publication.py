@@ -30,7 +30,7 @@ from pythonstan.analysis.contracts.json_data import (
     JsonValue,
 )
 from pythonstan.analysis.contracts.wire import freeze_snapshot
-from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.domains.values import Value, ValueOperations, admit_value
 from pythonstan.analysis.observations.procedures import ObservationView
 from pythonstan.analysis.state.flow import (
     BreakFlow,
@@ -293,30 +293,7 @@ class PublishedSnapshot:
 
 
 def _admit_value(value: Value, visit: Visitor | None) -> None:
-    if visit is None:
-        return
-    visit(1)
-    for integer in value.ints.consts:
-        visit(1 + integer.bit_length() // 8192)
-    for bound in (value.ints.lo, value.ints.hi):
-        if bound is not None:
-            visit(1 + bound.bit_length() // 8192)
-    for group in (value.strings.consts, value.strings.prefixes, value.strings.suffixes):
-        for text in group:
-            visit_json_text(text, visit)
-    for prefix, suffix in value.strings.conjunctions:
-        visit_json_text(prefix, visit)
-        visit_json_text(suffix, visit)
-    for group in (value.refs, value.top_sorts):
-        for text in group:
-            visit_json_text(text, visit)
-    visit(len(value.bools) + len(value.floats))
-    for relation in value.relations:
-        visit(1)
-        for text in (relation.point, relation.key_type, relation.key_repr, relation.handler):
-            visit_json_text(text, visit)
-        if relation.display_name is not None:
-            visit_json_text(relation.display_name, visit)
+    admit_value(value, visit)
 
 
 def _heap_view_object(obj: HeapObject, visit: Visitor | None) -> HeapObject:

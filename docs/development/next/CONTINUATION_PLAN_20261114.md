@@ -118,3 +118,15 @@ G8 分阶段条件状态独立报告，不能无条件阻断 G9 核心交付；�
 只有 module_exit 被请求，不启用 returns/outcomes procedure bridge。false 分支保留 return 0，避免 base summary 直接提供预期值而掩盖 continuation 症状。五例均固定 context_depth=0 与 10000 work / 2 s / 512 MB。原 52-case manifest、gold、预算和生产代码保持。
 
 此登记尚未给出新五例的 PASS/RED 结论，须等待该测试提交自己的 CI。即使结果通过，也不证明采用了帧隔离机制；帧输入/写回结构判据、递归 escaping cell、完整 effects 与关联义务仍独立保留。
+
+## A-FRAME 首批真实红例与直接写回修复
+
+`42a04dde` 的实际 CI 已确认前两个递归见证：分析器 converged 且 query Closed，却在有限常量中漏掉 CPython 的 17/40；五项 concrete 控制和三项普通 public 控制通过。该提交 audit 为 5230 pass / 4 fail，其中另外两个失败仍是原 SEM04 资源覆盖项。基线与此次结果身份分开保存。
+
+本候选只修复直接普通调用边界的 local contribution：按实际 Frame.binding scope 选择并解析当前 epoch；对 caller 已有的选定 cell 弱合并旧值和 callee 值，保留未重赋参数、unbound 与引用集合。无写 contribution 扩张时去掉该 cell 的旧 guard。新 cell 导入、heap/metadata ApplicationTransport 和 effects 保持原规则；默认 apply 调用保持原行为。
+
+局部选择扫描及 Value 合并均真实计费。publication 的原 facet admission 下沉到 domains.values，保留 publication 薄包装；新 join 先 admit 两输入，再 join，再 admit 结果后赋入新状态。old is new 时不扫描 Value 或新增 guard 失效。legacy/public 两条普通调用路径均计费，既有因子与资源 profile 不改。Store.apply 仍保持单个图事务，以保留共享 memo/root/alias 顺序；它的长度增加不是复制另一套图转换器。
+
+新增 low-level 成本与所有权边界、escaping closure 36、nonlocal 19、reference 17、heap/reference 46、直接/间接 parameter closure 19 等独立变体。所有新候选结果仍等待本提交 CI，原独立期望不变；不以 Top、Open、提高 budget 或改 manifest 消红。
+
+范围与未解决义务见 [call_frame_writeback_20261114.json](call_frame_writeback_20261114.json)：完整 frame projection、间接无写 contribution 的一般 provenance、输入→出口关联与原 AI01/02 卡仍开放；正常 disjoint globals/nonlocals 与任意跨 scope cell quotient 的精度不能混为一谈。

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "repair_scope": "Direct ordinary source-call local contributions at abstract activation collisions",
+  "red_commit": "42a04dde43aa81808aacfbab588d9c65b53892c9",
+  "red_run": "https://github.com/lkgv/PythonStAn/actions/runs/43583041180",
+  "red_job": "https://github.com/lkgv/PythonStAn/actions/runs/43583041180/job/132411663652",
+  "red_observation": {
+    "independent_concrete_controls_passed": 5,
+    "ordinary_public_controls_passed": 3,
+    "closed_finite_missing_concrete_results": [
+      {
+        "case": "recursive_private_after_call",
+        "concrete": 17
+      },
+      {
+        "case": "recursive_private_and_shared_global",
+        "concrete": 40
+      }
+    ],
+    "audit": {
+      "passed": 5230,
+      "failed": 4,
+      "two_other_failures": "Original SEM04 budget coverage gates"
+    },
+    "source_completion": {
+      "phase": "complete",
+      "gate": "audit",
+      "commit": "42a04dde43aa81808aacfbab588d9c65b53892c9",
+      "exit_code": 1,
+      "elapsed_seconds": 102.94559649300001,
+      "source_before": "5189f5fcbd57ba7e44c8520de9b836fc543e13bab19d481892a4f78b3e9d4197",
+      "source_after": "5189f5fcbd57ba7e44c8520de9b836fc543e13bab19d481892a4f78b3e9d4197",
+      "source_stable": true
+    }
+  },
+  "candidate_behavior": [
+    "Frame.binding scope is the authority; resolve cell identity in current epoch",
+    "Keep old caller and incoming selected local values by weak join; preserve unbound and references",
+    "Merge direct parameter contributions without inventing Python CellWrite effects; invalidate changed cell guards",
+    "Default low-level application, new cell imports and heap/metadata transport unchanged",
+    "Shared value-facet admission is reused by publication and local joins; admit inputs and output, no cost-factor or profile changes",
+    "Identical immutable values require no join admission or new guard invalidation"
+  ],
+  "candidate_runtime_result": "not_run_until_this_candidate_executes",
+  "extra_validation": {
+    "public_cases": 11,
+    "public_checks": 22,
+    "lowlevel_checks": 13,
+    "scope": [
+      "escaping cell36",
+      "nonlocal19",
+      "reference17",
+      "heap+reference46",
+      "direct/wrapped parameter closure19",
+      "epoch namespace separation",
+      "guard invalidation",
+      "root backedge ownership",
+      "unbound preservation",
+      "raw13/ticks2 charge and budget1 denial"
+    ]
+  },
+  "production_files": [
+    "pythonstan/analysis/domains/values.py",
+    "pythonstan/analysis/engines/abstract/publication.py",
+    "pythonstan/analysis/state/store.py",
+    "pythonstan/analysis/engines/abstract/driver.py"
+  ],
+  "unchanged": [
+    "frozen52case manifest",
+    "old gold/assertions/resource caps",
+    "logical-work-v1 factor8 and digest",
+    "main branch"
+  ],
+  "limitations": [
+    "Direct ordinary-call cell contributions only; full frame input projection not implemented",
+    "Indirect parameter-only contribution propagation lacks a separate effect provenance contract; finite wrapper probe is not a proof",
+    "Normal disjoint globals/nonlocals keep strong effects; arbitrary local/global canonical quotient can be more conservative",
+    "Recursive entry/exit correlation, SCC/iterator/narrowing and full parent-card obligations remain open"
+  ],
+  "qualification": "Not full A-FRAME, parent-card, soundness or release qualification"
+}

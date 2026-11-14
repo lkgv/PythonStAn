@@ -16,6 +16,7 @@ from dataclasses import dataclass, field, replace
 from functools import reduce
 from typing import Protocol, override
 
+from pythonstan.analysis.contracts.cost_model import visit_json_text
 from pythonstan.analysis.contracts.identity import ObjectId
 from pythonstan.analysis.contracts.json_data import JsonObject, JsonScalar, JsonValue
 from pythonstan.analysis.contracts.value_wire import canonical_value_document
@@ -288,6 +289,33 @@ class Value:
                 "conjunctions": [[prefix, suffix] for prefix, suffix in self.strings.conjunctions],
             }
         return canonical_value_document(out)
+
+
+def admit_value(value: Value, visit: Callable[[int], None] | None) -> None:
+    if visit is None:
+        return
+    visit(1)
+    for integer in value.ints.consts:
+        visit(1 + integer.bit_length() // 8192)
+    for bound in (value.ints.lo, value.ints.hi):
+        if bound is not None:
+            visit(1 + bound.bit_length() // 8192)
+    for group in (value.strings.consts, value.strings.prefixes, value.strings.suffixes):
+        for text in group:
+            visit_json_text(text, visit)
+    for prefix, suffix in value.strings.conjunctions:
+        visit_json_text(prefix, visit)
+        visit_json_text(suffix, visit)
+    for group in (value.refs, value.top_sorts):
+        for text in group:
+            visit_json_text(text, visit)
+    visit(len(value.bools) + len(value.floats))
+    for relation in value.relations:
+        visit(1)
+        for text in (relation.point, relation.key_type, relation.key_repr, relation.handler):
+            visit_json_text(text, visit)
+        if relation.display_name is not None:
+            visit_json_text(relation.display_name, visit)
 
 
 @dataclass(frozen=True)

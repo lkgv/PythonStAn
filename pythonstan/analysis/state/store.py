@@ -15,7 +15,7 @@ from pythonstan.analysis.contracts.identity import (
     StateRevision,
     UnitId,
 )
-from pythonstan.analysis.domains.values import Value, ValueOperations
+from pythonstan.analysis.domains.values import Value, ValueOperations, admit_value
 from pythonstan.analysis.state.bindings import BindingRef
 from pythonstan.analysis.state.dependencies import SummaryDependency
 from pythonstan.analysis.state.effects import (
@@ -581,10 +581,27 @@ class Store:
             case _:
                 assert_never(effect)
 
-    def apply(self, outcome: Flow, ops: ValueOperations) -> Store:
-        """Apply only callee writes; preserve caller frame and untouched slots."""
+    def apply(
+        self,
+        outcome: Flow,
+        ops: ValueOperations,
+        *,
+        weak_cells: frozenset[CellId] = frozenset(),
+        visit: Callable[[int], None] | None = None,
+    ) -> Store:
+        """Apply callee effects and selected current-epoch local cell contributions."""
         self = self.current_view(ops)
         callee = outcome.store.current_view(ops)
+
+        def join_local(old: Value, new: Value) -> Value:
+            if old is new:
+                return old
+            admit_value(old, visit)
+            admit_value(new, visit)
+            joined = ops.join(old, new)
+            admit_value(joined, visit)
+            return joined
+
         from .transform import ApplicationTransport
 
         transport = ApplicationTransport(self, callee)
@@ -629,10 +646,18 @@ class Store:
         for cell, value in callee.cells.items():
             if cell not in result.cells:
                 result.cells[cell] = value
+            elif cell in weak_cells and CellWrite(cell) not in callee.writes:
+                old = self.cells[cell]
+                if old is not value:
+                    result.cells[cell] = join_local(old, value)
+                    result.guards.pop(cell, None)
         for effect in callee.writes:
             match effect:
                 case CellWrite(cell):
-                    result.cells[cell] = callee.cells.get(cell, Value(unbound=True))
+                    value = callee.cells.get(cell, Value(unbound=True))
+                    if cell in weak_cells and cell in self.cells:
+                        value = join_local(self.cells[cell], value)
+                    result.cells[cell] = value
                 case HeapWrite() | HeapDelete() | HeapDefaultWrite() | MetadataUpdate():
                     result._apply_heap_footprint(effect, callee, ops, transport)
                 case Havoc(objects, cells, namespaces, imports):

@@ -752,6 +752,26 @@ class InterproceduralDriver:
                 "call_dependency", caller=caller, callee=key, revision=self.units[key].revision
             )
 
+    def _call_local_writeback_cells(
+        self, frame: Frame, operations: ValueOperations
+    ) -> frozenset[CellId]:
+        """Select local binding provenance in the current cell identity epoch."""
+        cells: set[CellId] = set()
+        with self.resource_ledger.structural_meter(
+            "call_local_writeback_work",
+            charge=lambda amount: self.charge(amount, "call_local_writeback_work"),
+        ) as meter:
+            # Frame.binding constructs a closure dictionary for each name.
+            meter.visit(len(frame.locals) * (1 + len(frame.closure)))
+            for name in frame.locals:
+                binding = frame.binding(name)
+                if binding.scope == "local":
+                    # Admit an upper bound for the cell-alias chain and insert.
+                    meter.visit(1 + len(operations.arena.cell_aliases))
+                    cells.add(operations.arena.resolve_cell(binding.cell))
+            meter.visit(len(cells))
+            return frozenset(cells)
+
     def request_function(
         self,
         identifier: ObjectId,
@@ -986,8 +1006,20 @@ class InterproceduralDriver:
             except Exception:
                 self.open("oracle_observation_failure", store, site)
         returned_flows: list[Flow] = []
-        for outcome in self.units[key].outcomes:
-            applied = store.apply(outcome, operations)
+        outcomes = self.units[key].outcomes
+        weak_cells = (
+            self._call_local_writeback_cells(self.units[key].frame, operations)
+            if outcomes
+            else frozenset()
+        )
+        for outcome in outcomes:
+            with self.resource_ledger.structural_meter(
+                "call_local_cell_merge_work",
+                charge=lambda amount: self.charge(amount, "call_local_cell_merge_work"),
+            ) as meter:
+                applied = store.apply(
+                    outcome, operations, weak_cells=weak_cells, visit=meter.visit
+                )
             kind = "normal" if outcome.kind == "return" else outcome.kind
             returned_flows.append(
                 make_completion(

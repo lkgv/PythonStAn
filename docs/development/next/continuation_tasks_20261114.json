@@ -89,12 +89,14 @@
       "depends_on": [
         "R0"
       ],
-      "status": "pending_dependencies",
-      "implementation_state": "planned_not_implemented",
-      "execution_validation": "not_run",
+      "status": "running",
+      "implementation_state": "direct_call_contribution_patch_pending_ci",
+      "execution_validation": "red_confirmed_at_42a04dde; repair_candidate_pending",
       "write_scope": [
-        "pythonstan/analysis/engines/abstract/driver.py",
-        "pythonstan/analysis/state/store.py"
+        "pythonstan/analysis/domains/values.py",
+        "pythonstan/analysis/engines/abstract/publication.py",
+        "pythonstan/analysis/state/store.py",
+        "pythonstan/analysis/engines/abstract/driver.py"
       ],
       "objective": "区分caller私有帧与global/closure/escaping cells，限制合法callee写回；保留重入continuation。",
       "acceptance": [
@@ -118,7 +120,13 @@
         ],
         "execution": "not_run_before_this_registration",
         "purpose": "Public symptoms and controls, not proof of frame mechanism"
-      }
+      },
+      "known_limits": [
+        "Direct ordinary-call cell contributions only; full frame input projection not implemented",
+        "Indirect parameter-only contribution propagation lacks a separate effect provenance contract; finite wrapper probe is not a proof",
+        "Normal disjoint globals/nonlocals keep strong effects; arbitrary local/global canonical quotient can be more conservative",
+        "Recursive entry/exit correlation, SCC/iterator/narrowing and full parent-card obligations remain open"
+      ]
     },
     {
       "id": "A-CORRELATION-DESIGN",
